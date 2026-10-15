@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SRS System Information
+GenericName=System Information Viewer
+Comment=System information viewer for Linux - clean-room implementation of SIV64X by Ray Hinchliffe (RH Software)
+Exec=srs-gui
+Icon=srs
+Terminal=false
+Categories=System;Monitor;
+Keywords=SIV;PCI;USB;hwdata;lspci;sysreport;search;

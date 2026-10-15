@@ -1,0 +1,54 @@
+/* srs.rc - resources for SRS64X / SRS32X / srs-gui: icon, accelerators, version info, manifest */
+#include <windows.h>
+
+#define IDM_CLOSE   1001
+#define IDM_ALL     1005
+#define IDM_LOOKUP  1006
+#define IDM_FIND    1007
+#define IDM_HELP    1010
+#define IDM_NEXT    1012
+#define IDM_PREV    1013
+#define IDM_HILITE  1014
+#define IDM_REFRESH 1015
+
+1 ICON "srs.ico"
+
+1 ACCELERATORS
+BEGIN
+    "F",        IDM_FIND,    VIRTKEY, CONTROL
+    "L",        IDM_LOOKUP,  VIRTKEY, CONTROL
+    "D",        IDM_ALL,     VIRTKEY, CONTROL
+    "H",        IDM_HILITE,  VIRTKEY, CONTROL
+    VK_F3,      IDM_NEXT,    VIRTKEY
+    VK_F3,      IDM_PREV,    VIRTKEY, SHIFT
+    VK_F5,      IDM_REFRESH, VIRTKEY
+    VK_F1,      IDM_HELP,    VIRTKEY
+    VK_ESCAPE,  IDCANCEL,    VIRTKEY
+END
+
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEOS          0x40004
+FILETYPE        0x1
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080904B0"
+        BEGIN
+            VALUE "CompanyName",      "Eugene Flanagin"
+            VALUE "FileDescription",  "System Report Search"
+            VALUE "FileVersion",      "1.0"
+            VALUE "InternalName",     "SRS"
+            VALUE "LegalCopyright",   "Clean-room; data from hwdata pci.ids/usb.ids"
+            VALUE "ProductName",      "SRS - System Report Search"
+            VALUE "ProductVersion",   "1.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x809, 1200
+    END
+END
+
+1 24 "srs.manifest"
