@@ -3,6 +3,19 @@
 SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.0.5 - 2026-10-15
+
+### Added
+- **CPU Burnin / Stress: GPU Load command diagnostics** - a wrong or misspelled command no longer
+  fails silently.
+  - Before starting, SRS checks the command's program exists (PATH or full path). If not, an
+    error dialog names it and nothing is started.
+  - New "GPU Load" status line while running: running (pid), finished (exit 0) after N s - the
+    CPU run continues, failed (exit N), not found (exit 127), not executable (exit 126), killed by
+    signal N, or stopped with the CPU load. Failures show in red.
+  - The command's own output (stdout + stderr) is saved to `~/.cache/srs/gpu-load.log`, so its
+    error messages are kept.
+
 ## 1.0.4 - 2026-10-15
 
 ### Added

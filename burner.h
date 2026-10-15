@@ -40,6 +40,8 @@ typedef struct {
     double elapsed, remaining, phase_left;
     burn_sample cur, avg, roll, max;
     char status[160];
+    char gpu_msg[300];         /* GPU load command state ("" = no command): running / finished / failed (exit code) */
+    int gpu_bad;               /* 1 when the GPU load command failed or was not found */
     int nthreads;
     burn_thread th[BURN_MAXCPU];
     double per_cpu_user[BURN_MAXCPU], per_cpu_sys[BURN_MAXCPU], per_cpu_mhz[BURN_MAXCPU];

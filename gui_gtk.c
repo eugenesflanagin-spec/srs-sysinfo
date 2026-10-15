@@ -950,7 +950,9 @@ static void render_burn(swin *w)
     so_t(&o, C_LABEL, "Status"); so_tab(&o);
     so_b(&o, st->state == BURN_FAIL ? C_RED : st->state == BURN_PASS ? C_GREEN : C_ORANGE, states[st->state >= 0 && st->state <= 5 ? st->state : 0]);
     so_tab(&o); so_t(&o, C_LABEL, "Elapsed"); so_tab(&o); so_t(&o, C_BLACK, a); so_tab(&o); so_t(&o, C_LABEL, "Remaining  "); so_t(&o, C_BLACK, b); so_par(&o);
-    so_t(&o, C_GRAY, st->status); so_par(&o); so_par(&o);
+    so_t(&o, C_GRAY, st->status); so_par(&o);
+    if (st->gpu_msg[0]) { so_t(&o, C_LABEL, "GPU Load  "); so_t(&o, st->gpu_bad ? C_RED : C_GRAY, st->gpu_msg); so_par(&o); }
+    so_par(&o);
     so_row(&o, 5, (const char *const[]){ "", "Current", "Overall Average", "Rolling Average", "Maximum" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
     for (i = 0; i < 7; i++) {
         char c[4][48];
@@ -1057,6 +1059,40 @@ static gboolean draw_plot(GtkWidget *wid, cairo_t *cr, gpointer data)
     return FALSE;
 }
 
+/* before starting: the GPU load command's program must exist (a typo otherwise fails silently) */
+static int gpu_cmd_ok(swin *w, const char *cmd)
+{
+    static const char *const builtins[] = { "exec", "command", "time", "nohup", "env", "cd", ".", "source", "{", "(", NULL };
+    char **argv = NULL, *path = NULL, prog[512] = "";
+    int argc = 0, ok = 1, i;
+    if (!g_shell_parse_argv(cmd, &argc, &argv, NULL) || argc < 1) {
+        snprintf(prog, sizeof prog, "%s", cmd);
+        ok = 0;
+    } else {
+        int a = 0;
+        while (a < argc && strchr(argv[a], '=') && argv[a][0] != '=') a++;   /* VAR=value prefixes */
+        if (a < argc) {
+            snprintf(prog, sizeof prog, "%s", argv[a]);
+            for (i = 0; builtins[i]; i++) if (!strcmp(prog, builtins[i])) break;
+            if (!builtins[i]) {
+                if (strchr(prog, '/')) ok = g_file_test(prog, G_FILE_TEST_IS_EXECUTABLE) && !g_file_test(prog, G_FILE_TEST_IS_DIR);
+                else ok = (path = g_find_program_in_path(prog)) != NULL;
+            }
+        }
+    }
+    g_free(path);
+    g_strfreev(argv);
+    if (!ok) {
+        GtkWidget *m = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK,
+            "GPU load command not found:\n\n    %s\n\nCheck the spelling, or untick \"GPU Load command\" to run without it. "
+            "Nothing was started.", prog);
+        gtk_window_set_title(GTK_WINDOW(m), "GPU load command");
+        gtk_dialog_run(GTK_DIALOG(m));
+        gtk_widget_destroy(m);
+    }
+    return ok;
+}
+
 static void on_burn_start(GtkWidget *x, gpointer data)
 {
     swin *w = data;
@@ -1086,6 +1122,7 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gtk_entry_get_text(GTK_ENTRY(w->b_gpucmd)));
         settings_save();
         c.gpu_cmd = *g_gpucmd ? g_gpucmd : NULL;
+        if (c.gpu_cmd && !gpu_cmd_ok(w, c.gpu_cmd)) return;
     }
     if (!n) { gtk_widget_error_bell(w->win); return; }
     if (!getenv("SRS_TEST_NOCONFIRM")) {   /* SIV-style warning before making CPUs 100% busy */

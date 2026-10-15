@@ -5,6 +5,8 @@
 
 #if defined(__x86_64__) || defined(__i386__)
 #include <cpuid.h>
+#include <errno.h>
+#include <fcntl.h>
 #define SRS_X86 1
 #endif
 #include <math.h>
@@ -14,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -370,6 +373,45 @@ static int g_state = BURN_IDLE, g_cycle, g_nsamp;
 static burn_sample g_sum, g_max, g_roll;
 static char g_status[160] = "Idle";
 static pid_t g_gpu_pid;
+static double g_gpu_t0;
+static char g_gpu_msg[300], g_gpu_log[600];
+static int g_gpu_bad;
+
+/* the GPU load command's own output goes to ~/.cache/srs/gpu-load.log so errors are not lost */
+static void gpu_log_path(void)
+{
+    const char *x = getenv("XDG_CACHE_HOME"), *h = getenv("HOME");
+    char dir[560];
+    if (x && *x) snprintf(dir, sizeof dir, "%s", x);
+    else snprintf(dir, sizeof dir, "%s/.cache", h && *h ? h : "/tmp");
+    mkdir(dir, 0755);
+    strncat(dir, "/srs", sizeof dir - strlen(dir) - 1);
+    mkdir(dir, 0755);
+    snprintf(g_gpu_log, sizeof g_gpu_log, "%s/gpu-load.log", dir);
+}
+
+/* reap the GPU load command if it ended by itself and say why */
+static void gpu_check(void)
+{
+    int ws;
+    pid_t r;
+    if (!g_gpu_pid) return;
+    r = waitpid(g_gpu_pid, &ws, WNOHANG);
+    if (r != g_gpu_pid) return;
+    g_gpu_pid = 0;
+    if (WIFEXITED(ws)) {
+        int rc = WEXITSTATUS(ws);
+        double secs = now_s() - g_gpu_t0;
+        g_gpu_bad = rc != 0;
+        if (rc == 127) snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command not found (exit 127): %s  - see %s", g_cfg.gpu_cmd, g_gpu_log);
+        else if (rc == 126) snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command is not executable (exit 126): %s  - see %s", g_cfg.gpu_cmd, g_gpu_log);
+        else if (rc) snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command failed (exit %d) after %.0f s  - see %s", rc, secs, g_gpu_log);
+        else snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command finished (exit 0) after %.0f s; the CPU run continues", secs);
+    } else if (WIFSIGNALED(ws)) {
+        g_gpu_bad = 1;
+        snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command was killed by signal %d  - see %s", WTERMSIG(ws), g_gpu_log);
+    }
+}
 
 int burn_active(void) { return g_active; }
 
@@ -396,17 +438,33 @@ static void set_run(int v)
 static void gpu_load(int on)
 {
     if (on && g_cfg.gpu_cmd && *g_cfg.gpu_cmd && !g_gpu_pid) {
-        pid_t p = fork();
+        pid_t p;
+        gpu_log_path();
+        p = fork();
         if (p == 0) {
+            int fd = open(g_gpu_log, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
             setpgid(0, 0);
+            if (fd >= 0) { dup2(fd, 1); dup2(fd, 2); }
             execl("/bin/sh", "sh", "-c", g_cfg.gpu_cmd, (char *)NULL);
             _exit(127);
         }
-        if (p > 0) g_gpu_pid = p;
+        if (p > 0) {
+            g_gpu_pid = p;
+            g_gpu_t0 = now_s();
+            g_gpu_bad = 0;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command running (pid %d): %s", (int)p, g_cfg.gpu_cmd);
+        } else {
+            g_gpu_bad = 1;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command could not be started: %s", strerror(errno));
+        }
     } else if (!on && g_gpu_pid) {
-        kill(-g_gpu_pid, SIGTERM);
-        waitpid(g_gpu_pid, NULL, 0);
-        g_gpu_pid = 0;
+        gpu_check();   /* it may already have ended by itself */
+        if (g_gpu_pid) {
+            kill(-g_gpu_pid, SIGTERM);
+            waitpid(g_gpu_pid, NULL, 0);
+            g_gpu_pid = 0;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command stopped with the CPU load");
+        }
     }
 }
 
@@ -438,6 +496,8 @@ int burn_start(const burn_cfg *c)
     memset(&g_roll, 0, sizeof g_roll);
     g_nsamp = 0;
     g_cycle = 1;
+    g_gpu_msg[0] = 0;
+    g_gpu_bad = 0;
     g_t0 = g_phase_t0 = g_last_tick = now_s();
     g_state = BURN_RUNNING;
     g_active = 1;
@@ -472,6 +532,7 @@ void burn_tick(burn_status *st)
     int i, apic_bad = 0;
     burn_sample_now(&s);
     memset(st, 0, sizeof *st);
+    gpu_check();
     if (g_active) {
         g_nsamp++;
         g_sum.cpu_load += s.cpu_load; g_sum.cpu_mhz += s.cpu_mhz; g_sum.cpu_temp += s.cpu_temp;
@@ -516,6 +577,8 @@ void burn_tick(burn_status *st)
     st->roll = g_roll;
     st->max = g_max;
     snprintf(st->status, sizeof st->status, "%s", g_status);
+    snprintf(st->gpu_msg, sizeof st->gpu_msg, "%s", g_gpu_msg);
+    st->gpu_bad = g_gpu_bad;
     st->nthreads = g_nw;
     for (i = 0; i < g_nw; i++) {
         pthread_mutex_lock(&g_w[i].mu);
