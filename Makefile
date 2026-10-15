@@ -123,6 +123,9 @@ install-system: native
 	install -Dm755 sysreport.sh $(DESTDIR)$(SYSPREFIX)/bin/srs-sysreport
 	install -Dm644 srs.png $(DESTDIR)$(SYSPREFIX)/share/icons/hicolor/256x256/apps/srs.png
 	install -Dm644 srs-gui.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-gui.desktop
+	install -Dm644 srs-burnin.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-burnin.desktop
+	install -Dm644 srs-benchmark.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-benchmark.desktop
+	install -Dm644 srs-sysreport.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-sysreport.desktop
 	install -Dm644 README.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/README.md
 	install -Dm644 EVIDENCE.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/EVIDENCE.md
 	install -Dm644 CHECKLIST.tsv $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHECKLIST.tsv

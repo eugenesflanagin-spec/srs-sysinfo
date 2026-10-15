@@ -129,7 +129,7 @@ typedef struct {
     long long sectors, start;          /* 512-byte units */
     char model[128], vendor[64], serial[192], rev[64], bus[16], state[32];
     char fstype[32], fsver[32], label[128], uuid[80], ptype[64], pname[96];
-    char syspath[512];
+    char syspath[PATH_MAX];
 } bdev;
 
 static int is_phys(const char *n)
@@ -1407,7 +1407,7 @@ static void s_usb_disks(srs_out *o)
     so_par(o);
     for (i = 0; i < nd; i++) {
         bdev d;
-        char ud[PATH_MAX], br[200], mf[96], pr[96], vid[16], pid[16], vp[40], sp[32], drv[64], sz[32], m[300], p[PATH_MAX + 40], rp[PATH_MAX];
+        char ud[PATH_MAX], br[200], mf[96], pr[96], vid[16], pid[16], vp[40], sp[32], drv[64], sz[32], m[PATH_MAX], p[PATH_MAX + 40], rp[PATH_MAX];
         const char *cells[8];
         if (!usb_dev_dir(dn[i], ud, sizeof ud)) continue;
         bdev_load(dn[i], &d);

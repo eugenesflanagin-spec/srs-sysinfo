@@ -7,4 +7,33 @@ Exec=srs-gui
 Icon=srs
 Terminal=false
 Categories=System;Monitor;
-Keywords=SIV;PCI;USB;hwdata;lspci;sysreport;search;
+Keywords=SIV;system;information;hardware;sensors;PCI;USB;CPU;SMART;report;
+Actions=Sensors;Processors;Burnin;Stress;Benchmark;Lookup;Find;
+
+[Desktop Action Sensors]
+Name=Sensors
+Exec=srs-gui --gui-open=sensors
+
+[Desktop Action Processors]
+Name=Processors
+Exec=srs-gui --gui-open=processors
+
+[Desktop Action Burnin]
+Name=CPU Burnin
+Exec=srs-gui --gui-open=burnin
+
+[Desktop Action Stress]
+Name=CPU Stress
+Exec=srs-gui --gui-open=stress
+
+[Desktop Action Benchmark]
+Name=Benchmark
+Exec=srs-gui --gui-open=bench
+
+[Desktop Action Lookup]
+Name=Device ID Lookup
+Exec=srs-gui --gui-open=idlookup
+
+[Desktop Action Find]
+Name=Find in System Report
+Exec=srs-gui --gui-open=find

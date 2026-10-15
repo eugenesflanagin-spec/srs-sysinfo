@@ -1273,7 +1273,7 @@ static void s_pnp_dev(srs_out *o)
         pnp_name(id, nm, sizeof nm);
         link_base(dir, "driver", dr, sizeof dr);
         {
-            char rp[300];
+            char rp[PATH_MAX];
             snprintf(rp, sizeof rp, "%s/resources", dir);
             if (rd_all(rp, &res) >= 0) {
                 for (p = strtok_r(res, "\n", &sv); p; p = strtok_r(NULL, "\n", &sv))

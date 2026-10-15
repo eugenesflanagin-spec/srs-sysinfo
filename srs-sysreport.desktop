@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SRS Full System Report
+GenericName=System Report
+Comment=Write a full text system report folder (~/sysreports) for SRS Find
+Exec=srs-sysreport
+Icon=srs
+Terminal=true
+Categories=System;Monitor;
+Keywords=report;inxi;dmidecode;lshw;hwinfo;smart;

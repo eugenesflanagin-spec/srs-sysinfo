@@ -1464,7 +1464,9 @@ int main(int argc, char **argv)
     }
     g_wins = g_ptr_array_new();
     open_main();
-    if ((autop = getenv("SRS_OPEN"))) {   /* test hook: comma-separated items or tool names to open at start */
+    autop = getenv("SRS_OPEN");   /* comma-separated items or tool names to open at start */
+    if (argc > 1 && !strncmp(argv[1], "--gui-open=", 11)) autop = argv[1] + 11;   /* menu entries / jump list */
+    if (autop) {
         char tmp[2048], *t, *save;
         snprintf(tmp, sizeof tmp, "%s", autop);
         for (t = strtok_r(tmp, ",", &save); t; t = strtok_r(NULL, ",", &save)) {

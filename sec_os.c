@@ -17,6 +17,7 @@
 #include <iconv.h>
 #include <malloc.h>
 #include <sched.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2213,7 +2214,7 @@ static void s_vs_paths(srs_out *o)
     so_row(o, 3, (const char *const[]){ "Tool", "Path", "Resolves To" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
     so_par(o);
     for (i = 0; tools[i]; i++) {
-        char dirs[8192], *save = NULL, *d, found[1024] = "", real[1024] = "";
+        char dirs[8192], *save = NULL, *d, found[1024] = "", real[PATH_MAX] = "";
         snprintf(dirs, sizeof dirs, "%s", path ? path : "/usr/bin");
         for (d = strtok_r(dirs, ":", &save); d; d = strtok_r(NULL, ":", &save)) {
             char p[1024];

@@ -18,6 +18,7 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <stdint.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -207,7 +208,7 @@ static int gpu_fill(const char *card, gpu_t *g)
 /* list of GPUs (cards without '-'), max 8 */
 static int gpus(gpu_t *g, int max)
 {
-    char **nm;
+    char **nm = NULL;
     int n = dir_list(DRM, &nm), i, k = 0;
     for (i = 0; i < n && k < max; i++) {
         if (!starts(nm[i], "card") || strchr(nm[i], '-')) continue;
@@ -378,7 +379,7 @@ static void dpm_rows(srs_out *o, const gpu_t *g, const char *label, const char *
 typedef struct { char name[64]; char conn[48]; char status[24]; char enabled[16]; char dpms[16]; int id; } conn_t;
 static int connectors(const gpu_t *g, conn_t *c, int max)
 {
-    char **nm, pre[48];
+    char **nm = NULL, pre[48];
     int n = dir_list(DRM, &nm), i, k = 0;
     snprintf(pre, sizeof pre, "%s-", g->card);
     for (i = 0; i < n && k < max; i++) {
@@ -841,11 +842,11 @@ static void s_gpu_bios(srs_out *o)
  * ====================================================================== */
 static void map_body(srs_out *o, const gpu_t *g)
 {
-    char p[1024], b[512], real[1024];
+    char p[1024], b[512], real[PATH_MAX];
     long v;
     char *t;
     int i, n;
-    char **nm;
+    char **nm = NULL;
     so_kvf(o, "Bus/Dev/Func", C_BLACK, "%s", g->slot);
     if (realpath(g->dev, real)) so_kv(o, "PCI path", C_VALUE, real + (starts(real, "/sys/devices/") ? 13 : 0));
     snprintf(p, sizeof p, "%s/iommu_group", g->dev);
@@ -914,7 +915,7 @@ static void tree_gpu(srs_out *o, const gpu_t *g, int with_hw)
 {
     conn_t c[16];
     int n = connectors(g, c, 16), i;
-    char nm[160], real[1024];
+    char nm[160], real[PATH_MAX];
     gpu_name(g, nm, sizeof nm);
     so_b(o, C_BLACK, g->card); so_t(o, C_VALUE, "  "); so_t(o, C_VALUE, nm); so_par(o);
     if (with_hw) {
@@ -1361,7 +1362,7 @@ static void s_gpu_i2c(srs_out *o)
 {
     static const int tabs[] = { 120, 340 };
     gpu_t g;
-    char **nm, p[512], b[256];
+    char **nm = NULL, p[512], b[256];
     int n, i;
     so_siv_header(o, "GPU I2C Devices");
     if (!gpu_sel(o, &g)) { so_err(o, "No DRM GPU found"); return; }
@@ -1369,7 +1370,7 @@ static void s_gpu_i2c(srs_out *o)
     so_b(o, C_LABEL, "Bus"); so_tab(o); so_b(o, C_LABEL, "Name"); so_tab(o); so_b(o, C_LABEL, "Owner"); so_par(o);
     n = dir_list("/sys/bus/i2c/devices", &nm);
     for (i = 0; i < n; i++) {
-        char real[1024], own[256] = "";
+        char real[PATH_MAX], own[256] = "";
         if (!starts(nm[i], "i2c-")) continue;
         snprintf(p, sizeof p, "/sys/bus/i2c/devices/%s", nm[i]);
         if (!realpath(p, real)) continue;
@@ -1843,7 +1844,7 @@ static void s_dxd_sum(srs_out *o)
 static void s_dxd_fil(srs_out *o)
 {
     static const int tabs[] = { 230 };
-    char **nm;
+    char **nm = NULL;
     int n, i;
     so_siv_header(o, "Graphics Runtime Files");
     so_tabs(o, tabs, 1);
@@ -2028,7 +2029,7 @@ static void s_gpu_export(srs_out *o)
 {
     static const int tabs[] = { 160, 300 };
     gpu_t g;
-    char **nm;
+    char **nm = NULL;
     int n, i;
     so_siv_header(o, "GPU Export (sensor sources)");
     if (!gpu_sel(o, &g)) { so_err(o, "No DRM GPU found"); return; }
@@ -2445,7 +2446,7 @@ static int input_devs(indev *d, int max)
 static void s_joysticks(srs_out *o)
 {
     static const int tabs[] = { 70, 330, 450 };
-    char **nm;
+    char **nm = NULL;
     int n = dir_list("/sys/class/input", &nm), i, k = 0;
     indev d[96];
     int nd;
@@ -2508,7 +2509,7 @@ static void s_dxd_usb(srs_out *o)
 static void s_dxd_gam(srs_out *o)
 {
     static const int tabs[] = { 200 };
-    char **nm;
+    char **nm = NULL;
     int n = dir_list("/sys/bus/gameport/devices", &nm), i;
     so_siv_header(o, "DirectInput Gameports");
     so_tabs(o, tabs, 1);
@@ -2521,7 +2522,7 @@ static void s_dxd_gam(srs_out *o)
 static void s_dxd_ps2(srs_out *o)
 {
     static const int tabs[] = { 120 };
-    char **nm;
+    char **nm = NULL;
     int n = dir_list("/sys/bus/serio/devices", &nm), i;
     so_siv_header(o, "DirectInput PS/2 Devices");
     so_tabs(o, tabs, 1);
@@ -2565,7 +2566,7 @@ static void s_dxd_ftr(srs_out *o)
     int d;
     so_siv_header(o, "Media Filters (DirectShow equivalent: GStreamer plugins)");
     for (d = 0; dirs[d]; d++) {
-        char **nm;
+        char **nm = NULL;
         int n = dir_list(dirs[d], &nm), i, k = 0;
         if (n < 0) continue;
         so_b(o, C_VALUE, dirs[d]); so_par(o);
@@ -2589,7 +2590,7 @@ static void s_dxd_ftr(srs_out *o)
 static void s_dxd_ply(srs_out *o)
 {
     static const int tabs[] = { 200 };
-    char **nm;
+    char **nm = NULL;
     int n = dir_list("/sys/class/net", &nm), i;
     so_siv_header(o, "DirectPlay Adapters");
     so_tabs(o, tabs, 1);

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SRS Benchmark
+GenericName=CPU Benchmark
+Comment=Dhrystone / Whetstone CPU benchmark, IPI delay and memory latency (SRS System Information)
+Exec=srs-gui --gui-open=bench,ipi,latency
+Icon=srs
+Terminal=false
+Categories=System;Monitor;
+Keywords=benchmark;dhrystone;whetstone;latency;cpu;

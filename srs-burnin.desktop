@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SRS CPU Burnin & Stress
+GenericName=CPU Stress Test
+Comment=SIV-style CPU Burnin / CPU Stress with temperature limit (SRS System Information)
+Exec=srs-gui --gui-open=burnin,stress
+Icon=srs
+Terminal=false
+Categories=System;Monitor;
+Keywords=burn;burnin;stress;cpu;torture;whetstone;benchmark;
