@@ -548,6 +548,16 @@ static void smbios_ver(char *b, size_t sz, char *count, size_t csz)
     else if (ep == 31) snprintf(b, sz, "SMBios V2.x");
     else snprintf(b, sz, "SMBios");
     if (dmid_line(NULL, "structures occupying", l, sizeof l)) snprintf(count, csz, "Count %d", atoi(l));
+    else {   /* dmidecode 3.6+ no longer prints the summary line: count the Handle records instead */
+        const char *f = so_root_file("dmidecode.txt");
+        char *txt, *q;
+        int n = 0;
+        if (f && rd_all(f, &txt) >= 0) {
+            for (q = txt; (q = strstr(q, "\nHandle 0x")); q++) n++;
+            free(txt);
+            if (n) snprintf(count, csz, "Count %d", n);
+        }
+    }
 }
 
 static void s_machine(srs_out *o)

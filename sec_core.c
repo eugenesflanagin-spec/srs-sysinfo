@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <pwd.h>
 
 /* ======================================================================
  * output helpers
@@ -260,13 +261,64 @@ int dir_list(const char *dir, char ***names) { return plat_listdir(dir, names); 
 void dir_free(char **names, int n) { if (n > 0) plat_freelist(names, n); }
 int path_exists(const char *path) { struct stat st; return stat(path, &st) == 0; }
 
+/* Root-only data comes from srs-root's cache. Normal runs read ~/.cache/srs/root. When srs-gui /
+   sysreport-search itself runs as root (sudo), HOME is usually /root, so also look in the invoking
+   user's cache (SUDO_USER / PKEXEC_UID), and if no cache exists anywhere, collect one now (once). */
+static int root_dirs(char dirs[3][1100])
+{
+    int n = 0;
+    const char *h = getenv("HOME");
+    if (h) snprintf(dirs[n++], 1100, "%s/.cache/srs/root", h);
+    if (geteuid() == 0) {
+        const char *su = getenv("SUDO_USER"), *pu = getenv("PKEXEC_UID");
+        struct passwd *pw = su ? getpwnam(su) : pu ? getpwuid((uid_t)atoi(pu)) : NULL;
+        if (pw && pw->pw_dir) snprintf(dirs[n++], 1100, "%s/.cache/srs/root", pw->pw_dir);
+    }
+    return n;
+}
+
+static void root_autocollect(void)
+{
+    static int done;
+    char exe[1024], helper[1100], dirs[3][1100];
+    ssize_t l;
+    int n, i;
+    if (done || geteuid() != 0) return;
+    done = 1;
+    n = root_dirs(dirs);
+    for (i = 0; i < n; i++) {
+        char c[1200];
+        snprintf(c, sizeof c, "%s/collected.txt", dirs[i]);
+        if (path_exists(c)) return;   /* a cache exists: use it (refresh with Menu > Run as root) */
+    }
+    l = readlink("/proc/self/exe", exe, sizeof exe - 1);
+    if (l <= 0) return;
+    exe[l] = 0;
+    if (strrchr(exe, '/')) *strrchr(exe, '/') = 0;
+    snprintf(helper, sizeof helper, "%s/srs-root", exe);
+    if (!path_exists(helper)) snprintf(helper, sizeof helper, "/usr/bin/srs-root");
+    if (!path_exists(helper)) return;
+    fprintf(stderr, "srs: running as root with no cached root data - collecting it once with %s ...\n", helper);
+    {
+        const char *argv[] = { "/bin/sh", helper, NULL };
+        char *out = NULL;
+        run_out(&out, argv);
+        free(out);
+    }
+}
+
 const char *so_root_file(const char *name)
 {
-    static char p[1100];
-    const char *h = getenv("HOME");
-    if (!h) return NULL;
-    snprintf(p, sizeof p, "%s/.cache/srs/root/%s", h, name);
-    return path_exists(p) ? p : NULL;
+    static char p[1200];
+    char dirs[3][1100];
+    int n, i;
+    root_autocollect();
+    n = root_dirs(dirs);
+    for (i = 0; i < n; i++) {
+        snprintf(p, sizeof p, "%s/%s", dirs[i], name);
+        if (path_exists(p)) return p;
+    }
+    return NULL;
 }
 
 void fmt_bytes(double v, char *buf, size_t sz)

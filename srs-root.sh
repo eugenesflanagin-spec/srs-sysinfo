@@ -18,6 +18,10 @@ command -v decode-dimms >/dev/null && { decode-dimms > spd.txt 2>&1; log decode-
 for d in /sys/block/*; do
   n=${d##*/}
   case $n in loop*|ram*|zram*|dm-*|sr*) continue ;; esac
+  # USB bridges: SMART pass-through is meaningless on sticks and can upset flaky enclosures
+  if [ -z "${SRS_SMART_USB:-}" ] && readlink -f "/sys/block/$n" | grep -q '/usb[0-9]'; then
+    echo "skipped: USB-attached (set SRS_SMART_USB=1 to include)" > "smart-$n.txt"; continue
+  fi
   command -v smartctl >/dev/null && smartctl -x "/dev/$n" > "smart-$n.txt" 2>&1
   case $n in nvme*) command -v nvme >/dev/null && nvme smart-log "/dev/$n" > "nvme-$n.txt" 2>&1 ;; esac
 done

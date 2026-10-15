@@ -58,6 +58,14 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 - Hot-keys: Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel.
 
+## Root-only data
+
+SMBIOS serials/UUID, DIMM SPD, SMART, ACPI tables, MSRs and full PCI config space need root.
+Either use **Menu -> Run as root** (one `pkexec` prompt; the results are cached in
+`~/.cache/srs/root` and every panel shows them from then on), or run the CLI with `sudo`
+(`sudo sysreport-search -save`): as root it uses the invoking user's cache, or collects one
+first if none exists. SMART skips USB-attached disks unless `SRS_SMART_USB=1` is set.
+
 ## Command line
 
     srs-gui -save                          SIV's default item set to the console
