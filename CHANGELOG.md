@@ -3,6 +3,24 @@
 SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.0.4 - 2026-10-15
+
+### Added
+- **Dark mode.** Menu -> Options -> Theme (also in the tray's SRS Menu):
+  - *Light (SIV classic)* - default, unchanged SIV look.
+  - *Dark* - dark panels, light text, SIV's blue / purple / teal / orange / green / red palette
+    brightened for a dark background; dark buttons, inputs, menus (Adwaita dark) and graphs
+    (Burnin / Stress history, Latency curve).
+  - *Follow desktop* - uses the desktop colour scheme from xdg-desktop-portal
+    (`org.freedesktop.appearance color-scheme`; KDE Plasma and GNOME set it) and switches live when
+    the desktop scheme changes. Falls back to `GTK_THEME` / `~/.config/gtk-3.0/settings.ini`.
+- Switching applies immediately to every open window; saved as `Theme=Light|Dark|System` in
+  `~/.config/srs/SRSDEF.ini`. Find highlights keep dark text in dark mode so they stay readable.
+
+### Changed
+- srs-gui no longer forces `GTK_THEME=Adwaita:light`; the Theme option drives Adwaita light / dark
+  for the SRS process itself (a dark `GTK_THEME` such as adw-gtk3-dark no longer half-themes it).
+
 ## 1.0.3 - 2026-10-15
 
 ### Added

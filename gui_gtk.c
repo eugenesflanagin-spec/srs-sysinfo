@@ -25,7 +25,16 @@
 void sensors_zero(void) __attribute__((weak));
 void sensors_set_hide_unused(int on) __attribute__((weak));
 
-static const char *g_pal[C_NCOL] = { "#000000", "#3399FF", "#0000CC", "#9C0FB8", "#009999", "#FF8800", "#00A000", "#E00000", "#000000", "#808080" };
+static const char *const g_pal_light[C_NCOL] = { "#000000", "#3399FF", "#0000CC", "#9C0FB8", "#009999", "#FF8800", "#00A000", "#E00000", "#000000", "#808080" };
+/* dark mode: same hues as SIV's palette, lifted so they read on a dark panel */
+static const char *const g_pal_dark[C_NCOL] = { "#E6E6E6", "#5CB0FF", "#8FB4FF", "#D88CF0", "#3CD0D0", "#FFA64D", "#5AD65A", "#FF6B6B", "#E6E6E6", "#9A9A9A" };
+static const char *const *g_pal = g_pal_light;
+/* theme: 0 light (SIV classic), 1 dark, 2 follow the desktop */
+enum { TH_LIGHT, TH_DARK, TH_SYSTEM };
+static int g_theme = TH_LIGHT, g_dark, g_portal_scheme = -1;
+static char g_env_theme[256];
+static GDBusProxy *g_portal;
+static void theme_apply(void);
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
@@ -75,6 +84,23 @@ static void open_tool(wkind k, int sub);
  * ====================================================================== */
 typedef struct { swin *w; GtkTextIter end; const char *tabtag; } gctx;
 
+/* (re)colour a buffer's palette tags for the current theme; find highlight keeps dark text in dark mode */
+static void theme_tags(GtkTextBuffer *b)
+{
+    GtkTextTagTable *tt = gtk_text_buffer_get_tag_table(b);
+    GtkTextTag *t;
+    char n[8];
+    int i;
+    for (i = 0; i < C_NCOL; i++) {
+        snprintf(n, sizeof n, "c%d", i);
+        if ((t = gtk_text_tag_table_lookup(tt, n))) g_object_set(t, "foreground", g_pal[i], NULL);
+    }
+    if ((t = gtk_text_tag_table_lookup(tt, "hl"))) {
+        if (g_dark) g_object_set(t, "foreground", "#000000", NULL);
+        else g_object_set(t, "foreground-set", FALSE, NULL);
+    }
+}
+
 static void ensure_tags(GtkTextBuffer *b)
 {
     GtkTextTagTable *tt = gtk_text_buffer_get_tag_table(b);
@@ -88,6 +114,7 @@ static void ensure_tags(GtkTextBuffer *b)
     gtk_text_buffer_create_tag(b, "b", "weight", PANGO_WEIGHT_BOLD, NULL);
     gtk_text_buffer_create_tag(b, "m", "family", "Courier New", NULL);
     gtk_text_buffer_create_tag(b, "hl", "background", g_findcol, NULL);
+    theme_tags(b);
 }
 
 static const char *tabs_tag(GtkTextBuffer *b, const int *px, int n)
@@ -171,6 +198,11 @@ static void settings_load(void)
         if (!e) g_highlight = h; else g_error_free(e);
         if (gc) snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gc);
         {
+            char *th = g_key_file_get_string(kf, "SRSDEF", "Theme", NULL);
+            if (th) g_theme = !g_ascii_strcasecmp(th, "Dark") ? TH_DARK : !g_ascii_strcasecmp(th, "System") ? TH_SYSTEM : TH_LIGHT;
+            g_free(th);
+        }
+        {
             static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray" };
             int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray };
             int k;
@@ -201,6 +233,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
+    g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
 }
@@ -974,21 +1007,23 @@ static gboolean draw_plot(GtkWidget *wid, cairo_t *cr, gpointer data)
     swin *w = data;
     int W = gtk_widget_get_allocated_width(wid), H = gtk_widget_get_allocated_height(wid), k, i;
     static const double col[4][3] = { { 0, .63, 0 }, { .88, 0, 0 }, { 1, .53, 0 }, { 0, .2, .8 } };
-    cairo_set_source_rgb(cr, 1, 1, 1);
+    double lift = g_dark ? .35 : 0;   /* dark mode: lines mixed toward white so they stay visible */
+#define PLOT_RGB(r, g, b) cairo_set_source_rgb(cr, (r) + (1 - (r)) * lift, (g) + (1 - (g)) * lift, (b) + (1 - (b)) * lift)
+    if (g_dark) cairo_set_source_rgb(cr, .12, .12, .12); else cairo_set_source_rgb(cr, 1, 1, 1);
     cairo_paint(cr);
-    cairo_set_source_rgb(cr, .85, .85, .85);
+    if (g_dark) cairo_set_source_rgb(cr, .3, .3, .3); else cairo_set_source_rgb(cr, .85, .85, .85);
     for (i = 1; i < 4; i++) { cairo_move_to(cr, 0, H * i / 4.0); cairo_line_to(cr, W, H * i / 4.0); }
     cairo_stroke(cr);
     if (w->kind == W_BURN) {
         for (k = 0; k < 4; k++) {
-            cairo_set_source_rgb(cr, col[k][0], col[k][1], col[k][2]);
+            PLOT_RGB(col[k][0], col[k][1], col[k][2]);
             for (i = 0; i < w->nhist; i++) {
                 double x = W - (w->nhist - 1 - i) * 2.0, y = H - w->hist[k][i] / 100.0 * H;
                 if (i == 0) cairo_move_to(cr, x, y); else cairo_line_to(cr, x, y);
             }
             cairo_stroke(cr);
         }
-        cairo_set_source_rgb(cr, .3, .3, .3);
+        if (g_dark) cairo_set_source_rgb(cr, .75, .75, .75); else cairo_set_source_rgb(cr, .3, .3, .3);
         cairo_move_to(cr, 6, 14);
         cairo_show_text(cr, "green CPU load %   red hottest core C   orange SIO C   blue GPU C   (scale 0-100)");
     } else if (w->sub == BK_IPI) {
@@ -1011,13 +1046,14 @@ static gboolean draw_plot(GtkWidget *wid, cairo_t *cr, gpointer data)
         int n = bench_latency_last(&sz, &ns);
         double mx = 1;
         for (i = 0; i < n; i++) if (ns[i] > mx) mx = ns[i];
-        cairo_set_source_rgb(cr, 0, .2, .8);
+        PLOT_RGB(0, .2, .8);
         for (i = 0; i < n; i++) {
             double x = n > 1 ? i * (W - 20.0) / (n - 1) + 10 : 10, y = H - 10 - ns[i] / mx * (H - 20);
             if (i == 0) cairo_move_to(cr, x, y); else cairo_line_to(cr, x, y);
         }
         cairo_stroke(cr);
     }
+#undef PLOT_RGB
     return FALSE;
 }
 
@@ -1593,6 +1629,16 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
     tray_apply();   /* also rebuilds the tray menu so its check marks stay in sync */
 }
 
+static void on_theme(GtkCheckMenuItem *mi, gpointer d)
+{
+    int t = GPOINTER_TO_INT(d);
+    if (!gtk_check_menu_item_get_active(mi) || t == g_theme) return;
+    g_theme = t;
+    settings_save();
+    theme_apply();
+    tray_apply();   /* rebuild the tray menu so its radio marks follow */
+}
+
 static void build_options(GtkWidget *menu)
 {
     static const struct { const char *label; int id; } opts[] = {
@@ -1600,6 +1646,21 @@ static void build_options(GtkWidget *menu)
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
         { "Start with the _desktop (autostart)", OPT_AUTOSTART }, { NULL, 0 } };
     int i, have = tray_available();
+    {
+        static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
+        GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("T_heme");
+        GSList *grp = NULL;
+        for (i = 0; i < 3; i++) {
+            GtkWidget *it = gtk_radio_menu_item_new_with_mnemonic(grp, tl[i]);
+            grp = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(it));
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_theme == i);
+            g_signal_connect(it, "toggled", G_CALLBACK(on_theme), GINT_TO_POINTER(i));
+            gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
+        }
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), top);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+    }
     for (i = 0; opts[i].label; i++) {
         GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
@@ -1671,8 +1732,8 @@ static void open_main(void)
 
 static void load_css(void)
 {
-    GtkCssProvider *c = gtk_css_provider_new();
-    gtk_css_provider_load_from_data(c,
+    static GtkCssProvider *c;
+    static const char light[] =
         "window, #panel, #panel text { background-color: #F5F5F5; }"
         "#panel, #panel text { font: 8pt Tahoma; color: #000000; }"
         "#panel text selection { background-color: #3399FF; color: #FFFFFF; }"
@@ -1681,9 +1742,112 @@ static void load_css(void)
         "  background-color: #E1E1E1; color: #000000; border: 1px solid #ADADAD; box-shadow: none; }"
         "#sivbtn:hover { background-color: #E5F1FB; border-color: #0078D7; }"
         "#sivbtn:active { background-color: #CCE4F7; }"
-        "#lbl, radiobutton label, checkbutton label { color: #0000CC; }", -1, NULL);
-    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(c), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(c);
+        "#lbl, radiobutton label, checkbutton label { color: #0000CC; }";
+    static const char dark[] =
+        "window, #panel, #panel text { background-color: #1E1E1E; }"
+        "#panel, #panel text { font: 8pt Tahoma; color: #E6E6E6; }"
+        "#panel text selection { background-color: #264F78; color: #FFFFFF; }"
+        "button, entry, label, checkbutton, radiobutton, spinbutton, combobox, menuitem { font: 8pt Tahoma; }"
+        "#sivbtn { padding: 1px 4px; min-height: 18px; border-radius: 0; background-image: none;"
+        "  background-color: #383838; color: #E6E6E6; border: 1px solid #5A5A5A; box-shadow: none; text-shadow: none; }"
+        "#sivbtn:hover { background-color: #3F4B57; border-color: #3399FF; }"
+        "#sivbtn:active { background-color: #2A4A66; }"
+        "#lbl, radiobutton label, checkbutton label { color: #8FB4FF; }";
+    if (!c) {
+        c = gtk_css_provider_new();
+        gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(c), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
+    gtk_css_provider_load_from_data(c, g_dark ? dark : light, -1, NULL);
+}
+
+/* desktop colour scheme: xdg-desktop-portal org.freedesktop.appearance color-scheme (0 none, 1 dark, 2 light) */
+static int portal_scheme_from(GVariant *v)
+{
+    int r = -1;
+    g_variant_ref(v);
+    while (v && g_variant_is_of_type(v, G_VARIANT_TYPE_VARIANT)) { GVariant *in = g_variant_get_variant(v); g_variant_unref(v); v = in; }
+    if (v && g_variant_is_of_type(v, G_VARIANT_TYPE_UINT32)) r = (int)g_variant_get_uint32(v);
+    if (v) g_variant_unref(v);
+    return r;
+}
+
+static void on_portal_signal(GDBusProxy *p, const char *sender, const char *sig, GVariant *params, gpointer d)
+{
+    const char *ns, *key;
+    GVariant *v;
+    (void)p; (void)sender; (void)d;
+    if (strcmp(sig, "SettingChanged") || !g_variant_is_of_type(params, G_VARIANT_TYPE("(ssv)"))) return;
+    g_variant_get(params, "(&s&sv)", &ns, &key, &v);
+    if (!strcmp(ns, "org.freedesktop.appearance") && !strcmp(key, "color-scheme")) {
+        g_portal_scheme = portal_scheme_from(v);
+        if (g_theme == TH_SYSTEM) theme_apply();
+    }
+    g_variant_unref(v);
+}
+
+static void portal_init(void)
+{
+    static int tried;
+    GVariant *r;
+    if (tried) return;
+    tried = 1;
+    g_portal = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION, G_DBUS_PROXY_FLAGS_DO_NOT_LOAD_PROPERTIES, NULL,
+        "org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings", NULL, NULL);
+    if (!g_portal) return;
+    r = g_dbus_proxy_call_sync(g_portal, "ReadOne", g_variant_new("(ss)", "org.freedesktop.appearance", "color-scheme"),
+                               G_DBUS_CALL_FLAGS_NONE, 1500, NULL, NULL);
+    if (!r) r = g_dbus_proxy_call_sync(g_portal, "Read", g_variant_new("(ss)", "org.freedesktop.appearance", "color-scheme"),
+                                       G_DBUS_CALL_FLAGS_NONE, 1500, NULL, NULL);   /* older portals */
+    if (r) {
+        GVariant *v = g_variant_get_child_value(r, 0);
+        g_portal_scheme = portal_scheme_from(v);
+        g_variant_unref(v);
+        g_variant_unref(r);
+    }
+    g_signal_connect(g_portal, "g-signal", G_CALLBACK(on_portal_signal), NULL);
+}
+
+static int system_prefers_dark(void)
+{
+    portal_init();
+    if (g_portal_scheme == 1) return 1;
+    if (g_portal_scheme == 2) return 0;
+    if (g_env_theme[0]) {   /* e.g. GTK_THEME=adw-gtk3-dark */
+        char *low = g_ascii_strdown(g_env_theme, -1);
+        int dark = strstr(low, "dark") != NULL;
+        g_free(low);
+        return dark;
+    }
+    {
+        GKeyFile *kf = g_key_file_new();
+        char *f = g_build_filename(g_get_user_config_dir(), "gtk-3.0", "settings.ini", NULL);
+        int dark = 0;
+        if (g_key_file_load_from_file(kf, f, G_KEY_FILE_NONE, NULL)) {
+            char *tn = g_key_file_get_string(kf, "Settings", "gtk-theme-name", NULL), *low = tn ? g_ascii_strdown(tn, -1) : NULL;
+            dark = g_key_file_get_boolean(kf, "Settings", "gtk-application-prefer-dark-theme", NULL) || (low && strstr(low, "dark"));
+            g_free(low);
+            g_free(tn);
+        }
+        g_free(f);
+        g_key_file_free(kf);
+        return dark;
+    }
+}
+
+/* light / dark for this process: Adwaita + its dark variant, SIV palette swapped, every open window recoloured */
+static void theme_apply(void)
+{
+    guint i;
+    g_dark = g_theme == TH_DARK || (g_theme == TH_SYSTEM && system_prefers_dark());
+    g_pal = g_dark ? g_pal_dark : g_pal_light;
+    g_object_set(gtk_settings_get_default(), "gtk-theme-name", "Adwaita", "gtk-application-prefer-dark-theme", g_dark, NULL);
+    load_css();
+    for (i = 0; g_wins && i < g_wins->len; i++) {
+        swin *x = g_ptr_array_index(g_wins, i);
+        if (x->buf) theme_tags(x->buf);
+        if (x->plot) gtk_widget_queue_draw(x->plot);
+        if (x->win) gtk_widget_queue_draw(x->win);
+    }
 }
 
 int main(int argc, char **argv)
@@ -1694,10 +1858,13 @@ int main(int argc, char **argv)
     g_free(base);
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
     gethostname(g_host, sizeof g_host);
-    g_setenv("GTK_THEME", "Adwaita:light", TRUE);   /* this process only: SIV's fixed light look */
+    /* GTK_THEME (e.g. adw-gtk3-dark) would override the in-app theme choice: remember it for
+       "Follow desktop", then let the Theme option drive Adwaita light / dark for this process */
+    if (getenv("GTK_THEME")) snprintf(g_env_theme, sizeof g_env_theme, "%s", getenv("GTK_THEME"));
+    g_unsetenv("GTK_THEME");
     gtk_init(&argc, &argv);
-    load_css();
     settings_load();
+    theme_apply();
     {
         char *icon = g_build_filename(g_get_user_data_dir(), "icons", "hicolor", "256x256", "apps", "srs.png", NULL);
         if (g_file_test(icon, G_FILE_TEST_EXISTS)) gtk_window_set_default_icon_from_file(icon, NULL);

@@ -67,6 +67,15 @@ Menu, Exit; middle-click toggles). **Menu -> Options** sets: tray icon, Close bu
 tray, Minimize hides to tray (X11/XWayland), Start hidden in tray, and Start with the desktop
 (autostart into the tray). `srs-gui --gui-tray` starts hidden. See [CHANGELOG.md](CHANGELOG.md).
 
+## Dark mode
+
+**Menu -> Options -> Theme**: *Light (SIV classic)* (default), *Dark*, or *Follow desktop*. Dark
+mode uses a dark panel with SIV's colour palette brightened so it stays readable, dark buttons and
+graphs. *Follow desktop* reads the desktop colour scheme from xdg-desktop-portal
+(`org.freedesktop.appearance color-scheme`, set by KDE Plasma / GNOME) and switches live when you
+change it; without a portal it falls back to `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`.
+Changes apply at once to every open window and are saved as `Theme=` in `~/.config/srs/SRSDEF.ini`.
+
 ## Root-only data
 
 SMBIOS serials/UUID, DIMM SPD, SMART, ACPI tables, MSRs and full PCI config space need root.
