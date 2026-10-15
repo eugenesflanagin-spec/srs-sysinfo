@@ -8,11 +8,13 @@
 #define _DEFAULT_SOURCE
 #endif
 #include <gtk/gtk.h>
+#include <glib/gstdio.h>
 #include "srs.h"
 #include "sec.h"
 #include "burner.h"
 #include "bench.h"
 
+#include <dlfcn.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +28,8 @@ void sensors_set_hide_unused(int on) __attribute__((weak));
 static const char *g_pal[C_NCOL] = { "#000000", "#3399FF", "#0000CC", "#9C0FB8", "#009999", "#FF8800", "#00A000", "#E00000", "#000000", "#808080" };
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
+/* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
+static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH } wkind;
 enum { BK_BENCH, BK_IPI, BK_LAT };
@@ -166,6 +170,16 @@ static void settings_load(void)
         if (c && strlen(c) == 6) snprintf(g_findcol, sizeof g_findcol, "#%s", c);
         if (!e) g_highlight = h; else g_error_free(e);
         if (gc) snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gc);
+        {
+            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray" };
+            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray };
+            int k;
+            for (k = 0; k < 4; k++) {
+                GError *e2 = NULL;
+                int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
+                if (!e2) *vars[k] = v; else g_error_free(e2);
+            }
+        }
         g_free(c);
         g_free(gc);
     }
@@ -183,6 +197,10 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Highlight Matches", g_highlight);
     g_key_file_set_string(kf, "SRSDEF", "Font Name", "Tahoma");
     g_key_file_set_string(kf, "SRSDEF", "GPU Load Command", g_gpucmd);
+    g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
+    g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
+    g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
+    g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
 }
@@ -308,6 +326,7 @@ static void copy_all(swin *w)
  * Menu (SIV's tray menu): every item, grouped
  * ====================================================================== */
 static void save_dialog(int all);
+static void build_options(GtkWidget *menu);
 static void run_root(void);
 static void on_menu_item(GtkMenuItem *mi, gpointer data) { (void)mi; open_section(data); }
 static void on_menu_tool(GtkMenuItem *mi, gpointer data)
@@ -366,6 +385,11 @@ static void build_menu(GtkWidget *menu)
         if (!cnt) gtk_widget_set_sensitive(top, FALSE);
     }
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+    {
+        GtkWidget *opt = gtk_menu_new();
+        build_options(opt);
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_add(menu, "_Options")), opt);
+    }
     g_signal_connect(menu_add(menu, "Save _Report..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"save");
     g_signal_connect(menu_add(menu, "Save _All Items..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"saveall");
     g_signal_connect(menu_add(menu, "Run as _root (srs-root)..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"root");
@@ -1402,6 +1426,221 @@ static gboolean on_key(GtkWidget *wid, GdkEventKey *ev, gpointer data)
     return FALSE;
 }
 
+
+/* ======================================================================
+ * System tray (SIV lives in the Icon Tray). StatusNotifierItem through libayatana-appindicator,
+ * loaded at run time so it stays optional; KDE/GNOME (with the AppIndicator extension)/XFCE show it.
+ * ====================================================================== */
+typedef void *(*ai_new_t)(const char *, const char *, int);
+typedef void (*ai_status_t)(void *, int);
+typedef void (*ai_menu_t)(void *, GtkMenu *);
+typedef void (*ai_title_t)(void *, const char *);
+typedef void (*ai_target_t)(void *, GtkWidget *);
+static struct {
+    void *lib, *ind;
+    ai_new_t new_; ai_status_t status; ai_menu_t menu; ai_title_t title; ai_target_t target;
+    GtkWidget *showitem;
+    int hidden, tried;
+    guint timer;
+} g_tray;
+
+static int tray_available(void)
+{
+    static const char *const libs[] = { "libayatana-appindicator3.so.1", "libappindicator3.so.1", NULL };
+    int i;
+    if (g_tray.lib) return 1;
+    if (g_tray.tried) return 0;
+    g_tray.tried = 1;
+    for (i = 0; libs[i] && !g_tray.lib; i++) g_tray.lib = dlopen(libs[i], RTLD_NOW | RTLD_LOCAL);
+    if (!g_tray.lib) return 0;
+    *(void **)&g_tray.new_ = dlsym(g_tray.lib, "app_indicator_new");
+    *(void **)&g_tray.status = dlsym(g_tray.lib, "app_indicator_set_status");
+    *(void **)&g_tray.menu = dlsym(g_tray.lib, "app_indicator_set_menu");
+    *(void **)&g_tray.title = dlsym(g_tray.lib, "app_indicator_set_title");
+    *(void **)&g_tray.target = dlsym(g_tray.lib, "app_indicator_set_secondary_activate_target");
+    if (!g_tray.new_ || !g_tray.status || !g_tray.menu) { dlclose(g_tray.lib); g_tray.lib = NULL; return 0; }
+    return 1;
+}
+
+static int tray_active(void) { return g_tray.ind && g_opt_tray; }
+
+static void srs_hide_all(void)
+{
+    guint i;
+    if (!tray_active()) return;   /* never hide without a way back */
+    for (i = 0; i < g_wins->len; i++) gtk_widget_hide(((swin *)g_ptr_array_index(g_wins, i))->win);
+    g_tray.hidden = 1;
+    if (g_tray.showitem) gtk_menu_item_set_label(GTK_MENU_ITEM(g_tray.showitem), "Show SRS");
+}
+
+static void srs_show_all(void)
+{
+    guint i;
+    for (i = 0; i < g_wins->len; i++) gtk_widget_show(((swin *)g_ptr_array_index(g_wins, i))->win);
+    if (g_main) gtk_window_present(GTK_WINDOW(g_main->win));
+    g_tray.hidden = 0;
+    if (g_tray.showitem) gtk_menu_item_set_label(GTK_MENU_ITEM(g_tray.showitem), "Hide to Tray");
+}
+
+static void on_tray_toggle(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_tray.hidden) srs_show_all(); else srs_hide_all(); }
+static void on_tray_open(GtkMenuItem *mi, gpointer d)
+{
+    const char *t = d;
+    (void)mi;
+    if (!strcmp(t, "burnin")) open_tool(W_BURN, 0);
+    else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+    else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
+    else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
+    else open_section(t);
+}
+static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main) gtk_widget_destroy(g_main->win); }
+
+static void tray_build_menu(void)
+{
+    static const struct { const char *label, *target; } quick[] = {
+        { "Sensors", "sensors" }, { "Processors", "processors" }, { "CPU Burnin...", "burnin" }, { "CPU Stress...", "stress" },
+        { "Benchmark...", "bench" }, { "Find...", "find" }, { NULL, NULL } };
+    GtkWidget *m = gtk_menu_new(), *it, *sub;
+    int i;
+    g_tray.showitem = gtk_menu_item_new_with_label(g_tray.hidden ? "Show SRS" : "Hide to Tray");
+    g_signal_connect(g_tray.showitem, "activate", G_CALLBACK(on_tray_toggle), NULL);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), g_tray.showitem);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    for (i = 0; quick[i].label; i++) {
+        it = gtk_menu_item_new_with_label(quick[i].label);
+        g_signal_connect(it, "activate", G_CALLBACK(on_tray_open), (gpointer)quick[i].target);
+        gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
+    }
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    sub = gtk_menu_new();
+    build_menu(sub);
+    it = gtk_menu_item_new_with_label("SRS Menu");
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    it = gtk_menu_item_new_with_label("Exit");
+    g_signal_connect(it, "activate", G_CALLBACK(on_tray_exit), NULL);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
+    gtk_widget_show_all(m);
+    g_tray.menu(g_tray.ind, GTK_MENU(m));
+    if (g_tray.target) g_tray.target(g_tray.ind, g_tray.showitem);   /* middle click = show / hide */
+}
+
+static gboolean tray_tick(gpointer d)
+{
+    burn_sample s;
+    char t[200];
+    (void)d;
+    if (!g_tray.ind || !g_tray.title) return G_SOURCE_CONTINUE;
+    burn_sample_now(&s);
+    snprintf(t, sizeof t, "SRS  -  CPU %.0f°C %.0f%%  -  GPU %.0f°C %.0f%%", s.cpu_temp, s.cpu_load, s.gpu_temp, s.gpu_load);
+    g_tray.title(g_tray.ind, t);
+    return G_SOURCE_CONTINUE;
+}
+
+static void tray_apply(void)
+{
+    if (g_opt_tray && tray_available()) {
+        if (!g_tray.ind) {
+            g_tray.ind = g_tray.new_("srs-sysinfo", "srs", 3 /* APP_INDICATOR_CATEGORY_HARDWARE */);
+            if (!g_tray.ind) return;
+            g_tray.timer = g_timeout_add_seconds(2, tray_tick, NULL);
+        }
+        tray_build_menu();
+        g_tray.status(g_tray.ind, 1 /* ACTIVE */);
+        tray_tick(NULL);
+    } else if (g_tray.ind) {
+        g_tray.status(g_tray.ind, 0 /* PASSIVE: hidden */);
+        if (g_tray.hidden) srs_show_all();
+    }
+}
+
+/* Start with the desktop: ~/.config/autostart/srs-gui.desktop launching straight into the tray */
+static char *autostart_path(void) { return g_build_filename(g_get_user_config_dir(), "autostart", "srs-gui.desktop", NULL); }
+static int autostart_on(void) { char *p = autostart_path(); int on = g_file_test(p, G_FILE_TEST_EXISTS); g_free(p); return on; }
+static void autostart_set(int on)
+{
+    char *p = autostart_path();
+    if (on) {
+        char exe[1024] = "/usr/bin/srs-gui", *dir = g_path_get_dirname(p), *txt;
+        ssize_t l = readlink("/proc/self/exe", exe, sizeof exe - 1);
+        if (l > 0) exe[l] = 0;
+        g_mkdir_with_parents(dir, 0755);
+        txt = g_strdup_printf("[Desktop Entry]\nType=Application\nName=SRS System Information (tray)\n"
+                              "Comment=Start SRS hidden in the system tray\nExec=%s --gui-tray\nIcon=srs\nTerminal=false\n"
+                              "X-GNOME-Autostart-enabled=true\nX-KDE-autostart-after=panel\n", exe);
+        g_file_set_contents(p, txt, -1, NULL);
+        g_free(txt);
+        g_free(dir);
+    } else {
+        g_unlink(p);
+    }
+    g_free(p);
+}
+
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART };
+static void on_option(GtkCheckMenuItem *mi, gpointer d)
+{
+    int on = gtk_check_menu_item_get_active(mi);
+    switch (GPOINTER_TO_INT(d)) {
+    case OPT_TRAY: g_opt_tray = on; break;
+    case OPT_CLOSE: g_opt_close_tray = on; break;
+    case OPT_MIN: g_opt_min_tray = on; break;
+    case OPT_START: g_opt_start_tray = on; break;
+    case OPT_AUTOSTART: autostart_set(on); break;
+    }
+    settings_save();
+    tray_apply();   /* also rebuilds the tray menu so its check marks stay in sync */
+}
+
+static void build_options(GtkWidget *menu)
+{
+    static const struct { const char *label; int id; } opts[] = {
+        { "System _tray icon", OPT_TRAY }, { "_Close button hides to tray", OPT_CLOSE },
+        { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
+        { "Start with the _desktop (autostart)", OPT_AUTOSTART }, { NULL, 0 } };
+    int i, have = tray_available();
+    for (i = 0; opts[i].label; i++) {
+        GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
+        int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
+              : opts[i].id == OPT_START ? g_opt_start_tray : autostart_on();
+        gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
+        if (!have && opts[i].id != OPT_AUTOSTART) gtk_widget_set_sensitive(it, FALSE);
+        g_signal_connect(it, "toggled", G_CALLBACK(on_option), GINT_TO_POINTER(opts[i].id));
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+    if (!have) {
+        GtkWidget *it = gtk_menu_item_new_with_label("(tray needs libayatana-appindicator)");
+        gtk_widget_set_sensitive(it, FALSE);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+    {
+        GtkWidget *it = gtk_menu_item_new_with_mnemonic("_Hide to Tray");
+        g_signal_connect(it, "activate", G_CALLBACK(on_tray_toggle), NULL);
+        gtk_widget_set_sensitive(it, tray_active());
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+}
+
+/* main window: close / minimise go to the tray when those options are on */
+static gboolean on_main_delete(GtkWidget *wid, GdkEvent *ev, gpointer d)
+{
+    (void)wid; (void)ev; (void)d;
+    if (g_opt_close_tray && tray_active()) { srs_hide_all(); return TRUE; }
+    return FALSE;
+}
+
+static gboolean on_main_state(GtkWidget *wid, GdkEventWindowState *ev, gpointer d)
+{
+    (void)d;
+    if ((ev->changed_mask & GDK_WINDOW_STATE_ICONIFIED) && (ev->new_window_state & GDK_WINDOW_STATE_ICONIFIED) &&
+        g_opt_min_tray && tray_active()) {
+        gtk_window_deiconify(GTK_WINDOW(wid));
+        srs_hide_all();
+    }
+    return FALSE;
+}
+
 /* ======================================================================
  * main window
  * ====================================================================== */
@@ -1425,6 +1664,8 @@ static void open_main(void)
     gtk_box_pack_start(GTK_BOX(vb), button_row(w, row_main), FALSE, FALSE, 0);
     render(w);
     w->timer = g_timeout_add(2000, main_tick, w);
+    g_signal_connect(w->win, "delete-event", G_CALLBACK(on_main_delete), NULL);
+    g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
     gtk_widget_show_all(w->win);
 }
 
@@ -1463,9 +1704,18 @@ int main(int argc, char **argv)
         g_free(icon);
     }
     g_wins = g_ptr_array_new();
-    open_main();
+    {
+        int i, start_hidden = g_opt_start_tray;
+        for (i = 1; i < argc; i++) if (!strcmp(argv[i], "--gui-tray")) { start_hidden = 1; g_opt_tray = 1; }   /* autostart */
+        open_main();
+        tray_apply();
+        if (start_hidden) srs_hide_all();   /* only hides when a tray icon really exists */
+    }
     autop = getenv("SRS_OPEN");   /* comma-separated items or tool names to open at start */
-    if (argc > 1 && !strncmp(argv[1], "--gui-open=", 11)) autop = argv[1] + 11;   /* menu entries / jump list */
+    {
+        int i;
+        for (i = 1; i < argc; i++) if (!strncmp(argv[i], "--gui-open=", 11)) autop = argv[i] + 11;   /* menu entries / jump list */
+    }
     if (autop) {
         char tmp[2048], *t, *save;
         snprintf(tmp, sizeof tmp, "%s", autop);

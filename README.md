@@ -58,6 +58,15 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 - Hot-keys: Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel.
 
+## System tray
+
+Like SIV's Icon Tray, SRS shows a tray icon (needs `libayatana-appindicator`; KDE Plasma, XFCE,
+GNOME with the AppIndicator extension) with a live CPU / GPU temperature and load tooltip and a
+menu (Show / Hide to Tray, Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Find, the SRS
+Menu, Exit; middle-click toggles). **Menu -> Options** sets: tray icon, Close button hides to
+tray, Minimize hides to tray (X11/XWayland), Start hidden in tray, and Start with the desktop
+(autostart into the tray). `srs-gui --gui-tray` starts hidden. See [CHANGELOG.md](CHANGELOG.md).
+
 ## Root-only data
 
 SMBIOS serials/UUID, DIMM SPD, SMART, ACPI tables, MSRs and full PCI config space need root.
@@ -90,7 +99,7 @@ data comes only from `srs-root`'s cache in `~/.cache/srs/root`.
     make install                # per-user install into ~/.local
     make all                    # also i686/aarch64 CLIs and the Windows images (needs mingw-w64)
 
-Dependencies: gtk3, glibc, hwdata, systemd (hwdb). Optional: dmidecode, i2c-tools (decode-dimms),
+Dependencies: gtk3, glibc, hwdata, systemd (hwdb). Optional: libayatana-appindicator (tray icon), dmidecode, i2c-tools (decode-dimms),
 smartmontools, nvme-cli, pciutils, polkit (srs-root), vulkan-tools, clinfo, mesa-utils, iw,
 bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 
