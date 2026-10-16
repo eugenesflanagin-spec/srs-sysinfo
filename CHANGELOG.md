@@ -3,6 +3,23 @@
 SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.0.6 - 2026-10-16
+
+### Fixed
+- **Memory Latency: small blocks no longer show false spikes.** 1.0.5 timed each block size once,
+  for about 2 ms at L1 sizes, so a single interrupt or clock change could make a block read
+  several times too slow (e.g. 8 KB = 4.54 ns on a 7800X3D whose L1 is ~1 ns).
+  - Each block size is now timed 5 times and the fastest pass is kept. Interruptions only ever
+    make a pass slower, so the fastest pass is the true latency.
+  - A ~200 ms warm-up runs first, so the CPU is at full clock before the first block.
+  - Each block is walked once in full before timing, so the cache and TLB are filled for every
+    size, not just the first 10,000 lines.
+  - Result on a 7800X3D, 3 runs each: L1 4-32 KB 0.95-1.09 ns (was 1.02-1.27 with outliers);
+    64 MB, which still fits in the 96 MB L3, 11.1-11.6 ns (was 13.8-19.2).
+- **aarch64 build:** `burner.c` included `<errno.h>` and `<fcntl.h>` only on x86, so the
+  GPU Load command code added in 1.0.5 failed to compile on aarch64.
+- Help and error text now name `srs-sysreport` instead of the old `sysreport.sh`.
+
 ## 1.0.5 - 2026-10-15
 
 ### Added

@@ -20,7 +20,7 @@ static const char *USAGE =
     "usage: sysreport-search [-h] [--version] {id,find,devices} ...\n";
 
 static const char *HELP =
-    "SIV-style search for the native system report (sysreport.sh).\n"
+    "SIV-style search for the native system report (srs-sysreport).\n"
     "\n"
     "  id VVVV[:DDDD[:SSSS:ssss]][:RR] [--bus pci|usb] [--mode tree|scan|info]\n"
     "        hierarchical device-ID lookup, most specific key first\n"

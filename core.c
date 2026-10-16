@@ -896,12 +896,12 @@ int srs_find(const char *report, const char *pattern, int icase, int fixed, int 
     memset(fr, 0, sizeof *fr);
     if (report && *report) snprintf(fr->report, sizeof fr->report, "%s", report);
     else if (srs_latest_report(fr->report, sizeof fr->report)) {
-        snprintf(err, errsz, "No report found under %s - run sysreport.sh first",
+        snprintf(err, errsz, "No report found under %s - run srs-sysreport first",
                  srs_reports_root() ? srs_reports_root() : "~/sysreports");
         return 2;
     }
     if (!plat_isdir(fr->report)) {
-        snprintf(err, errsz, "No report found under %s - run sysreport.sh first",
+        snprintf(err, errsz, "No report found under %s - run srs-sysreport first",
                  srs_reports_root() ? srs_reports_root() : "~/sysreports");
         return 2;
     }

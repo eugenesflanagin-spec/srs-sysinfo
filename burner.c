@@ -3,10 +3,10 @@
 #include "burner.h"
 #include "sec.h"
 
-#if defined(__x86_64__) || defined(__i386__)
-#include <cpuid.h>
 #include <errno.h>
 #include <fcntl.h>
+#if defined(__x86_64__) || defined(__i386__)
+#include <cpuid.h>
 #define SRS_X86 1
 #endif
 #include <math.h>

@@ -321,7 +321,7 @@ static void build_main(panel *p, rtf *r)
         free(d);
     }
     if (srs_latest_report(rep, sizeof rep) == 0) kv(r, "Latest Report", C_PURPLE, rep);
-    else kv(r, "Latest Report", C_RED, "none - run Full System Report (sysreport.sh) first");
+    else kv(r, "Latest Report", C_RED, "none - run Full System Report (srs-sysreport) first");
     rb_par(r);
     rb_ct(r, C_GRAY, "PCI Bus / USB Bus / ALL Dev resolve every device; Lookup resolves one ID (Tree, Scan or Info mode);"
                      " Find searches the latest report. Ctrl+F Find, Ctrl+L Lookup, F3 next match, Ctrl+H highlight.");

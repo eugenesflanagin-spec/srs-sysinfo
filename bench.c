@@ -484,6 +484,9 @@ int bench_latency(long max_bytes, srs_out *o)
     buf = malloc((size_t)max_bytes);
     if (!buf) return -1;
     memset(&c, 0, sizeof c);
+    /* Spin ~200 ms first so the core is at full clock before the small blocks
+     * (which only take a few ms each) are timed. */
+    { double t = now_s(); while (now_s() - t < 0.2) g_lat_sink++; }
     for (sz = 4096; sz <= max_bytes && c.n < 40; sz *= 2) {
         size_t lines = (size_t)sz / 64, i, idx = 0, stride = 64 / sizeof(size_t);
         size_t *perm = malloc(lines * sizeof(size_t));
@@ -496,11 +499,18 @@ int bench_latency(long max_bytes, srs_out *o)
         for (i = 0; i < lines; i++) buf[perm[i] * stride] = perm[(i + 1) % lines] * stride;
         free(perm);
         idx = 0;
-        for (h = 0; h < 10000; h++) idx = buf[idx];   /* warm */
-        t0 = now_s();
-        for (h = 0; h < hops; h++) idx = buf[idx];
+        for (h = 0; h < 10000 || (size_t)h < lines; h++) idx = buf[idx];   /* warm: touch every line once */
+        /* Best of 5: an interrupt or clock dip only ever makes a pass slower,
+         * so the fastest pass is the closest to the true load-to-use latency. */
+        c.ns[c.n] = 0;
+        for (int r = 0; r < 5; r++) {
+            double ns;
+            t0 = now_s();
+            for (h = 0; h < hops; h++) idx = buf[idx];
+            ns = (now_s() - t0) * 1e9 / (double)hops;
+            if (r == 0 || ns < c.ns[c.n]) c.ns[c.n] = ns;
+        }
         c.size[c.n] = sz;
-        c.ns[c.n] = (now_s() - t0) * 1e9 / (double)hops;
         g_lat_sink = idx;   /* keep the chase observable so it is not optimised away */
         c.n++;
     }
