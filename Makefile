@@ -120,6 +120,7 @@ install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui
 	install -Dm755 $(NATIVE)/sysreport-search $(DESTDIR)$(SYSPREFIX)/bin/sysreport-search
 	install -Dm755 srs-root.sh $(DESTDIR)$(SYSPREFIX)/bin/srs-root
+	install -Dm644 srs-root@.service $(DESTDIR)$(SYSPREFIX)/lib/systemd/system/srs-root@.service
 	install -Dm755 sysreport.sh $(DESTDIR)$(SYSPREFIX)/bin/srs-sysreport
 	install -Dm644 srs.png $(DESTDIR)$(SYSPREFIX)/share/icons/hicolor/256x256/apps/srs.png
 	install -Dm644 srs-gui.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-gui.desktop

@@ -97,6 +97,12 @@ Either use **Menu -> Run as root** (one `pkexec` prompt; the results are cached 
 (`sudo sysreport-search -save`): as root it uses the invoking user's cache, or collects one
 first if none exists. SMART skips USB-attached disks unless `SRS_SMART_USB=1` is set.
 
+**Menu -> Options -> Refresh root data at boot** keeps that cache fresh without any prompt: it
+enables the packaged `srs-root@<you>.service` (one `pkexec` password prompt when you tick it),
+which runs the same read-only `srs-root` collector as root once at every boot, at the lowest CPU
+and disk priority, and hands the files to you. SRS itself still runs as your user. Untick to
+disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `disable`).
+
 ## Command line
 
     srs-gui -save                          SIV's default item set to the console

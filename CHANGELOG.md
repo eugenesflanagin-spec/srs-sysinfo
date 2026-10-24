@@ -3,6 +3,19 @@
 SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.0.8 - 2026-10-24
+
+### Added
+- **Menu -> Options -> Refresh root data at boot.** Root-only panels (SMBIOS serials, DIMM SPD,
+  SMART, ACPI tables, MSRs, full PCI config) are filled at every boot without a password prompt.
+  - New systemd unit `srs-root@.service` (in `/usr/lib/systemd/system`). Enabled per user as
+    `srs-root@<user>.service`, it runs the existing read-only `srs-root` collector once per boot
+    as root, at Nice 19 and idle I/O priority, and hands `~/.cache/srs/root` to that user.
+  - Ticking the option asks for your password once (pkexec) and collects straight away;
+    unticking disables the unit. A cancelled prompt leaves the tick as it was.
+  - SRS itself keeps running as your user; only the collector runs as root.
+- `srs-root --user NAME` (root only) collects for that user; the boot unit uses it.
+
 ## 1.0.7 - 2026-10-24
 
 ### Fixed

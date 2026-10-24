@@ -1733,10 +1733,53 @@ static void autostart_set(int on)
     g_free(p);
 }
 
-enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART };
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT };
+/* "Refresh root data at boot": the packaged srs-root@<user>.service runs srs-root as root
+ * once per boot, so the root-only panels are filled without a password prompt. */
+static char *bootroot_unit(void) { return g_strdup_printf("srs-root@%s.service", g_get_user_name()); }
+
+static int bootroot_on(void)
+{
+    char *unit = bootroot_unit(), *out = NULL;
+    char *argv[] = { "systemctl", "is-enabled", unit, NULL };
+    int on = 0;
+    if (g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_STDERR_TO_DEV_NULL, NULL, NULL, &out, NULL, NULL, NULL))
+        on = out && !strncmp(out, "enabled", 7);
+    g_free(out);
+    g_free(unit);
+    return on;
+}
+
+static int bootroot_available(void)
+{
+    return g_file_test("/usr/lib/systemd/system/srs-root@.service", G_FILE_TEST_EXISTS) ||
+           g_file_test("/etc/systemd/system/srs-root@.service", G_FILE_TEST_EXISTS);
+}
+
+/* One pkexec prompt; enabling also collects now (--no-block: don't wait for it). */
+static int bootroot_set(int on)
+{
+    char *unit = bootroot_unit();
+    char *en[] = { "pkexec", "systemctl", "enable", "--now", "--no-block", unit, NULL };
+    char *dis[] = { "pkexec", "systemctl", "disable", unit, NULL };
+    int status = -1;
+    gboolean ok = g_spawn_sync(NULL, on ? en : dis, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL, &status, NULL);
+    g_free(unit);
+    return ok && g_spawn_check_wait_status(status, NULL);
+}
+
 static void on_option(GtkCheckMenuItem *mi, gpointer d)
 {
     int on = gtk_check_menu_item_get_active(mi);
+    if (GPOINTER_TO_INT(d) == OPT_BOOTROOT) {
+        if (!bootroot_set(on)) {
+            /* cancelled or failed: put the tick back without re-running this */
+            g_signal_handlers_block_by_func(mi, on_option, d);
+            gtk_check_menu_item_set_active(mi, bootroot_on());
+            g_signal_handlers_unblock_by_func(mi, on_option, d);
+        }
+        return;
+    }
     switch (GPOINTER_TO_INT(d)) {
     case OPT_TRAY: g_opt_tray = on; break;
     case OPT_CLOSE: g_opt_close_tray = on; break;
@@ -1780,7 +1823,8 @@ static void build_options(GtkWidget *menu)
     static const struct { const char *label; int id; } opts[] = {
         { "System _tray icon", OPT_TRAY }, { "_Close button hides to tray", OPT_CLOSE },
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
-        { "Start with the _desktop (autostart)", OPT_AUTOSTART }, { NULL, 0 } };
+        { "Start with the _desktop (autostart)", OPT_AUTOSTART },
+        { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT }, { NULL, 0 } };
     int i, have = tray_available();
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
@@ -1813,9 +1857,10 @@ static void build_options(GtkWidget *menu)
     for (i = 0; opts[i].label; i++) {
         GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
-              : opts[i].id == OPT_START ? g_opt_start_tray : autostart_on();
+              : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on() : autostart_on();
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
-        if (!have && opts[i].id != OPT_AUTOSTART) gtk_widget_set_sensitive(it, FALSE);
+        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT) gtk_widget_set_sensitive(it, FALSE);
+        if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) gtk_widget_set_sensitive(it, FALSE);
         g_signal_connect(it, "toggled", G_CALLBACK(on_option), GINT_TO_POINTER(opts[i].id));
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }

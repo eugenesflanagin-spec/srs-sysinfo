@@ -3,8 +3,14 @@
 # Writes ~/.cache/srs/root/ of the invoking user and hands the files back to them.
 # Read-only on the hardware side: dmidecode, decode-dimms, smartctl/nvme queries, MSR reads,
 # lspci config dumps and copies of /sys/firmware/acpi/tables. Nothing is written to devices.
+# `srs-root --user NAME` collects for NAME (used by the srs-root@NAME.service boot unit).
 set -u
 uid=${PKEXEC_UID:-$(id -u)}
+if [ "${1:-}" = "--user" ] && [ -n "${2:-}" ]; then
+  [ "$(id -u)" = 0 ] || { echo "srs-root: --user needs root" >&2; exit 2; }
+  uid=$(getent passwd "$2" | cut -d: -f3)
+  [ -n "$uid" ] || { echo "srs-root: no such user: $2" >&2; exit 2; }
+fi
 user=$(getent passwd "$uid" | cut -d: -f1)
 home=$(getent passwd "$uid" | cut -d: -f6)
 [ -n "$user" ] && [ -d "$home" ] || { echo "srs-root: cannot resolve the invoking user" >&2; exit 2; }

@@ -1,0 +1,18 @@
+[Unit]
+Description=SRS: collect root-only hardware data for %i
+Documentation=https://github.com/eugenesflanagin-spec/srs-sysinfo
+After=local-fs.target systemd-modules-load.service
+RequiresMountsFor=/home
+
+[Service]
+Type=oneshot
+# Read-only collectors (dmidecode, SMART, SPD, MSRs, ACPI tables); results go to
+# ~%i/.cache/srs/root, owned by %i. Lowest CPU and disk priority so boot isn't slowed.
+ExecStart=/usr/bin/srs-root --user %i
+Nice=19
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
