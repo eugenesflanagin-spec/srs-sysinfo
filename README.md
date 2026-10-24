@@ -67,6 +67,19 @@ Menu, Exit; middle-click toggles). **Menu -> Options** sets: tray icon, Close bu
 tray, Minimize hides to tray (X11/XWayland), Start hidden in tray, and Start with the desktop
 (autostart into the tray). `srs-gui --gui-tray` starts hidden. See [CHANGELOG.md](CHANGELOG.md).
 
+## Live updates
+
+Live sections refresh smoothly: each refresh is drawn off screen and only the lines whose values
+changed are copied to the window, so the text no longer blinks, the scroll position stays put, and
+an unchanged panel isn't redrawn at all. With the Sensors panel open this halved SRS's CPU use
+(about 4% to 2% on a 7800X3D).
+
+**Menu -> Options -> Update interval** sets how often live panels refresh: *Default* (each panel's
+own rate; the main window every 2 s), 0.5, 1, 2, 3, 5 or 10 seconds, or *Paused* (press F5 to
+refresh a panel by hand). Applies at once to every open window and is saved as `Update Interval=`
+(milliseconds; 0 = default, -1 = paused) in `~/.config/srs/SRSDEF.ini`. CPU Burnin / Stress always
+updates its status every second.
+
 ## Dark mode
 
 **Menu -> Options -> Theme**: *Light (SIV classic)* (default), *Dark*, or *Follow desktop*. Dark

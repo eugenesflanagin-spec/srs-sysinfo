@@ -32,6 +32,8 @@ static const char *const *g_pal = g_pal_light;
 /* theme: 0 light (SIV classic), 1 dark, 2 follow the desktop */
 enum { TH_LIGHT, TH_DARK, TH_SYSTEM };
 static int g_theme = TH_LIGHT, g_dark, g_portal_scheme = -1;
+/* Menu -> Options -> Update interval: 0 = each panel's own rate, -1 = paused, else ms */
+static int g_update_ms = 0;
 static char g_env_theme[256];
 static GDBusProxy *g_portal;
 static void theme_apply(void);
@@ -49,8 +51,10 @@ typedef struct swin {
     int is_main, sub;                     /* sub: W_BURN 0 burnin / 1 stress; W_BENCH BK_* */
     GtkWidget *win, *view, *plot;
     GtkTextBuffer *buf;
+    GtkTextBuffer *scratch;  /* live refresh is drawn here, then only changed lines are copied over */
+    guint commit_id;
     guint timer;
-    double vscroll;
+    int own_ms;              /* the panel's own refresh period (0 = static) */
     /* id lookup */
     GtkWidget *l_id, *l_mode, *l_modelbl, *l_pci, *l_usb;
     int l_state;
@@ -82,7 +86,7 @@ static void open_tool(wkind k, int sub);
 /* ======================================================================
  * GTK text backend for srs_out
  * ====================================================================== */
-typedef struct { swin *w; GtkTextIter end; const char *tabtag; } gctx;
+typedef struct { swin *w; GtkTextBuffer *buf; GtkTextIter end; const char *tabtag; } gctx;
 
 /* (re)colour a buffer's palette tags for the current theme; find highlight keeps dark text in dark mode */
 static void theme_tags(GtkTextBuffer *b)
@@ -147,7 +151,7 @@ static void ins(gctx *g, int col, int bold, int mono, int hl, const char *s, gss
 {
     char cn[8], *c = clean(s, len);
     GtkTextIter start;
-    GtkTextBuffer *b = g->w->buf;
+    GtkTextBuffer *b = g->buf;
     int off = gtk_text_iter_get_offset(&g->end);
     snprintf(cn, sizeof cn, "c%d", col >= 0 && col < C_NCOL ? col : C_BLACK);
     gtk_text_buffer_insert(b, &g->end, c, -1);
@@ -163,21 +167,91 @@ static void ins(gctx *g, int col, int bold, int mono, int hl, const char *s, gss
 static void gx_text(srs_out *o, int c, int b, int m, const char *s) { ins(o->ctx, c, b, m, 0, s, -1); }
 static void gx_tab(srs_out *o) { ins(o->ctx, C_BLACK, 0, 0, 0, "\t", -1); }
 static void gx_par(srs_out *o) { ins(o->ctx, C_BLACK, 0, 0, 0, "\n", -1); }
-static void gx_tabs(srs_out *o, const int *px, int n) { gctx *g = o->ctx; g->tabtag = tabs_tag(g->w->buf, px, n); }
+static void gx_tabs(srs_out *o, const int *px, int n) { gctx *g = o->ctx; g->tabtag = tabs_tag(g->buf, px, n); }
 
-static void out_begin(swin *w, srs_out *o, gctx *g, const char *arg)
+static void out_setup(swin *w, srs_out *o, gctx *g, const char *arg, GtkTextBuffer *target)
 {
     GtkTextIter s, e;
-    gtk_text_buffer_get_bounds(w->buf, &s, &e);
-    gtk_text_buffer_delete(w->buf, &s, &e);
+    gtk_text_buffer_get_bounds(target, &s, &e);
+    gtk_text_buffer_delete(target, &s, &e);
     memset(g, 0, sizeof *g);
     g->w = w;
-    gtk_text_buffer_get_end_iter(w->buf, &g->end);
+    g->buf = target;
+    gtk_text_buffer_get_end_iter(target, &g->end);
     memset(o, 0, sizeof *o);
     o->text = gx_text; o->tab = gx_tab; o->par = gx_par; o->tabs = gx_tabs;
     o->ctx = g;
     o->gui = 1;
     o->arg = arg;
+}
+
+/* Draw straight into the visible buffer (one-off output: Find, ID lookup, benchmarks). */
+static void out_begin(swin *w, srs_out *o, gctx *g, const char *arg) { out_setup(w, o, g, arg, w->buf); }
+
+/* Split a buffer's text into lines (caller frees with g_strfreev). */
+static char **buf_lines(GtkTextBuffer *b, int *n)
+{
+    GtkTextIter s, e;
+    char *t, **v;
+    gtk_text_buffer_get_bounds(b, &s, &e);
+    t = gtk_text_buffer_get_text(b, &s, &e, FALSE);
+    v = g_strsplit(t, "\n", -1);
+    g_free(t);
+    *n = (int)g_strv_length(v);
+    return v;
+}
+
+static void line_iter(GtkTextBuffer *b, GtkTextIter *it, int line, int nlines)
+{
+    if (line >= nlines) gtk_text_buffer_get_end_iter(b, it);
+    else gtk_text_buffer_get_iter_at_line(b, it, line);
+}
+
+/* Replace visible lines [va, vb) with scratch lines [sa, sb), text and tags. */
+static void swap_lines(GtkTextBuffer *v, int va, int vb, int nv, GtkTextBuffer *sc, int sa, int sb, int ns)
+{
+    GtkTextIter a, b, c, d;
+    line_iter(v, &a, va, nv);
+    line_iter(v, &b, vb, nv);
+    gtk_text_buffer_delete(v, &a, &b);
+    line_iter(sc, &c, sa, ns);
+    line_iter(sc, &d, sb, ns);
+    gtk_text_buffer_insert_range(v, &a, &c, &d);
+}
+
+/* Copy only what changed from the scratch buffer to the visible one, so a live
+ * refresh doesn't clear and re-lay-out the whole view (that was the flicker). */
+static gboolean commit_idle(gpointer data)
+{
+    swin *w = data;
+    char **vl, **sl;
+    int nv, ns, p = 0, q = 0, i;
+    w->commit_id = 0;
+    if (!w->scratch || !w->buf) return G_SOURCE_REMOVE;
+    vl = buf_lines(w->buf, &nv);
+    sl = buf_lines(w->scratch, &ns);
+    while (p < nv && p < ns && !strcmp(vl[p], sl[p])) p++;
+    if (p == nv && p == ns) goto done; /* nothing changed: no redraw at all */
+    while (q < nv - p && q < ns - p && !strcmp(vl[nv - 1 - q], sl[ns - 1 - q])) q++;
+    if (nv - p - q == ns - p - q) {
+        /* same shape: replace changed lines one at a time, bottom up so line numbers hold */
+        for (i = nv - q - 1; i >= p; i--)
+            if (strcmp(vl[i], sl[i])) swap_lines(w->buf, i, i + 1, nv, w->scratch, i, i + 1, ns);
+    } else {
+        swap_lines(w->buf, p, nv - q, nv, w->scratch, p, ns - q, ns);
+    }
+done:
+    g_strfreev(vl);
+    g_strfreev(sl);
+    return G_SOURCE_REMOVE;
+}
+
+/* Draw a live refresh off screen; the diff is applied just before GTK paints. */
+static void out_begin_live(swin *w, srs_out *o, gctx *g, const char *arg)
+{
+    if (!w->scratch) w->scratch = gtk_text_buffer_new(gtk_text_buffer_get_tag_table(w->buf));
+    out_setup(w, o, g, arg, w->scratch);
+    if (!w->commit_id) w->commit_id = g_idle_add_full(G_PRIORITY_HIGH_IDLE, commit_idle, w, NULL);
 }
 
 /* ======================================================================
@@ -197,6 +271,11 @@ static void settings_load(void)
         if (c && strlen(c) == 6) snprintf(g_findcol, sizeof g_findcol, "#%s", c);
         if (!e) g_highlight = h; else g_error_free(e);
         if (gc) snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gc);
+        {
+            GError *e3 = NULL;
+            int u = g_key_file_get_integer(kf, "SRSDEF", "Update Interval", &e3);
+            if (!e3) g_update_ms = u < -1 ? 0 : u; else g_error_free(e3);
+        }
         {
             char *th = g_key_file_get_string(kf, "SRSDEF", "Theme", NULL);
             if (th) g_theme = !g_ascii_strcasecmp(th, "Dark") ? TH_DARK : !g_ascii_strcasecmp(th, "System") ? TH_SYSTEM : TH_LIGHT;
@@ -234,6 +313,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
+    g_key_file_set_integer(kf, "SRSDEF", "Update Interval", g_update_ms);
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
 }
@@ -335,6 +415,8 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     swin *w = data;
     (void)wid;
     if (w->timer) g_source_remove(w->timer);
+    if (w->commit_id) g_source_remove(w->commit_id);
+    if (w->scratch) g_object_unref(w->scratch);
     if (w->kind == W_BURN && burn_active()) burn_stop();
     if (w->have_fr) srs_find_free(&w->fr);
     if (w->marks) g_ptr_array_free(w->marks, TRUE);
@@ -496,13 +578,6 @@ static void run_root(void)
 /* ======================================================================
  * section windows
  * ====================================================================== */
-static gboolean restore_idle(gpointer data)
-{
-    swin *w = data;
-    if (g_ptr_array_find(g_wins, w, NULL) && w->view)
-        gtk_adjustment_set_value(gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(w->view)), w->vscroll);
-    return G_SOURCE_REMOVE;
-}
 
 static void render(swin *w)
 {
@@ -511,16 +586,24 @@ static void render(swin *w)
     const srs_item *it;
     const char *colon;
     if (w->kind != W_SECTION) return;
-    w->vscroll = gtk_adjustment_get_value(gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(w->view)));
     colon = strchr(w->id, ':');
-    out_begin(w, &o, &g, colon ? colon + 1 : NULL);
+    out_begin_live(w, &o, &g, colon ? colon + 1 : NULL);
     it = srs_section_find(w->id);
     if (!it) { so_err(&o, "No such item"); return; }
     srs_section_render(it, &o);
-    g_idle_add(restore_idle, w);
 }
 
 static gboolean live_tick(gpointer data) { render(data); return G_SOURCE_CONTINUE; }
+
+/* (Re)start a live panel's refresh timer at the chosen rate. */
+static void live_start(swin *w)
+{
+    guint ms;
+    if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
+    if (w->own_ms <= 0 || g_update_ms < 0) return;  /* static panel, or paused */
+    ms = (guint)(g_update_ms > 0 ? g_update_ms : w->own_ms);
+    w->timer = g_timeout_add(ms < 250 ? 250 : ms, live_tick, w);
+}
 
 static void on_btn(GtkButton *b, gpointer data);
 
@@ -644,7 +727,8 @@ static swin *open_section(const char *id)
     gtk_box_pack_start(GTK_BOX(vb), make_view(w), TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(vb), button_row(w, row_for(id, 0)), FALSE, FALSE, 0);
     render(w);
-    if (it && it->live_ms > 0) w->timer = g_timeout_add(it->live_ms < 500 ? 500 : (guint)it->live_ms, live_tick, w);
+    w->own_ms = it && it->live_ms > 0 ? (it->live_ms < 500 ? 500 : it->live_ms) : 0;
+    live_start(w);
     gtk_widget_show_all(w->win);
     return w;
 }
@@ -942,8 +1026,7 @@ static void render_burn(swin *w)
         { st->cur.gpu_load, st->avg.gpu_load, st->roll.gpu_load, st->max.gpu_load },
         { st->cur.gpu_temp, st->avg.gpu_temp, st->roll.gpu_temp, st->max.gpu_temp },
         { st->cur.gpu_mhz, st->avg.gpu_mhz, st->roll.gpu_mhz, st->max.gpu_mhz } };
-    w->vscroll = gtk_adjustment_get_value(gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(w->view)));
-    out_begin(w, &o, &g, NULL);
+    out_begin_live(w, &o, &g, NULL);
     so_tabs(&o, tabs, 5);
     fmt_hms(st->elapsed, a, sizeof a);
     fmt_hms(st->remaining > 0 ? st->remaining : 0, b, sizeof b);
@@ -983,7 +1066,6 @@ static void render_burn(swin *w)
         so_row(&o, 11, (const char *const[]){ c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10] },
                (const int[]){ C_GRAY, C_LABEL, C_PURPLE, C_BLACK, C_GRAY, C_BLACK, C_BLACK, C_TEAL, C_GRAY, C_GRAY, t->apic_errors ? C_RED : C_GREEN });
     }
-    g_idle_add(restore_idle, w);
 }
 
 static gboolean burn_timer(gpointer data)
@@ -1676,6 +1758,23 @@ static void on_theme(GtkCheckMenuItem *mi, gpointer d)
     tray_apply();   /* rebuild the tray menu so its radio marks follow */
 }
 
+static const struct { const char *label; int ms; } g_intervals[] = {
+    { "_Default (each panel's own rate)", 0 }, { "0.5 seconds", 500 }, { "_1 second", 1000 }, { "_2 seconds", 2000 },
+    { "_3 seconds", 3000 }, { "_5 seconds", 5000 }, { "1_0 seconds", 10000 }, { "_Paused (refresh by hand)", -1 }, { NULL, 0 } };
+
+static void on_interval(GtkCheckMenuItem *mi, gpointer d)
+{
+    int ms = GPOINTER_TO_INT(d);
+    guint i;
+    if (!gtk_check_menu_item_get_active(mi) || ms == g_update_ms) return;
+    g_update_ms = ms;
+    settings_save();
+    for (i = 0; i < g_wins->len; i++) {
+        swin *x = g_ptr_array_index(g_wins, i);
+        if (x->kind == W_SECTION) live_start(x);
+    }
+}
+
 static void build_options(GtkWidget *menu)
 {
     static const struct { const char *label; int id; } opts[] = {
@@ -1692,6 +1791,19 @@ static void build_options(GtkWidget *menu)
             grp = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(it));
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_theme == i);
             g_signal_connect(it, "toggled", G_CALLBACK(on_theme), GINT_TO_POINTER(i));
+            gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
+        }
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), top);
+    }
+    {
+        GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("_Update interval");
+        GSList *grp = NULL;
+        for (i = 0; g_intervals[i].label; i++) {
+            GtkWidget *it = gtk_radio_menu_item_new_with_mnemonic(grp, g_intervals[i].label);
+            grp = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(it));
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_update_ms == g_intervals[i].ms);
+            g_signal_connect(it, "toggled", G_CALLBACK(on_interval), GINT_TO_POINTER(g_intervals[i].ms));
             gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
         }
         gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
@@ -1742,7 +1854,6 @@ static gboolean on_main_state(GtkWidget *wid, GdkEventWindowState *ev, gpointer 
 /* ======================================================================
  * main window
  * ====================================================================== */
-static gboolean main_tick(gpointer data) { render(data); return G_SOURCE_CONTINUE; }
 
 static void open_main(void)
 {
@@ -1761,7 +1872,8 @@ static void open_main(void)
     gtk_box_pack_start(GTK_BOX(vb), make_view(w), TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(vb), button_row(w, row_main), FALSE, FALSE, 0);
     render(w);
-    w->timer = g_timeout_add(2000, main_tick, w);
+    w->own_ms = 2000;
+    live_start(w);
     g_signal_connect(w->win, "delete-event", G_CALLBACK(on_main_delete), NULL);
     g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
     gtk_widget_show_all(w->win);

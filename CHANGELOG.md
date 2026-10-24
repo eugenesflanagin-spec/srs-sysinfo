@@ -3,6 +3,24 @@
 SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.0.7 - 2026-10-24
+
+### Fixed
+- **No more flicker on live updates** (Sensors, the main window, clocks, CPU Burnin / Stress…).
+  Every refresh used to clear the whole text view and rebuild it, so GTK re-laid out and repainted
+  everything and the scroll position had to be put back afterwards.
+  - Each refresh is now drawn into an off-screen copy that shares the window's styles.
+  - Just before GTK paints, only the lines whose text changed are replaced (text and colours);
+    unchanged lines are never touched, and an unchanged panel isn't redrawn at all.
+  - The scroll position no longer jumps, since nothing above it is rebuilt.
+  - Less work per refresh: with the Sensors panel open, SRS went from about 4% to 2% CPU.
+  - One-off output (Find, Device ID Lookup, benchmark results) still draws directly.
+
+### Added
+- **Menu -> Options -> Update interval**: Default (each panel's own rate), 0.5 / 1 / 2 / 3 / 5 /
+  10 seconds, or Paused (F5 refreshes by hand). Applies to every open window at once; saved as
+  `Update Interval=` in SRSDEF.ini.
+
 ## 1.0.6 - 2026-10-16
 
 ### Fixed

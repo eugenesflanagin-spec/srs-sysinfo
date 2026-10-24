@@ -11,7 +11,7 @@
 
 #include <stddef.h>
 
-#define SRS_VERSION "1.0.6"
+#define SRS_VERSION "1.0.7"
 
 /* qsort/bsearch callbacks: winelib links wine's msvcrt, whose callbacks are ms_abi */
 #ifdef _WIN32
