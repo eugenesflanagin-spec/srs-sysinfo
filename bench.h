@@ -22,6 +22,7 @@ double dhrystone_dmips(long runs, double *secs);
 int bench_run(bench_mode m, double secs_per_cpu, srs_out *o);
 int bench_ipi(int max_cpus, int rounds, srs_out *o);          /* core-to-core latency matrix */
 int bench_latency(long max_bytes, srs_out *o);                 /* memory latency by block size */
+int bench_ecores(unsigned char *is_e, int ncpu);                 /* hybrid CPUs: E-core map, returns count */
 int bench_show_last(const char *name, srs_out *o);             /* render cached result, 0 if found */
 /* last measured data for the GUI plots (valid after a run in this process) */
 const double *bench_ipi_last(int *n);                           /* n x n matrix, ns */

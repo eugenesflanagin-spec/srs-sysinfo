@@ -66,6 +66,19 @@ static int run_to(char **out, int secs, const char *const argv[])
     return rc;
 }
 
+static int gpu_proc_running(const char *name)
+{
+    char **nm, p[300], c[64];
+    int n = dir_list("/proc", &nm), i, found = 0;
+    for (i = 0; i < n && !found; i++) {
+        if (nm[i][0] < '0' || nm[i][0] > '9') continue;
+        snprintf(p, sizeof p, "/proc/%s/comm", nm[i]);
+        if (rd_str(p, c, sizeof c) && !strcmp(c, name)) found = 1;
+    }
+    dir_free(nm, n);
+    return found;
+}
+
 static int have_cmd(const char *c)
 {
     static const char *const dirs[] = { "/usr/bin", "/usr/local/bin", "/bin", "/opt/rocm/bin", NULL };
@@ -753,7 +766,16 @@ static void s_gpu_fans(srs_out *o)
     if (!*g.hwmon) { so_err(o, "GPU has no hwmon device"); return; }
     fans_body(o, &g);
     so_par(o);
-    so_note(o, "Read only. Fan control is owned by LACT on this system; nothing is written.");
+    {   /* say who controls the fan only when a known fan-control program is actually running */
+        static const char *const ctl[] = { "lactd", "coolercontrold", "corectrl", "fancontrol", "amdgpu-fancontrol", "amdgpu-fan", NULL };
+        char who[200] = "";
+        int i;
+        for (i = 0; ctl[i]; i++)
+            if (gpu_proc_running(ctl[i])) { size_t l = strlen(who); snprintf(who + l, sizeof who - l, "%s%s", l ? ", " : "", ctl[i]); }
+        if (*who) so_kvf(o, "Fan-control software", C_PURPLE, "running: %s", who);
+        else so_kv(o, "Fan-control software", C_GRAY, "none found running (driver / firmware fan curve)");
+    }
+    so_note(o, "Read only: srs-gui never writes fan or PWM settings.");
 }
 
 static void gm_header(srs_out *o, const gpu_t *g)
@@ -1397,7 +1419,7 @@ static void s_gpu_i2c(srs_out *o)
     }
     dir_free(nm, n);
     so_par(o);
-    so_note(o, "Bus names only from /sys/bus/i2c - DDC/I2C is never opened or probed (ddcutil/ddccontrol wedged the SMU here).");
+    so_note(o, "Bus names only from /sys/bus/i2c - DDC/I2C is never opened or probed (probing GPU DDC/I2C buses can hang some GPU firmware).");
 }
 
 /* ======================================================================
@@ -2103,11 +2125,26 @@ static void s_gpu_leds(srs_out *o)
 {
     static const int tabs[] = { 200 };
     gpu_t g;
+    memset(&g, 0, sizeof g);
     so_siv_header(o, "GPU LEDs");
     so_tabs(o, tabs, 1);
     if (gpu_sel(o, &g)) so_kvf(o, "Board", C_VALUE, "%04X:%04X (subsystem %04X:%04X)", g.vid, g.did, g.svid, g.sdid);
-    so_kv(o, "RGB controller", C_GRAY, "none - this XFX RX 9070 XT board has no GPU RGB controller");
-    so_kv(o, "Checked", C_PURPLE, "subsystem IDs only (GPU I2C buses are never probed)");
+    {   /* Linux exposes GPU RGB only through LED class devices (or OpenRGB, which needs I2C access) */
+        char **nm, p[400], real[600];
+        int n = dir_list("/sys/class/leds", &nm), i, found = 0;
+        for (i = 0; i < n; i++) {
+            ssize_t l;
+            snprintf(p, sizeof p, "/sys/class/leds/%s/device", nm[i]);
+            l = readlink(p, real, sizeof real - 1);
+            if (l <= 0) continue;
+            real[l] = 0;
+            if (*g.slot && strstr(real, g.slot)) { so_kv(o, "LED device", C_GREEN, nm[i]); found++; }
+        }
+        dir_free(nm, n);
+        if (!found) so_kv(o, "RGB controller", C_GRAY, "none exposed by the kernel for this GPU");
+        so_kv(o, "Checked", C_PURPLE, "/sys/class/leds devices belonging to the GPU (GPU I2C buses are never probed)");
+        so_note(o, "Many GPU RGB controllers sit on the GPU's I2C bus and are only reachable with tools such as OpenRGB.");
+    }
 }
 
 static void s_rsr_info(srs_out *o)
@@ -2626,7 +2663,7 @@ const srs_item sec_gpu[] = {
     { "gpu-reg", "hardware", "GPU registry", B_LINUX, 0, "device/uevent; driver; /sys/module/amdgpu/parameters", s_gpu_reg, 0, "gpu" },
     { "gpu-scf", "hardware", "GPU SCF", B_LINUX, 0, "ip_discovery DF/MP1; pp_dpm_fclk/socclk/pcie", s_gpu_scf, 0, "gpu" },
     { "gpu-i2c", "hardware", "GPU I2C buses", B_LINUX, 0, "/sys/bus/i2c/devices/i2c-*/name (names only)", s_gpu_i2c, 0, "gpu" },
-    { "gpu-apps", "hardware", "GPU applications", B_LINUX, 0, "/proc/*/fdinfo (drm-client stats)", s_gpu_apps, 2000, "gpu" },
+    { "gpu-apps", "hardware", "GPU applications", B_LINUX, 0, "/proc/*/fdinfo (drm-client stats; other users' processes need root)", s_gpu_apps, 2000, "gpu" },
     { "gpu-api", "hardware", "GPU API routines", B_LINUX, 0, "ldconfig -p", s_gpu_api, 0, "gpu" },
     { "gpu-d3d", "hardware", "GPU D3D status", B_LINUX, 0, "gpu_busy_percent; mem_info_*; vulkaninfo --summary", s_gpu_d3d, 0, "gpu" },
     { "d3d-node", "hardware", "GPU D3D engine nodes", B_LINUX, 0, "ip_discovery; gpu_busy_percent", s_d3d_node, 1000, "gpu" },
@@ -2637,7 +2674,7 @@ const srs_item sec_gpu[] = {
     { "gpu-export", "hardware", "GPU export", B_LINUX, 0, "card hwmon; gpu_busy_percent", s_gpu_export, 0, "gpu" },
     { "gpu-cuda", "hardware", "CUDA information", B_ABSENT, 0, "n/a (no NVIDIA GPU; nvidia-smi absent); nearest ROCm/HIP", s_gpu_cuda, 0, "gpu" },
     { "gpu-sli", "hardware", "GPU SLI topology", B_ABSENT, 0, "n/a (single GPU, no SLI/CrossFire)", s_gpu_sli, 0, "gpu" },
-    { "gpu-leds", "hardware", "GPU LEDs", B_ABSENT, 0, "n/a (XFX RX 9070 XT has no GPU RGB controller)", s_gpu_leds, 0, "gpu" },
+    { "gpu-leds", "hardware", "GPU LEDs", B_ABSENT, 0, "/sys/class/leds (LED devices of the GPU)", s_gpu_leds, 0, "gpu" },
     { "opencl", "hardware", "OpenCL", B_LINUX, 0, "clinfo", s_opencl, 0, "gpu" },
     { "rsr-info", "hardware", "RSR info", B_WINONLY, 0, "none; nearest gamescope FSR", s_rsr_info, 0, "gpu" },
     { "rtss-sts", "windows", "RTSS status", B_ABSENT, 0, "n/a (RivaTuner); nearest mangohud", s_rtss_sts, 0, "gpu" },

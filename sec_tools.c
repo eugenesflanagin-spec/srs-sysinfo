@@ -31,7 +31,15 @@ static void s_bench_mode(srs_out *o, bench_mode m)
     if (bench_show_last(bench_mode_id(m), o)) return;
     so_siv_header(o, "CPU Benchmark");
     so_kv(o, "Mode", C_TEAL, bench_mode_desc(m));
-    if (m == BM_EC || m == BM_EP) { so_kv(o, "Status", C_ORANGE, "No efficiency cores: not a hybrid processor"); return; }
+    if (m == BM_EC || m == BM_EP) {
+        unsigned char is_e[1024];
+        long nc = sysconf(_SC_NPROCESSORS_CONF);
+        if (!bench_ecores(is_e, nc > 1024 ? 1024 : (int)nc)) {
+            so_kv(o, "Status", C_ORANGE, "No efficiency cores detected on this CPU");
+            so_kv(o, "Checked", C_PURPLE, "/sys/devices/cpu_atom/cpus (Intel hybrid CPUs)");
+            return;
+        }
+    }
     snprintf(cli, sizeof cli, "srs-gui bench %s", bench_mode_id(m) + 10);
     not_run(o, "Menu > Tools > Benchmark, then Run", cli);
 }

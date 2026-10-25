@@ -203,11 +203,13 @@ const char *bench_mode_desc(bench_mode m) { return m < BM_COUNT ? mode_desc[m] :
 typedef struct { int cpu; double secs; char kind; double dmips, mwips; pthread_t t; } job;
 
 static long calib_d, calib_w;
+static double calib_secs;
 
 static void calibrate(double secs)
 {
     double t;
-    if (calib_d) return;
+    if (calib_d && calib_secs == secs) return;   /* re-calibrate when the measurement time changes */
+    calib_secs = secs;
     dhrystone_dmips(200000, &t);
     calib_d = (long)(200000 * (secs / (t > 0 ? t : 1e-3)));
     whetstone_mwips(500, &t);
@@ -251,6 +253,22 @@ static const char *cache_dir(void)
     snprintf(d, sizeof d, "%s/.cache/srs", h ? h : "/tmp");
     mkdir(d, 0755);
     return d;
+}
+
+/* Hybrid CPUs: Linux lists the efficiency cores of Intel hybrid parts in /sys/devices/cpu_atom/cpus
+   (and the performance cores in cpu_core/cpus). Fills is_e[cpu]; returns the number of E-cores. */
+int bench_ecores(unsigned char *is_e, int ncpu)
+{
+    char b[512], *t, *save = NULL;
+    int n = 0;
+    memset(is_e, 0, (size_t)ncpu);
+    if (!rd_str("/sys/devices/cpu_atom/cpus", b, sizeof b) || !*b) return 0;
+    for (t = strtok_r(b, ",", &save); t; t = strtok_r(NULL, ",", &save)) {
+        int a, z, i;
+        if (sscanf(t, "%d-%d", &a, &z) != 2) { if (sscanf(t, "%d", &a) != 1) continue; z = a; }
+        for (i = a; i <= z && i < ncpu; i++) if (i >= 0 && !is_e[i]) { is_e[i] = 1; n++; }
+    }
+    return n;
 }
 
 typedef struct { int cpu; double d, w; } brow;
@@ -304,18 +322,23 @@ int bench_run(bench_mode m, double secs, srs_out *o)
     brow r[BURN_MAXCPU];
     job js[BURN_MAXCPU];
     bctx c;
-    if (m == BM_EC || m == BM_EP) {
-        if (o) so_err(o, "No efficiency cores: this is not a hybrid processor");
+    unsigned char is_e[BURN_MAXCPU];
+    int ne;
+    if (ncpu > BURN_MAXCPU) ncpu = BURN_MAXCPU;
+    ne = bench_ecores(is_e, ncpu);
+    if ((m == BM_EC || m == BM_EP) && !ne) {
+        if (o) so_err(o, "No efficiency cores detected (Linux lists them in /sys/devices/cpu_atom/cpus on hybrid CPUs)");
         return -1;
     }
     calibrate(secs);
     memset(r, 0, sizeof r);
     memset(js, 0, sizeof js);
     switch (m) {
-    case BM_AC: case BM_PC: case BM_LC:
+    case BM_AC: case BM_PC: case BM_LC: case BM_EC:
         for (i = 0; i < ncpu; i++) {
             int sib = sibling_of(i), primary = sib < 0 || i < sib;
-            if ((m == BM_PC && !primary) || (m == BM_LC && primary)) continue;
+            if ((m == BM_PC && (!primary || is_e[i])) || (m == BM_LC && primary)) continue;
+            if (m == BM_EC && !is_e[i]) continue;
             js[n].cpu = i; js[n].kind = 'D'; n++;
         }
         run_set(js, n);
@@ -323,10 +346,11 @@ int bench_run(bench_mode m, double secs, srs_out *o)
         run_set(js, n);
         for (i = 0; i < n; i++) r[i].w = js[i].mwips;
         break;
-    case BM_AS: case BM_PP: case BM_LP:
+    case BM_AS: case BM_PP: case BM_LP: case BM_EP:
         for (i = 0; i < ncpu; i++) {
             int sib = sibling_of(i), primary = sib < 0 || i < sib;
-            if ((m == BM_PP && !primary) || (m == BM_LP && primary)) continue;
+            if ((m == BM_PP && (!primary || is_e[i])) || (m == BM_LP && primary)) continue;
+            if (m == BM_EP && !is_e[i]) continue;
             js[0].cpu = i; js[0].kind = 'B';
             run_set(js, 1);
             r[n].cpu = i; r[n].d = js[0].dmips; r[n].w = js[0].mwips;
@@ -452,6 +476,34 @@ int bench_ipi(int max_cpus, int rounds, srs_out *o)
 /* ======================================================================
  * memory latency: dependent random pointer chase over growing block sizes
  * ====================================================================== */
+/* data / unified cache size per level (index 1..3, bytes; 0 = none) from cpu0's sysfs cache info */
+static void cache_sizes(long sz[4])
+{
+    int i;
+    memset(sz, 0, sizeof(long) * 4);
+    for (i = 0; i < 16; i++) {
+        char b[64], t[32];
+        long lv, kb;
+        char unit = 0;
+        if (!rd_fmt(b, sizeof b, "/sys/devices/system/cpu/cpu0/cache/index%d/level", i)) break;
+        lv = atol(b);
+        rd_fmt(t, sizeof t, "/sys/devices/system/cpu/cpu0/cache/index%d/type", i);
+        if (!strcmp(t, "Instruction") || lv < 1 || lv > 3) continue;
+        if (!rd_fmt(b, sizeof b, "/sys/devices/system/cpu/cpu0/cache/index%d/size", i)) continue;
+        if (sscanf(b, "%ld%c", &kb, &unit) < 1) continue;
+        sz[lv] = unit == 'M' ? kb * 1024 * 1024 : unit == 'G' ? kb << 30 : kb * 1024;
+    }
+}
+
+/* level a block of this size mostly lives in (first level whose cache holds it) */
+static const char *lat_level(long size, const long csz[4])
+{
+    static const char *const nm[] = { "", "L1", "L2", "L3" };
+    int l;
+    for (l = 1; l <= 3; l++) if (csz[l] && size <= csz[l]) return nm[l];
+    return csz[1] ? "DRAM" : "?";
+}
+
 static volatile size_t g_lat_sink;
 typedef struct { int n; long size[40]; double ns[40]; } lctx;
 static lctx g_lat;
@@ -461,18 +513,26 @@ static void lat_fn(srs_out *o, void *c)
     static const int tabs[] = { 120, 240 };
     lctx *x = c;
     int i;
+    long csz[4];
+    cache_sizes(csz);
     so_siv_header(o, "Memory Latency (random dependent loads, 64-byte lines)");
     so_tabs(o, tabs, 2);
     so_row(o, 3, (const char *const[]){ "Block", "Latency", "Level" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
     for (i = 0; i < x->n; i++) {
         char sz[32], ns[32];
-        const char *lvl = x->size[i] <= 32 * 1024 ? "L1" : x->size[i] <= 1024 * 1024 ? "L2" : x->size[i] <= 96L * 1024 * 1024 ? "L3" : "DRAM";
+        const char *lvl = lat_level(x->size[i], csz);
         fmt_bytes((double)x->size[i], sz, sizeof sz);
         snprintf(ns, sizeof ns, "%.2f ns", x->ns[i]);
         so_row(o, 3, (const char *const[]){ sz, ns, lvl }, (const int[]){ C_VALUE, C_BLACK, C_TEAL });
     }
     so_par(o);
-    so_note(o, "Cache sizes from /sys/devices/system/cpu/cpu0/cache; levels are indicative.");
+    {
+        char a[32], b2[32], c3[32], line[160];
+        fmt_bytes((double)csz[1], a, sizeof a); fmt_bytes((double)csz[2], b2, sizeof b2); fmt_bytes((double)csz[3], c3, sizeof c3);
+        snprintf(line, sizeof line, "Level = smallest cache the block fits in (L1d %s, L2 %s, L3 %s from /sys/devices/system/cpu/cpu0/cache); indicative.",
+                 csz[1] ? a : "-", csz[2] ? b2 : "-", csz[3] ? c3 : "-");
+        so_note(o, line);
+    }
 }
 
 int bench_latency(long max_bytes, srs_out *o)

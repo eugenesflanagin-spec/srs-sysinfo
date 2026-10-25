@@ -2052,11 +2052,32 @@ static void s_thunder(srs_out *o)
     so_kv(o, "/sys/bus/thunderbolt", C_VALUE, path_exists("/sys/bus/thunderbolt") ? "present" : "absent (thunderbolt module not loaded)");
     for (i = 0; i < g_npci; i++)
         if ((g_pci[i].cls >> 8) == 0x0C03 && (g_pci[i].cls & 0xFF) == 0x40) { so_kvf(o, "USB4 host", C_BLACK, "%s  %s %s", g_pci[i].slot, g_pci[i].vname, g_pci[i].dname); usb4++; }
-        else if (g_pci[i].ven == 0x1B21 && (strstr(g_pci[i].dname, "4242") || strstr(g_pci[i].dname, "USB4"))) { so_kvf(o, "ASMedia", C_BLACK, "%s  %s", g_pci[i].slot, g_pci[i].dname); usb4++; }
+        else if (strstr(g_pci[i].dname, "Thunderbolt") && (g_pci[i].cls >> 8) != 0x0604) { so_kvf(o, "Thunderbolt", C_BLACK, "%s  %s %s", g_pci[i].slot, g_pci[i].vname, g_pci[i].dname); usb4++; }
+    {   /* domains and routers the thunderbolt driver enumerated */
+        char **nm, p[400], a[128], b[128], gen[16], nv[32], sec[32];
+        int n = dir_list("/sys/bus/thunderbolt/devices", &nm), k;
+        for (k = 0; k < n; k++) {
+            if (!strncmp(nm[k], "domain", 6)) {
+                snprintf(p, sizeof p, "/sys/bus/thunderbolt/devices/%s/security", nm[k]);
+                if (!rd_str(p, sec, sizeof sec)) snprintf(sec, sizeof sec, "-");
+                so_kvf(o, nm[k], C_TEAL, "security level %s", sec);
+                usb4++;
+                continue;
+            }
+            if (strchr(nm[k], ':') || strchr(nm[k], '.')) continue;   /* services / retimers */
+            rd_fmt(a, sizeof a, "/sys/bus/thunderbolt/devices/%s/vendor_name", nm[k]);
+            rd_fmt(b, sizeof b, "/sys/bus/thunderbolt/devices/%s/device_name", nm[k]);
+            if (!rd_fmt(gen, sizeof gen, "/sys/bus/thunderbolt/devices/%s/generation", nm[k])) snprintf(gen, sizeof gen, "?");
+            if (!rd_fmt(nv, sizeof nv, "/sys/bus/thunderbolt/devices/%s/nvm_version", nm[k])) snprintf(nv, sizeof nv, "-");
+            if (atoi(gen) >= 4) so_kvf(o, nm[k], C_BLACK, "%s %s  (USB4, NVM %s)", a, b, nv);
+            else so_kvf(o, nm[k], C_BLACK, "%s %s  (Thunderbolt %s, NVM %s)", a, b, gen, nv);
+        }
+        dir_free(nm, n);
+    }
     if (!usb4) {
         so_kv(o, "USB4 controller", C_ORANGE, "none enumerated on the PCI bus");
-        so_note(o, "The ASUS TUF X870-PRO WIFI7 has an ASMedia ASM4242 USB4 host; it is not visible on this boot");
-        so_note(o, "(disabled in BIOS or not trained), so no Thunderbolt/USB4 domain exists.");
+        so_note(o, "If the board or a card has a Thunderbolt / USB4 host, it is disabled in firmware or not powered up on");
+        so_note(o, "this boot, so no Thunderbolt/USB4 domain exists.");
     }
 }
 static void s_firewire(srs_out *o)
@@ -2123,7 +2144,7 @@ const srs_item sec_bus[] = {
     { "int-owner", "hardware", "Interface owner", B_LINUX, 0, "/sys/class/*/*/device/driver", s_int_owner, 0, "bus" },
     { "io-asus", "hardware", "ASUS I/O", B_LINUX, 1, "hwmon nct6775/asus; ioports.txt", s_io_asus, 0, "bus" },
     { "io-dump", "hardware", "I/O port dump", B_LINUX, 1, "ioports.txt (no /dev/port)", s_io_dump, 0, "bus" },
-    { "io-gpio", "hardware", "I/O GPIO", B_LINUX, 1, "/sys/bus/gpio/devices", s_io_gpio, 0, "bus" },
+    { "io-gpio", "hardware", "I/O GPIO", B_LINUX, 0, "/sys/bus/gpio/devices", s_io_gpio, 0, "bus" },
     { "io-mmio", "hardware", "I/O PM2 MMIO", B_LINUX, 1, "/proc/iomem; iomem.txt", s_io_mmio, 0, "bus" },
     { "io-ports", "hardware", "I/O ports", B_LINUX, 1, "/proc/ioports; ioports.txt", s_io_ports, 0, "bus" },
     { "isa-bus", "hardware", "ISA bus", B_LINUX, 0, "/sys/bus/pnp/devices; /sys/bus/isa", s_isa_bus, 0, "bus" },
@@ -2156,7 +2177,7 @@ const srs_item sec_bus[] = {
     { "smbus-system", "hardware", "System SMBus access", B_LINUX, 0, "/sys/class/i2c-dev (stat only)", s_smbus_system, 0, "bus" },
     { "sys-hal", "hardware", "System HAL resources", B_LINUX, 1, "/proc/iomem; /proc/ioports", s_sys_hal, 0, "bus" },
     { "sys-res", "hardware", "System resources", B_LINUX, 1, "/proc/interrupts; /proc/dma; /proc/ioports; /proc/iomem", s_sys_res, 0, "bus" },
-    { "thunder", "hardware", "Thunderbolt", B_ABSENT, 0, "/sys/bus/thunderbolt; PCI class 0C0340", s_thunder, 0, "bus" },
+    { "thunder", "hardware", "Thunderbolt", B_LINUX, 0, "/sys/bus/thunderbolt; PCI class 0C0340", s_thunder, 0, "bus" },
     { "translation", "hardware", "Bus address translation", B_LINUX, 0, "/sys/bus/pci/devices/*/resource", s_translation, 0, "bus" },
     { "uid-info", "hardware", "UID database", B_LINUX, 0, "usb.ids", s_usb_info, 0, "bus" },
     { "usb-all", "hardware", "USB all", B_LINUX, 0, "/sys/bus/usb/devices", s_usb_all, 0, "bus" },

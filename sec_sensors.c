@@ -430,19 +430,24 @@ static const char *nct_in_label(int idx)
     }
 }
 
-static int board_is(const char *needle) { return strstr(sys_board(), needle) != NULL; }
-
-/* implausible Super-I/O inputs (floating thermistor pins, unwired PCH readings) */
+/* implausible Super-I/O inputs (floating thermistor pins, unwired PCH readings). Generic rules, no
+   per-board table: an AUXTIN pin with nothing wired floats far above the board's own SYSTIN / CPUTIN
+   readings (or near 0). A pin the user labelled in sensors.conf is trusted as connected. */
 static const char *sio_nc(const chip *c, const sens *s)
 {
     if (!c->sio) return NULL;
     if (s->kind == K_TEMP) {
+        double ref = NAN;
+        int i;
         if (!strncmp(s->label, "PCH_", 4) && s->raw == 0) return "not connected (PCH reading 0)";
-        if (!strncmp(c->name, "nct6799", 7) && board_is("TUF GAMING X870-PRO") &&
-            (!strcmp(s->label, "AUXTIN0") || !strcmp(s->label, "AUXTIN3") || !strcmp(s->label, "AUXTIN4")))
-            return "not connected (floating input)";
         if (s->raw <= 0 || s->raw >= 120) return "not connected (implausible)";
-        if (!strncmp(s->label, "AUXTIN", 6) && s->raw < 15) return "not connected (floating low)";
+        if (strncmp(s->label, "AUXTIN", 6) || s->label_src == 1) return NULL;
+        for (i = 0; i < c->n; i++)
+            if (c->s[i].kind == K_TEMP && (!strcmp(c->s[i].label, "SYSTIN") || !strcmp(c->s[i].label, "CPUTIN")) &&
+                c->s[i].raw > 0 && c->s[i].raw < 120 && (isnan(ref) || c->s[i].raw > ref))
+                ref = c->s[i].raw;
+        if (!isnan(ref) && s->raw > ref + 25) return "probably not connected (floating high)";
+        if (s->raw < 15) return "not connected (floating low)";
     }
     return NULL;
 }
@@ -1985,7 +1990,7 @@ const srs_item sec_sensors[] = {
     { "asus-wmi", "hardware", "ASUS WMI ACPI methods", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C14*; /sys/bus/wmi/devices", s_asus_wmi, 0, "sensors" },
     { "atk-debug", "hardware", "ASUS ATK0110 debug", B_ABSENT, 0, "/sys/bus/acpi/devices (probe ATK0110)", s_atk_debug, 0, "sensors" },
     { "ldn-info", "hardware", "Super I/O LDNs", B_LINUX, 1, "nct6775 platform device; /proc/ioports or ioports.txt; dmesg.txt (root cache)", s_ldn_info, 0, "sensors" },
-    { "sio-dbg", "hardware", "SIO debug", B_LINUX, 1, "Super-I/O hwmon driver attributes (read only)", s_sio_dbg, 0, "sensors" },
+    { "sio-dbg", "hardware", "SIO debug", B_LINUX, 0, "Super-I/O hwmon driver attributes (read only)", s_sio_dbg, 0, "sensors" },
     { "ipmi-info", "hardware", "IPMI status", B_ABSENT, 0, "/dev/ipmi0; /sys/class/ipmi", s_ipmi_info, 0, "sensors" },
     { "ipmi-dump", "hardware", "IPMI dump", B_ABSENT, 0, "/dev/ipmi0; /sys/class/ipmi", s_ipmi_dump, 0, "sensors" },
     { "ipmi-time", "hardware", "IPMI time", B_ABSENT, 0, "/dev/ipmi0; /sys/class/ipmi", s_ipmi_time, 0, "sensors" },
