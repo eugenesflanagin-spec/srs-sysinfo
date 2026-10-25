@@ -758,3 +758,43 @@ int srs_save(const char *items, const char *file)
     if (f != stdout) fclose(f);
     return bad ? 1 : 0;
 }
+
+/* ======================================================================
+ * device ID on a panel line (GUI double-click -> Device ID Lookup)
+ *   VID_046D PID_C52B / VID_046D&PID_C52B          USB
+ *   0003:046D:4057.0010 (HID bus:vendor:product)   bus 0003 USB, 0005 Bluetooth (USB IDs)
+ *   [1022:14D8]  1022:14d8:1043:8877  10de:2684:a1  PCI, or USB when the item / context is USB
+ * PCI slot addresses (0000:03:00.0) are not IDs and are skipped.
+ * ====================================================================== */
+static int hexn(const char *p, int n) { int i; for (i = 0; i < n; i++) if (!hx(p[i])) return 0; return 1; }
+
+int srs_line_device_id(const char *item, const char *line, int usb_ctx, char *out, size_t sz)
+{
+    const char *p;
+    int usb = usb_ctx || (item && strstr(item, "usb"));
+    if ((p = strcasestr(line, "VID_")) && hexn(p + 4, 4)) {
+        const char *q = strcasestr(p, "PID_");
+        if (q && q - p <= 10 && hexn(q + 4, 4)) { snprintf(out, sz, "id-lookup:usb:%.4s:%.4s", p + 4, q + 4); return 1; }
+    }
+    for (p = line; *p; p++) {
+        int bound = p == line || !an(p[-1]) || p[-1] == '[';
+        if (!bound || !hexn(p, 4) || p[4] != ':' || !hexn(p + 5, 4)) continue;
+        /* HID device name: bus:vendor:product.instance */
+        if (p[9] == ':' && hexn(p + 10, 4) && p[14] == '.') {
+            unsigned bus = (unsigned)strtoul(p, NULL, 16);
+            if (bus == 3 || bus == 5) { snprintf(out, sz, "id-lookup:usb:%.4s:%.4s", p + 5, p + 10); return 1; }
+            if (bus == 0x18 || bus == 0x19) { p += 18; continue; }   /* I2C HID: IDs are ACPI-defined, skip the name */
+        }
+        /* PCI slot 0000:03:00.0 (domain:bus:dev.fn) - a location, not an ID */
+        if (p[7] == ':' && p[10] == '.') continue;
+        if (!strncmp(p, "0000", 4)) continue;
+        {
+            size_t l = 9;
+            while (p[l] == ':' && hexn(p + l + 1, 2) && l < 40) { l++; while (hx(p[l])) l++; }
+            snprintf(out, sz, "id-lookup:%s%.*s", usb ? "usb:" : "", (int)l, p);
+            return 1;
+        }
+    }
+    return 0;
+}
+

@@ -632,7 +632,7 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
     swin *w = data;
     GtkTextIter it, s, e, b0;
     int bx, by, usb;
-    char *line, *p, *above, *pu, *pp;
+    char *line, *above, *pu, *pp;
     if (ev->type != GDK_2BUTTON_PRESS || ev->button != 1) return FALSE;
     gtk_text_view_window_to_buffer_coords(GTK_TEXT_VIEW(view), GTK_TEXT_WINDOW_WIDGET, (int)ev->x, (int)ev->y, &bx, &by);
     gtk_text_view_get_iter_at_location(GTK_TEXT_VIEW(view), &it, bx, by);
@@ -647,14 +647,9 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
     pp = g_strrstr(above, "[PCI]");
     usb = pu && (!pp || pu > pp);
     g_free(above);
-    for (p = line; *p; p++) {
-        int k, ok = (p == line || p[-1] == ' ' || p[-1] == '\t') && p[4] == ':';
-        for (k = 0; ok && k < 9; k++) if (k != 4 && !g_ascii_isxdigit(p[k])) ok = 0;
-        if (ok && !(p[0] == '0' && p[1] == '0' && p[2] == '0' && p[3] == '0')) {
-            char id[64], tgt[100];
-            size_t l = strcspn(p, " \t");
-            snprintf(id, sizeof id, "%.*s", (int)(l < 40 ? l : 40), p);
-            snprintf(tgt, sizeof tgt, "id-lookup:%s%s", usb ? "usb:" : "", id);
+    {
+        char tgt[100];
+        if (srs_line_device_id(w->id, line, usb || strstr(line, "USB") != NULL, tgt, sizeof tgt)) {
             g_free(line);
             open_section(tgt);
             return TRUE;

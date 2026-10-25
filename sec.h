@@ -63,6 +63,9 @@ int  srs_save(const char *items, const char *file); /* "-save" ; items like "[cp
 extern int srs_redact;
 const char *srs_redact_host(void);                  /* host name, masked when srs_redact */
 
+/* device ID on a panel line -> "id-lookup:[usb:]VVVV:DDDD..." (item = panel's item id); 1 if found */
+int  srs_line_device_id(const char *item, const char *line, int usb_ctx, char *out, size_t sz);
+
 /* ---- output helpers ---- */
 void so_tabs(srs_out *o, const int *px, int n);
 void so_t(srs_out *o, int color, const char *s);        /* plain text */
