@@ -132,6 +132,20 @@ install-system: native
 	install -Dm644 EVIDENCE.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/EVIDENCE.md
 	install -Dm644 CHECKLIST.tsv $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHECKLIST.tsv
 	install -Dm644 LICENSE $(DESTDIR)$(SYSPREFIX)/share/licenses/srs-sysinfo/LICENSE
+	install -Dm644 srs-user-guide.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-user-guide.desktop
+	install -Dm644 docs/SRS-User-Guide.pdf $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/SRS-User-Guide.pdf
+	install -Dm644 docs/html/SRS-User-Guide.html $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/html/SRS-User-Guide.html
+	install -Dm644 -t $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo docs/USER-GUIDE.md docs/CLI-REFERENCE.md docs/GLOSSARY.md
+	install -Dm644 -t $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/SECTIONS docs/SECTIONS/*.md
+	install -Dm644 -t $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/images docs/images/*
+
+# docs: rebuild the guide (needs pandoc + weasyprint) / check that every item has a guide section
+guide:
+	python3 docs/gen_guide_map.py
+	python3 -I docs/build_srs_pdf.py docs docs/SRS-User-Guide.pdf --html docs/html/SRS-User-Guide.html
+
+check-guide:
+	python3 docs/gen_guide_map.py --check
 
 headers: win64 win32
 	x86_64-w64-mingw32-objdump -p $(DIST)/win/SRS64X.exe | grep -E "^(Magic|ImageBase|Major|Minor|Subsystem|DllChar|SizeOfStack)|DLL Name"
@@ -140,4 +154,4 @@ headers: win64 win32
 clean:
 	rm -rf $(DIST)
 
-.PHONY: native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
+.PHONY: guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=SRS User Guide (PDF)
+Comment=User guide and section-by-section reference for SRS System Information
+Exec=xdg-open /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf
+Icon=application-pdf
+Terminal=false
+Categories=System;Documentation;

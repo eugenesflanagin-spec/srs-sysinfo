@@ -2,7 +2,7 @@
 Type=Application
 Name=SRS System Information
 GenericName=System Information Viewer
-Comment=System information viewer for Linux - clean-room implementation of SIV64X by Ray Hinchliffe (RH Software)
+Comment=System information viewer for Linux, inspired by SIV64X (independent, not affiliated with SIV or its author)
 Exec=srs-gui
 Icon=srs
 Terminal=false

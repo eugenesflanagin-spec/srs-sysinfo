@@ -597,7 +597,7 @@ static void build_about(panel *p, rtf *r)
                                 " ImageBase 0x1000000, 24 MB stack - one source, one image per architecture");
     kv(r, "Images", C_VALUE, "SRS64X.exe (x64)  SRS32X.exe (x86)  srs-gui (Linux winelib ELF)  sysreport-search (Linux CLI)");
     kv(r, "Data", C_VALUE, "hwdata pci.ids / usb.ids (BSD-3-Clause / GPL-2.0+), sysfs, systemd-hwdb, SetupAPI");
-    kv(r, "Clean room", C_GRAY, "Behaviour modelled on SIV64X's observable search features; no SIV code or data is used.");
+    kv(r, "About", C_GRAY, "Inspired by SIV64X's search features and built to improve on them; independent, no SIV code or data is used.");
 }
 
 static void build_help(panel *p, rtf *r)

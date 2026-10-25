@@ -3,7 +3,7 @@
  * One portable C source set, built into several images the way SIV builds
  * SIV64X/SIV32X/...: a native Linux CLI (gcc), Win32 GUI images SRS64X.exe /
  * SRS32X.exe (mingw, system msvcrt.dll), and a winelib native ELF of the GUI.
- * Clean-room: behaviour taken from SIV's documented/observable features only;
+ * Independent: behaviour taken from SIV's documented/observable features only (no SIV code);
  * data comes from hwdata pci.ids/usb.ids, sysfs, systemd-hwdb or SetupAPI.
  */
 #ifndef SRS_H
@@ -11,7 +11,7 @@
 
 #include <stddef.h>
 
-#define SRS_VERSION "1.0.8"
+#define SRS_VERSION "1.1.0"
 
 /* qsort/bsearch callbacks: winelib links wine's msvcrt, whose callbacks are ms_abi */
 #ifdef _WIN32

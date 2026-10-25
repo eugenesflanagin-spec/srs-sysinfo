@@ -228,7 +228,8 @@ static void s_about(srs_out *o)
     so_kv(o, "Settings", C_PURPLE, ini_path());
     so_kv(o, "Live data", C_VALUE, "sysfs, procfs, CPUID, hwmon, systemd-hwdb; root-only data from the srs-root helper's cache");
     so_par(o);
-    so_kv(o, "Clean room", C_GREEN, "SRS is a clean-room implementation of SIV64X (System Information Viewer) for Linux.");
+    so_kv(o, "Why SRS", C_GREEN, "I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it.");
+    so_kv(o, "", C_GREEN, "SRS is free and open source for the Linux and open-source community.");
     so_kv(o, "Credit", C_GREEN, "SIV is by Ray Hinchliffe, RH Software - https://rh-software.com - with thanks for the original.");
     so_kv(o, "", C_GRAY, "Layout and item names modelled on SIV64X's observable output (-save dump, panels, strings).");
     so_kv(o, "", C_GRAY, "No SIV code, binaries or data files are used, included or disassembled.");

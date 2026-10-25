@@ -81,6 +81,7 @@ static GPtrArray *g_wins;
 static swin *g_main;
 
 static swin *open_section(const char *id);
+static void open_guide(swin *w);
 static void render(swin *w);
 static void open_tool(wkind k, int sub);
 
@@ -455,6 +456,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
     else if (!strcmp(t, "lat")) open_tool(W_BENCH, BK_LAT);
+    else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
     else if (!strcmp(t, "save")) save_dialog(0);
@@ -510,6 +512,7 @@ static void build_menu(GtkWidget *menu)
     g_signal_connect(menu_add(menu, "Save _Report..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"save");
     g_signal_connect(menu_add(menu, "Save _All Items..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"saveall");
     g_signal_connect(menu_add(menu, "Run as _root (srs-root)..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"root");
+    g_signal_connect(menu_add(menu, "User _Guide..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"guide");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
     g_signal_connect(menu_add(menu, "E_xit"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"exit");
 }
@@ -623,6 +626,15 @@ static GtkWidget *button_row(swin *w, const btn *row)
         g_signal_connect(b, "clicked", G_CALLBACK(on_btn), w);
         gtk_box_pack_start(GTK_BOX(box), b, FALSE, FALSE, 0);
     }
+    {   /* every panel: open the user guide at this item's section (also F1) */
+        GtkWidget *b = gtk_button_new_with_mnemonic("Gu_ide");
+        gtk_widget_set_name(b, "sivbtn");
+        gtk_widget_set_size_request(b, 66, -1);
+        gtk_widget_set_tooltip_text(b, "Open the user guide at this panel's section (F1)");
+        g_object_set_data(G_OBJECT(b), "target", (gpointer)"!guide");
+        g_signal_connect(b, "clicked", G_CALLBACK(on_btn), w);
+        gtk_box_pack_end(GTK_BOX(box), b, FALSE, FALSE, 0);
+    }
     return box;
 }
 
@@ -659,11 +671,16 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
     return FALSE;
 }
 
+static void on_ctx_guide(GtkMenuItem *mi, gpointer data) { (void)mi; open_guide(data); }
+
 static void on_populate(GtkTextView *v, GtkWidget *popup, gpointer data)
 {
-    GtkWidget *sep = gtk_separator_menu_item_new(), *sub = gtk_menu_new(), *top;
-    (void)v; (void)data;
+    GtkWidget *sep = gtk_separator_menu_item_new(), *sub = gtk_menu_new(), *top, *gi;
+    (void)v;
     gtk_menu_shell_append(GTK_MENU_SHELL(popup), sep);
+    gi = gtk_menu_item_new_with_mnemonic("Open _guide for this item (F1)");
+    g_signal_connect(gi, "activate", G_CALLBACK(on_ctx_guide), data);
+    gtk_menu_shell_append(GTK_MENU_SHELL(popup), gi);
     top = gtk_menu_item_new_with_mnemonic("SRS _Menu");
     build_menu(sub);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
@@ -1528,12 +1545,39 @@ static void open_tool(wkind k, int sub)
 /* ======================================================================
  * buttons and keys
  * ====================================================================== */
+/* item whose guide section belongs to this window */
+static const char *guide_item(const swin *w)
+{
+    switch (w->kind) {
+    case W_IDLOOKUP: return "id-lookup";
+    case W_FIND: return "find";
+    case W_BURN: return w->sub ? "cpu-stress" : "burnin";
+    case W_BENCH: return w->sub == BK_IPI ? "ipi-delay" : w->sub == BK_LAT ? "latency" : "benchmark";
+    default: return w->id;
+    }
+}
+
+static void open_guide(swin *w)
+{
+    char msg[4000];
+    const char *id = w ? guide_item(w) : NULL;
+    if (id && !srs_guide_anchor(id)) id = NULL;   /* items without a section: the guide's start */
+    if (!srs_guide_open(id, getenv("SRS_GUIDE_DRY_RUN") != NULL, msg, sizeof msg) || *msg) {
+        GtkWidget *d = gtk_message_dialog_new(w ? GTK_WINDOW(w->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s",
+                                              *msg ? msg : "Could not open the user guide.");
+        gtk_window_set_title(GTK_WINDOW(d), "SRS User Guide");
+        gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+    }
+}
+
 static void do_target(swin *w, const char *t)
 {
     if (!t) return;
     if (t[0] != '!') { open_section(t); return; }
     if (!strcmp(t, "!close")) gtk_widget_destroy(w->win);
     else if (!strcmp(t, "!copy")) copy_all(w);
+    else if (!strcmp(t, "!guide")) open_guide(w);
     else if (!strcmp(t, "!refresh")) { if (w->kind == W_SECTION) render(w); }
     else if (!strcmp(t, "!menu")) popup_menu(w->win);
     else if (!strcmp(t, "!main")) { if (g_main) gtk_window_present(GTK_WINDOW(g_main->win)); }
@@ -1558,7 +1602,7 @@ static gboolean on_key(GtkWidget *wid, GdkEventKey *ev, gpointer data)
     (void)wid;
     switch (ev->keyval) {
     case GDK_KEY_Escape: if (!w->is_main) gtk_widget_destroy(w->win); return TRUE;
-    case GDK_KEY_F1: open_section("help"); return TRUE;
+    case GDK_KEY_F1: if (shift) open_section("help"); else open_guide(w); return TRUE;   /* Shift+F1: Help panel */
     case GDK_KEY_F5: if (w->kind == W_SECTION) render(w); return TRUE;
     case GDK_KEY_F3:
         f = w->kind == W_FIND ? w : find_win(W_FIND, "", 0);

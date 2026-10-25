@@ -4,6 +4,81 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.1.0 - 2026-10-25
+
+### Added
+- **A full user guide and section-by-section reference, also as a PDF.** The guide explains every
+  window, option and command, and every one of the 545 items in plain words (what you see, normal
+  and unusual values, where Linux gets it). Installed in `/usr/share/doc/srs-sysinfo/`:
+  `SRS-User-Guide.pdf`, an HTML copy in `html/`, and the Markdown sources. New menu entry
+  **SRS User Guide (PDF)**.
+- **Guide links everywhere.** Every panel has a **Guide** button (and **F1**, and "Open guide for
+  this item" in its right-click menu) that opens the guide at that item's section: in Okular,
+  Evince or Papers at the right page, otherwise the HTML guide in your web browser. **Menu -> User
+  Guide...** opens the start. Shift+F1 still opens the Help panel.
+  - Command line: `sysreport-search guide ITEM` (`--print` shows the command instead of running it).
+- **Redact identifiers in reports you share.** `sysreport-search -save ... --redact`, or **Menu ->
+  Options -> Redact identifiers in saved reports** for Save Report / Save All Items. Serial
+  numbers, UUIDs, WWNs, GPU and Thunderbolt unique IDs, boot and machine IDs and the host name
+  become `XXXX` (same length, so columns stay lined up); MAC addresses keep their vendor half
+  (`04:7c:16:XX:XX:XX`). The report header says `(identifiers redacted)`. Normal reports are
+  unchanged and complete. IP addresses and Wi-Fi names are not masked.
+- `--help` now lists every command: `-save`, `--list`, `guide`, `burn`, `bench`, `ipi`,
+  `latency`, and srs-gui's `--gui-open` / `--gui-tray` / `SRS_OPEN`.
+
+### Changed
+- **No more notes written for the author's PC.** Several items printed sentences that were only
+  true on the PC SRS was developed on. They now check your system:
+  - GPU Fans names the fan-control program only if one is really running (LACT, CoolerControl,
+    CoreCtrl, fancontrol), instead of always saying "owned by LACT".
+  - GPU LEDs looks for LED devices the kernel exposes for your GPU, instead of naming one
+    graphics card.
+  - Thunderbolt lists the Thunderbolt / USB4 routers and domains the kernel found, and no longer
+    names one motherboard's USB4 chip.
+  - GPU I2C no longer says the SMU was hung "here".
+  - Sensors: Super-I/O inputs are marked "probably not connected" when they read far above the
+    board's own SYSTIN / CPUTIN temperatures, instead of from a list for one board model. A real
+    probe on a temperature header is no longer greyed out.
+  - Memory Latency labels blocks L1 / L2 / L3 / DRAM from your CPU's own cache sizes (they were
+    fixed at 32 KB / 1 MB / 96 MB).
+  - Benchmark modes `ec` / `ep` find efficiency cores on Intel hybrid CPUs, and `pc` / `pp` leave
+    them out (they always said "not a hybrid processor"). The Processors page counts them too.
+- `CHECKLIST.tsv` now matches the program: a new `sync_checklist.py` copies each item's root flag
+  and data source from the code. DIMMs, Storage spaces, SIO debug, I/O GPIO and Fake MCHBAR no
+  longer claim to need root.
+
+### Fixed
+- **SPD was empty on DDR5 PCs.** `decode-dimms` cannot read DDR5 SPD hubs and reports 0 DIMMs;
+  SPD now shows the SMBIOS memory summary in that case.
+- **Double-clicking a USB ID opened a PCI lookup.** USB is now recognised from the item, the
+  line, `VID_xxxx PID_xxxx` pairs and HID names (`0003:046D:C52B.0001`); PCI slot addresses are
+  no longer taken for IDs.
+- AMD SMU / CPU SMU: the SMU firmware version was always `-` (it is in the driver's `version`
+  file). Fake PM tables showed the binary table version and size as garbage. AMD PM Table now
+  shows the table layout; AMD PM Table 0 keeps the values.
+- Groups: with more than 256 groups the current user's groups were not found (showed `(-1)`).
+- ACPI tables: the FACS table was read as if it had a standard header (revision 137, OEM `$X`);
+  `acpi-tables:FACS` now lists its real fields.
+- Device names: 8-character ACPI IDs were looked up as 3-letter PNP vendors (`AMDI0015` showed
+  "Amdek", `ACPI000C` "Aspen Tech"); they now use ACPI vendor IDs, and unregistered PNP prefixes
+  are shown as such.
+- SIV setup listed only 4 of the 12 settings.
+- RAID items counted a JMicron USB-NVMe enclosure as a RAID controller; SMART counted skipped
+  USB drives as cached; `ntfs:<mountpoint>` was titled "NTFS" for btrfs; Volumes, Drive Geometry
+  and Environment had no title line.
+- Desktop PCs showed "Battery Present" / an empty "Battery %" because of a mouse or game
+  controller battery; peripheral batteries no longer count.
+- Network: adapters in state "unknown" without a link no longer count as up. DNS cache no longer
+  calls dnsmasq a libvirt helper when `/etc/resolv.conf` uses it as the system cache. mDNS names
+  (`\032`) and mount paths (`\040`) are decoded.
+- CPU timer shows the real kernel tick rate (`CONFIG_HZ`) next to `USER_HZ`; Processors shows each
+  CPU's NUMA node and a "Sub-ID" column header; family / model print as `0x` hex.
+- Benchmarks: changing the seconds per measurement now takes effect in the same session; the GUI
+  allows the same ranges as the command line (60 s per measurement, latency up to 4096 MB);
+  `bench --seconds` error text matches the accepted range.
+- `find --report DIR` with a missing folder names that folder; udev "priority" label no longer cut;
+  "1 port" singular; file locks show full paths.
+
 ## 1.0.8 - 2026-10-24
 
 ### Added

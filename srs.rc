@@ -40,7 +40,7 @@ BEGIN
             VALUE "FileDescription",  "System Report Search"
             VALUE "FileVersion",      "1.0"
             VALUE "InternalName",     "SRS"
-            VALUE "LegalCopyright",   "Clean-room; data from hwdata pci.ids/usb.ids"
+            VALUE "LegalCopyright",   "GPL-2.0-or-later; independent, not affiliated with SIV; data from hwdata pci.ids/usb.ids"
             VALUE "ProductName",      "SRS - System Report Search"
             VALUE "ProductVersion",   "1.0"
         END
