@@ -539,6 +539,7 @@ void burn_tick(burn_status *st)
         g_sum.sio_temp += s.sio_temp; g_sum.gpu_temp += s.gpu_temp; g_sum.gpu_load += s.gpu_load; g_sum.gpu_mhz += s.gpu_mhz;
         ROLL(g_roll.cpu_load, s.cpu_load); ROLL(g_roll.cpu_temp, s.cpu_temp); ROLL(g_roll.sio_temp, s.sio_temp);
         ROLL(g_roll.gpu_temp, s.gpu_temp); ROLL(g_roll.gpu_load, s.gpu_load); ROLL(g_roll.cpu_mhz, s.cpu_mhz);
+        ROLL(g_roll.gpu_mhz, s.gpu_mhz);
         MAXV(g_max.cpu_load, s.cpu_load); MAXV(g_max.cpu_mhz, s.cpu_mhz); MAXV(g_max.cpu_temp, s.cpu_temp);
         MAXV(g_max.sio_temp, s.sio_temp); MAXV(g_max.gpu_temp, s.gpu_temp); MAXV(g_max.gpu_load, s.gpu_load);
         MAXV(g_max.gpu_mhz, s.gpu_mhz);
