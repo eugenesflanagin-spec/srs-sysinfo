@@ -15,10 +15,6 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   what to use it for, and that Curve Optimizer / voltage changes do not change it. Linked from the
   CPU IPI Delay item, so Guide (F1) on the IPI Delay window leads there.
 
-### Fixed
-- **CPU Burnin / CPU Stress: a finished run could be saved twice** when both windows were open.
-  The summary is now saved once per run and both windows show the same file name.
-
 ## 1.1.1 - 2026-10-25
 
 ### Fixed
