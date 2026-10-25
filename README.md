@@ -49,7 +49,8 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     Swap CPU: affinity test), affinity/APIC check, burn/cool cycles, current / average / rolling /
     maximum CPU load, clock, core temperature, board (Super-I/O) temperature and GPU load,
     temperature and clock, plots, Pass/Fail. Asks before starting, stops at a temperature limit
-    (default 90 C) and a time cap.
+    (default 90 C) and a time cap. Each finished run's summary is saved to
+    `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` for comparing runs.
   - **Benchmark** - Dhrystone 2.1 (DMIPS) and Whetstone (MWIPS) in SIV's modes (all CPUs
     concurrently or one at a time, D+D/W+W and D+W/W+D per core, physical / logical threads).
   - **IPI Delay** - core-to-core latency matrix with a heat map. **Latency** - memory latency by

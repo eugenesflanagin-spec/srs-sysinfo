@@ -607,3 +607,100 @@ void burn_tick(burn_status *st)
     }
     g_last_tick = t;
 }
+
+/* ======================================================================
+ * summary text (srs-gui's Burnin / Stress window, its Copy button and the saved file)
+ * ====================================================================== */
+static void fmt_hms(double s, char *b, size_t n)
+{
+    long t = s < 0 ? 0 : (long)s;
+    snprintf(b, n, "%02ld:%02ld:%02ld", t / 3600, (t / 60) % 60, t % 60);
+}
+
+/* The Burnin / Stress summary: status, the Current / Overall Average / Rolling Average / Maximum
+   table and the per-thread table. srs-gui shows it live; burn_save_summary writes it to a file. */
+void burn_render(srs_out *o, const burn_status *st)
+{
+    static const int tabs[] = { 200, 330, 460, 590, 720 };
+    static const int t2[] = { 70, 130, 200, 270, 350, 440, 530, 620, 710, 790 };
+    static const char *const states[] = { "Idle", "Burning", "Cooling", "Pass", "Fail", "Stopped" };
+    static const char *const rows[7] = { "CPU Load", "CPU Frequency", "Hottest Core Temp", "Hottest SIO Sensor Temp", "GPU Load", "GPU Temp", "GPU Frequency" };
+    static const char *const fmt[7] = { "%.1f%%", "%.0f MHz", "%.1f°C", "%.1f°C", "%.0f%%", "%.1f°C", "%.0f MHz" };
+    char a[64], b[64];
+    int i;
+    double vs[7][4] = {
+        { st->cur.cpu_load, st->avg.cpu_load, st->roll.cpu_load, st->max.cpu_load },
+        { st->cur.cpu_mhz, st->avg.cpu_mhz, st->roll.cpu_mhz, st->max.cpu_mhz },
+        { st->cur.cpu_temp, st->avg.cpu_temp, st->roll.cpu_temp, st->max.cpu_temp },
+        { st->cur.sio_temp, st->avg.sio_temp, st->roll.sio_temp, st->max.sio_temp },
+        { st->cur.gpu_load, st->avg.gpu_load, st->roll.gpu_load, st->max.gpu_load },
+        { st->cur.gpu_temp, st->avg.gpu_temp, st->roll.gpu_temp, st->max.gpu_temp },
+        { st->cur.gpu_mhz, st->avg.gpu_mhz, st->roll.gpu_mhz, st->max.gpu_mhz } };
+    so_tabs(o, tabs, 5);
+    fmt_hms(st->elapsed, a, sizeof a);
+    fmt_hms(st->remaining > 0 ? st->remaining : 0, b, sizeof b);
+    so_t(o, C_LABEL, "Status"); so_tab(o);
+    so_b(o, st->state == BURN_FAIL ? C_RED : st->state == BURN_PASS ? C_GREEN : C_ORANGE, states[st->state >= 0 && st->state <= 5 ? st->state : 0]);
+    so_tab(o); so_t(o, C_LABEL, "Elapsed"); so_tab(o); so_t(o, C_BLACK, a); so_tab(o); so_t(o, C_LABEL, "Remaining  "); so_t(o, C_BLACK, b); so_par(o);
+    so_t(o, C_GRAY, st->status); so_par(o);
+    if (st->gpu_msg[0]) { so_t(o, C_LABEL, "GPU Load  "); so_t(o, st->gpu_bad ? C_RED : C_GRAY, st->gpu_msg); so_par(o); }
+    so_par(o);
+    so_row(o, 5, (const char *const[]){ "", "Current", "Overall Average", "Rolling Average", "Maximum" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+    for (i = 0; i < 7; i++) {
+        char c[4][48];
+        int k;
+        for (k = 0; k < 4; k++) snprintf(c[k], 48, fmt[i], vs[i][k]);
+        so_row(o, 5, (const char *const[]){ rows[i], c[0], c[1], c[2], c[3] }, (const int[]){ C_VALUE, C_BLACK, C_TEAL, C_TEAL, C_RED });
+    }
+    so_f(o, C_GRAY, "Hottest sensors: %s / %s", st->cur.cpu_temp_name, st->cur.sio_name);
+    so_par(o); so_par(o);
+    so_tabs(o, t2, 10);
+    so_row(o, 11, (const char *const[]){ "Thread", "CPU", "On CPU", "User", "Kernel", "Clock", "Whetstone", "Average", "Min", "Max", "Affinity" },
+           (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+    for (i = 0; i < st->nthreads; i++) {
+        const burn_thread *t = &st->th[i];
+        int cc = t->cur_cpu >= 0 && t->cur_cpu < BURN_MAXCPU ? t->cur_cpu : 0;
+        char c[11][32];
+        snprintf(c[0], 32, "%d", i);
+        snprintf(c[1], 32, "CPU-%d", t->cpu);
+        snprintf(c[2], 32, "CPU-%d", t->cur_cpu);
+        snprintf(c[3], 32, "%.0f%%", st->per_cpu_user[cc]);
+        snprintf(c[4], 32, "%.0f%%", st->per_cpu_sys[cc]);
+        snprintf(c[5], 32, "%.0f MHz", st->per_cpu_mhz[cc]);
+        snprintf(c[6], 32, "%.0f", t->mwips_last);
+        snprintf(c[7], 32, "%.0f", t->mwips_avg);
+        snprintf(c[8], 32, "%.0f", t->mwips_min);
+        snprintf(c[9], 32, "%.0f", t->mwips_max);
+        snprintf(c[10], 32, "%s", t->apic_errors ? "FAIL" : t->passes ? "ok" : "-");
+        so_row(o, 11, (const char *const[]){ c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10] },
+               (const int[]){ C_GRAY, C_LABEL, C_PURPLE, C_BLACK, C_GRAY, C_BLACK, C_BLACK, C_TEAL, C_GRAY, C_GRAY, t->apic_errors ? C_RED : C_GREEN });
+    }
+}
+
+
+/* Save a finished run's summary to ~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt so runs can be compared. */
+int burn_save_summary(const burn_status *st, char *path, size_t n)
+{
+    const char *h = getenv("HOME");
+    char d[1024], name[64];
+    time_t now = time(NULL);
+    FILE *f;
+    srs_out o;
+    if (!h || !*h) return -1;
+    snprintf(d, sizeof d, "%s/.cache", h);
+    mkdir(d, 0755);
+    snprintf(d, sizeof d, "%s/.cache/srs", h);
+    mkdir(d, 0755);
+    strftime(name, sizeof name, "burnin-%Y%m%d-%H%M%S.txt", localtime(&now));
+    snprintf(path, n, "%s/%s", d, name);
+    if (!(f = fopen(path, "w"))) return -1;
+    so_text_init(&o, f);
+    burn_render(&o, st);
+    if (o.col) fputc('\n', f);
+    if (fclose(f)) return -1;
+    if (!strstr(g_status, "saved to")) {
+        size_t k = strlen(g_status);
+        snprintf(g_status + k, sizeof g_status - k, " - saved to ~/.cache/srs/%s", name);
+    }
+    return 0;
+}

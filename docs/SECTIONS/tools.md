@@ -753,6 +753,13 @@ starts a run.
 - Command line `srs-gui burn`: exit code 0 = Pass, 1 = Fail, 130 = Stopped (Ctrl+C). It prints one
   status line per second and a thread table at the end. It also accepts `--cool S` and `--cycles N`.
 
+**Saved results.** When a run ends (Pass, Fail or Stopped), SRS saves the window's summary - the
+status, the sensor table and the thread table, the same text the Copy button gives - to
+`~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` (date and time the run ended), and the status line says
+where. Each run gets its own file, so you can compare runs before and after a change, for example
+with `diff` or `meld`. The command line `burn` saves its summary the same way. SRS never deletes
+these files; remove old ones by hand when you no longer need them.
+
 **Affinity ok / FAIL.** After every pass each worker checks two things: (1) Linux says it is running
 on the CPU it was pinned to (`sched_getcpu`), and (2) the CPU's own ID number (APIC ID, read with the
 CPUID instruction) matches the one `/proc/cpuinfo` lists for that CPU. `ok` means both matched every
@@ -781,6 +788,7 @@ thread (Min close to Max), all Affinity `ok`, and Pass.
 `/proc/stat` (load), `/sys/devices/system/cpu/cpuN/cpufreq/scaling_cur_freq` (clock),
 `/sys/class/hwmon` (CPU and Super I/O temperatures), `/sys/class/drm/cardN/device` (`gpu_busy_percent`,
 `pp_dpm_sclk`, hwmon temperature). The GPU load command's output goes to `~/.cache/srs/gpu-load.log`.
+Finished runs are saved to `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`.
 
 **Background.** Tctl is AMD's "control temperature". It is the value the CPU uses for fan control and
 throttling. A Super I/O (SIO) chip is the motherboard chip that reads fan speeds, voltages and board
@@ -802,7 +810,8 @@ Time and Cycles.
 
 **Pass and Fail.** Stress has no "finished" point. It ends as **Stopped** when you press Stop, as
 **Fail** if the hottest CPU sensor reaches the temperature limit or an affinity check fails, or as
-**Pass** if the overall time cap (750 hours) is reached.
+**Pass** if the overall time cap (750 hours) is reached. Either way the summary is saved to
+`~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`, as for [CPU Burnin](#cpu-burnin).
 
 **Healthy / typical values.** As for CPU Burnin: temperatures climb for a few minutes and then level
 off. Clocks stay steady.

@@ -7,6 +7,8 @@
 #ifndef BURNER_H
 #define BURNER_H
 
+#include <stddef.h>
+
 #define BURN_MAXCPU 256
 
 enum { BURN_SAME, BURN_SWAP };
@@ -55,5 +57,9 @@ void burn_tick(burn_status *st);            /* call ~1/s: samples sensors, advan
 int  burn_active(void);
 void burn_sample_now(burn_sample *s);        /* one sensor sample (no load) */
 double whetstone_mwips(long loops, double *secs); /* single run on the calling thread */
+
+struct srs_out;
+void burn_render(struct srs_out *o, const burn_status *st);   /* the summary text (window, Copy, saved file) */
+int  burn_save_summary(const burn_status *st, char *path, size_t n); /* -> ~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt; 0 ok */
 
 #endif

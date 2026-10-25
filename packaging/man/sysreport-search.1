@@ -36,6 +36,7 @@ open the user guide at \fIITEM\fR's section (PDF viewer, else the HTML guide);
 .TP
 \fBburn\fR [\fB\-\-threads\fR \fIN\fR | \fB\-\-cpus\fR \fILIST\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-mode\fR same|swap] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-cool\fR \fIS\fR] [\fB\-\-cycles\fR \fIN\fR]
 CPU burn-in with a temperature limit (default 10 s, limit 90 C).
+The summary of each run is saved to \fI~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt\fR.
 .TP
 \fBbench\fR {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [\fB\-\-seconds\fR \fIS\fR]
 Dhrystone / Whetstone in a SIV benchmark mode (0.1..60 s per measurement).

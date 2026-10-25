@@ -520,6 +520,13 @@ How to read the result:
 - Compare Whetstone scores per CPU: a CPU far below the others may be throttling or busy with
   something else.
 
+**Saved results.** Every run that ends (Pass, Fail or Stopped, in Burnin and in Stress) is saved to
+its own file, `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` (the date and time it ended). The file holds
+the same text as the **Copy** button: status, the sensor table and the thread table. The status line
+shows the file name. To compare two runs, for example before and after a BIOS change:
+`diff ~/.cache/srs/burnin-20261025-101500.txt ~/.cache/srs/burnin-20261025-113000.txt`
+or open both in `meld`. SRS never deletes these files.
+
 Full details of every column: [tools.md](SECTIONS/tools.md).
 
 ### 9.2 Benchmark (Dhrystone and Whetstone)
@@ -742,6 +749,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.config/autostart/srs-gui.desktop` | Only if "Start with the desktop" is on. |
 | `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`). |
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
+| `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
+| `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
@@ -787,7 +796,11 @@ Environment variables:
   Expect live values (clocks, temperatures, up-time, counters) to differ every time; look for
   changes in settings, versions, link speeds, memory speed.
 - **Burn-in and benchmarks:** run them on an idle PC, the same way each time, and repeat 2-3 times.
-  A difference smaller than the run-to-run spread is noise.
+  A difference smaller than the run-to-run spread is noise. Each burn-in is kept in
+  `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`, so you can put two runs side by side
+  (`meld old.txt new.txt`). Benchmarks keep only the last run of each mode
+  (`~/.cache/srs/bench-<mode>.txt`): copy that file somewhere before you run the mode again if you
+  want to keep it.
 - **Watch the PCIe link** (PCI Bus panel): a graphics card should normally show its full width
   (x16) and speed under load; x4 or x8 can mean the wrong slot or a slot that shares lanes.
 - **Watch memory speed** (main window, Machine): if it shows 4800 MT/s for a 6000 MT/s kit, the

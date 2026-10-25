@@ -313,7 +313,9 @@ Output: a start line, then one line per second (example values):
 
 (elapsed, CPU load, hottest core sensor, hottest motherboard sensor, CPU clock, GPU load and
 temperature, state), then a table per worker (Thread, CPU, Passes, MWIPS last / average / min / max,
-Affinity `ok` or `FAIL`), the maxima and the final status.
+Affinity `ok` or `FAIL`), the maxima and the final status. The last line names the file the summary
+was saved to (`Summary saved to /home/you/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`, one file per run; the same
+layout as srs-gui's Burnin window).
 
 Exit codes: **0 = Pass**, **1 = Fail** (affinity error or temperature limit), **130 = stopped**
 (Ctrl+C), **2 = bad option or nothing to run**.

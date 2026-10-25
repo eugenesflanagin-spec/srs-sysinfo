@@ -309,6 +309,10 @@ static int cmd_burn(int argc, char **argv)
                st.th[i].mwips_avg, st.th[i].mwips_min, st.th[i].mwips_max, st.th[i].apic_errors ? "FAIL" : "ok");
     printf("Maximum: load %.1f%%  CPU %.1f C  board %.1f C  %.0f MHz\nStatus: %s\n", st.max.cpu_load, st.max.cpu_temp,
            st.max.sio_temp, st.max.cpu_mhz, st.status);
+    {
+        char path[1100];
+        if (burn_save_summary(&st, path, sizeof path) == 0) printf("Summary saved to %s\n", path);
+    }
     rc = st.state == BURN_PASS ? 0 : st.state == BURN_STOPPED ? 130 : 1;
     return rc;
 }
