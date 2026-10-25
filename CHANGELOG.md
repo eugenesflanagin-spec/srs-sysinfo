@@ -4,6 +4,21 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.1.2 - 2026-10-25
+
+### Added
+- **User guide: "Reading the CPU IPI Delay table - a worked example"** (section 9.2.2). A real
+  16 x 16 result from one Ryzen 7 7800X3D (one CCD, 100,000 rounds per pair), step by step: row =
+  from, column = to, the `-` diagonal; partner threads (CPU n and n+8) are the fastest pair in each
+  row at 23-25 ns, other pairs 27-34 ns through the shared L3, the farthest pairs 33-34 ns; why
+  one-CCD CPUs give an even table and two-CCD CPUs typically show a second block around 70-80 ns;
+  what to use it for, and that Curve Optimizer / voltage changes do not change it. Linked from the
+  CPU IPI Delay item, so Guide (F1) on the IPI Delay window leads there.
+
+### Fixed
+- **CPU Burnin / CPU Stress: a finished run could be saved twice** when both windows were open.
+  The summary is now saved once per run and both windows show the same file name.
+
 ## 1.1.1 - 2026-10-25
 
 ### Fixed
