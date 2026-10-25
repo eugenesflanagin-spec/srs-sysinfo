@@ -384,8 +384,10 @@ static void s_windows(srs_out *o)
         int n = dir_list("/sys/class/power_supply", &e), bat = 0, ac = 0, acon = 0;
         for (i = 0; i < n; i++) {
             char t[32] = "", on[8] = "";
+            char sc[16] = "";
             rd_fmt(t, sizeof t, "/sys/class/power_supply/%s/type", e[i]);
-            if (!strcmp(t, "Battery")) bat++;
+            rd_fmt(sc, sizeof sc, "/sys/class/power_supply/%s/scope", e[i]);
+            if (!strcmp(t, "Battery") && strcmp(sc, "Device")) bat++;   /* scope Device = mouse / controller battery */
             if (!strcmp(t, "Mains")) { ac++; rd_fmt(on, sizeof on, "/sys/class/power_supply/%s/online", e[i]); if (atoi(on)) acon++; }
         }
         dir_free(e, n > 0 ? n : 0);

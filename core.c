@@ -901,8 +901,9 @@ int srs_find(const char *report, const char *pattern, int icase, int fixed, int 
         return 2;
     }
     if (!plat_isdir(fr->report)) {
-        snprintf(err, errsz, "No report found under %s - run srs-sysreport first",
-                 srs_reports_root() ? srs_reports_root() : "~/sysreports");
+        if (report && *report) snprintf(err, errsz, "No report directory %s", report);
+        else snprintf(err, errsz, "No report found under %s - run srs-sysreport first",
+                      srs_reports_root() ? srs_reports_root() : "~/sysreports");
         return 2;
     }
     re = srs_re_compile(pattern, icase, fixed, rerr, sizeof rerr);

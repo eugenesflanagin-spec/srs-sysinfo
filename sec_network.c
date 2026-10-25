@@ -783,7 +783,11 @@ static void s_network(srs_out *o)
     for (i = 0; i < nn; i++) {
         char st[32];
         nic_str(nv[i].name, "operstate", st, sizeof st);
-        up += !strcmp(st, "up") || !strcmp(st, "unknown");
+        if (!strcmp(st, "unknown") && strcmp(nv[i].name, "lo")) {   /* tun / wireguard report "unknown": use carrier */
+            char ca[8] = "";
+            nic_str(nv[i].name, "carrier", ca, sizeof ca);
+            up += !strcmp(ca, "1");
+        } else up += !strcmp(st, "up");
         phys += nv[i].rank == 0;
     }
     so_siv_header(o, "Network");
@@ -1165,6 +1169,20 @@ static void s_arp(srs_out *o)
 }
 
 /* mDNS part of the neighbour view (SIV [nodes]; that id is owned by the cpu group as NUMA nodes) */
+/* "\032" (avahi: 3 decimal digits) / "\040" (mounts: 3 octal digits) escapes -> characters, in place */
+static void unescape3(char *s, int base)
+{
+    char *w = s;
+    for (; *s; s++) {
+        if (s[0] == '\\' && isdigit((unsigned char)s[1]) && isdigit((unsigned char)s[2]) && isdigit((unsigned char)s[3])) {
+            int v = base == 8 ? (s[1] - '0') * 64 + (s[2] - '0') * 8 + (s[3] - '0') : (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+            if (v > 0 && v < 256) { *w++ = (char)v; s += 3; continue; }
+        }
+        *w++ = *s;
+    }
+    *w = 0;
+}
+
 static void s_mdns(srs_out *o)
 {
     static const int ta[] = { 120, 200, 520, 720 };
@@ -1182,6 +1200,7 @@ static void s_mdns(srs_out *o)
             int k = 0;
             while (k < 8 && s) { f[k++] = s; s = strchr(s, ';'); if (s) *s++ = 0; }
             if (k < 6 || f[0][0] != '+') continue;
+            unescape3(f[3], 10);
             so_row(o, 5, (const char *const[]){ f[1], f[2], f[3], f[4], f[5] }, (const int[]){ C_TEAL, C_ORANGE, C_BLACK, C_PURPLE, C_GRAY });
             cnt++;
         }
@@ -1487,7 +1506,13 @@ static void s_dns_cache(srs_out *o)
         free(c);
     } else {
         so_note(o, "systemd-resolved is not running: glibc does not cache lookups, so there is no system DNS cache to list.");
-        so_note(o, "dnsmasq instances found here are libvirt/container DHCP+DNS for their bridges, not a system cache.");
+        char *rc = NULL;
+        int local = rd_all("/etc/resolv.conf", &rc) >= 0 && (strstr(rc, "nameserver 127.") || strstr(rc, "nameserver ::1"));
+        free(rc);
+        if (proc_running("dnsmasq") && local)
+            so_note(o, "/etc/resolv.conf points at a local resolver and dnsmasq is running: dnsmasq is the system DNS cache (its cache is not listed).");
+        else if (proc_running("dnsmasq"))
+            so_note(o, "dnsmasq is running but /etc/resolv.conf does not use it: those are likely libvirt/container DHCP+DNS instances.");
     }
 }
 
@@ -2170,6 +2195,8 @@ static void s_net_names(srs_out *o)
             if (sscanf(line, "%511s %511s %63s", src, mp, ty) != 3) continue;
             for (k = 0; fs[k]; k++) if (!strcmp(ty, fs[k])) break;
             if (!fs[k]) continue;
+            unescape3(src, 8);
+            unescape3(mp, 8);
             mask_userinfo(src, ms, sizeof ms);
             so_row(o, 3, (const char *const[]){ ms, mp, ty }, (const int[]){ C_VALUE, C_BLACK, C_ORANGE });
             cnt++;

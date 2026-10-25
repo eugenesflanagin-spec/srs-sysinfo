@@ -581,7 +581,7 @@ static void ud_props(srs_out *o, const udrec *r)
                 so_kv(o, k, C_VALUE, masked_key(k) ? "********" : v);
             }
         } else if (l > 3 && strchr("SNLV", p[0]) && p[1] == ':') {
-            char k[8], v[512];
+            char k[16], v[512];
             snprintf(k, sizeof k, "%s", p[0] == 'S' ? "symlink" : p[0] == 'N' ? "devnode" : p[0] == 'L' ? "priority" : "driver");
             snprintf(v, sizeof v, "%.*s", l - 3, p + 3);
             so_kv(o, k, C_TEAL, v);

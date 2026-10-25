@@ -1108,7 +1108,8 @@ static void s_overview(srs_out *o)
             if (!strcmp(ty, "Mains") && rd_fmt(on, sizeof on, "/sys/class/power_supply/%s/online", e[i]))
                 snprintf(pw, sizeof pw, "%s", atoi(on) ? "Mains Power" : "Battery Power");
             if (!strcmp(ty, "Battery")) {
-                char cap[8] = "";
+                char cap[8] = "", sc[16] = "";
+                if (rd_fmt(sc, sizeof sc, "/sys/class/power_supply/%s/scope", e[i]) && !strcmp(sc, "Device")) continue;   /* peripheral */
                 rd_fmt(cap, sizeof cap, "/sys/class/power_supply/%s/capacity", e[i]);
                 snprintf(pw + strlen(pw), sizeof pw - strlen(pw), "  Battery %s%%", cap);
             }
