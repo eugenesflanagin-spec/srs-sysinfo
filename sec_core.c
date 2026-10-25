@@ -299,6 +299,8 @@ static char *redact_dup(const char *s)
     return c;
 }
 
+char *srs_redact_text(const char *s) { return redact_dup(s); }
+
 const char *srs_redact_host(void)
 {
     static char h[256];

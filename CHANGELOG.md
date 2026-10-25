@@ -4,6 +4,14 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.1.4 - 2026-10-25
+
+### Changed
+- **"Redact identifiers" now also covers copied text.** With **Options -> Redact identifiers in saved
+  reports and copied text** on, the Copy button and right-click Copy / Ctrl+C mask serial numbers,
+  UUIDs, MAC addresses (vendor half kept), boot / machine IDs and the host name, the same way Save
+  Report does. Before, only saved reports were masked. The panels still show everything.
+
 ## 1.1.3 - 2026-10-25
 
 ### Changed

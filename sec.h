@@ -62,6 +62,7 @@ int  srs_save(const char *items, const char *file); /* "-save" ; items like "[cp
    host name are masked (same length, X) in everything the producers emit */
 extern int srs_redact;
 const char *srs_redact_host(void);                  /* host name, masked when srs_redact */
+char *srs_redact_text(const char *s);                /* masked copy (malloc) when srs_redact and something matched, else NULL */
 
 /* user guide (guide.c): item -> section anchor (NULL unknown; NULL/"" id = guide start); open it
    with the PDF viewer / browser (dry_run: only put the command line into msg). 1 ok, 0 msg = why not */

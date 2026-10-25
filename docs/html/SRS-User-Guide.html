@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 1.1.3. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 1.1.4. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -168,7 +168,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-1.1.3-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-1.1.4-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -234,8 +234,8 @@ distribution - generic tarball</h3>
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
 an older distribution (Ubuntu 24.04) so it runs on most current ones
 (glibc 2.38 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-1.1.3-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.3-linux-x86_64
+<pre><code>tar xzf srs-sysinfo-1.1.4-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.4-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
@@ -1349,11 +1349,13 @@ when they are minimised, so this works only on X11 / XWayland.</td>
 <td>off</td>
 </tr>
 <tr>
-<td><strong>Redact identifiers in saved reports</strong></td>
-<td>Save Report / Save All Items mask serial numbers, UUIDs, MAC
-addresses (vendor half kept), boot / machine IDs and the host name - see
-<a href="#user-guide--17-privacy-before-you-share-a-report">17</a>. The panels still
-show everything.</td>
+<td><strong>Redact identifiers in saved reports and copied
+text</strong></td>
+<td>Save Report / Save All Items, the <strong>Copy</strong> button and
+right-click <strong>Copy</strong> / Ctrl+C mask serial numbers, UUIDs,
+MAC addresses (vendor half kept), boot / machine IDs and the host name -
+see <a href="#user-guide--17-privacy-before-you-share-a-report">17</a>. The panels
+still show everything.</td>
 <td>off</td>
 </tr>
 <tr>
@@ -1649,7 +1651,8 @@ paused</td>
 <tr>
 <td><code>Redact Reports</code></td>
 <td><code>1</code> / <code>0</code></td>
-<td>Options -&gt; Redact identifiers in saved reports</td>
+<td>Options -&gt; Redact identifiers in saved reports and copied
+text</td>
 </tr>
 <tr>
 <td><code>SIO Sensors</code></td>
@@ -1798,14 +1801,17 @@ name.</li>
 identifiers masked:</p>
 <pre><code>sysreport-search &#39;-save=[all]=for-forum.txt&#39; --redact</code></pre>
 <p>or tick <strong>Menu -&gt; Options -&gt; Redact identifiers in saved
-reports</strong> and use <strong>Save Report</strong> / <strong>Save All
-Items</strong>. Serial numbers, UUIDs, WWNs, the GPU / Thunderbolt
-unique IDs, the boot and machine IDs and the host name become
-<code>XXXX</code> (same length, so columns stay aligned); MAC addresses
-keep their vendor half (<code>04:7c:16:XX:XX:XX</code>), which is useful
-for telling network chips apart. The report's first line ends with
-<code>(identifiers redacted)</code>. Published constants such as GPT
-partition-type GUIDs are not masked.</p>
+reports and copied text</strong> and use <strong>Save Report</strong> /
+<strong>Save All Items</strong>. With the option on, the
+<strong>Copy</strong> button and right-click <strong>Copy</strong> (or
+Ctrl+C on a selection) mask the same things, so text you paste into a
+forum post is safe too. Serial numbers, UUIDs, WWNs, the GPU /
+Thunderbolt unique IDs, the boot and machine IDs and the host name
+become <code>XXXX</code> (same length, so columns stay aligned); MAC
+addresses keep their vendor half (<code>04:7c:16:XX:XX:XX</code>), which
+is useful for telling network chips apart. The report's first line ends
+with <code>(identifiers redacted)</code>. Published constants such as
+GPT partition-type GUIDs are not masked.</p>
 <p>Not masked: <strong>IP addresses</strong> and <strong>Wi-Fi network
 names</strong>. Look for them (or use Find) before you post. Or save
 only the items you need:
@@ -28806,7 +28812,7 @@ Benchmarks and stress (load the CPU; run only when you ask):
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
-<pre><code>sysreport-search 1.1.3 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+<pre><code>sysreport-search 1.1.4 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.

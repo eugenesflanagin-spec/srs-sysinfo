@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 1.1.3. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 1.1.4. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -115,7 +115,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-1.1.3-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-1.1.4-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -143,8 +143,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-1.1.3-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.3-linux-x86_64
+tar xzf srs-sysinfo-1.1.4-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.4-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -804,7 +804,7 @@ apply at once to every open window.
 | **Start hidden in tray** | Start with no window, just the tray icon. | off |
 | **Start with the desktop (autostart)** | Writes `~/.config/autostart/srs-gui.desktop`, which runs `srs-gui --gui-tray` at login. Untick to remove it. | off |
 | **Refresh root data at boot** | See [5.3](#53-refresh-root-data-at-boot). | off |
-| **Redact identifiers in saved reports** | Save Report / Save All Items mask serial numbers, UUIDs, MAC addresses (vendor half kept), boot / machine IDs and the host name - see [17](#17-privacy-before-you-share-a-report). The panels still show everything. | off |
+| **Redact identifiers in saved reports and copied text** | Save Report / Save All Items, the **Copy** button and right-click **Copy** / Ctrl+C mask serial numbers, UUIDs, MAC addresses (vendor half kept), boot / machine IDs and the host name - see [17](#17-privacy-before-you-share-a-report). The panels still show everything. | off |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
 The tray options are greyed out if the tray library is not installed (the menu then says
@@ -936,7 +936,7 @@ hand is fine while SRS is closed.
 | `Colour Find Text` | 6 hex digits, e.g. `FFFF00` | Find highlight colour |
 | `Highlight Matches` | `1` / `0` | Find highlighting |
 | `Font Name` | text | Kept for SIV compatibility; not used for drawing |
-| `Redact Reports` | `1` / `0` | Options -> Redact identifiers in saved reports |
+| `Redact Reports` | `1` / `0` | Options -> Redact identifiers in saved reports and copied text |
 | `SIO Sensors` | e.g. `nct6799:AUXTIN1` | Super-I/O inputs the burner should treat as connected |
 
 Environment variables:
@@ -1023,8 +1023,9 @@ publicly:
 sysreport-search '-save=[all]=for-forum.txt' --redact
 ```
 
-or tick **Menu -> Options -> Redact identifiers in saved reports** and use **Save Report** / **Save All
-Items**. Serial numbers, UUIDs, WWNs, the GPU / Thunderbolt unique IDs, the boot and machine IDs and
+or tick **Menu -> Options -> Redact identifiers in saved reports and copied text** and use **Save
+Report** / **Save All Items**. With the option on, the **Copy** button and right-click **Copy** (or
+Ctrl+C on a selection) mask the same things, so text you paste into a forum post is safe too. Serial numbers, UUIDs, WWNs, the GPU / Thunderbolt unique IDs, the boot and machine IDs and
 the host name become `XXXX` (same length, so columns stay aligned); MAC addresses keep their
 vendor half (`04:7c:16:XX:XX:XX`), which is useful for telling network chips apart. The report's
 first line ends with `(identifiers redacted)`. Published constants such as GPT partition-type GUIDs

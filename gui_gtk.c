@@ -432,11 +432,15 @@ static void on_destroy(GtkWidget *wid, gpointer data)
 static void copy_all(swin *w)
 {
     GtkTextIter s, e;
-    char *txt;
+    char *txt, *r;
     if (!w->buf) return;
     gtk_text_buffer_get_bounds(w->buf, &s, &e);
     txt = gtk_text_buffer_get_text(w->buf, &s, &e, FALSE);
-    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), txt, -1);
+    srs_redact = g_opt_redact;   /* the copied text is masked like a saved report; the panel is not */
+    r = srs_redact_text(txt);
+    srs_redact = 0;
+    gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), r ? r : txt, -1);
+    free(r);
     gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
     g_free(txt);
 }
@@ -674,6 +678,27 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
 
 static void on_ctx_guide(GtkMenuItem *mi, gpointer data) { (void)mi; open_guide(data); }
 
+/* Copy of a selection (right-click Copy, Ctrl+C): masked like the Copy button when Redact is on */
+static void on_copy_clip(GtkTextView *v, gpointer data)
+{
+    GtkTextBuffer *b = gtk_text_view_get_buffer(v);
+    GtkTextIter s, e;
+    char *txt, *r;
+    (void)data;
+    if (!g_opt_redact || !gtk_text_buffer_get_selection_bounds(b, &s, &e)) return;
+    txt = gtk_text_buffer_get_text(b, &s, &e, FALSE);
+    srs_redact = 1;
+    r = srs_redact_text(txt);
+    srs_redact = 0;
+    if (r) {
+        gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), r, -1);
+        gtk_clipboard_store(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
+        g_signal_stop_emission_by_name(v, "copy-clipboard");
+        free(r);
+    }
+    g_free(txt);
+}
+
 static void on_populate(GtkTextView *v, GtkWidget *popup, gpointer data)
 {
     GtkWidget *sep = gtk_separator_menu_item_new(), *sub = gtk_menu_new(), *top, *gi;
@@ -720,6 +745,7 @@ static GtkWidget *make_view(swin *w)
     ensure_tags(w->buf);
     g_signal_connect(w->view, "button-press-event", G_CALLBACK(on_view_click), w);
     g_signal_connect(w->view, "populate-popup", G_CALLBACK(on_populate), w);
+    g_signal_connect(w->view, "copy-clipboard", G_CALLBACK(on_copy_clip), w);
     gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(sw), w->view);
     return sw;
@@ -1823,7 +1849,7 @@ static void build_options(GtkWidget *menu)
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
         { "Start with the _desktop (autostart)", OPT_AUTOSTART },
         { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT },
-        { "R_edact identifiers in saved reports (serials, UUIDs, MACs, host name)", OPT_REDACT }, { NULL, 0 } };
+        { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT }, { NULL, 0 } };
     int i, have = tray_available();
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
