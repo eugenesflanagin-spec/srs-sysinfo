@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in SRS crashes, hangs or doesn't work as described in the user guide.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. If a report item shows a **wrong value for your
+        hardware** (wrong CPU name, missing sensor, odd memory size...), please use the
+        **"My hardware shows something wrong"** template instead.
+  - type: input
+    id: version
+    attributes:
+      label: SRS version
+      description: Output of `sysreport-search --version` (first line is enough).
+      placeholder: sysreport-search 1.1.0 (...)
+    validations:
+      required: true
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and how you installed SRS
+      placeholder: "e.g. Fedora 44, the .rpm from the release page / Arch, AUR package"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open srs-gui
+        2. Click ...
+        3. ...
+  - type: textarea
+    id: output
+    attributes:
+      label: Error messages or terminal output
+      description: |
+        Start `srs-gui` from a terminal and paste anything it prints. For a crash, the last lines
+        of `journalctl --user -b | grep -i srs` can help too.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I checked that this still happens with the latest release.
+        - label: I removed anything private from the text above.

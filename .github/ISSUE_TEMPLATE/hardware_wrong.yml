@@ -1,0 +1,79 @@
+name: My hardware shows something wrong
+description: A report item shows a wrong, missing or strange value for your PC (CPU, memory, sensors, disks, GPU, buses...).
+labels: [hardware]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        SRS reads hundreds of hardware details, and every PC is a bit different, so reports like
+        this are the best way to make it work on more machines. Thank you!
+
+        **Please attach a full report.** It lets us see exactly what SRS found on your PC.
+        Run this in a terminal:
+
+        ```sh
+        sysreport-search '-save=[all]' --redact
+        ```
+
+        (Keep the quotes: zsh and fish treat `[all]` as a file pattern without them.)
+
+        `--redact` replaces serial numbers, UUIDs, machine/boot IDs and the host name with `XXXX`,
+        so the file is safe to post. (IP addresses and Wi-Fi names are **not** masked; check the
+        file and remove them if you want.) The command prints where it saved the report; drag
+        that file into the box below, or paste its contents.
+
+        For values that need root (SMBIOS serials, DIMM SPD, SMART), run `srs-root` once
+        first, or tick **Menu -> Options -> Refresh root data at boot**.
+  - type: input
+    id: version
+    attributes:
+      label: SRS version
+      description: Output of `sysreport-search --version` (first line is enough).
+      placeholder: sysreport-search 1.1.0 (...)
+    validations:
+      required: true
+  - type: input
+    id: item
+    attributes:
+      label: Which panel / item is wrong?
+      description: The panel name and the item (row) as SRS shows it.
+      placeholder: "e.g. Sensors -> CPU Package, or Memory -> DIMM 2 speed"
+    validations:
+      required: true
+  - type: textarea
+    id: shown
+    attributes:
+      label: What SRS shows
+      description: Copy the line from SRS, or add a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should show
+      description: |
+        The correct value, and how you know (BIOS screen, another tool such as `lscpu`,
+        `sensors`, `dmidecode`, the maker's spec sheet...).
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Motherboard, CPU and the part this is about, if you know them.
+      placeholder: "e.g. MSI B650 Tomahawk, Ryzen 7 7700X, 2x16 GB DDR5-6000"
+  - type: input
+    id: distro
+    attributes:
+      label: Distribution and kernel
+      description: Your distro and the output of `uname -r`.
+      placeholder: "e.g. Ubuntu 24.04, 6.8.0-45-generic"
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report from `sysreport-search '-save=[all]' --redact`
+      description: Attach the saved file (drag it here) or paste it. Required, it is the most useful part.
+    validations:
+      required: true
