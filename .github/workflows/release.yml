@@ -17,6 +17,7 @@ name: Release packages
 on:
   push:
     tags: ['v*']
+    branches: ['ci-release']   # TEMP: test runs on the test branch; remove before merging
   workflow_dispatch:
 
 # By default the jobs may only read the repository. Only the final "release"
