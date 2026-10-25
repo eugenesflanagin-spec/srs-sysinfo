@@ -28,7 +28,7 @@ body:
     attributes:
       label: SRS version
       description: Output of `sysreport-search --version` (first line is enough).
-      placeholder: sysreport-search 1.1.0 (...)
+      placeholder: sysreport-search 1.1.1 (...)
     validations:
       required: true
   - type: input

@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 1.1.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 1.1.1. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -115,7 +115,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-1.1.0-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-1.1.1-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -140,11 +140,11 @@ similar names):
 ### 3.4 Any other distribution - generic tarball
 
 Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older distribution
-(Ubuntu 22.04) so it runs on most current ones (glibc 2.34 or newer, GTK 3).
+(Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-1.1.0-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.0-linux-x86_64
+tar xzf srs-sysinfo-1.1.1-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.1-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -152,7 +152,7 @@ sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 The optional boot-time unit (see [5.3](#53-refresh-root-data-at-boot)) expects `/usr/bin/srs-root`.
 `INSTALL.txt` in the tarball shows how to point it at `/usr/local/bin` instead.
 
-Run-time needs: glibc 2.34+, GTK 3, GLib, Pango, Cairo, and **hwdata** (the PCI / USB name lists in
+Run-time needs: glibc 2.38+, GTK 3, GLib, Pango, Cairo, and **hwdata** (the PCI / USB name lists in
 `/usr/share/hwdata`). Debian/Ubuntu: `sudo apt install hwdata libgtk-3-0`.
 
 ### 3.5 Build from source

@@ -98,10 +98,11 @@ srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlo
 ### `--version`
 
 ```
-sysreport-search 1.1.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 1.1.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
+Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo
 ```
 
 The part in brackets describes how your copy was built.

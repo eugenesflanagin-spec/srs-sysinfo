@@ -4,10 +4,28 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## Unreleased
+## 1.1.1 - 2026-10-25
+
+### Fixed
+- **CPU Burnin / CPU Stress: GPU Frequency "Rolling Average" always showed 0 MHz.** The GPU clock was
+  never added to the rolling average; the other six rows were not affected.
+
+### Added
+- **Burn-in results are saved.** Each finished CPU Burnin or CPU Stress run (Pass, Fail or Stopped,
+  also when the window is closed during a run) is saved to `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`:
+  the same text as the window's Copy button (status, sensor table, thread table). The status line
+  names the file. `sysreport-search burn` saves its summary the same way and prints the path.
+  One file per run, so runs can be compared (`diff`, `meld`).
+- **User guide: "What hyperthreading (SMT) really does - a worked example"** (section 9.2.1). Real
+  benchmark results from one Ryzen 7 7800X3D, step by step: the two threads of a core are equally
+  fast, all-core runs score about 5 % lower because of boost, a second thread adds 66-80 %, mixed
+  integer + floating-point work shares a core better than identical work, and why one core can score
+  a little lower than the rest.
 
 ### Changed
 - `--version` shows the project's home page.
+- The generic Linux tarball is made from the Ubuntu 24.04 package, so it runs on glibc 2.38 and
+  newer (1.1.0's needed glibc 2.42).
 
 ## 1.1.0 - 2026-10-25
 

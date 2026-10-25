@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 1.1.0. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 1.1.1. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -168,7 +168,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-1.1.0-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-1.1.1-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -232,17 +232,17 @@ other distributions use similar names):</p>
 distribution - generic tarball</h3>
 <p>Each release has
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
-an older distribution (Ubuntu 22.04) so it runs on most current ones
-(glibc 2.34 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-1.1.0-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.0-linux-x86_64
+an older distribution (Ubuntu 24.04) so it runs on most current ones
+(glibc 2.38 or newer, GTK 3).</p>
+<pre><code>tar xzf srs-sysinfo-1.1.1-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.1-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
 href="#user-guide--53-refresh-root-data-at-boot">5.3</a>) expects
 <code>/usr/bin/srs-root</code>. <code>INSTALL.txt</code> in the tarball
 shows how to point it at <code>/usr/local/bin</code> instead.</p>
-<p>Run-time needs: glibc 2.34+, GTK 3, GLib, Pango, Cairo, and
+<p>Run-time needs: glibc 2.38+, GTK 3, GLib, Pango, Cairo, and
 <strong>hwdata</strong> (the PCI / USB name lists in
 <code>/usr/share/hwdata</code>). Debian/Ubuntu:
 <code>sudo apt install hwdata libgtk-3-0</code>.</p>
@@ -28698,10 +28698,11 @@ Benchmarks and stress (load the CPU; run only when you ask):
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
-<pre><code>sysreport-search 1.1.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+<pre><code>sysreport-search 1.1.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
-Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.</code></pre>
+Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
+Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
 <p>Lists every item SRS knows (545 lines), one per line:</p>
