@@ -372,6 +372,7 @@ static double g_t0, g_phase_t0, g_last_tick;
 static int g_state = BURN_IDLE, g_cycle, g_nsamp;
 static burn_sample g_sum, g_max, g_roll;
 static char g_status[160] = "Idle";
+static char g_saved[1100];   /* where this run's summary was saved ("" = not yet) */
 static pid_t g_gpu_pid;
 static double g_gpu_t0;
 static char g_gpu_msg[300], g_gpu_log[600];
@@ -495,6 +496,7 @@ int burn_start(const burn_cfg *c)
     memset(&g_max, 0, sizeof g_max);
     memset(&g_roll, 0, sizeof g_roll);
     g_nsamp = 0;
+    g_saved[0] = 0;
     g_cycle = 1;
     g_gpu_msg[0] = 0;
     g_gpu_bad = 0;
@@ -686,6 +688,7 @@ int burn_save_summary(const burn_status *st, char *path, size_t n)
     time_t now = time(NULL);
     FILE *f;
     srs_out o;
+    if (g_saved[0]) { snprintf(path, n, "%s", g_saved); return 0; }   /* once per run, however many windows */
     if (!h || !*h) return -1;
     snprintf(d, sizeof d, "%s/.cache", h);
     mkdir(d, 0755);
@@ -698,7 +701,8 @@ int burn_save_summary(const burn_status *st, char *path, size_t n)
     burn_render(&o, st);
     if (o.col) fputc('\n', f);
     if (fclose(f)) return -1;
-    if (!strstr(g_status, "saved to")) {
+    snprintf(g_saved, sizeof g_saved, "%s", path);
+    {
         size_t k = strlen(g_status);
         snprintf(g_status + k, sizeof g_status - k, " - saved to ~/.cache/srs/%s", name);
     }

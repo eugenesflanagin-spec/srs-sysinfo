@@ -1030,7 +1030,7 @@ static void burn_saved(swin *w)
 {
     char path[1100];
     if (w->st.state != BURN_PASS && w->st.state != BURN_FAIL && w->st.state != BURN_STOPPED) return;
-    if (burn_save_summary(&w->st, path, sizeof path) == 0) {
+    if (burn_save_summary(&w->st, path, sizeof path) == 0 && !strstr(w->st.status, "saved to")) {
         const char *base = strrchr(path, '/');
         size_t n = strlen(w->st.status);
         snprintf(w->st.status + n, sizeof w->st.status - n, " - saved to ~/.cache/srs/%s", base ? base + 1 : path);
