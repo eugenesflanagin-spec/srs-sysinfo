@@ -1,13 +1,15 @@
 # SRS - System Report Search
 
-**A clean-room implementation of SIV64X (System Information Viewer) for Linux.**
+I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to
+improve on it along the way. SRS is free and open source for the Linux and open-source community.
+(SRS is an independent project, not affiliated with SIV or its author.)
 
 > **Credit:** SIV - System Information Viewer - is the work of **Ray Hinchliffe, RH Software**
 > (<https://rh-software.com>). SIV has been a remarkably thorough hardware and system viewer for
 > Windows for decades, and SRS exists because of it. All credit for SIV's design, its item set and
 > its presentation belongs to Ray Hinchliffe.
 >
-> **Clean room:** SRS contains **no SIV code, binaries or data files**, and SIV was **not
+> **No SIV code:** SRS contains **no SIV code, binaries or data files**, and SIV was **not
 > disassembled or decompiled**. The behaviour was specified only from SIV's observable output -
 > its `-save` text dump, its panels and its printable strings - and then implemented
 > independently in C on Linux data sources (sysfs, procfs, CPUID, hwmon, udev, hwdata).
