@@ -63,6 +63,12 @@ int  srs_save(const char *items, const char *file); /* "-save" ; items like "[cp
 extern int srs_redact;
 const char *srs_redact_host(void);                  /* host name, masked when srs_redact */
 
+/* user guide (guide.c): item -> section anchor (NULL unknown; NULL/"" id = guide start); open it
+   with the PDF viewer / browser (dry_run: only put the command line into msg). 1 ok, 0 msg = why not */
+const char *srs_guide_anchor(const char *id);
+int  srs_guide_count(void);
+int  srs_guide_open(const char *id, int dry_run, char *msg, size_t mn);
+
 /* device ID on a panel line -> "id-lookup:[usb:]VVVV:DDDD..." (item = panel's item id); 1 if found */
 int  srs_line_device_id(const char *item, const char *line, int usb_ctx, char *out, size_t sz);
 

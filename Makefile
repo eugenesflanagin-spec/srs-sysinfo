@@ -22,8 +22,8 @@ CORE      := core.c cli.c
 HDRS      := srs.h
 # the SIV section engine (Linux images): every SIV item, the burner and the benchmarks
 SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c sec_sensors.c sec_storage.c sec_network.c \
-             sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c
-SECHDRS   := sec.h burner.h bench.h sec_default_save.inc
+             sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c guide.c
+SECHDRS   := sec.h burner.h bench.h sec_default_save.inc guide_map.inc
 LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread
 
 # --- PE layout copied field-for-field from SIV64X.exe / SIV32X.exe (objdump -p) ---

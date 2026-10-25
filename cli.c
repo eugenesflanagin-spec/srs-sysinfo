@@ -37,6 +37,9 @@ static const char *HELP =
     "        boot/machine IDs and the host name, for reports you share\n"
     "  --list\n"
     "        every item: id, category, bucket (linux/absent/windows-only), group, title\n"
+    "  guide [ITEM] [--print]\n"
+    "        open the user guide at ITEM's section (PDF viewer, else the HTML guide);\n"
+    "        --print only shows the section and the command that would run\n"
 #ifdef __linux__
     "\n"
     "Benchmarks and stress (load the CPU; run only when you ask):\n"
@@ -387,6 +390,21 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "burn")) return cmd_burn(argc, argv);
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
 #endif
+    if (!strcmp(cmd, "guide")) {
+        const char *id = NULL;
+        int i, dry = 0, ok;
+        char msg[8000];
+        for (i = 2; i < argc; i++) {
+            if (!strcmp(argv[i], "--print")) dry = 1;
+            else if (argv[i][0] == '-') return usage_error("guide [ITEM] [--print]");
+            else id = argv[i];
+        }
+        if (id && !srs_section_find(id)) { fprintf(stderr, "guide: unknown item '%s' (see --list)\n", id); return 2; }
+        ok = srs_guide_open(id, dry, msg, sizeof msg);
+        if (dry && ok) printf("Item     %s\nSection  %s\nCommand  %s\n", id ? id : "(start)", srs_guide_anchor(id), msg);
+        else if (*msg) fprintf(ok ? stdout : stderr, "%s\n", msg);
+        return ok ? 0 : 1;
+    }
     if (!strcmp(cmd, "--list")) {
         int i;
         static const char *bk[] = { "linux", "absent", "windows-only" };
