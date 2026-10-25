@@ -60,7 +60,7 @@ done
 REL=$OUT/release
 if [ -f "$OUT/arch/pkg/srs-sysinfo-$VER-1-x86_64.pkg.tar.zst" ]; then
   echo "===== generic tarball"
-  if "$PKG/make-tarball.sh" "$OUT/arch/pkg/srs-sysinfo-$VER-1-x86_64.pkg.tar.zst" "$TARBALL" "$OUT/tarball" >"$OUT/tarball.log" 2>&1; then
+  if "$PKG/make-tarball.sh" "$OUT/ubuntu-24.04/pkg/srs-sysinfo_$VER-1.ubuntu24.04_amd64.deb" "$TARBALL" "$OUT/tarball" >"$OUT/tarball.log" 2>&1; then
     tail -1 "$OUT/tarball.log"; RESULT[tarball]="OK"
   else
     tail -20 "$OUT/tarball.log"; RESULT[tarball]="FAIL"
