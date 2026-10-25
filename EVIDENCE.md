@@ -1,7 +1,7 @@
 # How the SIV64X specification was gathered (clean-room evidence)
 
 SIV (System Information Viewer) is freeware by Ray Hinchliffe, RH Software (https://rh-software.com).
-SRS is an independent clean-room implementation and is not affiliated with RH Software.
+SRS is an independent project and is not affiliated with RH Software. No SIV code was used, disassembled or decompiled.
 
 ## Original search-feature evidence
 
