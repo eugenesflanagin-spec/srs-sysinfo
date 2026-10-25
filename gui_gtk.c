@@ -1386,7 +1386,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_mode), 0);
         gtk_box_pack_start(GTK_BOX(row), w->bm_mode, TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per measurement"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 10, 0.1, 1);
+        w->bm_secs = spin(0.1, 60, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
     } else if (w->sub == BK_IPI) {
@@ -1398,7 +1398,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_box_pack_start(GTK_BOX(row), w->bm_rounds, FALSE, FALSE, 0);
     } else {
         gtk_box_pack_start(GTK_BOX(row), lbl("Largest block (MB)"), FALSE, FALSE, 0);
-        w->bm_max = spin(1, 1024, 1, 256);
+        w->bm_max = spin(1, 4096, 1, 256);
         gtk_box_pack_start(GTK_BOX(row), w->bm_max, FALSE, FALSE, 0);
     }
     w->bm_run = sbtn("_Run");

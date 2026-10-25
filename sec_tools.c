@@ -350,7 +350,7 @@ static void s_burnin(srs_out *o)
     so_kvf(o, "Hottest CPU sensor", C_BLACK, "%s %.1f°C", s.cpu_temp_name, s.cpu_temp);
     so_kvf(o, "Hottest SIO sensor", C_BLACK, "%s %.1f°C", s.sio_name, s.sio_temp);
     so_kvf(o, "GPU", C_BLACK, "%.0f%% load  %.1f°C  %.0f MHz", s.gpu_load, s.gpu_temp, s.gpu_mhz);
-    so_kv(o, "Command line", C_PURPLE, "srs-gui burn [--threads N | --cpus 0,2] [--seconds S] [--mode same|swap] [--limit C]");
+    so_kv(o, "Command line", C_PURPLE, "srs-gui burn [--threads N | --cpus 0,2] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]");
     so_note(o, "Safety: never auto-starts; stops at the temperature limit (default 90 C) and the time cap.");
 }
 
