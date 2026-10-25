@@ -825,7 +825,9 @@ static void s_amd_cpu(srs_out *o)
 static void s_amd_smu(srs_out *o)
 {
     static const int tabs[] = { 220 };
-    static const char *const attrs[] = { "drv_version", "codename", "smu_version", "mp1_if_version", "pm_table_version", "pm_table_size", NULL };
+    /* "version" is the SMU firmware version (the driver has no smu_version attribute) */
+    static const char *const attrs[] = { "drv_version", "codename", "version", "mp1_if_version", "pm_table_version", "pm_table_size", NULL };
+    static const char *const labels[] = { "Driver version", "Codename", "SMU firmware version", "MP1 interface version", "PM table version", "PM table size", NULL };
     int i;
     so_siv_header(o, "AMD SMU");
     so_tabs(o, tabs, 1);
@@ -833,19 +835,41 @@ static void s_amd_smu(srs_out *o)
     for (i = 0; attrs[i]; i++) {
         char p[256], v[128] = "";
         snprintf(p, sizeof p, RSMU "/%s", attrs[i]);
-        if (!strcmp(attrs[i], "pm_table_version") || !strcmp(attrs[i], "pm_table_size") || !strcmp(attrs[i], "smu_version")) {
+        if (!strcmp(attrs[i], "pm_table_version") || !strcmp(attrs[i], "pm_table_size")) {
             unsigned char raw[16];
             FILE *f = fopen(p, "rb");
             size_t n = f ? fread(raw, 1, sizeof raw, f) : 0;
             if (f) fclose(f);
             if (n == 4) { unsigned x; memcpy(&x, raw, 4); snprintf(v, sizeof v, "0x%08X (%u)", x, x); }
-            else if (n == 8) { unsigned long long x; memcpy(&x, raw, 8); snprintf(v, sizeof v, "%llu", x); }
-            else rd_str(p, v, sizeof v);
+            else if (n == 8) { unsigned long long x; memcpy(&x, raw, 8); snprintf(v, sizeof v, "%llu bytes", x); }
         } else rd_str(p, v, sizeof v);
-        so_kv(o, attrs[i], C_BLACK, *v ? v : "-");
+        so_kv(o, labels[i], C_BLACK, *v ? v : "-");
     }
     so_par(o);
     so_note(o, "Read-only: srs-gui never sends SMU commands (rsmu_cmd / mp1_smu_cmd / smn are not touched).");
+}
+
+/* [amd-pmt] PM table layout: version / size / value count (the values themselves are [amd-pmt-0]) */
+static void s_amd_pmt_layout(srs_out *o)
+{
+    static const int tabs[] = { 220 };
+    unsigned char raw[8] = { 0 };
+    unsigned ver = 0;
+    unsigned long long sz = 0;
+    FILE *f;
+    char codename[64] = "";
+    so_siv_header(o, "AMD PM Table layout");
+    so_tabs(o, tabs, 1);
+    if (!path_exists(RSMU "/pm_table")) { so_err(o, "ryzen_smu pm_table not available"); return; }
+    if ((f = fopen(RSMU "/pm_table_version", "rb"))) { if (fread(raw, 1, 4, f) == 4) memcpy(&ver, raw, 4); fclose(f); }
+    if ((f = fopen(RSMU "/pm_table_size", "rb"))) { if (fread(raw, 1, 8, f) == 8) memcpy(&sz, raw, 8); fclose(f); }
+    rd_str(RSMU "/codename", codename, sizeof codename);
+    so_kv(o, "ryzen_smu codename", C_VALUE, codename);
+    so_kvf(o, "PM table version", C_BLACK, "0x%06X", ver);
+    so_kvf(o, "PM table size", C_BLACK, "%llu bytes (%llu 32-bit values)", sz, sz / 4);
+    so_kv(o, "Value type", C_VALUE, "IEEE 754 single-precision floats, little-endian");
+    so_par(o);
+    so_note(o, "Which value is which depends on the table version and is not published by AMD; see [amd-pmt-0] for the values.");
 }
 
 /* [amd-pmt-*] PM table as floats (ryzen_smu pm_table is world-readable on this system) */
@@ -1223,7 +1247,7 @@ const srs_item sec_cpu[] = {
     { "amd-cpu", "hardware", "AMD Ryzen Power Management", B_LINUX, 0, "amd_pstate", s_amd_cpu, 0, "cpu" },
     { "amd-smu", "hardware", "AMD SMU", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv", s_amd_smu, 0, "cpu" },
     { "cpu-smu", "hardware", "CPU SMU", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv", s_amd_smu, 0, "cpu" },
-    { "amd-pmt", "hardware", "AMD PM Table", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv/pm_table", s_amd_pmt, 0, "cpu" },
+    { "amd-pmt", "hardware", "AMD PM Table", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv/pm_table_version; pm_table_size", s_amd_pmt_layout, 0, "cpu" },
     { "amd-pmt-0", "hardware", "AMD PM Table 0", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv/pm_table", s_amd_pmt, 0, "cpu" },
     { "amd-tel-0", "hardware", "AMD Telemetry 0", B_LINUX, 0, "zenergy hwmon", s_amd_tel, 0, "cpu" },
     { "amd-thm-0", "hardware", "AMD Thermal 0", B_LINUX, 0, "k10temp", s_amd_thm, 2000, "cpu" },

@@ -1696,8 +1696,18 @@ static void s_fak_pmts(srs_out *o)
     so_kv(o, "Status", C_ORANGE, "srs-gui has no fake-mode replay; the live PM table is shown in [amd-pmt-0]");
     if (!stat("/sys/kernel/ryzen_smu_drv/pm_table", &st)) {
         so_kv(o, "pm_table", C_GREEN, "/sys/kernel/ryzen_smu_drv/pm_table present");
-        if (rd_str("/sys/kernel/ryzen_smu_drv/pm_table_version", b, sizeof b)) so_kv(o, "pm_table_version", C_TEAL, b);
-        if (rd_str("/sys/kernel/ryzen_smu_drv/pm_table_size", b, sizeof b)) so_kv(o, "pm_table_size", C_TEAL, b);
+        {   /* binary attributes: pm_table_version is a u32, pm_table_size a u64 (bytes) */
+            unsigned char raw[8] = { 0 };
+            FILE *f = fopen("/sys/kernel/ryzen_smu_drv/pm_table_version", "rb");
+            size_t n = f ? fread(raw, 1, sizeof raw, f) : 0;
+            if (f) fclose(f);
+            if (n >= 4) { unsigned x; memcpy(&x, raw, 4); snprintf(b, sizeof b, "0x%06X", x); so_kv(o, "pm_table_version", C_TEAL, b); }
+            memset(raw, 0, sizeof raw);
+            f = fopen("/sys/kernel/ryzen_smu_drv/pm_table_size", "rb");
+            n = f ? fread(raw, 1, sizeof raw, f) : 0;
+            if (f) fclose(f);
+            if (n == 8) { unsigned long long x; memcpy(&x, raw, 8); snprintf(b, sizeof b, "%llu bytes", x); so_kv(o, "pm_table_size", C_TEAL, b); }
+        }
         if (rd_str("/sys/kernel/ryzen_smu_drv/version", b, sizeof b)) so_kv(o, "SMU firmware", C_TEAL, b);
     } else so_kv(o, "pm_table", C_GRAY, "ryzen_smu driver not loaded");
 }

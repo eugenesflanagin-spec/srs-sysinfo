@@ -1455,12 +1455,14 @@ static void s_groups(srs_out *o)
 {
     static const int tabs[] = { 196, 252 };
     static const char *const h[] = { "Group Name", "GID", "Members" };
-    gid_t mine[256];
-    int nm = getgroups(256, mine), n = 0, i;
+    int nm = getgroups(0, NULL), n = 0, i;   /* no fixed limit: ask the kernel how many first */
+    gid_t *mine = malloc(sizeof *mine * (size_t)(nm > 0 ? nm + 1 : 1));
     char *t, *save = NULL, *l, b[96];
     so_siv_header(o, "Groups (/etc/group)");
     so_tabs(o, tabs, 2);
-    if (rd_all("/etc/group", &t) < 0) { so_err(o, "/etc/group not readable"); return; }
+    nm = mine && nm > 0 ? getgroups(nm, mine) : 0;
+    if (nm < 0) nm = 0;
+    if (rd_all("/etc/group", &t) < 0) { so_err(o, "/etc/group not readable"); free(mine); return; }
     so_row(o, 3, h, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
     so_par(o);
     for (l = strtok_r(t, "\n", &save); l; l = strtok_r(NULL, "\n", &save)) {
@@ -1473,6 +1475,7 @@ static void s_groups(srs_out *o)
         n++;
     }
     free(t);
+    free(mine);
     so_par(o);
     snprintf(b, sizeof b, "%d groups; green = groups of the current process (%d)", n, nm);
     so_note(o, b);
