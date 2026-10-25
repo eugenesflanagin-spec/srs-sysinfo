@@ -41,6 +41,7 @@ static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g
 static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
 static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
+static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH } wkind;
 enum { BK_BENCH, BK_IPI, BK_LAT };
@@ -282,10 +283,10 @@ static void settings_load(void)
             g_free(th);
         }
         {
-            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray" };
-            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray };
+            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports" };
+            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact };
             int k;
-            for (k = 0; k < 4; k++) {
+            for (k = 0; k < 5; k++) {
                 GError *e2 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
                 if (!e2) *vars[k] = v; else g_error_free(e2);
@@ -312,6 +313,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
+    g_key_file_set_integer(kf, "SRSDEF", "Redact Reports", g_opt_redact);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
     g_key_file_set_integer(kf, "SRSDEF", "Update Interval", g_update_ms);
     g_key_file_save_to_file(kf, g_ini, NULL);
@@ -528,12 +530,14 @@ static void save_dialog(int all)
     GtkWidget *d = gtk_file_chooser_dialog_new(all ? "Save All Items" : "Save Report", g_main ? GTK_WINDOW(g_main->win) : NULL,
                                                GTK_FILE_CHOOSER_ACTION_SAVE, "_Cancel", GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_ACCEPT, NULL);
     char name[300];
-    snprintf(name, sizeof name, "srs-%s%s.txt", g_host, all ? "-all" : "");
+    snprintf(name, sizeof name, "srs-%s%s.txt", g_opt_redact ? "report" : g_host, all ? "-all" : "");
     gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(d), name);
     gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(d), TRUE);
     if (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_ACCEPT) {
         char *f = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(d));
+        srs_redact = g_opt_redact;   /* only the saved file is masked; the panels keep showing everything */
         srs_save(all ? "[all]" : NULL, f);
+        srs_redact = 0;
         g_free(f);
     }
     gtk_widget_destroy(d);
@@ -1733,7 +1737,7 @@ static void autostart_set(int on)
     g_free(p);
 }
 
-enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT };
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT };
 /* "Refresh root data at boot": the packaged srs-root@<user>.service runs srs-root as root
  * once per boot, so the root-only panels are filled without a password prompt. */
 static char *bootroot_unit(void) { return g_strdup_printf("srs-root@%s.service", g_get_user_name()); }
@@ -1786,6 +1790,7 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
     case OPT_MIN: g_opt_min_tray = on; break;
     case OPT_START: g_opt_start_tray = on; break;
     case OPT_AUTOSTART: autostart_set(on); break;
+    case OPT_REDACT: g_opt_redact = on; settings_save(); return;
     }
     settings_save();
     tray_apply();   /* also rebuilds the tray menu so its check marks stay in sync */
@@ -1824,7 +1829,8 @@ static void build_options(GtkWidget *menu)
         { "System _tray icon", OPT_TRAY }, { "_Close button hides to tray", OPT_CLOSE },
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
         { "Start with the _desktop (autostart)", OPT_AUTOSTART },
-        { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT }, { NULL, 0 } };
+        { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT },
+        { "R_edact identifiers in saved reports (serials, UUIDs, MACs, host name)", OPT_REDACT }, { NULL, 0 } };
     int i, have = tray_available();
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
@@ -1857,9 +1863,10 @@ static void build_options(GtkWidget *menu)
     for (i = 0; opts[i].label; i++) {
         GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
-              : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on() : autostart_on();
+              : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on()
+              : opts[i].id == OPT_REDACT ? g_opt_redact : autostart_on();
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
-        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT) gtk_widget_set_sensitive(it, FALSE);
+        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT) gtk_widget_set_sensitive(it, FALSE);
         if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) gtk_widget_set_sensitive(it, FALSE);
         g_signal_connect(it, "toggled", G_CALLBACK(on_option), GINT_TO_POINTER(opts[i].id));
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);

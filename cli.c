@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -27,7 +27,33 @@ static const char *HELP =
     "  find PATTERN [--report DIR] [-i] [-F] [--max N] [--color auto|always|never]\n"
     "        regex search across a report's sections with highlighted matches\n"
     "  devices [--bus pci|usb|all]\n"
-    "        resolve every local PCI/USB device\n";
+    "        resolve every local PCI/USB device\n"
+#ifdef SRS_HAVE_SECTIONS
+    "\n"
+    "System information items (SIV syntax; quote the argument in zsh/fish, [..] is a glob):\n"
+    "  -save[=[item][item:arg]...][=FILE|STDOUT] [--redact]\n"
+    "        render items as text (no items = SIV's default set, [all] = every item)\n"
+    "        --redact masks serial numbers, UUIDs, MAC addresses (vendor prefix kept),\n"
+    "        boot/machine IDs and the host name, for reports you share\n"
+    "  --list\n"
+    "        every item: id, category, bucket (linux/absent/windows-only), group, title\n"
+#ifdef __linux__
+    "\n"
+    "Benchmarks and stress (load the CPU; run only when you ask):\n"
+    "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
+    "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
+    "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]\n"
+    "        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement)\n"
+    "  ipi [--cpus N] [--rounds R]\n"
+    "        core-to-core (cache-line ping-pong) latency matrix\n"
+    "  latency [--max MB]\n"
+    "        memory latency by block size, up to MB (1..4096, default 256)\n"
+#endif
+    "\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]\n"
+    "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
+#endif
+    ;
 
 static int usage_error(const char *msg)
 {
@@ -295,7 +321,7 @@ static int cmd_bench(int argc, char **argv)
         int m, i;
         if (argc < 3) return usage_error("bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]");
         for (i = 3; i + 1 < argc; i++) if (!strcmp(argv[i], "--seconds")) secs = atof(argv[++i]);
-        if (secs <= 0 || secs > 60) return usage_error("--seconds must be 0..60");
+        if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
         for (m = 0; m < BM_COUNT; m++)
             if (!strcmp(argv[2], bench_mode_id((bench_mode)m) + 10)) return bench_run((bench_mode)m, secs, &o) ? 1 : 0;
         return usage_error("bench: unknown mode");
@@ -326,6 +352,20 @@ int srs_cli_main(int argc, char **argv)
     o.max = 20;
     o.color = "auto";
     o.mode = "tree";
+    {   /* --redact may appear anywhere (SIV-style "-save=..." is a single argument) */
+        int i, j;
+        for (i = j = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "--redact")) {
+#ifdef SRS_HAVE_SECTIONS
+                srs_redact = 1;
+#endif
+                continue;
+            }
+            argv[j++] = argv[i];
+        }
+        argc = j;
+        argv[argc] = NULL;
+    }
     if (argc < 2) return usage_error("the following arguments are required: cmd");
     cmd = argv[1];
 #ifdef SRS_HAVE_SECTIONS

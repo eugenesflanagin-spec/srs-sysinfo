@@ -2,6 +2,9 @@
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
 #endif
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE   /* strcasestr */
+#endif
 #include "sec.h"
 #include "srs.h"
 
@@ -19,9 +22,304 @@
  * output helpers
  * ====================================================================== */
 void so_tabs(srs_out *o, const int *px, int n) { o->tabs(o, px, n); }
-void so_t(srs_out *o, int c, const char *s) { if (s && *s) o->text(o, c, 0, 0, s); }
-void so_b(srs_out *o, int c, const char *s) { if (s && *s) o->text(o, c, 1, 0, s); }
-void so_m(srs_out *o, int c, const char *s) { if (s && *s) o->text(o, c, 0, 1, s); }
+
+/* ======================================================================
+ * redaction ("-save --redact", GUI Options > Redact identifiers in saved reports)
+ *
+ * Two layers, applied to every piece of text a producer emits:
+ *  1. patterns: MAC addresses keep their vendor prefix (aa:bb:cc:XX:XX:XX), UUIDs become
+ *     XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX;
+ *  2. values: the identifiers this PC actually has (DMI serials / UUID, disk / NVMe / USB / monitor
+ *     serials, WWNs, file-system and partition IDs, GPU unique_id, Thunderbolt unique_id, boot and
+ *     machine ID, host name) are collected once and masked wherever they appear.
+ * Masking keeps the length (letters and digits become X) so columns stay aligned.
+ * ====================================================================== */
+int srs_redact;
+
+static char **g_rx;          /* identifier values, longest first */
+static int g_nrx, g_caprx;
+static void rx_push(const char *b);
+
+static void rx_add(const char *v)
+{
+    char b[256];
+    size_t l, i, digits = 0, same = 1;
+    int k;
+    static const char *const junk[] = { "default string", "to be filled", "not specified", "not available", "none", "unknown",
+                                        "system serial number", "0123456789", "chassis serial", "base board serial", "n/a", NULL };
+    if (!v) return;
+    while (*v == ' ' || *v == '\t') v++;
+    snprintf(b, sizeof b, "%s", v);
+    l = strlen(b);
+    while (l && (b[l - 1] == ' ' || b[l - 1] == '\n' || b[l - 1] == '\r' || b[l - 1] == '\t')) b[--l] = 0;
+    if (l < 5) return;
+    for (i = 0; i < l; i++) { digits += isdigit((unsigned char)b[i]) != 0; if (b[i] != b[0]) same = 0; }
+    if (same || (digits == l && l < 8)) return;
+    {   /* USB root hubs report their PCI address as "serial": that is a location, not an identifier */
+        unsigned a, b2, c2, d;
+        char e;
+        if (sscanf(b, "%4x:%2x:%2x.%1x%c", &a, &b2, &c2, &d, &e) == 4 || strstr(b, "_hcd")) return;
+    }
+    for (k = 0; junk[k]; k++) if (strcasestr(b, junk[k])) return;
+    rx_push(b);
+}
+
+static void rx_push(const char *b)
+{
+    int k;
+    for (k = 0; k < g_nrx; k++) if (!strcmp(g_rx[k], b)) return;
+    if (g_nrx == g_caprx) {
+        char **n = realloc(g_rx, sizeof *g_rx * (size_t)(g_caprx ? g_caprx * 2 : 64));
+        if (!n) return;
+        g_rx = n;
+        g_caprx = g_caprx ? g_caprx * 2 : 64;
+    }
+    g_rx[g_nrx++] = strdup(b);
+}
+
+static void rx_file(const char *path) { char b[256]; if (rd_str(path, b, sizeof b)) rx_add(b); }
+
+static void rx_glob(const char *dir, const char *file)
+{
+    char **nm, p[1024];
+    int n = dir_list(dir, &nm), i;
+    for (i = 0; i < n; i++) { snprintf(p, sizeof p, "%s/%s/%s", dir, nm[i], file); rx_file(p); }
+    dir_free(nm, n);
+}
+
+/* EDID: numeric serial (bytes 12..15) and the 0xFF "monitor serial" descriptor */
+static void rx_edid(void)
+{
+    char **nm, p[1024];
+    int n = dir_list("/sys/class/drm", &nm), i, k;
+    for (i = 0; i < n; i++) {
+        unsigned char e[256];
+        size_t got;
+        FILE *f;
+        snprintf(p, sizeof p, "/sys/class/drm/%s/edid", nm[i]);
+        if (!(f = fopen(p, "rb"))) continue;
+        got = fread(e, 1, sizeof e, f);
+        fclose(f);
+        if (got < 128) continue;
+        {
+            unsigned sn = e[12] | e[13] << 8 | e[14] << 16 | (unsigned)e[15] << 24;
+            char b[32];
+            if (sn) { snprintf(b, sizeof b, "%08X", sn); rx_add(b); snprintf(b, sizeof b, "%u", sn); rx_add(b); }
+        }
+        for (k = 54; k + 18 <= 126; k += 18)
+            if (!e[k] && !e[k + 1] && e[k + 3] == 0xFF) {
+                char b[16];
+                int j;
+                memcpy(b, e + k + 5, 13);
+                b[13] = 0;
+                for (j = 0; b[j]; j++) if (b[j] == '\n') b[j] = 0;
+                rx_add(b);
+            }
+    }
+    dir_free(nm, n);
+}
+
+/* udev database: every *SERIAL*, *UUID* and WWN property (block devices, USB, +dmi:id DIMMs) */
+static void rx_udev(void)
+{
+    char **nm, p[1024];
+    int n = dir_list("/run/udev/data", &nm), i;
+    for (i = 0; i < n; i++) {
+        char *t, *l, *save = NULL;
+        snprintf(p, sizeof p, "/run/udev/data/%s", nm[i]);
+        if (rd_all(p, &t) < 0) continue;
+        for (l = strtok_r(t, "\n", &save); l; l = strtok_r(NULL, "\n", &save)) {
+            char *eq;
+            if (strncmp(l, "E:", 2) || !(eq = strchr(l, '='))) continue;
+            *eq = 0;
+            /* ID_SERIAL / ID_USB_SERIAL are "Vendor_Model_serial": only their *_SHORT part is the identifier */
+            if (strstr(l, "SERIAL_SHORT") || strstr(l, "SERIAL_NUMBER") || strstr(l, "UUID") || strstr(l, "WWN"))
+                rx_add(eq + 1);
+        }
+        free(t);
+    }
+    dir_free(nm, n);
+}
+
+/* root cache: dmidecode "Serial Number:" / "UUID:" / "Asset Tag:" lines */
+static void rx_dmidecode(void)
+{
+    const char *p = so_root_file("dmidecode.txt");
+    char *t, *l, *save = NULL;
+    if (!p || rd_all(p, &t) < 0) return;
+    for (l = strtok_r(t, "\n", &save); l; l = strtok_r(NULL, "\n", &save)) {
+        char *c = strchr(l, ':');
+        while (*l == ' ' || *l == '\t') l++;
+        if (c && (!strncmp(l, "Serial Number:", 14) || !strncmp(l, "UUID:", 5) || !strncmp(l, "Asset Tag:", 10))) rx_add(c + 1);
+    }
+    free(t);
+}
+
+static int rx_cmp(const void *a, const void *b) { return (int)strlen(*(char *const *)b) - (int)strlen(*(char *const *)a); }
+
+static void rx_build(void)
+{
+    static int built;
+    static const char *const dmi[] = { "product_serial", "board_serial", "chassis_serial", "product_uuid", "board_asset_tag", "chassis_asset_tag", NULL };
+    char p[256], host[256];
+    int i;
+    if (built) return;
+    built = 1;
+    for (i = 0; dmi[i]; i++) { snprintf(p, sizeof p, "/sys/class/dmi/id/%s", dmi[i]); rx_file(p); }
+    rx_dmidecode();
+    rx_glob("/sys/block", "device/serial");
+    rx_glob("/sys/block", "device/wwid");
+    rx_glob("/sys/class/nvme", "serial");
+    rx_glob("/sys/bus/usb/devices", "serial");
+    rx_glob("/sys/class/drm", "device/unique_id");
+    rx_glob("/sys/bus/thunderbolt/devices", "unique_id");
+    rx_glob("/sys/class/power_supply", "serial_number");
+    rx_glob("/sys/class/input", "uniq");
+    {
+        static const char *const dirs[] = { "/dev/disk/by-uuid", "/dev/disk/by-partuuid", NULL };
+        int d;
+        for (d = 0; dirs[d]; d++) {
+            char **nm;
+            int n = dir_list(dirs[d], &nm), k;
+            for (k = 0; k < n; k++) rx_add(nm[k]);
+            dir_free(nm, n);
+        }
+    }
+    rx_udev();
+    rx_edid();
+    rx_file("/proc/sys/kernel/random/boot_id");
+    rx_file("/etc/machine-id");
+    if (!gethostname(host, sizeof host) && strlen(host) >= 2 && strcmp(host, "localhost")) {
+        /* short host names skip rx_add's length filter; like every value they are only masked as a
+           whole word, so "X3D" is masked in "\\\\X3D" but not in "7800X3D" */
+        rx_push(host);
+    }
+    if (g_nrx) qsort(g_rx, (size_t)g_nrx, sizeof *g_rx, rx_cmp);
+}
+
+static int hx(char c) { return isxdigit((unsigned char)c) != 0; }
+static int an(char c) { return isalnum((unsigned char)c) != 0; }
+static void mask(char *p, size_t n) { size_t i; for (i = 0; i < n; i++) if (an(p[i])) p[i] = 'X'; }
+
+/* MAC: six hex pairs with the same ':' or '-' separator, not part of a longer run */
+static int is_mac(const char *c, size_t i, size_t l)
+{
+    char sep;
+    int g;
+    if (i + 17 > l || !hx(c[i]) || !hx(c[i + 1])) return 0;
+    sep = c[i + 2];
+    if (sep != ':' && sep != '-') return 0;
+    for (g = 0; g < 6; g++) {
+        size_t k = i + (size_t)g * 3;
+        if (!hx(c[k]) || !hx(c[k + 1])) return 0;
+        if (g < 5 && c[k + 2] != sep) return 0;
+    }
+    if (i && (hx(c[i - 1]) || c[i - 1] == sep)) return 0;
+    if (i + 17 < l && (hx(c[i + 17]) || c[i + 17] == sep)) return 0;
+    return 1;
+}
+
+static int is_uuid(const char *c, size_t i, size_t l)
+{
+    static const int grp[] = { 8, 4, 4, 4, 12 };
+    size_t k = i;
+    int g, j;
+    if (i + 36 > l || (i && an(c[i - 1]))) return 0;
+    for (g = 0; g < 5; g++) {
+        for (j = 0; j < grp[g]; j++, k++) if (!hx(c[k])) return 0;
+        if (g < 4) { if (c[k] != '-') return 0; k++; }
+    }
+    return k >= l || !an(c[k]);
+}
+
+/* GUIDs that are published constants (GPT partition types, EFI variable vendors, firmware WMI
+   interfaces): the same on every PC, so they are not masked */
+static char (*g_kg)[37];
+static int g_nkg;
+static void kg_add(const char *g)
+{
+    void *n;
+    if (strlen(g) < 36 || !(n = realloc(g_kg, sizeof *g_kg * (size_t)(g_nkg + 1)))) return;
+    g_kg = n;
+    snprintf(g_kg[g_nkg++], 37, "%.36s", g);
+}
+static void kg_build(void)
+{
+    static int built;
+    static const char *const fixed[] = {
+        "C12A7328-F81F-11D2-BA4B-00A0C93EC93B", "0FC63DAF-8483-4772-8E79-3D69D8477DE4", "0657FD6D-A4AB-43C4-84E5-0933C84B4F4F",
+        "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7", "E3C9E316-0B5C-4DB8-817D-F92DF00215AE", "DE94BBA4-06D1-4D40-A16A-BFD50179D6AC",
+        "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709", "933AC7E1-2EB4-4F13-B844-0E14E2AEF915", "E6D6D379-F507-44C2-A23C-238F2A3DF928",
+        "A19D880F-05FC-4D3B-A006-743F0F84911E", "21686148-6449-6E6F-744E-656564454649", "BC13C2FF-59E6-4262-A352-B275FD6F7172",
+        "3B8F8425-20E0-4F3B-907F-1A25A76F98E8", "CA7D7CCB-63ED-4C53-861C-1742536059CC", "8BE4DF61-93CA-11D2-AA0D-00E098032B8C",
+        "D719B2CB-3D3A-4596-A3BC-DAD00E67656F", "605DAB50-E046-4300-ABB6-3DD810DD8B23", "00000000-0000-0000-0000-000000000000", NULL };
+    char **nm;
+    int n, i;
+    if (built) return;
+    built = 1;
+    for (i = 0; fixed[i]; i++) kg_add(fixed[i]);
+    n = dir_list("/sys/bus/wmi/devices", &nm);
+    for (i = 0; i < n; i++) kg_add(nm[i]);
+    dir_free(nm, n);
+    n = dir_list("/sys/firmware/efi/efivars", &nm);
+    for (i = 0; i < n; i++) { size_t l = strlen(nm[i]); if (l > 36) kg_add(nm[i] + l - 36); }
+    dir_free(nm, n);
+}
+static int known_guid(const char *c)
+{
+    int i;
+    kg_build();
+    for (i = 0; i < g_nkg; i++) if (!strncasecmp(c, g_kg[i], 36)) return 1;
+    return 0;
+}
+
+/* masked copy of s (malloc) when redaction is on and something matched, else NULL */
+static char *redact_dup(const char *s)
+{
+    char *c;
+    size_t l, i;
+    int k, hit = 0;
+    if (!srs_redact || !s || !*s) return NULL;
+    rx_build();
+    l = strlen(s);
+    if (!(c = strdup(s))) return NULL;
+    for (i = 0; i < l; i++) {
+        if (is_mac(c, i, l)) { mask(c + i + 9, 8); i += 16; hit = 1; }
+        else if (is_uuid(c, i, l)) { if (!known_guid(c + i)) { mask(c + i, 36); hit = 1; } i += 35; }
+    }
+    for (k = 0; k < g_nrx; k++) {
+        size_t vl = strlen(g_rx[k]);
+        char *p = c;
+        while ((p = strstr(p, g_rx[k]))) {
+            if ((p == c || !an(p[-1])) && !an(p[vl])) { mask(p, vl); hit = 1; }
+            p += vl;
+        }
+    }
+    if (!hit) { free(c); return NULL; }
+    return c;
+}
+
+const char *srs_redact_host(void)
+{
+    static char h[256];
+    char *r;
+    if (gethostname(h, sizeof h)) snprintf(h, sizeof h, "localhost");
+    if ((r = redact_dup(h))) { snprintf(h, sizeof h, "%s", r); free(r); }
+    return h;
+}
+
+static void emit(srs_out *o, int c, int b, int m, const char *s)
+{
+    char *r;
+    if (!s || !*s) return;
+    r = redact_dup(s);
+    o->text(o, c, b, m, r ? r : s);
+    free(r);
+}
+
+void so_t(srs_out *o, int c, const char *s) { emit(o, c, 0, 0, s); }
+void so_b(srs_out *o, int c, const char *s) { emit(o, c, 1, 0, s); }
+void so_m(srs_out *o, int c, const char *s) { emit(o, c, 0, 1, s); }
 void so_tab(srs_out *o) { o->tab(o); }
 void so_par(srs_out *o) { o->par(o); }
 
@@ -78,7 +376,7 @@ void so_lines(srs_out *o, int c, const char *text)
         memcpy(line, p, l);
         line[l] = 0;
         if (l && line[l - 1] == '\r') line[l - 1] = 0;
-        if (*line) o->text(o, c, 0, 1, line);
+        if (*line) emit(o, c, 0, 1, line);
         so_par(o);
         p = e ? e + 1 : NULL;
     }
@@ -436,9 +734,10 @@ int srs_save(const char *items, const char *file)
     time_t now = time(NULL);
     if (!file || !*file || !strcasecmp(file, "STDOUT")) f = stdout;
     else if (!(f = fopen(file, "w"))) { perror(file); return 2; }
-    gethostname(host, sizeof host);
+    snprintf(host, sizeof host, "%s", srs_redact_host());
     strftime(tbuf, sizeof tbuf, "%Y-%m-%d %H:%M:%S", localtime(&now));
-    fprintf(f, "srs-gui - System Report Search V%s %s %s  [%s]\n\n", SRS_VERSION, host, tbuf, items ? items : "default");
+    fprintf(f, "srs-gui - System Report Search V%s %s %s  [%s]%s\n\n", SRS_VERSION, host, tbuf, items ? items : "default",
+            srs_redact ? "  (identifiers redacted)" : "");
     if (items && *items) {
         const char *p = items;
         if (!strcasecmp(items, "[all]")) {

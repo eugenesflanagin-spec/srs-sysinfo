@@ -58,6 +58,10 @@ int  srs_section_count(void);
 const srs_item *srs_section_at(int i);          /* SIV order */
 void srs_section_render(const srs_item *s, srs_out *o);
 int  srs_save(const char *items, const char *file); /* "-save" ; items like "[cpuid][spd]" or NULL = default set */
+/* redaction: when set, serial numbers, UUIDs, MACs (vendor prefix kept), boot/machine IDs and the
+   host name are masked (same length, X) in everything the producers emit */
+extern int srs_redact;
+const char *srs_redact_host(void);                  /* host name, masked when srs_redact */
 
 /* ---- output helpers ---- */
 void so_tabs(srs_out *o, const int *px, int n);
