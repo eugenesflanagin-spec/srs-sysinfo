@@ -7,6 +7,7 @@
  * cpuidle, /sys/devices/system/node, k10temp/zenergy hwmon, /sys/kernel/ryzen_smu_drv (read). */
 #define _GNU_SOURCE
 #include "sec.h"
+#include "bench.h"
 
 #if defined(__x86_64__) || defined(__i386__)
 #include <cpuid.h>
@@ -20,9 +21,11 @@ static unsigned long long __rdtsc(void) { return 0; }
 #include <math.h>
 #include <sched.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -208,7 +211,12 @@ static void s_processors(srs_out *o)
     so_tabs(o, tabs, 8);
     so_t(o, C_LABEL, "  Capabilities"); so_par(o); so_par(o);
     so_t(o, C_DEF, "  "); so_check(o, pk > 1); so_t(o, C_VALUE, "Multi-processor System"); so_tab(o); so_f(o, C_BLACK, "%d", pk); so_tab(o); so_t(o, C_PURPLE, "|P| physical package"); so_par(o);
-    so_t(o, C_DEF, "  "); so_check(o, 0); so_t(o, C_VALUE, "Hybrid-processor System"); so_tab(o); so_t(o, C_BLACK, "1"); so_tab(o); so_t(o, C_PURPLE, "|e| logical package"); so_par(o);
+    {
+        unsigned char is_e[1024];
+        int ne = bench_ecores(is_e, ncpu() > 1024 ? 1024 : ncpu());
+        so_t(o, C_DEF, "  "); so_check(o, ne > 0); so_t(o, C_VALUE, "Hybrid-processor System"); so_tab(o); so_f(o, C_BLACK, "%d", ne); so_tab(o);
+        so_t(o, C_PURPLE, "|e| efficiency logical processors (/sys/devices/cpu_atom)"); so_par(o);
+    }
     so_t(o, C_DEF, "  "); so_check(o, cores > 1); so_t(o, C_VALUE, "Multi-core Processor"); so_tab(o); so_f(o, C_BLACK, "%d", cores); so_tab(o);
     so_t(o, C_PURPLE, "|C| processing cores"); so_tab(o); so_f(o, C_BLACK, "%d  processing cores per package", pk ? cores / pk : cores); so_par(o);
     so_t(o, C_DEF, "  "); so_check(o, ncpu() > cores); so_t(o, C_VALUE, "Multi-threading Cores"); so_tab(o); so_f(o, C_BLACK, "%d", ncpu()); so_tab(o);
@@ -219,11 +227,11 @@ static void s_processors(srs_out *o)
     so_t(o, C_TEAL, "    Relationships between the 3-level sub-IDs (package.core.thread), APIC and the Linux CPU number and affinity mask");
     so_par(o); so_par(o);
     so_tabs(o, t2, 9);
-    so_row(o, 10, (const char *const[]){ "Processors", "APIC", "APIC", "Node", "Pkg", "N", "CPU Affinity Mask", "Speed", "ACPI", "CPU Device" },
+    so_row(o, 10, (const char *const[]){ "Processors", "Sub-ID", "APIC", "Node", "Pkg", "N", "CPU Affinity Mask", "Speed", "ACPI", "CPU Device" },
            (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
     so_par(o);
     for (i = 0; i < ncpu(); i++) {
-        char id[64], ap[16], spd[32], mask[32], acpi[256] = "-", dev[256] = "-", nm[32], pkg[16], num[16];
+        char id[64], ap[16], spd[32], mask[32], acpi[256] = "-", dev[256] = "-", nm[32], pkg[16], num[16], node[16] = "0";
         int prim = cpu_is_primary_thread(i);
         snprintf(nm, sizeof nm, "%sCPU-%d", i == 0 ? "|P|" : prim ? "|C|" : "|L|", i);
         snprintf(id, sizeof id, "%ld.%ld.%d", topo(i, "physical_package_id"), topo(i, "core_id"), prim ? 0 : 1);
@@ -232,6 +240,12 @@ static void s_processors(srs_out *o)
         freq_str(i, "scaling_cur_freq", spd, sizeof spd);
         snprintf(pkg, sizeof pkg, "%ld", topo(i, "physical_package_id"));
         snprintf(num, sizeof num, "%d", i);
+        {   /* NUMA node: the cpuN/nodeM link */
+            char p[128], **e;
+            int ne = (snprintf(p, sizeof p, SYSCPU "/cpu%d", i), dir_list(p, &e)), k;
+            for (k = 0; k < ne; k++) if (!strncmp(e[k], "node", 4) && isdigit((unsigned char)e[k][4])) snprintf(node, sizeof node, "%s", e[k] + 4);
+            dir_free(e, ne);
+        }
         {
             char p[256], link[512];
             ssize_t l;
@@ -240,7 +254,7 @@ static void s_processors(srs_out *o)
             snprintf(p, sizeof p, SYSCPU "/cpu%d/firmware_node/path", i);
             rd_str(p, dev, sizeof dev);
         }
-        so_row(o, 10, (const char *const[]){ nm, id, ap, "0", pkg, num, mask, spd, acpi, dev },
+        so_row(o, 10, (const char *const[]){ nm, id, ap, node, pkg, num, mask, spd, acpi, dev },
                (const int[]){ prim ? C_LABEL : C_TEAL, C_VALUE, C_PURPLE, C_VALUE, C_VALUE, C_VALUE, C_PURPLE, C_BLACK, C_GRAY, C_GRAY });
     }
     so_board_footer(o);
@@ -298,7 +312,7 @@ static void processor_block(srs_out *o, int cpu)
     snprintf(b, sizeof b, "CPU-%-3d", cpu);
     so_b(o, C_LABEL, b);
     so_t(o, C_BLACK, kv_get(v, n, "model name"));
-    snprintf(b, sizeof b, "   Family %X Model %X Stepping %s  APIC %ld.%ld.%d (%s)", atoi(kv_get(v, n, "cpu family")),
+    snprintf(b, sizeof b, "   Family 0x%X Model 0x%X Stepping %s  APIC %ld.%ld.%d (%s)", atoi(kv_get(v, n, "cpu family")),
              atoi(kv_get(v, n, "model")), kv_get(v, n, "stepping"), topo(cpu, "physical_package_id"), topo(cpu, "core_id"),
              prim ? 0 : 1, prim ? "core" : "logical");
     so_t(o, C_TEAL, b);
@@ -734,7 +748,20 @@ static void s_cpu_timer(srs_out *o)
     so_par(o);
     clock_getres(CLOCK_MONOTONIC, &res);
     so_kvf(o, "CLOCK_MONOTONIC res", C_BLACK, "%ld ns", res.tv_nsec);
-    so_kvf(o, "Kernel HZ (USER_HZ)", C_BLACK, "%ld", sysconf(_SC_CLK_TCK));
+    so_kvf(o, "USER_HZ (clock ticks/s)", C_BLACK, "%ld", sysconf(_SC_CLK_TCK));
+    {   /* CONFIG_HZ (timer interrupt rate): kernel config from the build tree / /boot, else zcat /proc/config.gz */
+        struct utsname u;
+        char p[400], *t = NULL, *h;
+        const char *const zc[] = { "zcat", "/proc/config.gz", NULL };
+        int ok = 0;
+        uname(&u);
+        snprintf(p, sizeof p, "/usr/lib/modules/%s/build/.config", u.release);
+        if (rd_all(p, &t) < 0) { snprintf(p, sizeof p, "/boot/config-%s", u.release); if (rd_all(p, &t) < 0) t = NULL; }
+        if (!t && path_exists("/proc/config.gz")) { if (run_out(&t, zc) != 0) { free(t); t = NULL; } }
+        if (t && (h = strstr(t, "\nCONFIG_HZ="))) { so_kvf(o, "Kernel HZ (CONFIG_HZ)", C_BLACK, "%ld", atol(h + 11)); ok = 1; }
+        if (!ok) so_kv(o, "Kernel HZ (CONFIG_HZ)", C_GRAY, "kernel config not available");
+        free(t);
+    }
     if (rd_str("/sys/devices/system/clockevents/clockevent0/current_device", b, sizeof b)) so_kv(o, "Clock event", C_VALUE, b);
 }
 

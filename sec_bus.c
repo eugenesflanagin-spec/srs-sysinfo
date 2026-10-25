@@ -960,7 +960,7 @@ static void s_usb_bus(srs_out *o)
         snprintf(ma, sizeof ma, "%d", atoi(d->power));
         usb_speed(d, sp, sizeof sp);
         usb_drivers(d, dr, sizeof dr);
-        if (d->root || d->dcls == 9) snprintf(inf, sizeof inf, "%s  %d ports  %s", sp, d->maxchild, dr);
+        if (d->root || d->dcls == 9) snprintf(inf, sizeof inf, "%s  %d port%s  %s", sp, d->maxchild, d->maxchild == 1 ? "" : "s", dr);
         else snprintf(inf, sizeof inf, "%s  %s", sp, dr);
         c[0] = con; c[1] = ds; c[2] = d->ver; c[3] = ma;
         c[4] = d->root ? (atof(d->ver) >= 3 ? "V3 Root Hub" : "V2 Root Hub") : usb_cls(usb_devclass(d), 0, 0, 0);
@@ -1089,7 +1089,7 @@ static void s_si_usb(srs_out *o)
         c = pci_find(r->ctrl);
         for (j = 0; j < g_nusb; j++) n += !g_usb[j].root && g_usb[j].bus == r->bus;
         so_kvf(o, r->name, C_BLACK, "%s  %s %s", r->ctrl, c ? c->vname : "virtual host controller", c ? c->dname : "");
-        so_kvf(o, "", C_VALUE, "USB %s root hub, %s Mbps, %d ports, %d device%s attached, driver %s", r->ver, r->speed, r->maxchild, n,
+        so_kvf(o, "", C_VALUE, "USB %s root hub, %s Mbps, %d port%s, %d device%s attached, driver %s", r->ver, r->speed, r->maxchild, r->maxchild == 1 ? "" : "s", n,
                n == 1 ? "" : "s", c && *c->driver ? c->driver : r->ctrl);
     }
 }

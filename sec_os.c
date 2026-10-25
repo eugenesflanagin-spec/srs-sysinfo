@@ -843,6 +843,7 @@ static void s_environment(srs_out *o)
     char **e;
     char *t, *save = NULL, *l;
     int n = 0, i;
+    so_siv_header(o, "Environment");
     so_tabs(o, tabs, 2);
     so_row(o, 3, h, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
     so_par(o);
@@ -866,8 +867,8 @@ static void s_environment(srs_out *o)
     }
     so_par(o);
     {
-        char b[96];
-        snprintf(b, sizeof b, "%d process variables; values of names matching TOKEN/KEY/SECRET/PASS/AUTH/COOKIE are masked", n);
+        char b[160];
+        snprintf(b, sizeof b, "%d process variables; values of names matching TOKEN/KEY/SECRET/PASS/AUTH/COOKIE/CREDENTIAL/SESSION_ID are masked", n);
         so_note(o, b);
     }
 }
@@ -1678,7 +1679,7 @@ static void s_files(srs_out *o)
     so_siv_header(o, "Open Files on Shared Resources / File Locks");
     so_b(o, C_VALUE, "File locks  (lslocks)");
     so_par(o);
-    if (!sh_lines(o, "lslocks -o COMMAND,PID,TYPE,MODE,M,PATH", C_VALUE, 400)) so_note(o, "no locks or lslocks unavailable");
+    if (!sh_lines(o, "lslocks -u -o COMMAND,PID,TYPE,MODE,M,PATH", C_VALUE, 400)) so_note(o, "no locks or lslocks unavailable");
     so_par(o);
     so_b(o, C_VALUE, "SMB open files  (smbstatus -L)");
     so_par(o);
