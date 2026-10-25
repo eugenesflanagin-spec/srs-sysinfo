@@ -831,6 +831,15 @@ aggressive).</li>
 <li>Compare Whetstone scores per CPU: a CPU far below the others may be
 throttling or busy with something else.</li>
 </ul>
+<p><strong>Saved results.</strong> Every run that ends (Pass, Fail or
+Stopped, in Burnin and in Stress) is saved to its own file,
+<code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code> (the date and time
+it ended). The file holds the same text as the <strong>Copy</strong>
+button: status, the sensor table and the thread table. The status line
+shows the file name. To compare two runs, for example before and after a
+BIOS change:
+<code>diff ~/.cache/srs/burnin-20261025-101500.txt ~/.cache/srs/burnin-20261025-113000.txt</code>
+or open both in <code>meld</code>. SRS never deletes these files.</p>
 <p>Full details of every column: <a
 href="#sections-tools">tools.md</a>.</p>
 <h3 id="user-guide--92-benchmark-dhrystone-and-whetstone">9.2 Benchmark (Dhrystone
@@ -891,6 +900,160 @@ one at a time.</td>
 </table>
 <p>The window lists the last result of every mode. Results are kept
 between sessions.</p>
+<h3
+id="user-guide--921-what-hyperthreading-smt-really-does---a-worked-example">9.2.1
+What hyperthreading (SMT) really does - a worked example</h3>
+<p><strong>In plain words:</strong> most modern CPUs run two "threads"
+on every core. AMD calls this SMT (simultaneous multithreading), Intel
+calls it Hyper-Threading. Linux shows each thread as its own CPU, so an
+8-core CPU appears as 16 CPUs. The two threads of a core are
+<strong>not</strong> two cores: they share the same core and take turns
+using its parts. The benchmark modes let you see exactly what that
+sharing is worth. This page walks through one real set of results.</p>
+<p><strong>The PC.</strong> One Ryzen 7 7800X3D: 8 cores, 16 threads.
+Linux numbers its threads so that CPU-0 to CPU-7 are the first thread of
+cores 0 to 7, and CPU-8 to CPU-15 are the second thread of the same
+cores (CPU-0 and CPU-8 share core 0, CPU-1 and CPU-9 share core 1, and
+so on). Your PC may number them differently; the benchmark uses Linux's
+own list of which threads share a core.</p>
+<blockquote>
+<p>These numbers are one PC's example, measured on one day. Your CPU,
+cooling, BIOS settings and kernel will give different numbers. Some
+modes ran 5 seconds per measurement and some 20, and differences of 1-2
+% between runs are normal noise. What carries over to other PCs is the
+<strong>pattern</strong>, not the exact scores.</p>
+</blockquote>
+<p><strong>The results</strong> (Total of each mode; higher is
+better):</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>What ran</th>
+<th>Threads busy at once</th>
+<th>Dhrystone (DMIPS)</th>
+<th>Whetstone (MWIPS)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pp</code></td>
+<td>first thread of each core, one core at a time</td>
+<td>1</td>
+<td>1,018,068</td>
+<td>119,397</td>
+</tr>
+<tr>
+<td><code>lp</code></td>
+<td>second thread of each core, one at a time</td>
+<td>1</td>
+<td>1,012,772</td>
+<td>118,632</td>
+</tr>
+<tr>
+<td><code>pc</code></td>
+<td>first thread of all 8 cores at once</td>
+<td>8</td>
+<td>971,275</td>
+<td>112,851</td>
+</tr>
+<tr>
+<td><code>lc</code></td>
+<td>second thread of all 8 cores at once</td>
+<td>8</td>
+<td>967,107</td>
+<td>112,073</td>
+</tr>
+<tr>
+<td><code>ac</code></td>
+<td>all 16 threads at once</td>
+<td>16</td>
+<td>1,611,893</td>
+<td>197,840</td>
+</tr>
+<tr>
+<td><code>dd</code></td>
+<td>both threads of one core run the same test, one core at a time</td>
+<td>2</td>
+<td>1,772,110</td>
+<td>214,340</td>
+</tr>
+<tr>
+<td><code>dw</code></td>
+<td>one thread runs Dhrystone while its partner runs Whetstone, one core
+at a time</td>
+<td>2</td>
+<td>1,899,990</td>
+<td>227,781</td>
+</tr>
+</tbody>
+</table>
+<p>What the numbers show, step by step:</p>
+<ol type="1">
+<li><p><strong>The "physical" and the "logical" thread are equally
+fast.</strong> <code>pp</code> and <code>lp</code> differ by about 0.5
+%, and <code>pc</code> and <code>lc</code> by less than 1 %. That is
+noise. When a thread has a core to itself, it does not matter whether
+Linux calls it the first or the second thread of that core: it is the
+same core. There is no "real" core and "fake" core.</p></li>
+<li><p><strong>Loading every core at once costs a few percent.</strong>
+<code>pc</code> (8 cores busy) is about 5 % below <code>pp</code> (one
+core busy at a time): Dhrystone -4.6 %, Whetstone -5.5 %. That is not
+SMT at all. It is boost: a CPU runs its highest clock when only one or
+two cores are busy, and drops the clock a little when all of them are,
+to stay inside its power and temperature limits.</p></li>
+<li><p><strong>The second thread adds a lot of work.</strong>
+<code>ac</code> (all 16 threads) against <code>pc</code> (one thread per
+core, same 8 cores): <strong>+66 % Dhrystone, +75 % Whetstone</strong>.
+So a second thread did not double the work, but it added two thirds or
+more. Each thread in <code>ac</code> kept about 83 % (Dhrystone) and 88
+% (Whetstone) of the speed it had with the core to itself. This happens
+because one thread alone rarely keeps every part of a core busy; the
+second thread fills the gaps.</p></li>
+<li><p><strong>The same gain shows on a single core.</strong>
+<code>dd</code> (both threads of one core, one core at a time) against
+<code>pp</code> (one thread, one core at a time): <strong>+74 %
+Dhrystone, +80 % Whetstone</strong>. This is a little more than in step
+3 because only one core is busy, so it keeps its highest boost clock
+(<code>dd</code> is about 10 % above <code>ac</code> for that
+reason).</p></li>
+<li><p><strong>Mixed work shares a core better than identical
+work.</strong> <code>dw</code> against <code>dd</code>: <strong>+7 %
+Dhrystone, +6 % Whetstone</strong>. In <code>dd</code> both threads want
+the same parts of the core (both doing whole-number work, then both
+doing decimal work). In <code>dw</code> one thread does whole-number
+(integer) work while its partner does decimal (floating-point) work.
+Those use mostly different parts of the core, so they get in each
+other's way less: each thread kept about 93-95 % of its solo
+speed.</p></li>
+<li><p><strong>One core scores a little lower than the rest.</strong> In
+the <code>pp</code>, <code>pc</code>, <code>ac</code> and
+<code>dd</code> runs, core 1 (CPU-1, and its partner CPU-9) was the
+slowest, a few percent below the others. On this PC that core handles
+most of the hardware interrupts (network, disk and USB events), and
+every interrupt takes a little time away from the benchmark. It is not a
+faulty core. To see where interrupts land on your PC, look at the counts
+per CPU in <code>/proc/interrupts</code>.</p></li>
+</ol>
+<p><strong>What this means for you:</strong></p>
+<ul>
+<li>Leave SMT on for work that uses many threads at once (compiling,
+video encoding, rendering, compression): here it gave 66-75 % more total
+work from the same 8 cores.</li>
+<li>A single thread gains nothing from SMT, and loses nothing either:
+one thread alone on a core runs at full speed.</li>
+<li>Turning SMT off in the BIOS mostly helps in special cases (some
+games that are sensitive to timing, or security settings that ask for
+it). Measure before and after: run <code>ac</code> and <code>pc</code>
+with SMT on, then <code>ac</code> with SMT off. With SMT off,
+<code>ac</code> should land close to the SMT-on <code>pc</code>
+result.</li>
+<li>To check your own PC, run <code>pp</code>, <code>pc</code>,
+<code>ac</code>, <code>dd</code> and <code>dw</code> back to back on an
+idle PC, two or three times, and compare the same steps as above. The <a
+href="#sections-tools">Tools reference</a> explains each mode in
+detail.</li>
+</ul>
 <h3 id="user-guide--93-ipi-delay">9.3 IPI Delay</h3>
 <p><strong>In plain words:</strong> measures how long it takes one CPU
 core to "ping" another and get an answer, for every pair of CPUs. Shows
@@ -1281,6 +1444,15 @@ href="#cli-reference">CLI-REFERENCE.md</a>.</p>
 <td>Output of the last GPU Load command (Burnin / Stress).</td>
 </tr>
 <tr>
+<td><code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code></td>
+<td>The summary of each finished Burnin / Stress run (one file per
+run).</td>
+</tr>
+<tr>
+<td><code>~/.cache/srs/bench-&lt;mode&gt;.txt</code></td>
+<td>The last result of each benchmark mode, IPI Delay and Latency.</td>
+</tr>
+<tr>
 <td><code>~/sysreports/sysreport-*/</code></td>
 <td>Full system reports.</td>
 </tr>
@@ -1437,7 +1609,12 @@ temperatures, up-time, counters) to differ every time; look for changes
 in settings, versions, link speeds, memory speed.</li>
 <li><strong>Burn-in and benchmarks:</strong> run them on an idle PC, the
 same way each time, and repeat 2-3 times. A difference smaller than the
-run-to-run spread is noise.</li>
+run-to-run spread is noise. Each burn-in is kept in
+<code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code>, so you can put two
+runs side by side (<code>meld old.txt new.txt</code>). Benchmarks keep
+only the last run of each mode
+(<code>~/.cache/srs/bench-&lt;mode&gt;.txt</code>): copy that file
+somewhere before you run the mode again if you want to keep it.</li>
 <li><strong>Watch the PCIe link</strong> (PCI Bus panel): a graphics
 card should normally show its full width (x16) and speed under load; x4
 or x8 can mean the wrong slot or a slot that shares lanes.</li>
@@ -25216,6 +25393,11 @@ very small tests. They fit inside the L1 cache, so they measure the core
 itself (clock speed, pipeline, compiler), not memory or disks. Scores
 depend a lot on the compiler, so compare SRS with SRS, not with other
 programs.</p>
+<p>For a step-by-step reading of all the modes on one PC (what SMT adds,
+why all-core runs score a little lower, why mixed work shares a core
+better), see the User Guide, section 9.2.1 <a
+href="#user-guide--921-what-hyperthreading-smt-really-does---a-worked-example">What
+hyperthreading (SMT) really does - a worked example</a>.</p>
 <hr />
 <h2 id="sections-tools--benchmark-all-cpus-concurrent">Benchmark: all CPUs
 concurrent</h2>
@@ -26194,6 +26376,15 @@ Fail, 130 = Stopped (Ctrl+C). It prints one status line per second and a
 thread table at the end. It also accepts <code>--cool S</code> and
 <code>--cycles N</code>.</li>
 </ul>
+<p><strong>Saved results.</strong> When a run ends (Pass, Fail or
+Stopped), SRS saves the window's summary - the status, the sensor table
+and the thread table, the same text the Copy button gives - to
+<code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code> (date and time the
+run ended), and the status line says where. Each run gets its own file,
+so you can compare runs before and after a change, for example with
+<code>diff</code> or <code>meld</code>. The command line
+<code>burn</code> saves its summary the same way. SRS never deletes
+these files; remove old ones by hand when you no longer need them.</p>
 <p><strong>Affinity ok / FAIL.</strong> After every pass each worker
 checks two things: (1) Linux says it is running on the CPU it was pinned
 to (<code>sched_getcpu</code>), and (2) the CPU's own ID number (APIC
@@ -26234,7 +26425,8 @@ pinned thread per CPU. Sensors: <code>/proc/stat</code> (load),
 (clock), <code>/sys/class/hwmon</code> (CPU and Super I/O temperatures),
 <code>/sys/class/drm/cardN/device</code> (<code>gpu_busy_percent</code>,
 <code>pp_dpm_sclk</code>, hwmon temperature). The GPU load command's
-output goes to <code>~/.cache/srs/gpu-load.log</code>.</p>
+output goes to <code>~/.cache/srs/gpu-load.log</code>. Finished runs are
+saved to <code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code>.</p>
 <p><strong>Background.</strong> Tctl is AMD's "control temperature". It
 is the value the CPU uses for fan control and throttling. A Super I/O
 (SIO) chip is the motherboard chip that reads fan speeds, voltages and
@@ -26256,7 +26448,9 @@ as CPU Burnin, but without Burn Time, Cool Time and Cycles.</p>
 ends as <strong>Stopped</strong> when you press Stop, as
 <strong>Fail</strong> if the hottest CPU sensor reaches the temperature
 limit or an affinity check fails, or as <strong>Pass</strong> if the
-overall time cap (750 hours) is reached.</p>
+overall time cap (750 hours) is reached. Either way the summary is saved
+to <code>~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code>, as for <a
+href="#sections-tools--cpu-burnin">CPU Burnin</a>.</p>
 <p><strong>Healthy / typical values.</strong> As for CPU Burnin:
 temperatures climb for a few minutes and then level off. Clocks stay
 steady.</p>
@@ -28869,8 +29063,10 @@ Burnin from the command line</h3>
 <p>(elapsed, CPU load, hottest core sensor, hottest motherboard sensor,
 CPU clock, GPU load and temperature, state), then a table per worker
 (Thread, CPU, Passes, MWIPS last / average / min / max, Affinity
-<code>ok</code> or <code>FAIL</code>), the maxima and the final
-status.</p>
+<code>ok</code> or <code>FAIL</code>), the maxima and the final status.
+The last line names the file the summary was saved to
+(<code>Summary saved to /home/you/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code>,
+one file per run; the same layout as srs-gui's Burnin window).</p>
 <p>Exit codes: <strong>0 = Pass</strong>, <strong>1 = Fail</strong>
 (affinity error or temperature limit), <strong>130 = stopped</strong>
 (Ctrl+C), <strong>2 = bad option or nothing to run</strong>.</p>

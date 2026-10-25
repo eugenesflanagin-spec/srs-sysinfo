@@ -554,6 +554,84 @@ The modes, as in SIV:
 
 The window lists the last result of every mode. Results are kept between sessions.
 
+### 9.2.1 What hyperthreading (SMT) really does - a worked example
+
+**In plain words:** most modern CPUs run two "threads" on every core. AMD calls this SMT
+(simultaneous multithreading), Intel calls it Hyper-Threading. Linux shows each thread as its own
+CPU, so an 8-core CPU appears as 16 CPUs. The two threads of a core are **not** two cores: they
+share the same core and take turns using its parts. The benchmark modes let you see exactly what
+that sharing is worth. This page walks through one real set of results.
+
+**The PC.** One Ryzen 7 7800X3D: 8 cores, 16 threads. Linux numbers its threads so that CPU-0 to
+CPU-7 are the first thread of cores 0 to 7, and CPU-8 to CPU-15 are the second thread of the same
+cores (CPU-0 and CPU-8 share core 0, CPU-1 and CPU-9 share core 1, and so on). Your PC may number
+them differently; the benchmark uses Linux's own list of which threads share a core.
+
+> These numbers are one PC's example, measured on one day. Your CPU, cooling, BIOS settings and
+> kernel will give different numbers. Some modes ran 5 seconds per measurement and some 20, and
+> differences of 1-2 % between runs are normal noise. What carries over to other PCs is the
+> **pattern**, not the exact scores.
+
+**The results** (Total of each mode; higher is better):
+
+| Mode | What ran | Threads busy at once | Dhrystone (DMIPS) | Whetstone (MWIPS) |
+|---|---|---|---|---|
+| `pp` | first thread of each core, one core at a time | 1 | 1,018,068 | 119,397 |
+| `lp` | second thread of each core, one at a time | 1 | 1,012,772 | 118,632 |
+| `pc` | first thread of all 8 cores at once | 8 | 971,275 | 112,851 |
+| `lc` | second thread of all 8 cores at once | 8 | 967,107 | 112,073 |
+| `ac` | all 16 threads at once | 16 | 1,611,893 | 197,840 |
+| `dd` | both threads of one core run the same test, one core at a time | 2 | 1,772,110 | 214,340 |
+| `dw` | one thread runs Dhrystone while its partner runs Whetstone, one core at a time | 2 | 1,899,990 | 227,781 |
+
+What the numbers show, step by step:
+
+1. **The "physical" and the "logical" thread are equally fast.** `pp` and `lp` differ by about
+   0.5 %, and `pc` and `lc` by less than 1 %. That is noise. When a thread has a core to itself,
+   it does not matter whether Linux calls it the first or the second thread of that core: it is
+   the same core. There is no "real" core and "fake" core.
+
+2. **Loading every core at once costs a few percent.** `pc` (8 cores busy) is about 5 % below
+   `pp` (one core busy at a time): Dhrystone -4.6 %, Whetstone -5.5 %. That is not SMT at all. It
+   is boost: a CPU runs its highest clock when only one or two cores are busy, and drops the clock a
+   little when all of them are, to stay inside its power and temperature limits.
+
+3. **The second thread adds a lot of work.** `ac` (all 16 threads) against `pc` (one thread per
+   core, same 8 cores): **+66 % Dhrystone, +75 % Whetstone**. So a second thread did not double
+   the work, but it added two thirds or more. Each thread in `ac` kept about 83 % (Dhrystone) and
+   88 % (Whetstone) of the speed it had with the core to itself. This happens because one thread
+   alone rarely keeps every part of a core busy; the second thread fills the gaps.
+
+4. **The same gain shows on a single core.** `dd` (both threads of one core, one core at a time)
+   against `pp` (one thread, one core at a time): **+74 % Dhrystone, +80 % Whetstone**. This is a
+   little more than in step 3 because only one core is busy, so it keeps its highest boost clock
+   (`dd` is about 10 % above `ac` for that reason).
+
+5. **Mixed work shares a core better than identical work.** `dw` against `dd`: **+7 % Dhrystone,
+   +6 % Whetstone**. In `dd` both threads want the same parts of the core (both doing whole-number
+   work, then both doing decimal work). In `dw` one thread does whole-number (integer) work while
+   its partner does decimal (floating-point) work. Those use mostly different parts of the core, so
+   they get in each other's way less: each thread kept about 93-95 % of its solo speed.
+
+6. **One core scores a little lower than the rest.** In the `pp`, `pc`, `ac` and `dd` runs, core 1
+   (CPU-1, and its partner CPU-9) was the slowest, a few percent below the others. On this PC that
+   core handles most of the hardware interrupts (network, disk and USB events), and every interrupt
+   takes a little time away from the benchmark. It is not a faulty core. To see where interrupts land
+   on your PC, look at the counts per CPU in `/proc/interrupts`.
+
+**What this means for you:**
+
+- Leave SMT on for work that uses many threads at once (compiling, video encoding, rendering,
+  compression): here it gave 66-75 % more total work from the same 8 cores.
+- A single thread gains nothing from SMT, and loses nothing either: one thread alone on a core runs
+  at full speed.
+- Turning SMT off in the BIOS mostly helps in special cases (some games that are sensitive to
+  timing, or security settings that ask for it). Measure before and after: run `ac` and `pc` with
+  SMT on, then `ac` with SMT off. With SMT off, `ac` should land close to the SMT-on `pc` result.
+- To check your own PC, run `pp`, `pc`, `ac`, `dd` and `dw` back to back on an idle PC, two or
+  three times, and compare the same steps as above. The [Tools reference](SECTIONS/tools.md)
+  explains each mode in detail.
+
 ### 9.3 IPI Delay
 
 **In plain words:** measures how long it takes one CPU core to "ping" another and get an answer,

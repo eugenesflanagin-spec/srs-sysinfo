@@ -95,6 +95,10 @@ ec and ep show `not run` on any non-hybrid CPU.
 so they measure the core itself (clock speed, pipeline, compiler), not memory or disks. Scores
 depend a lot on the compiler, so compare SRS with SRS, not with other programs.
 
+For a step-by-step reading of all the modes on one PC (what SMT adds, why all-core runs score a
+little lower, why mixed work shares a core better), see the User Guide, section 9.2.1
+[What hyperthreading (SMT) really does - a worked example](../USER-GUIDE.md#921-what-hyperthreading-smt-really-does---a-worked-example).
+
 ---
 ## Benchmark: all CPUs concurrent  
 `benchmark-ac` - Linux data
