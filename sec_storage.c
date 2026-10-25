@@ -2073,7 +2073,7 @@ const srs_item sec_storage[] = {
     { "smart-sdm", "windows", "SMART drive monitor", B_LINUX, 1, "nvme/drivetemp hwmon + srs-root SMART cache", s_smart_sdm, 2000, "storage" },
     { "stornvme", "windows", "NVMe (stornvme)", B_LINUX, 1, "/sys/class/nvme, nvme-<dev>.txt", s_stornvme, 0, "storage" },
     { "secnvme", "windows", "Samsung NVMe (secnvme)", B_LINUX, 1, "/sys/class/nvme (vendor 144d), nvme-<dev>.txt", s_secnvme, 0, "storage" },
-    { "spaces", "windows", "Storage spaces", B_LINUX, 1, "/sys/fs/btrfs, dm/md sysfs", s_spaces, 0, "storage" },
+    { "spaces", "windows", "Storage spaces", B_LINUX, 0, "/sys/fs/btrfs, dm/md sysfs", s_spaces, 0, "storage" },
     { "raid", "windows", "CSMI RAID", B_ABSENT, 0, "/proc/mdstat, /sys/block/dm-*/dm, btrfs profiles", s_raid, 0, "storage" },
     { "jmb-raid", "windows", "JMicron JMB RAID", B_ABSENT, 0, "PCI vendor 197b / USB 152d", s_jmb_raid, 0, "storage" },
     { "jms-raid", "windows", "JMicron NVMe RAID", B_ABSENT, 0, "PCI vendor 197b / USB 152d", s_jms_raid, 0, "storage" },

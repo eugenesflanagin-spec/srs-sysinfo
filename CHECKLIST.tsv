@@ -1,491 +1,491 @@
 id	category	title	bucket	group	needs_root	linux_source	siv_content
-about	tuning	About SIV	LINUX	siv	no	uname -a; /etc/os-release; internal: program version/build	SIV version, release date, copyright, build/host info
+about	tuning	About SIV	LINUX	siv	no	internal: program version/build; uname; /etc/os-release; hwdata *.ids	SIV version, release date, copyright, build/host info
 acpi-buses	hardware	ACPI PCI root buses	LINUX	machine	no	/sys/bus/acpi/devices/PNP0A08:00; /sys/class/pci_bus	ACPI PCI root bridges and bus ranges
-acpi-dev	hardware	ACPI devices	LINUX	machine	no	/sys/bus/acpi/devices; /sys/bus/acpi/devices/*/path	ACPI namespace devices (HID, path, status)
-acpi-ec	hardware	ACPI embedded controller	LINUX	machine	yes	/sys/bus/acpi/devices/PNP0C09:00; via ec_sys debugfs /sys/kernel/debug/ec/ec0/io when loaded	EC register dump (ECACPI)
-acpi-eval	hardware	ACPI method evaluation	LINUX	machine	yes	acpidump; iasl; via acpi_call module /proc/acpi/call when loaded	evaluates ACPI methods and shows results
-acpi-hal	hardware	ACPI HAL	LINUX	machine	no	/sys/firmware/acpi/pm_profile; /sys/firmware/acpi/interrupts; /sys/bus/acpi	ACPI HAL/platform summary
+acpi-dev	hardware	ACPI devices	LINUX	machine	no	/sys/bus/acpi/devices	ACPI namespace devices (HID, path, status)
+acpi-ec	hardware	ACPI embedded controller	LINUX	machine	yes	/sys/bus/acpi/devices/PNP0C09:00 (EC registers not read)	EC register dump (ECACPI)
+acpi-eval	hardware	ACPI method evaluation	LINUX	machine	yes	/proc/acpi/call (never written)	evaluates ACPI methods and shows results
+acpi-hal	hardware	ACPI HAL	LINUX	machine	no	/sys/firmware/acpi; /sys/module/acpi/parameters	ACPI HAL/platform summary
 acpi-int	hardware	ACPI interrupts and GPEs	LINUX	machine	no	/sys/firmware/acpi/interrupts; /proc/interrupts	
-acpi-ipf	hardware	ACPI IPF (Intel Platform Framework) methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INTC1040/INTC1041: absent)	Intel IPF ACPI methods
-acpi-itm	hardware	ACPI ICD0001 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe ICD0001: absent)	ACPI ICD0001 device methods
-acpi-methods	hardware	ACPI methods	LINUX	machine	yes	/sys/firmware/acpi/tables/DSDT; /sys/firmware/acpi/tables/SSDT1; acpidump; iasl	list of ACPI namespace methods
-acpi-pdx	hardware	ACPI extension (PDX)	LINUX	machine	no	/sys/bus/acpi/devices	
-acpi-ports	hardware	ACPI PCI buses and ports	LINUX	machine	no	/sys/bus/pci/devices/*/firmware_node; /sys/bus/acpi/devices/*/physical_node	PCI bridges/ports with ACPI paths
-acpi-pwr	hardware	ACPI power resource methods	LINUX	machine	no	/sys/bus/acpi/devices/LNXPOWER:00; /sys/bus/acpi/devices/*/power_state	ACPI PWR methods (power resources)
-acpi-spb	hardware	ACPI SPB (serial peripheral bus) methods	LINUX	machine	no	/sys/bus/acpi/devices/AMDI0010:00; /sys/bus/i2c/devices/i2c-RTK5452:00	ACPI I2C/SPI (SPB) device methods
-acpi-tables	hardware	ACPI tables	LINUX	machine	yes	/sys/firmware/acpi/tables; acpidump	ACPI table list: signature, OEM, revision, size
-acpi-test	hardware	ACPI Toshiba test	ABSENT	machine	no	/sys/bus/acpi/devices (probe TOS*: absent)	Toshiba ACPI test methods
-acpi-tfp	hardware	ACPI TFP INT3403 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INT3403: absent)	Intel DPTF INT3403 participant methods
-acpi-tms	hardware	ACPI TMS INT340E methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INT340E: absent)	Intel INT340E thermal methods
-acpi-tos	hardware	ACPI TOS1900 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe TOS1900: absent)	Toshiba TOS1900 methods
-acpi-tpm	hardware	ACPI TPM	LINUX	machine	no	/sys/class/tpm/tpm0; /sys/class/tpm/tpm0/tpm_version_major	ACPI TPM device and methods
-acpi-wmi	hardware	ACPI WMI (PNP0C14) methods	LINUX	machine	no	/sys/bus/wmi/devices; /sys/bus/acpi/devices/PNP0C14:00	WMI GUID blocks and methods
+acpi-ipf	hardware	ACPI IPF (Intel Platform Framework) methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INTC1040-1043)	Intel IPF ACPI methods
+acpi-itm	hardware	ACPI ICD0001 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe ICD0001)	ACPI ICD0001 device methods
+acpi-methods	hardware	ACPI methods	LINUX	machine	yes	acpi-tables/DSDT, SSDT* cache (AML MethodOp scan)	list of ACPI namespace methods
+acpi-pdx	hardware	ACPI extension (PDX)	LINUX	machine	no	/sys/bus/acpi/devices (vendor HIDs)	
+acpi-ports	hardware	ACPI PCI buses and ports	LINUX	machine	no	/sys/bus/pci/devices/*/firmware_node	PCI bridges/ports with ACPI paths
+acpi-pwr	hardware	ACPI power resource methods	LINUX	machine	no	/sys/bus/acpi/devices/LNXPOWER:*; */power_state	ACPI PWR methods (power resources)
+acpi-spb	hardware	ACPI SPB (serial peripheral bus) methods	LINUX	machine	no	/sys/bus/acpi/devices; /sys/bus/i2c/devices (names)	ACPI I2C/SPI (SPB) device methods
+acpi-tables	hardware	ACPI tables	LINUX	machine	yes	/sys/firmware/acpi/tables; acpi-tables/ cache	ACPI table list: signature, OEM, revision, size
+acpi-test	hardware	ACPI Toshiba test	ABSENT	machine	no	/sys/bus/acpi/devices (probe TOS*)	Toshiba ACPI test methods
+acpi-tfp	hardware	ACPI TFP INT3403 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INT3403)	Intel DPTF INT3403 participant methods
+acpi-tms	hardware	ACPI TMS INT340E methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe INT340E)	Intel INT340E thermal methods
+acpi-tos	hardware	ACPI TOS1900 methods	ABSENT	machine	no	/sys/bus/acpi/devices (probe TOS1900)	Toshiba TOS1900 methods
+acpi-tpm	hardware	ACPI TPM	LINUX	machine	no	/sys/bus/acpi/devices/MSFT0101:00; acpi-tables/TPM2 cache	ACPI TPM device and methods
+acpi-wmi	hardware	ACPI WMI (PNP0C14) methods	LINUX	machine	no	/sys/bus/wmi/devices	WMI GUID blocks and methods
 acs-srv	windows	ASUS control service	ABSENT	os	no	systemctl list-units (no such service)	
-adapters	windows	Network adapters	LINUX	network	no	/sys/class/net; ip -d link; ethtool	adapter name, MAC, speed, IP, status
-aio-export	hardware	AIO Link export	ABSENT	sensors	no	via liquidctl/coolercontrol (no iCUE LINK hub)	exports data to Corsair iCUE LINK devices
-amd-cpu	hardware	AMD Ryzen CPU power-management info	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/codename; /sys/kernel/ryzen_smu_drv/version; /sys/kernel/ryzen_smu_drv/pm_table	Ryzen power management data
-amd-fus	hardware	AMD fuse data	LINUX	cpu	yes	/sys/kernel/ryzen_smu_drv/smn	CPU fuse register values via SMN
-amd-pmt	hardware	AMD PM table layout	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table_version; /sys/kernel/ryzen_smu_drv/pm_table_size	PM table version and field layout
+adapters	windows	Network adapters	LINUX	network	no	/sys/class/net; ip -o addr; nmcli; /proc/net/igmp	adapter name, MAC, speed, IP, status
+aio-export	hardware	AIO Link export	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	exports data to Corsair iCUE LINK devices
+amd-cpu	hardware	AMD Ryzen CPU power-management info	LINUX	cpu	no	amd_pstate	Ryzen power management data
+amd-fus	hardware	AMD fuse data	LINUX	cpu	yes	SMN (not read)	CPU fuse register values via SMN
+amd-pmt	hardware	AMD PM table layout	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table	PM table version and field layout
 amd-pmt-0	hardware	AMD PM table data @ CPU-0	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table	PM table values (powers, clocks, temps)
 amd-pmt-1	hardware	AMD PM table data @ second package/CCD	ABSENT	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table (single CCD/package)	PM table of second die
-amd-smu	hardware	AMD SMU data	LINUX	cpu	yes	/sys/kernel/ryzen_smu_drv/version; /sys/kernel/ryzen_smu_drv/mp1_if_version; /sys/kernel/ryzen_smu_drv/smu_args	SMU firmware version and mailbox data
-amd-tel-0	hardware	AMD SVI telemetry plane @ CPU-0	LINUX	cpu	no	/sys/class/hwmon/hwmon*/name (zenergy, k10temp); /sys/kernel/ryzen_smu_drv/pm_table	core/SoC voltage and current telemetry
+amd-smu	hardware	AMD SMU data	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv	SMU firmware version and mailbox data
+amd-tel-0	hardware	AMD SVI telemetry plane @ CPU-0	LINUX	cpu	no	zenergy hwmon	core/SoC voltage and current telemetry
 amd-tel-1	hardware	AMD SVI telemetry plane @ second die	ABSENT	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table (single CCD/package)	telemetry of second die
-amd-thm-0	hardware	AMD THM registers @ CPU-0	LINUX	cpu	no	/sys/bus/pci/drivers/k10temp; /sys/class/hwmon/hwmon*/temp1_input	THM temperature control registers (Tctl/Tccd)
+amd-thm-0	hardware	AMD THM registers @ CPU-0	LINUX	cpu	no	k10temp	THM temperature control registers (Tctl/Tccd)
 amd-thm-1	hardware	AMD THM registers @ second die	ABSENT	cpu	no	/sys/bus/pci/drivers/k10temp (single package)	THM registers of second die
-amd-tmp	hardware	AMD CPU temperatures	LINUX	cpu	no	/sys/bus/pci/drivers/k10temp; /sys/class/hwmon/hwmon*/temp*_label	per-CCD temperature sequence
-arbiter	hardware	COM port resource arbiter	WINONLY	bus	no	/proc/ioports; /proc/interrupts	Windows COM arbiter resource assignment
-arp-table	windows	ARP table	LINUX	network	no	/proc/net/arp; ip neigh	IP to MAC neighbour table
-asus-info	hardware	ASUS ATK/WMI info	LINUX	sensors	yes	/sys/bus/wmi/devices/97845ED0-4E6D-11DE-8A39-0800200C9A66-4; via asus_wmi module	ASUS ATK/WMI interface information (ATKINF)
-asus-wmi	hardware	ASUS WMI ACPI methods	LINUX	sensors	yes	/sys/bus/wmi/devices/97845ED0-4E6D-11DE-8A39-0800200C9A66-4; /sys/bus/acpi/devices/PNP0C14:00	ASUS WMI ACPI method results
-atk-debug	hardware	ASUS ATK0110 debug	ABSENT	sensors	no	/sys/bus/acpi/devices (probe ATK0110: absent)	ASUS ATK0110 sensor debug data
-audio	hardware	Audio devices	LINUX	gpu	no	/proc/asound/cards; /sys/class/sound; pactl list cards	audio endpoints and drivers
-battery	hardware	Battery	ABSENT	sensors	no	/sys/class/power_supply (empty); upower -e	battery status, capacity, rate
-benchmark	hardware	CPU Dhrystone/Whetstone benchmark	LINUX	tools	no	internal: built-in Dhrystone/Whetstone threads; /sys/devices/system/cpu	integer/float scores per CPU
-benchmark-ac	hardware	CPU benchmark (all CPUs concurrent)	LINUX	tools	no	internal: built-in benchmark; taskset	Dhrystone/Whetstone D+W per CPU, all CPUs
-benchmark-as	hardware	CPU benchmark (all CPUs sequential)	LINUX	tools	no	internal: built-in benchmark; taskset	Dhrystone/Whetstone D+W, one CPU at a time
-benchmark-dd	hardware	CPU benchmark D+D then W+W	LINUX	tools	no	internal: built-in benchmark; taskset	Dhrystone+Dhrystone then Whetstone+Whetstone per CPU
-benchmark-dw	hardware	CPU benchmark D+W then W+D	LINUX	tools	no	internal: built-in benchmark; taskset	Dhrystone+Whetstone then Whetstone+Dhrystone per CPU
-benchmark-ec	hardware	CPU benchmark variant EC	LINUX	tools	no	internal: built-in benchmark; taskset	
-benchmark-ep	hardware	CPU benchmark variant EP	LINUX	tools	no	internal: built-in benchmark; taskset	
-benchmark-lc	hardware	CPU benchmark variant LC	LINUX	tools	no	internal: built-in benchmark; taskset	
-benchmark-lp	hardware	CPU benchmark variant LP	LINUX	tools	no	internal: built-in benchmark; taskset	
-benchmark-pc	hardware	CPU benchmark variant PC	LINUX	tools	no	internal: built-in benchmark; taskset	
-benchmark-pp	hardware	CPU benchmark variant PP	LINUX	tools	no	internal: built-in benchmark; taskset	
-bios-apic	hardware	APIC (MADT) summary	LINUX	machine	yes	/sys/firmware/acpi/tables/APIC; iasl	local APIC / IOAPIC entries
+amd-tmp	hardware	AMD CPU temperatures	LINUX	cpu	no	k10temp	per-CCD temperature sequence
+arbiter	hardware	COM port resource arbiter	WINONLY	bus	no	/sys/class/tty; /proc/ioports	Windows COM arbiter resource assignment
+arp-table	windows	ARP table	LINUX	network	no	/proc/net/arp; ip -6 neigh; avahi-browse -c	IP to MAC neighbour table
+asus-info	hardware	ASUS ATK/WMI info	LINUX	sensors	yes	DMI; /sys/bus/wmi/devices; modinfo dmi aliases; acpi-tables (root cache)	ASUS ATK/WMI interface information (ATKINF)
+asus-wmi	hardware	ASUS WMI ACPI methods	LINUX	sensors	yes	/sys/bus/acpi/devices/PNP0C14*; /sys/bus/wmi/devices	ASUS WMI ACPI method results
+atk-debug	hardware	ASUS ATK0110 debug	ABSENT	sensors	no	/sys/bus/acpi/devices (probe ATK0110)	ASUS ATK0110 sensor debug data
+audio	hardware	Audio devices	LINUX	gpu	no	/proc/asound/cards; wpctl status	audio endpoints and drivers
+battery	hardware	Battery	ABSENT	sensors	no	/sys/class/power_supply (Battery / UPS)	battery status, capacity, rate
+benchmark	hardware	CPU Dhrystone/Whetstone benchmark	LINUX	tools	no	built-in Dhrystone 2.1 / Whetstone	integer/float scores per CPU
+benchmark-ac	hardware	CPU benchmark (all CPUs concurrent)	LINUX	tools	no	built-in	Dhrystone/Whetstone D+W per CPU, all CPUs
+benchmark-as	hardware	CPU benchmark (all CPUs sequential)	LINUX	tools	no	built-in	Dhrystone/Whetstone D+W, one CPU at a time
+benchmark-dd	hardware	CPU benchmark D+D then W+W	LINUX	tools	no	built-in	Dhrystone+Dhrystone then Whetstone+Whetstone per CPU
+benchmark-dw	hardware	CPU benchmark D+W then W+D	LINUX	tools	no	built-in	Dhrystone+Whetstone then Whetstone+Dhrystone per CPU
+benchmark-ec	hardware	CPU benchmark variant EC	ABSENT	tools	no	no efficiency cores	
+benchmark-ep	hardware	CPU benchmark variant EP	ABSENT	tools	no	no efficiency cores	
+benchmark-lc	hardware	CPU benchmark variant LC	LINUX	tools	no	built-in	
+benchmark-lp	hardware	CPU benchmark variant LP	LINUX	tools	no	built-in	
+benchmark-pc	hardware	CPU benchmark variant PC	LINUX	tools	no	built-in	
+benchmark-pp	hardware	CPU benchmark variant PP	LINUX	tools	no	built-in	
+bios-apic	hardware	APIC (MADT) summary	LINUX	machine	yes	acpi-tables/APIC cache	local APIC / IOAPIC entries
 bios-aspt	hardware	ASPT table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (ASPT absent)	ASPT ACPI table
-bios-dmar	hardware	DMAR table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (DMAR absent; AMD analogue IVRS present)	Intel VT-d DMAR remapping table
-bios-facp	hardware	FACP (FADT) summary	LINUX	machine	yes	/sys/firmware/acpi/tables/FACP; iasl	fixed ACPI description table fields
-bios-irq	hardware	PCI IRQ routing ($PIR)	ABSENT	machine	yes	/dev/mem (legacy $PIR scan; not present on UEFI); /proc/interrupts	PCI IRQ routing table
-bios-make	hardware	BIOS maker	LINUX	machine	no	/sys/class/dmi/id/bios_vendor; /sys/class/dmi/id/bios_version; /sys/class/dmi/id/bios_date	BIOS vendor, version, date
+bios-dmar	hardware	DMAR table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (DMAR absent; IVRS shown)	Intel VT-d DMAR remapping table
+bios-facp	hardware	FACP (FADT) summary	LINUX	machine	yes	acpi-tables/FACP cache; /sys/firmware/acpi/pm_profile	fixed ACPI description table fields
+bios-irq	hardware	PCI IRQ routing ($PIR)	ABSENT	machine	yes	legacy $PIR (not on UEFI); /proc/interrupts	PCI IRQ routing table
+bios-make	hardware	BIOS maker	LINUX	machine	no	/sys/class/dmi/id/bios_*; dmidecode.txt cache	BIOS vendor, version, date
 bios-mps	hardware	MPS table summary	ABSENT	machine	yes	/dev/mem (legacy _MP_ scan; not present)	Intel MultiProcessor Spec table
 bios-msdm	hardware	MSDM table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (MSDM absent)	Windows OEM product key table
 bios-oemb	hardware	OEMB table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (OEMB absent)	OEMB ACPI table
-bios-option	hardware	BIOS option ROMs	LINUX	machine	yes	/sys/bus/pci/devices/*/rom; /sys/class/drm/card0/device/rom	PCI option ROM images and headers
+bios-option	hardware	BIOS option ROMs	LINUX	machine	yes	/sys/bus/pci/devices/*/rom (sizes)	PCI option ROM images and headers
 bios-sdev	hardware	SDEV table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (SDEV absent)	secure devices ACPI table
 bios-sfi	hardware	SFI summary	ABSENT	machine	no	n/a (Simple Firmware Interface: Intel MID only)	SFI tables
 bios-slic	hardware	SLIC table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (SLIC absent)	software licensing table
 bios-slit	hardware	SLIT table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (SLIT absent)	NUMA locality distances
 bios-srat	hardware	SRAT table summary	ABSENT	machine	yes	/sys/firmware/acpi/tables (SRAT absent)	NUMA resource affinity
-bios-tables	hardware	BIOS / SMBIOS tables	LINUX	machine	yes	/sys/firmware/dmi/tables/smbios_entry_point; /sys/firmware/dmi/tables/DMI; dmidecode	SMBIOS/DMI entry point, version, structures
-bluetooth	windows	Bluetooth radios	LINUX	network	no	/sys/class/bluetooth/hci0; bluetoothctl show	radio address, manufacturer, version
-bluetooth-ids	windows	Bluetooth IDs	LINUX	network	no	/sys/class/bluetooth/hci0/device; bluetoothctl devices	Bluetooth device and vendor IDs
-blue-tree	windows	Bluetooth device tree	LINUX	network	no	/sys/class/bluetooth; bluetoothctl devices	tree of radios and paired devices
+bios-tables	hardware	BIOS / SMBIOS tables	LINUX	machine	yes	/sys/firmware/dmi/tables (sizes); dmidecode.txt cache	SMBIOS/DMI entry point, version, structures
+bluetooth	windows	Bluetooth radios	LINUX	network	no	/sys/class/bluetooth; bluetoothctl show	radio address, manufacturer, version
+bluetooth-ids	windows	Bluetooth IDs	LINUX	network	no	/sys/class/bluetooth/*/device; bluetoothctl info	Bluetooth device and vendor IDs
+blue-tree	windows	Bluetooth device tree	LINUX	network	no	bluetoothctl list/devices/info	tree of radios and paired devices
 boinc	hardware	BOINC status	ABSENT	tools	no	n/a (boinc not installed)	BOINC client project status
 boinc-rpc	hardware	BOINC RPC info	ABSENT	tools	no	n/a (boinc not installed)	BOINC GUI RPC information
 boot-mode	windows	Boot mode options	LINUX	os	no	/proc/cmdline; systemctl get-default; /sys/firmware/efi	safe-boot / boot mode options
-browsers	windows	Network browse masters	LINUX	network	no	nmblookup; smbclient	SMB browse master list
+browsers	windows	Network browse masters	LINUX	network	no	testparm; /var/cache/samba/browse.dat	SMB browse master list
 bsi	xxb	BSB info (battery/HID sensor buffer)	LINUX	siv	no	/sys/class/power_supply; /sys/bus/hid/devices	internal battery/HID sensor sample buffer
-cgb	xxb	CPU group buffer	LINUX	siv	no	/sys/devices/system/cpu/cpu0/topology; /sys/devices/system/cpu/online	internal CPU group affinity masks
-chipsets	hardware	Chipsets	LINUX	bus	no	lspci -nn; /sys/bus/pci/devices/0000:00:00.0	host bridge / chipset identification
+cgb	xxb	CPU group buffer	LINUX	siv	no	/sys/devices/system/cpu/online	internal CPU group affinity masks
+chipsets	hardware	Chipsets	LINUX	bus	no	/sys/bus/pci/devices (class 0600/0601/0C05/0806)	host bridge / chipset identification
 cl4-srv	windows	Corsair Link 4 service	ABSENT	os	no	n/a (Windows service); via liquidctl/coolercontrol analogue	CLink4Service control status
-class	hardware	System device classes	LINUX	bus	no	/sys/class; udevadm info	device class list
+class	hardware	System device classes	LINUX	bus	no	/sys/class	device class list
 class-remote	hardware	Remote system classes	WINONLY	bus	no	none (remote registry); nearest ssh + /sys/class	device classes from a remote machine's registry
 clear-case	hardware	ClearCase	ABSENT	tools	no	n/a (not installed)	IBM ClearCase info
 clear-quest	hardware	ClearQuest	ABSENT	tools	no	n/a (not installed)	IBM ClearQuest info
 clsid	windows	Shell CLSIDs	WINONLY	os	no	none; nearest xdg-mime; /usr/share/applications	shell folder CLSIDs and commands
 cmos-status	hardware	CMOS / RTC status	LINUX	machine	no	/proc/driver/rtc; /sys/class/rtc/rtc0	RTC/CMOS status and battery-ok flag
 codepage	windows	Code pages	LINUX	os	no	/usr/share/i18n/charmaps; iconv -l	list of code pages with descriptions
-codevice	hardware	Co-device installers	WINONLY	bus	no	none; nearest /usr/lib/udev/rules.d	registered co-installers
-compatible	hardware	Compatible IDs	LINUX	bus	no	/sys/bus/pci/devices/*/modalias; udevadm info	device compatible/hardware IDs
-cooling	hardware	Cooling status (fans)	LINUX	sensors	no	/sys/class/hwmon/hwmon*/name; sensors; /sys/class/thermal/cooling_device0	fan speeds and PWM duty
-counters	windows	TCP/IP counters	LINUX	network	no	/proc/net/snmp; /proc/net/netstat	IP/TCP/UDP/ICMP statistics
+codevice	hardware	Co-device installers	WINONLY	bus	no	udev rules.d	registered co-installers
+compatible	hardware	Compatible IDs	LINUX	bus	no	modalias (pci, usb interfaces, acpi)	device compatible/hardware IDs
+cooling	hardware	Cooling status (fans)	LINUX	sensors	no	/sys/class/hwmon fan*/pwm* (read only); /sys/class/thermal/cooling_device*	fan speeds and PWM duty
+counters	windows	TCP/IP counters	LINUX	network	no	/sys/class/net/*/statistics deltas; /proc/net/snmp	IP/TCP/UDP/ICMP statistics
 country	windows	TAPI country list	LINUX	os	no	/usr/share/zoneinfo/iso3166.tab; locale	country codes and dialing info
-cpu	xxb	CPU info buffer	LINUX	siv	no	/sys/devices/system/cpu	internal per-CPU affinity/APIC/state table
-cpu-bits	windows	CPU description bits	LINUX	cpu	no	/proc/cpuinfo; lscpu	processor name string, identifier, vendor
-cpu-clocks	hardware	CPU clocks	LINUX	cpu	no	/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq; turbostat	per-CPU clock speeds
-cpu-export	hardware	CPU export	LINUX	cpu	no	internal: export of CPU sensor data; /sys/devices/system/cpu	CPU data export setup
-cpuid	hardware	CPUID leaves	LINUX	cpu	no	cpuid; /proc/cpuinfo	raw CPUID EAX-EDX per leaf with decode
-cpuid-000	hardware	CPUID architecture (leaf 0)	LINUX	cpu	no	cpuid -l 0	vendor, max leaf, architecture/type
-cpu-levels	hardware	CPU power levels (_PSS P-states)	LINUX	cpu	no	/sys/devices/system/cpu/cpu0/acpi_cppc; /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq	ACPI _PSS/NPSS P-state levels
-cpu-oc-data	hardware	CPU OC data (IA32_OC_MAILBOX)	ABSENT	cpu	yes	n/a (Intel OC mailbox MSR only)	Intel overclocking mailbox data
-cpus	hardware	CPU list	LINUX	cpu	no	/sys/devices/system/cpu; lscpu -e	logical processors, cores, packages
-cpu-smu	hardware	CPU SMU mailbox	LINUX	cpu	yes	/sys/kernel/ryzen_smu_drv/rsmu_cmd; /sys/kernel/ryzen_smu_drv/smu_args	SMU mailbox command results
-cpu-speeds	hardware	CPU speed ratios	LINUX	cpu	no	/sys/devices/system/cpu/cpu0/acpi_cppc; /sys/devices/system/cpu/amd_pstate	CPU multipliers/speed ratios (CPUSPD)
-cpu-timer	hardware	CPU timer (TSC)	LINUX	cpu	no	/sys/devices/system/clocksource/clocksource0; /proc/cpuinfo	TSC/performance counter frequency
-cpu-tweak	hardware	CPU tweak	ABSENT	cpu	yes	n/a (SIV: not supported for Ryzen 7 7800X3D)	CPU tweak settings
-cpu-volts	hardware	CPU voltages	LINUX	cpu	no	/sys/class/hwmon/hwmon*/in0_input; /sys/kernel/ryzen_smu_drv/pm_table	core voltages (CPUOCD)
+cpu	xxb	CPU info buffer	LINUX	siv	no	/sys/devices/system/cpu, cpufreq, amd_pstate	internal per-CPU affinity/APIC/state table
+cpu-bits	windows	CPU description bits	LINUX	cpu	no	/proc/cpuinfo	processor name string, identifier, vendor
+cpu-clocks	hardware	CPU clocks	LINUX	cpu	no	cpufreq	per-CPU clock speeds
+cpu-export	hardware	CPU export	LINUX	cpu	no	cpufreq	CPU data export setup
+cpuid	hardware	CPUID leaves	LINUX	cpu	no	CPUID (all leaves)	raw CPUID EAX-EDX per leaf with decode
+cpuid-000	hardware	CPUID architecture (leaf 0)	LINUX	cpu	no	CPUID	vendor, max leaf, architecture/type
+cpu-levels	hardware	CPU power levels (_PSS P-states)	LINUX	cpu	no	cpuidle	ACPI _PSS/NPSS P-state levels
+cpu-oc-data	hardware	CPU OC data (IA32_OC_MAILBOX)	ABSENT	cpu	no	Intel OC mailbox	Intel overclocking mailbox data
+cpus	hardware	CPU list	LINUX	cpu	no	/proc/cpuinfo	logical processors, cores, packages
+cpu-smu	hardware	CPU SMU mailbox	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv	SMU mailbox command results
+cpu-speeds	hardware	CPU speed ratios	LINUX	cpu	no	cpufreq	CPU multipliers/speed ratios (CPUSPD)
+cpu-timer	hardware	CPU timer (TSC)	LINUX	cpu	no	clocksource, TSC	TSC/performance counter frequency
+cpu-tweak	hardware	CPU tweak	LINUX	cpu	no	cpufreq, smt, isolcpus	CPU tweak settings
+cpu-volts	hardware	CPU voltages	LINUX	cpu	no	Super-I/O hwmon in0	core voltages (CPUOCD)
 cq-mail	hardware	ClearQuest e-mail	ABSENT	tools	no	n/a (ClearQuest not installed)	ClearQuest e-mail setup
-csv	tuning	CSV logging	LINUX	siv	no	internal: CSV writer	CSV logging setup/state
-csv-titles	tuning	CSV titles	LINUX	siv	no	internal: CSV writer	CSV column titles
+csv	tuning	CSV logging	LINUX	siv	no	internal: -save text writer	CSV logging setup/state
+csv-titles	tuning	CSV titles	LINUX	siv	no	internal: -save text writer	CSV column titles
 cue-srv	windows	Corsair service	ABSENT	os	no	n/a (Windows service); via liquidctl/coolercontrol analogue	CorsairService control status
 d3d-info	hardware	Direct3D info	LINUX	gpu	no	vulkaninfo --summary; glxinfo -B	3D API adapter capabilities
-d3d-node	hardware	GPU D3D engine nodes	LINUX	gpu	no	/proc/self/fdinfo; /sys/class/drm/card0/device	GPU engine nodes and utilisation
-debug-api	tuning	Debug API	LINUX	siv	no	internal: debug routines	
+d3d-node	hardware	GPU D3D engine nodes	LINUX	gpu	no	ip_discovery; gpu_busy_percent	GPU engine nodes and utilisation
+debug-api	tuning	Debug API	LINUX	siv	no	internal: build info	
 dell-bios	hardware	Dell BIOS	ABSENT	machine	no	/sys/class/dmi/id/sys_vendor (not Dell)	Dell BIOS SMI data
 delta	tuning	Delta/cost settings	LINUX	siv	no	internal: settings	
-device-ids	hardware	Device IDs	LINUX	bus	no	/sys/bus/pci/devices/*/vendor; /sys/bus/usb/devices/*/idVendor; /usr/share/hwdata/pci.ids	device vendor/device ID lookup
-devices	hardware	All devices	LINUX	bus	no	udevadm info --export-db; /sys/devices	all devices with status
-dev-owner	hardware	Device owners	LINUX	bus	no	/sys/bus/pci/devices/*/driver; /sys/bus/usb/devices/*/driver	owning driver/service per device
-devpropkey	hardware	Device property keys	LINUX	bus	no	udevadm info; /sys/bus/pci/devices/*/uevent	device property keys and values
-dimms	hardware	DIMMs	LINUX	machine	yes	dmidecode -t 17; /sys/bus/i2c/drivers/spd5118	memory module slots, sizes, speeds
-dimm-status	hardware	DIMM status/temperatures	LINUX	machine	no	/sys/bus/i2c/drivers/spd5118; /sys/class/hwmon/hwmon*/name	DIMM thermal sensor status (DIMSTS)
-directx	hardware	DirectX information	LINUX	gpu	no	vulkaninfo; glxinfo; eglinfo	graphics API versions
+device-ids	hardware	Device IDs	LINUX	bus	no	sysfs IDs + pci.ids/usb.ids chain	device vendor/device ID lookup
+devices	hardware	All devices	LINUX	bus	no	udevadm info --export-db	all devices with status
+dev-owner	hardware	Device owners	LINUX	bus	no	/sys/bus/{pci,usb}/devices/*/driver	owning driver/service per device
+devpropkey	hardware	Device property keys	LINUX	bus	no	udevadm info --export-db	device property keys and values
+dimms	hardware	DIMMs	LINUX	machine	no	SMBIOS type 17 via /run/udev/data/+dmi:id or dmidecode.txt; spd5118	memory module slots, sizes, speeds
+dimm-status	hardware	DIMM status/temperatures	LINUX	machine	no	/sys/class/hwmon (spd5118)	DIMM thermal sensor status (DIMSTS)
+directx	hardware	DirectX information	LINUX	gpu	no	vulkaninfo; glxinfo; eglinfo; clinfo; DXVK/VKD3D paths	graphics API versions
 dll	windows	Base DLLs	LINUX	os	no	/proc/self/maps; ldd	loaded modules with handle, path, version
 dll-addr	windows	DLLs by address	LINUX	os	no	/proc/self/maps	loaded modules sorted by address
 dll-known	windows	Known DLLs	LINUX	os	no	/etc/ld.so.cache; ldconfig -p	KnownDLLs list
 dll-name	windows	DLLs by name	LINUX	os	no	/proc/self/maps	loaded modules sorted by name
-dns-cache	windows	DNS cache	LINUX	network	yes	resolvectl show-cache; resolvectl statistics	DNS resolver cache entries
-dns-names	windows	DNS names	LINUX	network	no	/etc/hostname; hostnamectl	NetBIOS/DNS host and domain names
-dns-ports	windows	DNS ports	LINUX	network	no	ss -lntup; resolvectl status	DNS server ports
-dns-usage	windows	DNS usage	LINUX	network	no	resolvectl statistics	DNS resolver usage statistics
-domains	windows	Domains / workgroups	LINUX	network	no	nmblookup; smbclient	network domains and workgroups
+dns-cache	windows	DNS cache	LINUX	network	yes	resolvectl show-cache (root)	DNS resolver cache entries
+dns-names	windows	DNS names	LINUX	network	no	gethostname; testparm; hostnamectl	NetBIOS/DNS host and domain names
+dns-ports	windows	DNS ports	LINUX	network	no	/proc/net/{tcp,udp}{,6}; /etc/resolv.conf	DNS server ports
+dns-usage	windows	DNS usage	LINUX	network	no	resolvectl statistics; resolv.conf; nsswitch.conf	DNS resolver usage statistics
+domains	windows	Domains / workgroups	LINUX	network	no	testparm; resolv.conf; browse.dat	network domains and workgroups
 drivers	windows	Drivers	LINUX	os	no	/proc/modules; /sys/module	loaded drivers and state
 driver-vsn	windows	Driver versions	LINUX	os	no	modinfo; /sys/module	driver file versions
-drives	windows	Disk drives	LINUX	storage	no	lsblk; /sys/class/block; /sys/class/nvme	physical drives: bus, vendor/product, serial, revision
-drive-tree	windows	Drive tree	LINUX	storage	no	lsblk -t; /sys/class/block	drive/partition/volume tree
-dsb	xxb	DSB info (DIMM sensor buffer)	LINUX	siv	no	/sys/bus/i2c/drivers/spd5118; /sys/class/hwmon	internal DIMM temp/SPD/LED SMBus samples
-dsk-api	windows	Disk API routines	WINONLY	storage	no	none; nearest command -v smartctl nvme	vendor disk SDK (JMicron) routine availability
-dxd-aud	hardware	DirectX sound devices	LINUX	gpu	no	aplay -l; pactl list sinks	sound devices (dxdiag)
-dxd-dev	hardware	DirectX system devices	LINUX	gpu	no	lspci -nn; udevadm info	system devices (dxdiag)
-dxd-dsk	hardware	DirectX logical disks	LINUX	gpu	no	lsblk; findmnt	logical disks (dxdiag)
-dxd-fil	hardware	DirectX files	LINUX	gpu	no	/usr/share/vulkan/icd.d; pacman -Qi	graphics runtime file versions
-dxd-ftr	hardware	DirectShow filters	LINUX	gpu	no	gst-inspect-1.0	media filter list
+drives	windows	Disk drives	LINUX	storage	no	/sys/block, /sys/class/nvme, udev	physical drives: bus, vendor/product, serial, revision
+drive-tree	windows	Drive tree	LINUX	storage	no	/sys/class/block (+holders)	drive/partition/volume tree
+dsb	xxb	DSB info (DIMM sensor buffer)	LINUX	siv	no	/sys/class/hwmon (spd5118, jc42)	internal DIMM temp/SPD/LED SMBus samples
+dsk-api	windows	Disk API routines	WINONLY	storage	no	PATH tools (smartctl nvme hdparm ...), kernel interfaces	vendor disk SDK (JMicron) routine availability
+dxd-aud	hardware	DirectX sound devices	LINUX	gpu	no	/proc/asound/pcm; pactl list sinks	sound devices (dxdiag)
+dxd-dev	hardware	DirectX system devices	LINUX	gpu	no	lspci -nn	system devices (dxdiag)
+dxd-dsk	hardware	DirectX logical disks	LINUX	gpu	no	lsblk	logical disks (dxdiag)
+dxd-fil	hardware	DirectX files	LINUX	gpu	no	/usr/share/vulkan/icd.d; /etc/OpenCL/vendors; pacman -Q	graphics runtime file versions
+dxd-ftr	hardware	DirectShow filters	LINUX	gpu	no	/usr/lib/gstreamer-1.0	media filter list
 dxd-gam	hardware	DirectInput gameports	ABSENT	gpu	no	/sys/bus/gameport (absent)	gameport devices
-dxd-gpu	hardware	DirectX GPU displays	LINUX	gpu	no	vulkaninfo --summary; /sys/class/drm	display adapters (dxdiag)
-dxd-inf	hardware	DirectX system information	LINUX	gpu	no	hostnamectl; lscpu; /proc/meminfo	dxdiag system information summary
+dxd-gpu	hardware	DirectX GPU displays	LINUX	gpu	no	/sys/class/drm; vulkaninfo --summary	display adapters (dxdiag)
+dxd-inf	hardware	DirectX system information	LINUX	gpu	no	uname; DMI; /proc/meminfo	dxdiag system information summary
 dxd-inp	hardware	DirectInput devices	LINUX	gpu	no	/proc/bus/input/devices	input devices
-dxd-mic	hardware	DirectMusic ports	LINUX	gpu	no	aconnect -l; /proc/asound/seq/clients	MIDI ports
+dxd-mic	hardware	DirectMusic ports	LINUX	gpu	no	/proc/asound/seq/clients; aconnect -l	MIDI ports
 dxd-ply	hardware	DirectPlay adapters	WINONLY	gpu	no	none; nearest ip link	DirectPlay service providers
 dxd-ps2	hardware	DirectInput PS/2 devices	ABSENT	gpu	no	/sys/bus/serio/devices (empty)	PS/2 keyboard/mouse
 dxd-sum	hardware	DirectX summary	LINUX	gpu	no	vulkaninfo --summary; glxinfo -B	DirectX diagnostic summary
-dxd-usb	hardware	DirectInput USB root	LINUX	gpu	no	lsusb -t; /sys/bus/usb/devices	USB HID input tree
+dxd-usb	hardware	DirectInput USB root	LINUX	gpu	no	lsusb -t; /proc/bus/input/devices	USB HID input tree
 e-mail	windows	E-mail accounts	WINONLY	os	no	none	Internet Account Manager mail accounts
-embedded	hardware	Embedded controller I/O	LINUX	bus	yes	/sys/bus/acpi/devices/PNP0C09:00; /dev/port	embedded controller I/O ports
+embedded	hardware	Embedded controller I/O	LINUX	bus	yes	/sys/bus/acpi/devices/PNP0C09:00; ioports.txt	embedded controller I/O ports
 emoji	tuning	Emoji glyph test	LINUX	siv	no	fc-list; internal	emoji rendering test
-enum	hardware	System enum (device tree)	LINUX	bus	no	udevadm info --export-db; /sys/devices	device enumeration tree
+enum	hardware	System enum (device tree)	LINUX	bus	no	udevadm info --export-db	device enumeration tree
 enum-remote	hardware	Remote system enum	WINONLY	bus	no	none (remote registry); nearest ssh + udevadm	Enum key from a remote machine
 environment	windows	Environment	LINUX	os	no	/proc/self/environ; /etc/environment	environment variables and sizes
 esu-sts	windows	ESU status	WINONLY	os	no	none	Windows Extended Security Updates status
 fak-imcs	tuning	Fake IMCs	ABSENT	siv	no	n/a (Intel Xeon ICX IMC fixtures)	fake-mode Intel IMC register data
-fak-mchbar	tuning	Fake MCHBAR	LINUX	siv	yes	/dev/mem; internal: fake-mode replay	fake-mode MCHBAR register data
-fak-pmts	tuning	Fake PM tables	LINUX	siv	no	internal: fake-mode replay; /sys/kernel/ryzen_smu_drv/pm_table	fake-mode AMD PM tables
-fak-spds	tuning	Fake SPDs	LINUX	siv	no	internal: fake-mode replay; /sys/bus/i2c/drivers/spd5118	fake-mode DIMM SPD dumps
-fat	windows	FAT statistics	LINUX	storage	no	findmnt -t vfat; /proc/mounts	FAT volume statistics
-features	hardware	CPU features	LINUX	cpu	no	/proc/cpuinfo; cpuid	CPUID feature flags with descriptions
+fak-mchbar	tuning	Fake MCHBAR	LINUX	siv	no	none (no /dev/mem access; no replay mode)	fake-mode MCHBAR register data
+fak-pmts	tuning	Fake PM tables	LINUX	siv	no	/sys/kernel/ryzen_smu_drv (presence only)	fake-mode AMD PM tables
+fak-spds	tuning	Fake SPDs	LINUX	siv	no	hwmon spd5118/jc42; srs-root spd.txt	fake-mode DIMM SPD dumps
+fat	windows	FAT statistics	LINUX	storage	no	statvfs, udev ID_FS_*	FAT volume statistics
+features	hardware	CPU features	LINUX	cpu	no	CPUID	CPUID feature flags with descriptions
 file-cache	windows	System file cache	LINUX	os	no	/proc/meminfo; /proc/vmstat	file cache current/peak size
 files	windows	Open server files	LINUX	os	yes	smbstatus -L; lslocks	files open on shared resources (NetFileEnum)
 filter	tuning	Filter	LINUX	siv	no	internal: display filter	item/column filter settings
-final	tuning	Final processing	LINUX	siv	no	internal	elapsed times / final section of a save
-firewall	windows	Firewall	LINUX	network	yes	firewall-cmd --state; nft list ruleset	firewall profiles and settings
-firewire	hardware	FireWire	ABSENT	bus	no	/sys/bus/firewire (absent)	IEEE 1394 devices
-firmware	hardware	Firmware	LINUX	machine	no	/sys/firmware/efi; /sys/firmware/efi/esrt; fwupdmgr get-devices	system firmware type and details
+final	tuning	Final processing	LINUX	siv	no	/proc/self/stat; /proc/uptime	elapsed times / final section of a save
+firewall	windows	Firewall	LINUX	network	yes	firewall-cmd (read-only queries); nft (root)	firewall profiles and settings
+firewire	hardware	FireWire	ABSENT	bus	no	/sys/bus/firewire; PCI class 0C00	IEEE 1394 devices
+firmware	hardware	Firmware	LINUX	machine	no	/sys/firmware/efi; esrt; acpi/fpdt	system firmware type and details
 fmo-sts	windows	Feature management overrides	WINONLY	os	no	none	FeatureManagement overrides status
 folders	windows	Folder paths	LINUX	os	no	~/.config/user-dirs.dirs; xdg-user-dir	special folder paths
 fonts	windows	Font families	LINUX	os	no	fc-list	font faces and character sets
-formula-setup	hardware	Sensor formula setup	LINUX	sensors	no	internal: sensor formula config; /sys/class/hwmon	user sensor scaling formulas
+formula-setup	hardware	Sensor formula setup	LINUX	sensors	no	lm-sensors label/compute/set/ignore for present chips	user sensor scaling formulas
 f-w-table	hardware	Firmware interface table	ABSENT	machine	no	n/a (IA-64 only)	IA-64 firmware interface table
-geometry	windows	Drive geometry	LINUX	storage	no	/sys/class/block/*/size; lsblk -o NAME,SIZE,PHY-SEC,LOG-SEC	cylinders/tracks/sectors and size
-ghost-devices	hardware	Ghost (non-present) devices	WINONLY	bus	no	none; nearest journalctl -k	previously installed non-present devices
-goverlay	hardware	GOverlay status	LINUX	gpu	no	goverlay; mangohud	GOverlay/MangoHud overlay status
-gpu	xxb	GPU info buffer	LINUX	siv	no	/sys/class/drm	internal per-GPU state table
-gpu-all	hardware	GPU all details	LINUX	gpu	no	/sys/class/drm/card0/device; lspci -vv	all GPU details
-gpu-api	hardware	GPU API routines	LINUX	gpu	no	ldconfig -p; /usr/lib/libdrm_amdgpu.so.1	vendor GPU API routine availability
-gpu-apps	hardware	GPU applications	LINUX	gpu	no	/proc/self/fdinfo; amd-smi process	processes using the GPU
-gpu-bios	hardware	GPU VBIOS status	LINUX	gpu	no	/sys/class/drm/card0/device/vbios_version; /sys/class/drm/card0/device/vbios_build	VBIOS version/image
-gpu-clocks	hardware	GPU clock speeds	LINUX	gpu	no	/sys/class/drm/card0/device/pp_dpm_sclk; /sys/class/drm/card0/device/pp_dpm_mclk; /sys/class/drm/card0/device/gpu_metrics	GPU core/memory clocks
-gpu-cuda	hardware	CUDA information	ABSENT	gpu	no	n/a (no NVIDIA GPU; nvidia-smi absent); nearest rocminfo	NVIDIA CUDA device info
-gpu-d3d	hardware	GPU D3D status	LINUX	gpu	no	vulkaninfo --summary; /sys/class/drm/card0/device	per-GPU 3D status
-gpu-dump	hardware	GPU register dump	LINUX	gpu	yes	/sys/kernel/debug; via amdgpu debugfs amdgpu_regs	GPU register/VGA dump
-gpu-export	hardware	GPU export	LINUX	gpu	no	internal: export of GPU sensor data; /sys/class/drm/card0/device/hwmon	GPU data export setup
-gpu-fans	hardware	GPU fans	LINUX	gpu	no	/sys/class/drm/card0/device/hwmon; /sys/class/hwmon/hwmon*/fan1_input	GPU fan speeds/duty
-gpu-gens	hardware	GPU generations	LINUX	gpu	no	/sys/class/drm/card0/device/ip_discovery; rocminfo	GPU architecture generation
-gpu-g-sync	hardware	GPU G-Sync / VRR	LINUX	gpu	no	drm_info; /sys/class/drm	adaptive sync (G-Sync/FreeSync) status
-gpu-i2c	hardware	GPU I2C buses	LINUX	gpu	no	/sys/bus/i2c/devices/i2c-*/name	GPU I2C buses and devices
-gpu-info	hardware	GPU information	LINUX	gpu	no	/sys/class/drm/card0/device; rocminfo	GPU name, IDs, memory, driver
-gpu-leds	hardware	GPU LEDs	ABSENT	gpu	no	n/a (XFX RX 9070 XT has no GPU RGB controller)	GPU RGB LED control
-gpu-map	hardware	GPU mapping	LINUX	gpu	no	/sys/class/drm/card0/device; /sys/bus/pci/devices	GPU to bus/device/function map
-gpu-power	hardware	GPU power status	LINUX	gpu	no	/sys/class/drm/card0/device/hwmon; /sys/class/drm/card0/device/gpu_metrics	GPU power draw and limits
-gpu-reg	hardware	GPU registry	LINUX	gpu	no	/sys/class/drm/card0/device/uevent; /sys/class/drm/card0/device/driver	GPU driver registration (DeviceMap\Video)
-gpu-scf	hardware	GPU SCF	LINUX	gpu	no	/sys/class/drm/card0/device	
+geometry	windows	Drive geometry	LINUX	storage	no	/sys/block/*/size, queue/logical_block_size	cylinders/tracks/sectors and size
+ghost-devices	hardware	Ghost (non-present) devices	WINONLY	bus	no	/run/udev/data vs sysfs	previously installed non-present devices
+goverlay	hardware	GOverlay status	LINUX	gpu	no	goverlay; mangohud; ~/.config/MangoHud	GOverlay/MangoHud overlay status
+gpu	xxb	GPU info buffer	LINUX	siv	no	/sys/class/drm/card*/device	internal per-GPU state table
+gpu-all	hardware	GPU all details	LINUX	gpu	no	/sys/class/drm/card*/device; hwmon; lspci -vv	all GPU details
+gpu-api	hardware	GPU API routines	LINUX	gpu	no	ldconfig -p	vendor GPU API routine availability
+gpu-apps	hardware	GPU applications	LINUX	gpu	no	/proc/*/fdinfo (drm-client stats; other users' processes need root)	processes using the GPU
+gpu-bios	hardware	GPU VBIOS status	LINUX	gpu	no	vbios_version; fw_version/*	VBIOS version/image
+gpu-clocks	hardware	GPU clock speeds	LINUX	gpu	no	pp_dpm_sclk/mclk/fclk/socclk/dcefclk/pcie; hwmon freq*	GPU core/memory clocks
+gpu-cuda	hardware	CUDA information	ABSENT	gpu	no	n/a (no NVIDIA GPU; nvidia-smi absent); nearest ROCm/HIP	NVIDIA CUDA device info
+gpu-d3d	hardware	GPU D3D status	LINUX	gpu	no	gpu_busy_percent; mem_info_*; vulkaninfo --summary	per-GPU 3D status
+gpu-dump	hardware	GPU register dump	LINUX	gpu	yes	device/config (64 bytes); root cache pci-all.txt	GPU register/VGA dump
+gpu-export	hardware	GPU export	LINUX	gpu	no	card hwmon; gpu_busy_percent	GPU data export setup
+gpu-fans	hardware	GPU fans	LINUX	gpu	no	card hwmon fan1_*/pwm1 (read only)	GPU fan speeds/duty
+gpu-gens	hardware	GPU generations	LINUX	gpu	no	/sys/class/drm/card*/device/ip_discovery	GPU architecture generation
+gpu-g-sync	hardware	GPU G-Sync / VRR	LINUX	gpu	no	drm_info vrr_capable/VRR_ENABLED; EDID range limits	adaptive sync (G-Sync/FreeSync) status
+gpu-i2c	hardware	GPU I2C buses	LINUX	gpu	no	/sys/bus/i2c/devices/i2c-*/name (names only)	GPU I2C buses and devices
+gpu-info	hardware	GPU information	LINUX	gpu	no	/sys/class/drm/card*/device; amdgpu.ids; lspci	GPU name, IDs, memory, driver
+gpu-leds	hardware	GPU LEDs	ABSENT	gpu	no	/sys/class/leds (LED devices of the GPU)	GPU RGB LED control
+gpu-map	hardware	GPU mapping	LINUX	gpu	no	/sys/bus/pci/devices; resource; iommu_group	GPU to bus/device/function map
+gpu-power	hardware	GPU power status	LINUX	gpu	no	card hwmon power1_*/in*; gpu_metrics header	GPU power draw and limits
+gpu-reg	hardware	GPU registry	LINUX	gpu	no	device/uevent; driver; /sys/module/amdgpu/parameters	GPU driver registration (DeviceMap\Video)
+gpu-scf	hardware	GPU SCF	LINUX	gpu	no	ip_discovery DF/MP1; pp_dpm_fclk/socclk/pcie	
 gpu-sli	hardware	GPU SLI topology	ABSENT	gpu	no	n/a (single GPU, no SLI/CrossFire)	SLI topologies
-gpu-temp	hardware	GPU temperatures	LINUX	gpu	no	/sys/class/drm/card0/device/hwmon; /sys/class/hwmon/hwmon*/temp1_input	edge/junction/memory temperatures
+gpu-temp	hardware	GPU temperatures	LINUX	gpu	no	card hwmon temp*_input/crit/emergency	edge/junction/memory temperatures
 gpu-tree	hardware	GPU tree	LINUX	gpu	no	/sys/class/drm	GPU/display device tree
-graphics	windows	Graphics	LINUX	gpu	no	/sys/class/drm; kscreen-doctor -o; glxinfo -B	graphics card, monitor, chip, VRAM, VBIOS
+graphics	windows	Graphics	LINUX	gpu	no	/sys/class/drm; drm_info; EDID	graphics card, monitor, chip, VRAM, VBIOS
 groups	windows	Groups	LINUX	os	no	/etc/group; getent group	local groups and members
 handle	windows	Handles	LINUX	os	no	/proc/self/fd; lsof	open handles per process
-hardware	hardware	Hardware summary	LINUX	machine	no	/sys/class/dmi/id; lscpu; lspci	hardware summary page
+hardware	hardware	Hardware summary	LINUX	machine	no	/sys/class/dmi/id; /proc/cpuinfo; lspci -mm	hardware summary page
 heap	windows	Process heap	LINUX	os	no	/proc/self/smaps	heap information of SIV process
-heci-status	hardware	HECI (Intel ME) status	ABSENT	machine	no	/sys/class/mei (absent)	Intel ME HECI status
+heci-status	hardware	HECI (Intel ME) status	ABSENT	machine	no	/sys/class/mei (absent); AMD PSP via ccp	Intel ME HECI status
 help	tuning	Help	LINUX	siv	no	internal	help text
-hid-all	hardware	HID all devices	LINUX	bus	no	/sys/bus/hid/devices; /sys/class/hidraw	all HID devices with usages
+hid-all	hardware	HID all devices	LINUX	bus	no	/sys/bus/hid/devices	all HID devices with usages
 hid-bus	hardware	HID bus	LINUX	bus	no	/sys/bus/hid/devices	HID bus devices
-hidden	windows	Hidden disks	LINUX	storage	no	/sys/block/nvme0n1/hidden; lsblk	hidden disk devices
+hidden	windows	Hidden disks	LINUX	storage	no	/sys/block/*/hidden, /dev/ng*	hidden disk devices
 hid-tree	hardware	HID tree	LINUX	bus	no	/sys/bus/hid/devices; /sys/bus/usb/devices	HID device tree
-highlight	hardware	Highlight setup	LINUX	siv	no	internal	colour highlight setup for CPU speeds
+highlight	hardware	Highlight setup	LINUX	siv	no	SRSDEF.ini	colour highlight setup for CPU speeds
 hives	windows	Registry hives	WINONLY	os	no	none	registry hive list
-hot-keys	hardware	Hotkeys	LINUX	siv	no	internal	hotkey profiles
-hw-status	hardware	Hardware status	LINUX	sensors	no	/sys/class/hwmon; sensors	hardware monitor status (HWMSTS)
-hypervisor	hardware	Virtualization and hypervisor	LINUX	cpu	no	cpuid; systemd-detect-virt; /proc/cpuinfo	SVM/VT support and hypervisor info
-image-exe	tuning	SIV image (EXE)	LINUX	siv	no	readelf -S; /proc/self/exe	executable sections
+hot-keys	hardware	Hotkeys	LINUX	siv	no	internal: GUI accelerators	hotkey profiles
+hw-status	hardware	Hardware status	LINUX	sensors	no	/sys/class/hwmon; /proc/modules	hardware monitor status (HWMSTS)
+hypervisor	hardware	Virtualization and hypervisor	LINUX	cpu	no	/proc/cpuinfo flags, /dev/kvm, iommu	SVM/VT support and hypervisor info
+image-exe	tuning	SIV image (EXE)	LINUX	siv	no	readelf -S /proc/self/exe	executable sections
 image-sys	tuning	SIV image (SYS driver)	WINONLY	siv	no	none (no kernel driver needed); nearest /sys/module	SIV kernel driver image
-image-tree	tuning	Image tree	LINUX	siv	no	ldd; /proc/self/maps	module dependency tree
+image-tree	tuning	Image tree	LINUX	siv	no	readelf -d; /proc/self/maps	module dependency tree
 initial	tuning	Initial processing	LINUX	siv	no	internal	initial section processing
-install	tuning	Install	LINUX	siv	no	internal: menu entry/desktop file install	install SIV
+install	tuning	Install	LINUX	siv	no	srs-gui.desktop menu entries	install SIV
 integrity	windows	Code integrity	LINUX	os	no	/sys/module/module/parameters/sig_enforce; /proc/sys/kernel/tainted; mokutil --sb-state	code integrity options
-interface	windows	Network interface statistics	LINUX	network	no	/proc/net/dev; ip -s link	interface Rx+Tx counters
-interfaces	hardware	Device interfaces	LINUX	bus	no	/sys/class; udevadm info	device interface classes
-interfacex	hardware	Device interfaces (extended)	LINUX	bus	no	/sys/class; udevadm info	extended device interface data
-int-ids	hardware	Interface IDs	LINUX	bus	no	/sys/class	device interface class IDs
-int-names	hardware	Interface names	LINUX	bus	no	/sys/class	device interface names
+interface	windows	Network interface statistics	LINUX	network	no	/sys/class/net/*/statistics	interface Rx+Tx counters
+interfaces	hardware	Device interfaces	LINUX	bus	no	/sys/class	device interface classes
+interfacex	hardware	Device interfaces (extended)	LINUX	bus	no	/sys/class/*/*	extended device interface data
+int-ids	hardware	Interface IDs	LINUX	bus	no	/sys/class/*/*/dev; udev	device interface class IDs
+int-names	hardware	Interface names	LINUX	bus	no	/sys/class/*/*; udev symlinks	device interface names
 int-owner	hardware	Interface owner	LINUX	bus	no	/sys/class/*/*/device/driver	device interface owning driver
-io-asus	hardware	ASUS I/O	LINUX	bus	yes	/dev/port; /sys/class/dmi/id/board_vendor	ASUS motherboard I/O registers
-io-dump	hardware	I/O port dump	LINUX	bus	yes	/dev/port; /proc/ioports	I/O port space dump
-io-gpio	hardware	I/O GPIO	LINUX	bus	yes	/dev/gpiochip0; /sys/bus/acpi/devices/AMDI0030:00	GPIO pin states
-io-mmio	hardware	I/O PM2 MMIO	LINUX	bus	yes	/dev/mem; /proc/iomem	AMD PM2 MMIO registers
+io-asus	hardware	ASUS I/O	LINUX	bus	yes	hwmon nct6775/asus; ioports.txt	ASUS motherboard I/O registers
+io-dump	hardware	I/O port dump	LINUX	bus	yes	ioports.txt (no /dev/port)	I/O port space dump
+io-gpio	hardware	I/O GPIO	LINUX	bus	no	/sys/bus/gpio/devices	GPIO pin states
+io-mmio	hardware	I/O PM2 MMIO	LINUX	bus	yes	/proc/iomem; iomem.txt	AMD PM2 MMIO registers
 io-nforce	hardware	nForce I/O	ABSENT	bus	no	n/a (no NVIDIA nForce chipset)	nForce chipset I/O
-io-ports	hardware	I/O ports	LINUX	bus	yes	/proc/ioports	I/O port assignments
-ip-address	windows	IP address	LINUX	network	no	ip addr; /proc/net/fib_trie	IP addresses per adapter
-ipi-delay	hardware	CPU IPI delay	LINUX	tools	no	internal: inter-CPU ping-pong timing; /sys/devices/system/cpu	inter-processor interrupt latency
-ipi-dmp	hardware	IPI dump	LINUX	tools	no	internal: IPI measurement dump	IPI measurement raw data
-ipi-plots	hardware	CPU IPI plots	LINUX	tools	no	internal: IPI measurement plots	IPI latency plots
-ipmi-dump	hardware	IPMI dump	ABSENT	sensors	no	/dev/ipmi0 (absent)	IPMI SDR dump
-ipmi-info	hardware	IPMI status	ABSENT	sensors	no	/dev/ipmi0 (absent)	IPMI BMC info
-ipmi-time	hardware	IPMI time	ABSENT	sensors	no	/dev/ipmi0 (absent)	IPMI SEL time
-ipmi-wait	hardware	IPMI wait	ABSENT	sensors	no	/dev/ipmi0 (absent)	IPMI wait setting
+io-ports	hardware	I/O ports	LINUX	bus	yes	/proc/ioports; ioports.txt	I/O port assignments
+ip-address	windows	IP address	LINUX	network	no	ip -o addr	IP addresses per adapter
+ipi-delay	hardware	CPU IPI delay	LINUX	tools	no	built-in core-to-core ping-pong	inter-processor interrupt latency
+ipi-dmp	hardware	IPI dump	LINUX	tools	no	built-in core-to-core ping-pong	IPI measurement raw data
+ipi-plots	hardware	CPU IPI plots	LINUX	tools	no	built-in core-to-core ping-pong	IPI latency plots
+ipmi-dump	hardware	IPMI dump	ABSENT	sensors	no	/dev/ipmi0; /sys/class/ipmi	IPMI SDR dump
+ipmi-info	hardware	IPMI status	ABSENT	sensors	no	/dev/ipmi0; /sys/class/ipmi	IPMI BMC info
+ipmi-time	hardware	IPMI time	ABSENT	sensors	no	/dev/ipmi0; /sys/class/ipmi	IPMI SEL time
+ipmi-wait	hardware	IPMI wait	ABSENT	sensors	no	/dev/ipmi0; /sys/class/ipmi	IPMI wait setting
 irports	hardware	IrDA ports	ABSENT	bus	no	n/a (no IrDA)	infrared ports
-isa-bus	hardware	ISA bus	LINUX	bus	no	/sys/bus/pnp/devices; /sys/bus/pnp/devices/*/resources	ISA/LPC devices
-jmb-raid	windows	JMicron JMB RAID	ABSENT	storage	no	n/a (no JMicron controller in lspci)	JMicron JMB RAID config
-jms-raid	windows	JMicron NVMe RAID	ABSENT	storage	no	n/a (no JMicron controller in lspci)	JMicron NVMe RAID config
-joysticks	hardware	Joysticks	LINUX	gpu	no	/dev/input/js0; /proc/bus/input/devices	game controllers
+isa-bus	hardware	ISA bus	LINUX	bus	no	/sys/bus/pnp/devices; /sys/bus/isa	ISA/LPC devices
+jmb-raid	windows	JMicron JMB RAID	ABSENT	storage	no	PCI vendor 197b / USB 152d	JMicron JMB RAID config
+jms-raid	windows	JMicron NVMe RAID	ABSENT	storage	no	PCI vendor 197b / USB 152d	JMicron NVMe RAID config
+joysticks	hardware	Joysticks	LINUX	gpu	no	/sys/class/input/js*; /proc/bus/input/devices	game controllers
 key-names	windows	Key names	LINUX	os	no	xkbcli; /usr/share/X11/xkb/rules/evdev.lst; dumpkeys	scan code to key name table
-kwh-cost	hardware	kWh cost	LINUX	sensors	no	internal: cost x hwmon power; /sys/class/hwmon	electricity cost per hour from power
-languages	tuning	SIV languages	LINUX	siv	no	internal	UI language list
-latency	hardware	Cache latency	LINUX	tools	no	internal: memory latency test; /sys/devices/system/cpu/cpu0/cache	memory latency by size and stride
+kwh-cost	hardware	kWh cost	LINUX	sensors	no	RAPL / zenergy / hwmon power x SRS_KWH_COST	electricity cost per hour from power
+languages	tuning	SIV languages	LINUX	siv	no	internal; LANG/LC_*	UI language list
+latency	hardware	Cache latency	LINUX	tools	no	built-in pointer chase	memory latency by size and stride
 lcd-panel	hardware	LCD panel setup	ABSENT	sensors	no	n/a (no supported LCDSysInfo/AIO LCD)	external LCD panel setup
 lck-setup	tuning	Lock setup	LINUX	siv	no	internal	lock setup information
-ldn-info	hardware	Super I/O LDNs	LINUX	sensors	yes	/dev/port; /sys/module/nct6775	Super I/O logical device registers
-link-devices	hardware	AIO Link devices	ABSENT	sensors	no	n/a (no Corsair iCUE LINK hub); via liquidctl	AIO Link device list
-link-dump	hardware	AIO Link dump	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link raw dump
-link-fans	hardware	AIO Link fans	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link fan feedback
-link-leds	hardware	AIO Link LEDs	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link LED setup
-link-limits	hardware	AIO Link limits	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link sensor limits
-link-power	hardware	AIO Link power	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link power data
-link-setup	hardware	AIO Link setup	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link supported devices
-link-status	hardware	AIO Link status	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link status (AIOSTS)
-link-test	hardware	AIO Link test	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link test (AIOTST)
-link-update	hardware	AIO Link update	ABSENT	sensors	no	n/a (no iCUE LINK hub)	AIO Link firmware update (AIOUPD)
-lm-setup	windows	LAN Manager share setup	LINUX	network	no	testparm -s; /etc/samba/smb.conf	server shares setup
+ldn-info	hardware	Super I/O LDNs	LINUX	sensors	yes	nct6775 platform device; /proc/ioports or ioports.txt; dmesg.txt (root cache)	Super I/O logical device registers
+link-devices	hardware	AIO Link devices	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link device list
+link-dump	hardware	AIO Link dump	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link raw dump
+link-fans	hardware	AIO Link fans	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link fan feedback
+link-leds	hardware	AIO Link LEDs	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link LED setup
+link-limits	hardware	AIO Link limits	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link sensor limits
+link-power	hardware	AIO Link power	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link power data
+link-setup	hardware	AIO Link setup	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link supported devices
+link-status	hardware	AIO Link status	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link status (AIOSTS)
+link-test	hardware	AIO Link test	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link test (AIOTST)
+link-update	hardware	AIO Link update	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	AIO Link firmware update (AIOUPD)
+lm-setup	windows	LAN Manager share setup	LINUX	network	no	testparm -s	server shares setup
 locales	windows	Locales	LINUX	os	no	locale -a; localectl list-locales	system locales with LCID/codepage/country
-lookup	hardware	SIV lookup	LINUX	tools	no	/usr/share/hwdata/pci.ids; /usr/share/hwdata/usb.ids; /usr/share/hwdata/pnp.ids	device ID lookup tool
-mac-address	windows	MAC addresses	LINUX	network	no	/sys/class/net/*/address	adapter MAC addresses
-machine	hardware	Machine	LINUX	machine	no	/sys/class/dmi/id; dmidecode	motherboard, BIOS, chipset, memory summary
+lookup	hardware	SIV lookup	LINUX	tools	no	/usr/share/hwdata/*.ids	device ID lookup tool
+mac-address	windows	MAC addresses	LINUX	network	no	/sys/class/net/*/address; ethtool -P; hwdata oui.txt	adapter MAC addresses
+machine	hardware	Machine	LINUX	machine	no	/sys/class/dmi/id; /run/udev/data/+dmi:id; dmidecode.txt cache	motherboard, BIOS, chipset, memory summary
 machine-opt	hardware	Machine options	LINUX	machine	no	internal; /sys/class/dmi/id	machine panel options
-makers	tuning	Maker icons	LINUX	siv	no	internal	chip maker icon list
+makers	tuning	Maker icons	LINUX	siv	no	pci.ids vendors of present devices	chip maker icon list
 manifest	tuning	SIV manifest	WINONLY	siv	no	none; nearest readelf -n	application manifest
 map-cache	tuning	Mapping cache	WINONLY	siv	no	none (SIV driver mapping)	kernel driver mapping cache
-mapping	windows	Disk mapping	LINUX	storage	no	lsblk -o NAME,MOUNTPOINTS; /dev/disk/by-id	drive letter / volume to disk mapping
+mapping	windows	Disk mapping	LINUX	storage	no	udev by-id/by-path links, mountinfo	drive letter / volume to disk mapping
 map-unmap	tuning	Map/unmap test	WINONLY	siv	no	none (IOCTL_SIV_MAP_UNMAP)	kernel driver map/unmap timing
 mca-bus	hardware	MCA bus	ABSENT	bus	no	n/a (no MicroChannel)	MicroChannel bus
-mch	hardware	Chipset MCH	LINUX	bus	yes	/sys/bus/pci/devices/0000:00:00.0/config; /sys/kernel/ryzen_smu_drv/smn	memory controller hub registers
-mega-raid	windows	LSI MegaRAID	ABSENT	storage	no	n/a (no MegaRAID)	MegaRAID configuration
+mch	hardware	Chipset MCH	LINUX	bus	yes	/sys/bus/pci/devices/0000:00:00.0; pci-all.txt	memory controller hub registers
+mega-raid	windows	LSI MegaRAID	ABSENT	storage	no	PCI vendor 1000	MegaRAID configuration
 mem-heap	windows	Memory heap	LINUX	os	no	/proc/self/smaps; /proc/self/status	process heaps
 mem-map	windows	Memory mapping	LINUX	os	no	/proc/self/maps	module memory map
-memory	hardware	Memory	LINUX	machine	no	/proc/meminfo; /sys/devices/system/memory	physical memory, speed, usage
-mem-tweak	hardware	Memory timings	LINUX	machine	yes	/sys/kernel/ryzen_smu_drv/smn	memory timing registers (UMC)
-menus	tuning	Menus	LINUX	siv	no	internal	menu structure
+memory	hardware	Memory	LINUX	machine	no	/proc/meminfo; /sys/devices/system/memory; edac	physical memory, speed, usage
+mem-tweak	hardware	Memory timings	LINUX	machine	yes	SMBIOS type 17 (SMN timings not read)	memory timing registers (UMC)
+menus	tuning	Menus	LINUX	siv	no	internal: section registry	menu structure
 metrics	windows	System metrics	WINONLY	os	no	none; nearest kscreen-doctor -o	GetSystemMetrics values
-microcode	hardware	Microcode	LINUX	cpu	no	/sys/devices/system/cpu/cpu0/microcode/version; /proc/cpuinfo	microcode revision/update info
+microcode	hardware	Microcode	LINUX	cpu	no	/sys/devices/system/cpu/cpu*/microcode	microcode revision/update info
 mlang	windows	MLang conversions	WINONLY	os	no	none; nearest iconv -l	MLang code page conversions
 modem-api	windows	Modem API	ABSENT	network	no	mmcli -L (no modems)	TAPI modem API data
 modems	windows	Modems	ABSENT	network	no	mmcli -L (no modems)	installed modems
 mon-info	hardware	Monitor ID database	LINUX	gpu	no	/usr/share/hwdata/pnp.ids	monitor device name database (mondevs.txt)
-monitors	windows	Monitors	LINUX	gpu	no	/sys/class/drm/card0-DP-1/edid; edid-decode	monitor EDID: name, serial, size, rates
-monitor-tree	hardware	Monitor tree	LINUX	gpu	no	/sys/class/drm; kscreen-doctor -o	GPU to output to monitor tree
+monitors	windows	Monitors	LINUX	gpu	no	/sys/class/drm/card*-*/edid (decoded); pnp.ids; drm_info	monitor EDID: name, serial, size, rates
+monitor-tree	hardware	Monitor tree	LINUX	gpu	no	/sys/class/drm	GPU to output to monitor tree
 mrh	hardware	Chipset MRH	ABSENT	bus	no	n/a (Intel memory repeater hub)	Intel MRH registers
 ms-dos	windows	DOS device names	LINUX	os	no	/dev/disk/by-id; /dev/disk/by-uuid	DOS device name mappings
-msrs	hardware	MSRs	LINUX	cpu	yes	/dev/cpu/0/msr; rdmsr	model-specific register values
-msr-setup	hardware	MSR setup	LINUX	cpu	yes	/dev/cpu/0/msr; internal	MSR display setup
+msrs	hardware	MSRs	LINUX	cpu	yes	/dev/cpu/*/msr (root)	model-specific register values
+msr-setup	hardware	MSR setup	LINUX	cpu	no	/dev/cpu/*/msr	MSR display setup
 msrs-ibm	hardware	IBM/Cyrix MSRs	ABSENT	cpu	yes	n/a (non-AMD MSR set)	vendor MSR table
-mutex	tuning	Mutex info	LINUX	siv	no	internal	SIV mutex/lock states
-my-browser	windows	My browser / IP location	LINUX	network	no	curl	browser/IP geolocation lookup
-my-ip-address	windows	My IP address	LINUX	network	no	curl; ip addr	public and local IP address
+mutex	tuning	Mutex info	LINUX	siv	no	/proc/locks	SIV mutex/lock states
+my-browser	windows	My browser / IP location	LINUX	network	no	xdg-settings; xdg-mime	browser/IP geolocation lookup
+my-ip-address	windows	My IP address	LINUX	network	no	ip addr; ip route get (local)	public and local IP address
 n2k-srv	windows	N2K service	ABSENT	os	no	n/a (Windows vendor service)	
-net-cards	windows	Network cards	LINUX	network	no	/sys/class/net; lspci -nn	network card list
-net-names	windows	Network provider names	WINONLY	network	no	none; nearest smbclient	network providers (MS network, printers, disks)
+net-cards	windows	Network cards	LINUX	network	no	/sys/class/net/*/device; lspci -nn; ethtool -i	network card list
+net-names	windows	Network provider names	WINONLY	network	no	client tools; /proc/self/mounts	network providers (MS network, printers, disks)
 network	windows	Network	LINUX	network	no	ip addr; /sys/class/net	network summary
 nexgen-nxop	hardware	NexGen NXOP	ABSENT	cpu	no	n/a (NexGen CPU)	NexGen NxOP instruction data
 nls-info	windows	NLS code pages	LINUX	os	no	/usr/share/i18n/charmaps	NLS code page files
-nodes	windows	Network nodes	LINUX	network	no	avahi-browse; ip neigh	network nodes and types
-npu-names	hardware	NPU names	ABSENT	bus	no	/sys/class/accel (empty)	neural processing units
-ntfs	windows	NTFS statistics	LINUX	storage	no	findmnt -t ntfs3	NTFS volume statistics
-numa	hardware	NUMA nodes	LINUX	cpu	no	/sys/devices/system/node; lstopo	NUMA/cache/core relationships
-numa-speeds	hardware	NUMA memory speed	LINUX	cpu	no	internal: memory bandwidth test; /sys/devices/system/node	memory MB/s per NUMA node
+nodes	windows	Network nodes	LINUX	network	no	/sys/devices/system/node	network nodes and types
+npu-names	hardware	NPU names	ABSENT	bus	no	/sys/class/accel	neural processing units
+ntfs	windows	NTFS statistics	LINUX	storage	no	/proc/fs/ntfs3, /sys/fs/{btrfs,ext4,xfs}	NTFS volume statistics
+numa	hardware	NUMA nodes	LINUX	cpu	no	/sys/devices/system/node	NUMA/cache/core relationships
+numa-speeds	hardware	NUMA memory speed	LINUX	cpu	no	/sys/devices/system/node + last Latency run	memory MB/s per NUMA node
 opencl	hardware	OpenCL	LINUX	gpu	no	clinfo	OpenCL platforms and devices
 overview	hardware	Overview	LINUX	machine	no	/etc/os-release; /sys/class/dmi/id; /proc/meminfo	system overview: OS, board, uptime, memory
 paging	windows	Paging files	LINUX	os	no	/proc/swaps; /proc/sys/vm/swappiness	page files usage
-partitions	windows	Partitions	LINUX	storage	no	/proc/partitions; lsblk; blkid	partition layout
+partitions	windows	Partitions	LINUX	storage	no	/sys/class/block/*/{start,size}, udev ID_PART_*	partition layout
 passwords	windows	Credentials	WINONLY	os	no	none; nearest secret-tool	stored WinInet credentials
-pci-all	hardware	PCI all	LINUX	bus	yes	lspci -vvv; /sys/bus/pci/devices/*/config	all PCI devices with config space
+pci-all	hardware	PCI all	LINUX	bus	yes	/sys/bus/pci/devices; pci-all.txt	all PCI devices with config space
 pci-bars	hardware	PCI BARs	LINUX	bus	no	/sys/bus/pci/devices/*/resource	PCI base address registers
-pci-bus	hardware	PCI bus	LINUX	bus	no	/sys/bus/pci/devices; lspci	PCI bus device list
-pci-dev	hardware	PCI devices	LINUX	bus	no	/sys/bus/pci/devices; lspci -nn	PCI device details
-pci-flag	windows	PCI flags	WINONLY	bus	no	none; nearest /proc/cmdline	PCI HAL frigs/flags
-pci-hal	hardware	PCI HAL	LINUX	bus	yes	/proc/iomem; /sys/bus/pci	PCI HAL resource info
-pci-info	hardware	PCI ID database	LINUX	bus	no	/usr/share/hwdata/pci.ids	PCI device name database (pcidevs.txt)
-pci-mmio	hardware	PCI MMIO	LINUX	bus	yes	/sys/firmware/acpi/tables/MCFG; /sys/bus/pci/devices/*/resource0; /proc/iomem	PCI memory-mapped config/MMIO
-pcm-all	hardware	PCMCIA all	ABSENT	bus	no	/sys/class/pcmcia_socket (absent)	PCMCIA devices
-pcm-bus	hardware	PCMCIA bus	ABSENT	bus	no	/sys/class/pcmcia_socket (absent)	PCMCIA bus
+pci-bus	hardware	PCI bus	LINUX	bus	no	/sys/bus/pci/devices; pci.ids	PCI bus device list
+pci-dev	hardware	PCI devices	LINUX	bus	no	/sys/bus/pci/devices; pci.ids	PCI device details
+pci-flag	windows	PCI flags	WINONLY	bus	no	/proc/cmdline	PCI HAL frigs/flags
+pci-hal	hardware	PCI HAL	LINUX	bus	yes	/proc/iomem; /proc/ioports; iomem.txt	PCI HAL resource info
+pci-info	hardware	PCI ID database	LINUX	bus	no	pci.ids	PCI device name database (pcidevs.txt)
+pci-mmio	hardware	PCI MMIO	LINUX	bus	yes	MCFG; /proc/iomem; acpi-tables/MCFG	PCI memory-mapped config/MMIO
+pcm-all	hardware	PCMCIA all	ABSENT	bus	no	/sys/class/pcmcia_socket	PCMCIA devices
+pcm-bus	hardware	PCMCIA bus	ABSENT	bus	no	/sys/class/pcmcia_socket	PCMCIA bus
 pcm-info	hardware	PCMCIA ID database	ABSENT	bus	no	n/a (no PCMCIA)	PCMCIA device name database (pcmdevs.txt)
 pending	windows	Pending file renames	WINONLY	os	no	none	PendingFileRenameOperations
-performance	windows	Disk performance	LINUX	storage	no	/proc/diskstats; /sys/block/nvme0n1/stat	read/write sizes, counts, queue depth
-physical	hardware	Physical memory map	LINUX	machine	no	/sys/firmware/memmap; /proc/meminfo	physical memory ranges
-ping	hardware	Ping network	LINUX	tools	no	ping	ping hosts
+performance	windows	Disk performance	LINUX	storage	no	/proc/diskstats	read/write sizes, counts, queue depth
+physical	hardware	Physical memory map	LINUX	machine	no	/sys/firmware/memmap; iomem.txt cache	physical memory ranges
+ping	hardware	Ping network	LINUX	tools	no	ping (default gateway)	ping hosts
 plm-srv	windows	ProLiant monitor service	ABSENT	os	no	n/a (HP ProLiant)	ProLiant monitor service control
-pm1-area	hardware	I/O PM1 data	LINUX	bus	yes	/sys/firmware/acpi/tables/FACP; /dev/port	ACPI PM1 block I/O registers
-pmb	xxb	PMB info (power monitor buffer)	LINUX	siv	no	/sys/class/hwmon	internal power sensor sample buffer
+pm1-area	hardware	I/O PM1 data	LINUX	bus	yes	acpi-tables/FACP; /proc/ioports	ACPI PM1 block I/O registers
+pmb	xxb	PMB info (power monitor buffer)	LINUX	siv	no	/sys/class/hwmon power*/curr*	internal power sensor sample buffer
 pmb-bus	hardware	PMBus	ABSENT	bus	no	/sys/bus/i2c/devices (no PMBus devices)	PMBus power supplies
-pnp	hardware	PnP manager	LINUX	bus	no	/sys/bus/pnp/devices; udevadm info	PnP manager resource map
+pnp	hardware	PnP manager	LINUX	bus	no	/sys/bus/pnp/devices/*/resources	PnP manager resource map
 pnp-dev	hardware	PnP devices	LINUX	bus	no	/sys/bus/pnp/devices	PnP device list
-pnp-info	hardware	PnP ID database	LINUX	bus	no	/usr/share/hwdata/pnp.ids	PnP device name database (pnpdevs.txt)
-pnp-man	hardware	PnP manager details	LINUX	bus	no	udevadm info --export-db	PnP manager details
-points	windows	Mount points	LINUX	storage	no	findmnt; /proc/mounts	volume mount points
+pnp-info	hardware	PnP ID database	LINUX	bus	no	pnp.ids	PnP device name database (pnpdevs.txt)
+pnp-man	hardware	PnP manager details	LINUX	bus	no	/sys/bus/acpi/devices	PnP manager details
+points	windows	Mount points	LINUX	storage	no	/proc/self/mountinfo	volume mount points
 policies	windows	Windows policies	WINONLY	os	no	none; nearest /etc/polkit-1/rules.d	Windows policy values
 pools	windows	Memory pools	LINUX	os	no	/proc/meminfo; /proc/vmstat	kernel/physical/commit totals
-ports	hardware	COM ports	LINUX	bus	no	/sys/class/tty/ttyS0; /proc/tty/drivers	serial/COM port list
-power	hardware	Power status	LINUX	sensors	no	/sys/class/hwmon/hwmon*/power1_average; /sys/class/hwmon/hwmon*/energy1_input; /sys/class/drm/card0/device/hwmon	power sensor readings
+ports	hardware	COM ports	LINUX	bus	no	/sys/class/tty; /proc/tty/drivers	serial/COM port list
+power	hardware	Power status	LINUX	sensors	no	/sys/class/powercap (RAPL); hwmon power*/energy*; /sys/class/power_supply	power sensor readings
 power-policy	windows	Power policy	LINUX	os	no	cpupower frequency-info; /sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference; powerprofilesctl	system power capabilities/policy
 power-scheme	windows	Power scheme	LINUX	os	no	powerprofilesctl; tuned-adm active	active power scheme
-power-states	hardware	CPU power states	LINUX	cpu	no	/sys/devices/system/cpu/cpu0/cpuidle; /sys/power/state	C-states / sleep states
-present	hardware	Processor features present	LINUX	cpu	no	/proc/cpuinfo	IsProcessorFeaturePresent flags
+power-states	hardware	CPU power states	LINUX	cpu	no	amd_pstate / acpi_cppc, cpuidle, /sys/power	C-states / sleep states
+present	hardware	Processor features present	LINUX	cpu	no	/proc/cpuinfo flags	IsProcessorFeaturePresent flags
 priv	windows	Privileges	LINUX	os	no	/proc/self/status; capsh --print	process privileges/capabilities
 processes	windows	Processes	LINUX	os	no	/proc	processes: PID, parent, user, image
-processor	hardware	Processor	LINUX	cpu	no	/proc/cpuinfo; /sys/devices/system/cpu/cpu0/cache; lscpu	CPU model, family, caches, speeds
-processors	hardware	Processors	LINUX	cpu	no	/sys/devices/system/cpu; lscpu	CPU capabilities and active masks
+processor	hardware	Processor	LINUX	cpu	no	/proc/cpuinfo, cpu*/cache	CPU model, family, caches, speeds
+processors	hardware	Processors	LINUX	cpu	no	/sys/devices/system/cpu/*/topology, /proc/cpuinfo	CPU capabilities and active masks
 product-ids	windows	Product IDs	WINONLY	os	no	none; nearest /etc/machine-id	installed product IDs and keys
 products	windows	Product keys	WINONLY	os	no	none	product activation keys
 profiles	windows	Network profiles	LINUX	network	no	nmcli connection show	network profile settings
-properties	hardware	Device properties	LINUX	bus	no	udevadm info; /sys/bus/pci/devices/*/uevent	device property list
-property	hardware	Device property	LINUX	bus	no	udevadm info	
+properties	hardware	Device properties	LINUX	bus	no	udevadm info --export-db	device property list
+property	hardware	Device property	LINUX	bus	no	udevadm info --export-db	
 protocols	windows	Network protocols	LINUX	network	no	/proc/net/protocols; /etc/protocols	network protocols
-proxy	windows	Proxy config	LINUX	network	no	/etc/environment; kreadconfig6	proxy configuration
-pwm-export	hardware	PWM export	LINUX	sensors	no	/sys/class/hwmon/hwmon*/name; internal: export	PWM data export
+proxy	windows	Proxy config	LINUX	network	no	environment; /etc/environment; kioslaverc; gsettings	proxy configuration
+pwm-export	hardware	PWM export	LINUX	sensors	no	/sys/class/hwmon pwm* -> CSV (read only)	PWM data export
 pyxis	hardware	PYXIS 21174	ABSENT	bus	no	n/a (DEC Alpha chipset)	Alpha 21174 chipset
 qst-status	hardware	QST status	ABSENT	sensors	no	n/a (Intel QST)	Intel Quiet System Technology status
-raid	windows	CSMI RAID	ABSENT	storage	no	/proc/mdstat (absent: no md RAID); mdadm	CSMI RAID storage
+raid	windows	CSMI RAID	ABSENT	storage	no	/proc/mdstat, /sys/block/dm-*/dm, btrfs profiles	CSMI RAID storage
 ranges	windows	Font ranges	LINUX	os	no	fc-query; fc-list	font Unicode ranges
 rdp-info	windows	RDP session info	LINUX	os	no	loginctl list-sessions	terminal session info
-reg-find	hardware	Registry find	LINUX	tools	no	internal: search /etc, /sys, /proc	registry search tool
+reg-find	hardware	Registry find	LINUX	tools	no	/etc, ~/.config	registry search tool
 reg-path	tuning	Remote registry paths	WINONLY	os	no	none	winreg AllowedPaths
 reg-srv	windows	Remote registry service	WINONLY	os	no	none; nearest systemctl status sshd	RemoteRegistry service control
 render-format	windows	Text converter render format	WINONLY	os	no	none	
-rgb-debug	hardware	Colour RGB debug	LINUX	siv	no	internal	colour RGB debug table
-rocket-raid	windows	RocketRAID	ABSENT	storage	no	n/a (no HighPoint controller)	RocketRAID configuration
-routing	windows	Routing table	LINUX	network	no	/proc/net/route; ip route	IP routing table
+rgb-debug	hardware	Colour RGB debug	LINUX	siv	no	internal: palette; SRSDEF.ini	colour RGB debug table
+rocket-raid	windows	RocketRAID	ABSENT	storage	no	PCI vendor 1103	RocketRAID configuration
+routing	windows	Routing table	LINUX	network	no	/proc/net/route; ip -6 route	IP routing table
 rsr-info	hardware	RSR info	WINONLY	gpu	no	none; nearest gamescope FSR	AMD Radeon Super Resolution info
 rst-srv	windows	Intel RST service	ABSENT	os	no	n/a (Intel RST)	IAStorDataMgrSvc control
 rtss-sts	windows	RTSS status	ABSENT	gpu	no	n/a (RivaTuner); nearest mangohud	RTSS shared memory status
 scard	hardware	Smart cards	ABSENT	bus	no	pcsc_scan (no CCID reader; pcscd inactive)	smart card readers
 scheduling	windows	Scheduling	LINUX	os	no	/proc/sys/kernel/sched_autogroup_enabled; /sys/kernel/sched_ext; chrt	scheduler quantum parameters
-scsi	windows	SCSI devices	LINUX	storage	no	/sys/class/scsi_device; lsscsi	SCSI device map
-sdm	xxb	SDM info (storage device monitor)	LINUX	siv	no	/sys/class/block; /sys/class/nvme	internal drive monitor sample buffer
-secnvme	windows	Samsung NVMe (secnvme)	LINUX	storage	yes	/sys/class/nvme; nvme id-ctrl	Samsung NVMe driver data
-sectors	windows	Disk sector sizes	LINUX	storage	no	/sys/block/nvme0n1/queue/logical_block_size; /sys/block/nvme0n1/queue/physical_block_size	sector sizes and alignment
-sen-export	hardware	Sensor export	LINUX	sensors	no	/sys/class/hwmon; internal: export	sensor data export
-sensors	hardware	Sensor status	LINUX	sensors	no	/sys/class/hwmon; sensors	SIO/GPU temperatures, voltages, fans
-sequence	tuning	Sequence setup	LINUX	siv	no	internal	display sequence setup
-serial	hardware	Serial COM ports	LINUX	bus	no	/sys/class/tty/ttyS0; /proc/tty/drivers	serial ports and settings
-servers	windows	Servers	LINUX	network	no	smbclient; nmblookup	network servers and types
+scsi	windows	SCSI devices	LINUX	storage	no	/sys/class/scsi_device, scsi_host	SCSI device map
+sdm	xxb	SDM info (storage device monitor)	LINUX	siv	no	/sys/class/block	internal drive monitor sample buffer
+secnvme	windows	Samsung NVMe (secnvme)	LINUX	storage	yes	/sys/class/nvme (vendor 144d), nvme-<dev>.txt	Samsung NVMe driver data
+sectors	windows	Disk sector sizes	LINUX	storage	no	/sys/block/*/queue, alignment_offset, partition start	sector sizes and alignment
+sen-export	hardware	Sensor export	LINUX	sensors	no	/sys/class/hwmon -> CSV	sensor data export
+sensors	hardware	Sensor status	LINUX	sensors	no	/sys/class/hwmon (all chips); /etc/sensors3.conf labels	SIO/GPU temperatures, voltages, fans
+sequence	tuning	Sequence setup	LINUX	siv	no	internal: default -save order	display sequence setup
+serial	hardware	Serial COM ports	LINUX	bus	no	/sys/class/tty; /proc/tty/drivers	serial ports and settings
+servers	windows	Servers	LINUX	network	no	/proc/net listeners; browse.dat	network servers and types
 services-drv	windows	Driver services	LINUX	os	no	/proc/modules; /sys/module	kernel driver services
 services-w32	windows	Win32 services	LINUX	os	no	systemctl list-units --type=service	services with state
 sessions	windows	Sessions	LINUX	os	no	loginctl; smbstatus -b	network/user sessions
 setup	windows	Setup directories	LINUX	os	no	/etc/os-release; /boot	boot and shared directories
 setup-api	windows	Setup API logging	WINONLY	os	no	none; nearest udevadm control	Setup API logging levels
 sgb-end	tuning	SGB end	LINUX	siv	no	internal	SGB buffer end marker
-sgb-ini	xxb	SGB info (system/board buffer)	LINUX	siv	no	/sys/class/dmi/id	motherboard maker/model/serial and chipset IDs
+sgb-ini	xxb	SGB info (system/board buffer)	LINUX	siv	no	/sys/class/dmi/id; srs-root dmidecode.txt (serial)	motherboard maker/model/serial and chipset IDs
 signing	windows	Driver signing	LINUX	os	no	modinfo; /sys/module/module/parameters/sig_enforce	driver signature info
-sio-dbg	hardware	SIO debug	LINUX	sensors	yes	/dev/port; /sys/module/nct6775	Super I/O debug registers
-si-usb	hardware	SI USB	LINUX	bus	no	lsusb; /sys/bus/usb/devices	
-siv-active	windows	Active SIV instances	LINUX	siv	no	pgrep; /proc	running SIV instances
-siv-autorun	tuning	SIV autorun	LINUX	siv	no	~/.config/autostart	autorun-on-login setting
-siv-dll	tuning	SIV DLLs	LINUX	siv	no	/proc/self/maps	SIV module files and versions
-siv-drv	tuning	SIV driver	WINONLY	siv	no	none (no driver needed); nearest /sys/module	SIV kernel driver state
-siv-ini	tuning	SIVDEF.ini	LINUX	siv	no	internal: config file	sections of the SIV defaults file
+sio-dbg	hardware	SIO debug	LINUX	sensors	no	Super-I/O hwmon driver attributes (read only)	Super I/O debug registers
+si-usb	hardware	SI USB	LINUX	bus	no	/sys/bus/usb/devices (root hubs)	
+siv-active	windows	Active SIV instances	LINUX	siv	no	/proc/*/comm	running SIV instances
+siv-autorun	tuning	SIV autorun	LINUX	siv	no	~/.config/autostart/srs-gui.desktop	autorun-on-login setting
+siv-dll	tuning	SIV DLLs	LINUX	siv	no	/proc/self/maps; hwdata *.ids	SIV module files and versions
+siv-drv	tuning	SIV driver	WINONLY	siv	no	none (no driver needed); srs-root cache	SIV kernel driver state
+siv-ini	tuning	SIVDEF.ini	LINUX	siv	no	~/.config/srs/SRSDEF.ini	sections of the SIV defaults file
 siv-location	tuning	SIV location / window poke	LINUX	siv	no	internal	window location data
-siv-qualifiers	tuning	SIV qualifiers	LINUX	siv	no	internal	default command qualifiers
-siv-quals	tuning	SIV qualifier list	LINUX	siv	no	internal	command qualifier list
-siv-setup	tuning	SIV setup	LINUX	siv	no	internal: config file	SIV settings values
-siv-sizes	tuning	SIV sizes	LINUX	siv	no	internal	internal structure sizes
+siv-qualifiers	tuning	SIV qualifiers	LINUX	siv	no	internal: command line	default command qualifiers
+siv-quals	tuning	SIV qualifier list	LINUX	siv	no	internal: command line	command qualifier list
+siv-setup	tuning	SIV setup	LINUX	siv	no	~/.config/srs/SRSDEF.ini	SIV settings values
+siv-sizes	tuning	SIV sizes	LINUX	siv	no	internal: sizeof	internal structure sizes
 siv-srv	tuning	SIV driver service	WINONLY	siv	no	none	SIVDriver service control
-siv-usage	tuning	SIV usage history	LINUX	siv	no	internal: config file	versions used and dates
-siv-use	tuning	SIV use / update	LINUX	siv	no	curl; internal	SIV usage report / update check
-smart	windows	SMART drives	LINUX	storage	yes	smartctl -a; nvme smart-log	SMART attributes and health
-smart-all	windows	SMART all drives	LINUX	storage	yes	smartctl -x	SMART details for all drives
-smart-sdm	windows	SMART drive monitor	LINUX	storage	yes	smartctl; /sys/class/hwmon/hwmon*/name	SMART up-times/temps monitor
+siv-usage	tuning	SIV usage history	LINUX	siv	no	image / SRSDEF.ini dates	versions used and dates
+siv-use	tuning	SIV use / update	LINUX	siv	no	hwdata *.ids headers (no network)	SIV usage report / update check
+smart	windows	SMART drives	LINUX	storage	yes	srs-root smart-<dev>.txt / nvme-<dev>.txt; hwmon	SMART attributes and health
+smart-all	windows	SMART all drives	LINUX	storage	yes	srs-root smart-<dev>.txt (smartctl -x)	SMART details for all drives
+smart-sdm	windows	SMART drive monitor	LINUX	storage	yes	nvme/drivetemp hwmon + srs-root SMART cache	SMART up-times/temps monitor
 smb	hardware	SMBus	LINUX	bus	no	/sys/bus/i2c/devices/i2c-*/name	SMBus overview
-smb-bus	hardware	SMBus devices	LINUX	bus	no	/sys/bus/i2c/devices; /sys/bus/i2c/drivers/spd5118	SMBus device list
+smb-bus	hardware	SMBus devices	LINUX	bus	no	/sys/bus/i2c/devices	SMBus device list
 smb-end	tuning	SMB end	LINUX	siv	no	internal	SMBus buffer end marker
-smb-ini	tuning	SMB info	LINUX	siv	no	internal; /sys/bus/i2c/devices	SMBus buffer setup
-smb-sts	hardware	SMBus status	LINUX	bus	yes	/dev/port; /proc/ioports	SMBus controller status registers
-smbus-setup	hardware	SMBus setup	LINUX	bus	no	/sys/bus/i2c/devices; internal	SMBus slave ranges/exclusions
-smbus-system	hardware	System SMBus access	LINUX	bus	no	/dev/i2c-1	SMBus access settings
+smb-ini	tuning	SMB info	LINUX	siv	no	/sys/bus/i2c/devices (names only)	SMBus buffer setup
+smb-sts	hardware	SMBus status	LINUX	bus	yes	ioports.txt	SMBus controller status registers
+smbus-setup	hardware	SMBus setup	LINUX	bus	no	/sys/bus/i2c/drivers	SMBus slave ranges/exclusions
+smbus-system	hardware	System SMBus access	LINUX	bus	no	/sys/class/i2c-dev (stat only)	SMBus access settings
 software	windows	Installed software	LINUX	os	no	pacman -Q; flatpak list	installed programs
-sound	hardware	Sound devices	LINUX	gpu	no	aplay -l; /proc/asound/cards	sound devices
-spaces	windows	Storage spaces	LINUX	storage	yes	btrfs filesystem show; lsblk	storage pools
-spd	hardware	SPD (DIMMs)	LINUX	machine	no	/sys/bus/i2c/drivers/spd5118/1-0051/eeprom; decode-dimms	SPD summary and details
-spd-temp	hardware	SPD thermal	LINUX	machine	no	/sys/bus/i2c/drivers/spd5118; /sys/class/hwmon/hwmon*/temp1_input	DIMM temperature sensors
+sound	hardware	Sound devices	LINUX	gpu	no	/proc/asound/cards; /proc/asound/devices	sound devices
+spaces	windows	Storage spaces	LINUX	storage	no	/sys/fs/btrfs, dm/md sysfs	storage pools
+spd	hardware	SPD (DIMMs)	LINUX	machine	no	spd.txt cache (decode-dimms); SMBIOS type 17	SPD summary and details
+spd-temp	hardware	SPD thermal	LINUX	machine	no	/sys/class/hwmon (spd5118) temp1_*	DIMM temperature sensors
 speculation	windows	Speculation control	LINUX	cpu	no	/sys/devices/system/cpu/vulnerabilities	speculation control mitigations
 startup	windows	Startup programs	LINUX	os	no	/etc/xdg/autostart; ~/.config/autostart; systemctl list-unit-files	startup programs
-states	tuning	Lock states	LINUX	siv	no	internal	
+states	tuning	Lock states	LINUX	siv	no	/proc/self/task/*/stat,wchan	
 stc	xxb	STC info (thread contexts)	LINUX	siv	no	/proc/self/task	SIV thread contexts
-stornvme	windows	NVMe (stornvme)	LINUX	storage	yes	/sys/class/nvme; nvme id-ctrl	NVMe controller data
-synthetic	hardware	Synthetic sensors setup	LINUX	sensors	no	internal; /sys/class/hwmon	synthetic temperature setup
+stornvme	windows	NVMe (stornvme)	LINUX	storage	yes	/sys/class/nvme, nvme-<dev>.txt	NVMe controller data
+synthetic	hardware	Synthetic sensors setup	LINUX	sensors	no	lm-sensors compute lines: /etc/sensors3.conf, /etc/sensors.d/*	synthetic temperature setup
 sys-hal	hardware	System HAL resources	LINUX	bus	yes	/proc/iomem; /proc/ioports	HAL resource map
-sys-res	hardware	System resources	LINUX	bus	yes	/proc/iomem; /proc/ioports; /proc/interrupts	system resource map
+sys-res	hardware	System resources	LINUX	bus	yes	/proc/interrupts; /proc/dma; /proc/ioports; /proc/iomem	system resource map
 system	hardware	System	LINUX	os	no	/etc/os-release; uname	OS version, install date, product
-system-cmos	hardware	System CMOS	LINUX	machine	yes	/dev/nvram; /dev/port	CMOS RAM dump
-system-ebda	hardware	System EBDA	LINUX	machine	yes	/dev/mem	extended BIOS data area
-system-ids	hardware	BIOS IDs	LINUX	machine	yes	/sys/class/dmi/id/product_uuid; /sys/class/dmi/id	system IDs
+system-cmos	hardware	System CMOS	LINUX	machine	yes	/dev/nvram (not read)	CMOS RAM dump
+system-ebda	hardware	System EBDA	LINUX	machine	yes	/dev/mem (not read); /sys/firmware/memmap; iomem.txt cache	extended BIOS data area
+system-ids	hardware	BIOS IDs	LINUX	machine	yes	/sys/class/dmi/id; dmidecode.txt cache	system IDs
 sys-tim	windows	System timers	LINUX	os	no	/sys/devices/system/clocksource/clocksource0; /sys/devices/system/clockevents	system timer resolution
 sys-win	windows	System windows	WINONLY	os	no	none; nearest wmctrl -l	top-level window handles
-tcp-ip4-ports	windows	TCP V4 ports	LINUX	network	no	/proc/net/tcp; ss -tn4	TCP IPv4 connections
-tcp-ip6-ports	windows	TCP V6 ports	LINUX	network	no	/proc/net/tcp6; ss -tn6	TCP IPv6 connections
-thermal-zones	hardware	Thermal zones	ABSENT	sensors	no	/sys/class/thermal (no thermal_zone*)	ACPI thermal zones (THERMAL)
-thunder	hardware	Thunderbolt	ABSENT	bus	no	/sys/bus/thunderbolt (absent)	Thunderbolt devices
+tcp-ip4-ports	windows	TCP V4 ports	LINUX	network	no	/proc/net/tcp; /proc/*/fd	TCP IPv4 connections
+tcp-ip6-ports	windows	TCP V6 ports	LINUX	network	no	/proc/net/tcp6; /proc/*/fd	TCP IPv6 connections
+thermal-zones	hardware	Thermal zones	ABSENT	sensors	no	/sys/class/thermal (thermal_zone*, cooling_device*)	ACPI thermal zones (THERMAL)
+thunder	hardware	Thunderbolt	LINUX	bus	no	/sys/bus/thunderbolt; PCI class 0C0340	Thunderbolt devices
 tid-win	windows	Thread windows	WINONLY	os	no	none; nearest wmctrl -lp	windows per thread
 time	windows	Time	LINUX	os	no	timedatectl; /etc/localtime	time and time zone
 times	windows	Times	LINUX	os	no	timedatectl show-timesync	
 tpm-device	hardware	TPM device	LINUX	machine	no	/sys/class/tpm/tpm0	TPM version and info
-translation	hardware	Bus address translation	LINUX	bus	no	/sys/bus/pci/devices/*/resource; /sys/bus/pci/devices/*/config	HalTranslateBusAddress results
-transports	windows	Network transports	LINUX	network	no	/proc/net/protocols; nmblookup	network transports
-tune	tuning	Tune system	LINUX	siv	no	sysctl -a; /proc/sys	tuning values: default/current/other
-tuning	tuning	Tuning	LINUX	siv	no	sysctl -a; /proc/sys	tuning section
-turbo-boost	hardware	CPU turbo boost	LINUX	cpu	no	/sys/devices/system/cpu/cpufreq/boost; /sys/devices/system/cpu/cpu0/cpufreq/amd_pstate_prefcore_ranking	turbo/boost status and core ranking
-tzm	xxb	TZM info (thermal zone buffer)	LINUX	siv	no	/sys/class/thermal; /sys/class/hwmon	internal thermal zone sample buffer
-uaa-dev	hardware	UAA (HD Audio) devices	LINUX	gpu	no	/proc/asound/cards; /sys/class/sound	HD audio codecs
-udp-ip4-ports	windows	UDP V4 ports	LINUX	network	no	/proc/net/udp; ss -un4	UDP IPv4 endpoints
-udp-ip6-ports	windows	UDP V6 ports	LINUX	network	no	/proc/net/udp6; ss -un6	UDP IPv6 endpoints
-uefi-data	hardware	UEFI data	LINUX	machine	no	/sys/firmware/efi/efivars; efivar -l	UEFI variable data
-uefi-info	hardware	UEFI information	LINUX	machine	no	/sys/firmware/efi; mokutil --sb-state; bootctl	SecureBoot / UEFI info
-uid-info	hardware	UID database	LINUX	bus	no	/usr/share/hwdata/usb.ids	
-ups-export	hardware	UPS export	ABSENT	sensors	no	apcaccess (apcupsd inactive, no UPS)	UPS data export
-usb-all	hardware	USB all	LINUX	bus	no	/sys/bus/usb/devices; lsusb -v	all USB devices with descriptors
-usb-bus	hardware	USB bus	LINUX	bus	no	/sys/bus/usb/devices; lsusb -t	USB bus tree
-usb-dev	hardware	USB devices	LINUX	bus	no	/sys/bus/usb/devices; lsusb	USB device list
-usb-disks	windows	USB disk drives	LINUX	storage	no	lsblk -o NAME,TRAN,MODEL; /sys/class/block	USB disks and bridges
-usb-flag	windows	USB flags	LINUX	bus	no	/sys/module/usbcore/parameters/quirks	UsbFlags per-device settings
-usb-flags	hardware	USB flags detail	LINUX	bus	no	/sys/module/usbcore/parameters/quirks	USB flags detail
-usb-info	hardware	USB ID database	LINUX	bus	no	/usr/share/hwdata/usb.ids	USB device name database (usbdevs.txt)
-usb-names	hardware	USB names	LINUX	bus	no	/sys/bus/usb/devices/*/product; /usr/share/hwdata/usb.ids	USB device names
+translation	hardware	Bus address translation	LINUX	bus	no	/sys/bus/pci/devices/*/resource	HalTranslateBusAddress results
+transports	windows	Network transports	LINUX	network	no	/proc/net/sockstat{,6}	network transports
+tune	tuning	Tune system	LINUX	siv	no	/proc/sys	tuning values: default/current/other
+tuning	tuning	Tuning	LINUX	siv	no	tuned; cpufreq; sched_ext; THP; I/O schedulers	tuning section
+turbo-boost	hardware	CPU turbo boost	LINUX	cpu	no	cpufreq boost, amd_pstate	turbo/boost status and core ranking
+tzm	xxb	TZM info (thermal zone buffer)	LINUX	siv	no	/sys/class/thermal	internal thermal zone sample buffer
+uaa-dev	hardware	UAA (HD Audio) devices	LINUX	gpu	no	/proc/asound/card*/codec#*; eld#*; /sys/class/sound/hwC*	HD audio codecs
+udp-ip4-ports	windows	UDP V4 ports	LINUX	network	no	/proc/net/udp; /proc/*/fd	UDP IPv4 endpoints
+udp-ip6-ports	windows	UDP V6 ports	LINUX	network	no	/proc/net/udp6; /proc/*/fd	UDP IPv6 endpoints
+uefi-data	hardware	UEFI data	LINUX	machine	no	/sys/firmware/efi/efivars	UEFI variable data
+uefi-info	hardware	UEFI information	LINUX	machine	no	/sys/firmware/efi; efivars (SecureBoot, Boot####)	SecureBoot / UEFI info
+uid-info	hardware	UID database	LINUX	bus	no	usb.ids	
+ups-export	hardware	UPS export	ABSENT	sensors	no	apcaccess / upsc presence; /sys/class/power_supply UPS	UPS data export
+usb-all	hardware	USB all	LINUX	bus	no	/sys/bus/usb/devices	all USB devices with descriptors
+usb-bus	hardware	USB bus	LINUX	bus	no	/sys/bus/usb/devices; usb.ids	USB bus tree
+usb-dev	hardware	USB devices	LINUX	bus	no	/sys/bus/usb/devices	USB device list
+usb-disks	windows	USB disk drives	LINUX	storage	no	/sys/block -> USB device sysfs	USB disks and bridges
+usb-flag	windows	USB flags	LINUX	bus	no	/sys/module/usbcore/parameters	UsbFlags per-device settings
+usb-flags	hardware	USB flags detail	LINUX	bus	no	/sys/module/usbcore/parameters; */quirks	USB flags detail
+usb-info	hardware	USB ID database	LINUX	bus	no	usb.ids	USB device name database (usbdevs.txt)
+usb-names	hardware	USB names	LINUX	bus	no	/sys/bus/usb/devices/*/product; usb.ids	USB device names
 usb-owner	hardware	USB owner	LINUX	bus	no	/sys/bus/usb/devices/*/driver	USB owning driver
-usb-tree	hardware	USB tree	LINUX	bus	no	lsusb -t; /sys/bus/usb/devices	USB device tree
+usb-tree	hardware	USB tree	LINUX	bus	no	/sys/bus/usb/devices	USB device tree
 users	windows	Users	LINUX	os	no	/etc/passwd; getent passwd	user accounts
 verifier	windows	Driver verifier	WINONLY	os	no	none; nearest /proc/sys/kernel/tainted	Driver Verifier settings
 virtual	windows	Virtual memory	LINUX	os	no	/proc/meminfo; /proc/self/status	virtual memory totals
-vol-list	windows	Volume list	LINUX	storage	no	lsblk -f; findmnt	volume list
-volumes	windows	Volumes	LINUX	storage	no	df; findmnt; /proc/mounts	volumes: label, format, free, total
-vroc	windows	Intel VROC	ABSENT	storage	no	n/a (Intel VROC)	Intel VROC + NVMe configuration
+vol-list	windows	Volume list	LINUX	storage	no	/sys/class/block, udev database, mountinfo	volume list
+volumes	windows	Volumes	LINUX	storage	no	/proc/self/mountinfo, statvfs, udev ID_FS_*	volumes: label, format, free, total
+vroc	windows	Intel VROC	ABSENT	storage	no	PCI 8086 class 0104 (RAID/VMD)	Intel VROC + NVMe configuration
 vs-paths	windows	Visual Studio paths	WINONLY	os	no	none	Visual Studio installation paths
 watson	windows	Dr Watson / crash debugger	LINUX	os	no	/proc/sys/kernel/core_pattern; coredumpctl	AeDebug crash debugger settings
-wave	hardware	Wave devices	LINUX	gpu	no	aplay -l; arecord -l	wave in/out devices
+wave	hardware	Wave devices	LINUX	gpu	no	/proc/asound/pcm; card*/pcm*/sub0/hw_params	wave in/out devices
 wer	windows	Error reporting	LINUX	os	no	/etc/systemd/coredump.conf; coredumpctl	Windows Error Reporting settings
-wi-fi	windows	Wi-Fi SSIDs	LINUX	network	no	nmcli device wifi list; iw dev	visible Wi-Fi networks
+wi-fi	windows	Wi-Fi SSIDs	LINUX	network	no	iw dev; /proc/net/wireless; nmcli wifi list --rescan no	visible Wi-Fi networks
 win-ce	windows	Windows CE devices	WINONLY	os	no	none	Windows CE / ActiveSync devices
 windows	windows	Windows (OS) panel	LINUX	os	no	/etc/os-release; uname; hostnamectl	OS version, user, uptime, locale
 winsat	windows	WinSAT	WINONLY	os	no	none	WinSAT assessment scores
-wlan	windows	WLAN profiles	LINUX	network	yes	nmcli connection show; /etc/NetworkManager/system-connections	WLAN profiles
+wlan	windows	WLAN profiles	LINUX	network	yes	nmcli connection show (no secrets)	WLAN profiles
 words	tuning	Words	LINUX	siv	no	internal	translated words list
-wpd-tree	hardware	WPD tree (portable devices)	LINUX	bus	no	udevadm info; gio mount -l	portable (MTP) device tree
+wpd-tree	hardware	WPD tree (portable devices)	LINUX	bus	no	USB class 06; udev ID_MTP_DEVICE	portable (MTP) device tree
 xeon-pir	hardware	Xeon PIRs	ABSENT	cpu	no	n/a (Intel Xeon only)	Xeon processor information ROM
 xmc	hardware	XMC cards	ABSENT	bus	no	n/a (no Xilinx XMC card)	XMC card summary
 xmc-card-0	hardware	XMC card 0	ABSENT	bus	no	n/a (no XMC card)	XMC card 0

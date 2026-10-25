@@ -2776,7 +2776,7 @@ const srs_item sec_machine[] = {
     { "machine-opt", "hardware", "Machine options", B_LINUX, 0, "internal; /sys/class/dmi/id", s_machine_opt, 0, "machine" },
     { "overview", "hardware", "Overview", B_LINUX, 0, "/etc/os-release; /sys/class/dmi/id; /proc/meminfo", s_overview, 1000, "machine" },
     { "hardware", "hardware", "Hardware summary", B_LINUX, 0, "/sys/class/dmi/id; /proc/cpuinfo; lspci -mm", s_hardware, 0, "machine" },
-    { "dimms", "hardware", "DIMMs", B_LINUX, 1, "SMBIOS type 17 via /run/udev/data/+dmi:id or dmidecode.txt; spd5118", s_dimms, 0, "machine" },
+    { "dimms", "hardware", "DIMMs", B_LINUX, 0, "SMBIOS type 17 via /run/udev/data/+dmi:id or dmidecode.txt; spd5118", s_dimms, 0, "machine" },
     { "dimm-status", "hardware", "DIMM status/temperatures", B_LINUX, 0, "/sys/class/hwmon (spd5118)", s_dimm_status, 2000, "machine" },
     { "spd", "hardware", "SPD (DIMMs)", B_LINUX, 0, "spd.txt cache (decode-dimms); SMBIOS type 17", s_spd, 0, "machine" },
     { "spd-temp", "hardware", "SPD thermal", B_LINUX, 0, "/sys/class/hwmon (spd5118) temp1_*", s_spd_temp, 2000, "machine" },

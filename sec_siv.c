@@ -1776,7 +1776,7 @@ const srs_item sec_siv[] = {
     { "dsb", "xxb", "DSB info (DIMM sensor buffer)", B_LINUX, 0, "/sys/class/hwmon (spd5118, jc42)", s_dsb, 2000, "siv" },
     { "emoji", "tuning", "Emoji glyph test", B_LINUX, 0, "fc-list; internal", s_emoji, 0, "siv" },
     { "fak-imcs", "tuning", "Fake IMCs", B_ABSENT, 0, "n/a (Intel Xeon ICX IMC fixtures)", s_fak_imcs, 0, "siv" },
-    { "fak-mchbar", "tuning", "Fake MCHBAR", B_LINUX, 1, "none (no /dev/mem access; no replay mode)", s_fak_mchbar, 0, "siv" },
+    { "fak-mchbar", "tuning", "Fake MCHBAR", B_LINUX, 0, "none (no /dev/mem access; no replay mode)", s_fak_mchbar, 0, "siv" },
     { "fak-pmts", "tuning", "Fake PM tables", B_LINUX, 0, "/sys/kernel/ryzen_smu_drv (presence only)", s_fak_pmts, 0, "siv" },
     { "fak-spds", "tuning", "Fake SPDs", B_LINUX, 0, "hwmon spd5118/jc42; srs-root spd.txt", s_fak_spds, 0, "siv" },
     { "filter", "tuning", "Filter", B_LINUX, 0, "internal: display filter", s_filter, 0, "siv" },
