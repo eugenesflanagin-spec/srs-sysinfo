@@ -1,0 +1,19 @@
+.TH SRS-SYSREPORT 1 "October 2026" "srs-sysinfo 1.1.0" "User Commands"
+.SH NAME
+srs-sysreport \- write a full text system report
+.SH SYNOPSIS
+.B srs-sysreport
+.SH DESCRIPTION
+Writes a dated folder
+.I ~/sysreports/sysreport-YYYYMMDD-HHMMSS/
+with one text file per section (inxi, lscpu, sensors, lspci, lsusb, dmidecode,
+lshw, hwinfo and more, as far as the tools are installed) and an
+.I index.html
+linking them, then opens it. Sections that need root note this in the index.
+The folder can be searched with
+.BR sysreport-search (1)
+and from the Find panel of
+.BR srs-gui (1).
+.SH SEE ALSO
+.BR srs-gui (1),
+.BR sysreport-search (1)

@@ -1,0 +1,61 @@
+.TH SRS-GUI 1 "October 2026" "srs-sysinfo 1.1.0" "User Commands"
+.SH NAME
+srs-gui \- SRS system information viewer (GTK 3)
+.SH SYNOPSIS
+.B srs-gui
+[\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR]
+.br
+.B srs-gui
+\fB\-\-help\fR | \fB\-\-version\fR
+.SH DESCRIPTION
+.B srs-gui
+is the graphical front end of SRS, a Linux system information viewer inspired by
+SIV64X (System Information Viewer by Ray Hinchliffe, RH Software) and built to improve on it.
+SRS is an independent project, not affiliated with SIV or its author. It shows CPU,
+memory, sensor, storage, bus, GPU, network and operating-system information,
+and includes a CPU burn-in / stress tester and benchmarks.
+SRS is not affiliated with or endorsed by RH Software.
+.PP
+Root-only data (SMBIOS serials, DIMM SPD, SMART, ACPI tables, MSRs) is read
+from a cache filled by
+.BR srs-root (1).
+.SH OPTIONS
+.TP
+.BI \-\-gui\-open= PANEL
+Open the named panels at start, for example
+.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " idlookup ", " find .
+.TP
+.B \-\-gui\-tray
+start in the system tray.
+.TP
+.BR \-\-help ", " \-\-version
+Print the command-line help or the version and exit (these are shared with
+.BR sysreport-search (1)).
+.SH USER GUIDE
+Every panel has a \fBGuide\fR button (also \fBF1\fR, and "Open guide for this item"
+in its right-click menu) that opens the user guide at that item's section: in
+Okular, Evince or Papers at the right page, otherwise the HTML guide in the web
+browser. \fBMenu \(-> User Guide...\fR opens the start; \fBShift+F1\fR opens the Help panel.
+.SH ENVIRONMENT
+.TP
+.B SRS_OPEN
+panels to open at start, as for \fB\-\-gui\-open\fR.
+.TP
+.B SRS_DOC_DIR
+directory holding the user guide (default /usr/share/doc/srs-sysinfo).
+.SH FILES
+.TP
+.I /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf, /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
+the user guide (PDF and HTML), with its Markdown sources in the same folder.
+.TP
+.I ~/.cache/srs/root/
+root-only data collected by srs-root.
+.TP
+.I /usr/share/hwdata/pci.ids, /usr/share/hwdata/usb.ids
+device name databases.
+.SH SEE ALSO
+.BR sysreport-search (1),
+.BR srs-root (1),
+.BR srs-sysreport (1)
+.SH HOMEPAGE
+https://github.com/eugenesflanagin-spec/srs-sysinfo

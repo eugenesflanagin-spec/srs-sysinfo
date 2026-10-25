@@ -1,0 +1,63 @@
+.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 1.1.0" "User Commands"
+.SH NAME
+sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
+.SH SYNOPSIS
+.B sysreport-search
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR} ...
+.SH DESCRIPTION
+SIV-style search for the native system report written by
+.BR srs-sysreport (1),
+device-ID lookups against the hwdata databases, the report items of
+.BR srs-gui (1)
+as text, and the CPU benchmarks and stress test.
+.SH COMMANDS
+.TP
+\fBid\fR \fIVVVV\fR[:\fIDDDD\fR[:\fISSSS\fR:\fIssss\fR]][:\fIRR\fR] [\fB\-\-bus\fR pci|usb] [\fB\-\-mode\fR tree|scan|info]
+hierarchical device-ID lookup, most specific key first.
+.TP
+\fBfind\fR \fIPATTERN\fR [\fB\-\-report\fR \fIDIR\fR] [\fB\-i\fR] [\fB\-F\fR] [\fB\-\-max\fR \fIN\fR] [\fB\-\-color\fR auto|always|never]
+regular-expression search across a report's sections with highlighted matches.
+.TP
+\fBdevices\fR [\fB\-\-bus\fR pci|usb|all]
+resolve every local PCI/USB device.
+.TP
+\fB\-save\fR[=[\fIitem\fR][\fIitem\fR:\fIarg\fR]...][=\fIFILE\fR|STDOUT] [\fB\-\-redact\fR]
+render report items as text (no items = the default set, [all] = every item).
+\fB\-\-redact\fR masks serial numbers, UUIDs, MAC addresses (vendor half kept),
+boot/machine IDs and the host name, for reports you share.
+Quote the argument in zsh or fish ([..] is a glob there).
+.TP
+\fB\-\-list\fR
+list every item: id, category, bucket, group, title.
+.TP
+\fBguide\fR [\fIITEM\fR] [\fB\-\-print\fR]
+open the user guide at \fIITEM\fR's section (PDF viewer, else the HTML guide);
+\fB\-\-print\fR only shows the section and the command that would run.
+.TP
+\fBburn\fR [\fB\-\-threads\fR \fIN\fR | \fB\-\-cpus\fR \fILIST\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-mode\fR same|swap] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-cool\fR \fIS\fR] [\fB\-\-cycles\fR \fIN\fR]
+CPU burn-in with a temperature limit (default 10 s, limit 90 C).
+.TP
+\fBbench\fR {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [\fB\-\-seconds\fR \fIS\fR]
+Dhrystone / Whetstone in a SIV benchmark mode (0.1..60 s per measurement).
+.TP
+\fBipi\fR [\fB\-\-cpus\fR \fIN\fR] [\fB\-\-rounds\fR \fIR\fR]
+core-to-core (cache-line ping-pong) latency matrix.
+.TP
+\fBlatency\fR [\fB\-\-max\fR \fIMB\fR]
+memory latency by block size, up to \fIMB\fR (1..4096, default 256).
+.PP
+\fBburn\fR, \fBbench\fR, \fBipi\fR and \fBlatency\fR load the CPU and only run when asked.
+Run
+.B sysreport-search \-\-help
+for the full option list.
+.SH ENVIRONMENT
+.TP
+.B SRS_DOC_DIR
+directory holding SRS-User-Guide.pdf and html/ (default /usr/share/doc/srs-sysinfo).
+.SH FILES
+.TP
+.I /usr/share/doc/srs-sysinfo/
+the user guide (SRS-User-Guide.pdf, html/SRS-User-Guide.html), CLI-REFERENCE.md and GLOSSARY.md.
+.SH SEE ALSO
+.BR srs-gui (1),
+.BR srs-sysreport (1)

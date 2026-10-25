@@ -1,0 +1,11 @@
+srs-sysinfo (1.1.0-1) unstable; urgency=medium
+
+  * Package of upstream release 1.1.0 (see CHANGELOG.md).
+
+ -- Eugene Flanagin <eflanagin@pm.me>  Sun, 25 Oct 2026 18:00:00 +0000
+
+srs-sysinfo (1.0.8-1) unstable; urgency=medium
+
+  * Native package of upstream release 1.0.8 (see CHANGELOG.md).
+
+ -- Eugene Flanagin <eflanagin@pm.me>  Sun, 25 Oct 2026 12:00:00 +0000

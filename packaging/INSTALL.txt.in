@@ -1,0 +1,42 @@
+SRS (srs-sysinfo) @VERSION@ - generic Linux x86_64 build
+@UNDERLINE@
+
+What this is: the same programs and files as @BUILT_FROM@, unpacked into a
+plain directory so they can be used on other distributions. Built for plain
+x86-64 (no AVX-512 or other CPU-specific code).
+
+Needs glibc @GLIBC@ or newer (check with: ldd --version). Older systems: use the
+.deb/.rpm for your distribution from the release page instead.
+
+Files (laid out like /usr):
+  usr/bin/srs-gui            GTK 3 GUI (with arguments it behaves like the CLI)
+  usr/bin/sysreport-search   command-line tool
+  usr/bin/srs-root           helper that collects root-only data (pkexec / sudo)
+  usr/bin/srs-sysreport      full text/HTML system report script
+  usr/lib/systemd/system/srs-root@.service   optional "refresh root data at boot" unit
+  usr/share/...              menu entries, icon, docs and user guide, licence
+
+Needed at run time
+  - glibc @GLIBC@+, GTK 3 (libgtk-3-0 / gtk3), GLib, Pango, Cairo
+  - hwdata (PCI/USB name database, read from /usr/share/hwdata)
+  - optional: libayatana-appindicator3 (tray icon), polkit (srs-root prompt),
+    dmidecode, smartmontools, nvme-cli, i2c-tools, pciutils, usbutils, lm-sensors,
+    vulkan-tools, clinfo, mesa-utils, inxi, lshw, hwinfo
+
+Try it without installing
+  ./usr/bin/srs-gui
+  ./usr/bin/sysreport-search --version
+
+Install system-wide (recommended: /usr/local)
+  sudo cp -r usr/bin usr/share /usr/local/
+  sudo update-desktop-database /usr/local/share/applications 2>/dev/null || true
+  sudo gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+
+  The boot-time unit expects /usr/bin/srs-root. If you installed to /usr/local and want it:
+    sed 's|/usr/bin/srs-root|/usr/local/bin/srs-root|' usr/lib/systemd/system/srs-root@.service \
+      | sudo tee /etc/systemd/system/srs-root@.service >/dev/null
+    sudo systemctl daemon-reload
+
+Uninstall: remove the same files from /usr/local (see the file list in this tarball).
+
+Arch Linux users: use the .pkg.tar.zst from the release or the AUR package srs-sysinfo instead.

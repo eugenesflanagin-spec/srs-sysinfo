@@ -1,0 +1,2 @@
+# xdg-open comes from xdg-utils, which is in Depends
+srs-sysinfo: desktop-command-not-in-package xdg-open [usr/share/applications/srs-user-guide.desktop]

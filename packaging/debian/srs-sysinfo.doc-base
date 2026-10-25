@@ -1,0 +1,13 @@
+Document: srs-sysinfo
+Title: SRS User Guide
+Author: Eugene Flanagin
+Abstract: User guide and section-by-section reference for SRS, the Linux
+ system information viewer: every window, option, command and report item.
+Section: System/Administration
+
+Format: PDF
+Files: /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf
+
+Format: HTML
+Index: /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
+Files: /usr/share/doc/srs-sysinfo/html/*.html

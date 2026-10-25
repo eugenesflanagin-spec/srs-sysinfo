@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) CC=gcc native
+
+override_dh_auto_install:
+	$(MAKE) CC=gcc DESTDIR=$(CURDIR)/debian/srs-sysinfo SYSPREFIX=/usr install-system
+	# the licence text is in debian/copyright (Debian policy 12.5)
+	rm -rf $(CURDIR)/debian/srs-sysinfo/usr/share/licenses
+
+# CHANGELOG.md stays in /usr/share/doc/srs-sysinfo/ (the user guide lists it there);
+# a copy is also installed as the Debian upstream changelog.gz
+override_dh_installchangelogs:
+	dh_installchangelogs CHANGELOG.md
+
+# the app opens /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf#dest and
+# html/SRS-User-Guide.html#dest by name: the guide tree must stay uncompressed
+override_dh_compress:
+	dh_compress -X.pdf -X.html -X.css -X.md -X.png -X.svg
+
+override_dh_auto_clean:
+	$(MAKE) clean
+
+# srs-root@.service is a per-user template, enabled from the GUI (Options menu)
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start

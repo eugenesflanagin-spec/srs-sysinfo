@@ -1,0 +1,32 @@
+.TH SRS-ROOT 1 "October 2026" "srs-sysinfo 1.1.0" "User Commands"
+.SH NAME
+srs-root \- collect root-only hardware data for srs-gui
+.SH SYNOPSIS
+.B pkexec srs-root
+.br
+.B srs-root \-\-user
+.I NAME
+.SH DESCRIPTION
+Collects data that only root can read and hands it to the invoking user in
+.IR ~/.cache/srs/root/ :
+dmidecode, decode-dimms (DIMM SPD), smartctl and nvme SMART logs, MSR reads,
+full PCI configuration space and copies of the ACPI tables.
+It only reads from the hardware; nothing is written to devices.
+USB-attached disks are skipped for SMART unless
+.B SRS_SMART_USB=1
+is set.
+.PP
+.B srs-gui
+runs it through
+.BR pkexec (1)
+(one password prompt). The template unit
+.B srs-root@.service
+runs it once per boot for one user, as
+.BR "srs-root \-\-user " NAME ;
+srs-gui enables it from Menu \(-> Options \(-> Refresh root data at boot.
+.SH OPTIONS
+.TP
+.BI \-\-user " NAME"
+collect for user NAME (root only; used by srs-root@NAME.service).
+.SH SEE ALSO
+.BR srs-gui (1)
