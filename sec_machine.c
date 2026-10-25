@@ -1848,7 +1848,18 @@ static void s_acpi_tables(srs_out *o)
         static const int t1[] = { 180 };
         list_free(v, n);
         so_tabs(o, t1, 1);
-        if (len >= 36) {
+        if (len >= 64 && !memcmp(d, "FACS", 4)) {
+            so_kv(o, "Signature", C_BLACK, "FACS (no standard ACPI header)");
+            so_kvf(o, "Length", C_VALUE, "%u", le32(d + 4));
+            so_kvf(o, "Hardware Signature", C_VALUE, "0x%08X", le32(d + 8));
+            so_kvf(o, "Firmware Waking Vector", C_PURPLE, "0x%08X", le32(d + 12));
+            so_kvf(o, "Global Lock", C_VALUE, "0x%08X", le32(d + 16));
+            so_kvf(o, "Flags", C_VALUE, "0x%08X%s", le32(d + 20), le32(d + 20) & 1 ? "  S4BIOS_F" : "");
+            so_kvf(o, "X Firmware Waking Vector", C_PURPLE, "0x%016llX", (unsigned long long)le64(d + 24));
+            so_kvf(o, "Version", C_VALUE, "%u", d[32]);
+            so_par(o);
+            hexdump(o, d, len, 4096);
+        } else if (len >= 36) {
             acpi_hdr h;
             acpi_hdr_parse(d, len, &h);
             acpi_hdr_rows(o, &h);
@@ -1869,6 +1880,20 @@ static void s_acpi_tables(srs_out *o)
         int len = acpi_load(v[i], &d);
         snprintf(p, sizeof p, ACPI_TAB "/%s", v[i]);
         snprintf(c[0], 48, "%s", v[i]);
+        if (len >= 64 && !strncmp(v[i], "FACS", 4) && !memcmp(d, "FACS", 4)) {
+            /* FACS has no standard header: signature, length, hardware signature, waking vector,
+               global lock, flags, X waking vector, version - no checksum / OEM fields */
+            snprintf(c[1], 48, "%u", le32(d + 4));
+            snprintf(c[2], 48, "%u", d[32]);
+            snprintf(c[3], 48, "-");
+            snprintf(c[4], 48, "HW sig %08X", le32(d + 8));
+            c[5][0] = c[6][0] = c[7][0] = c[8][0] = 0;
+            cached++;
+            so_row(o, 9, (const char *const[]){ c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8] },
+                   (const int[]){ C_BLACK, C_VALUE, C_VALUE, C_GRAY, C_GRAY, C_GRAY, C_GRAY, C_GRAY, C_GRAY });
+            free(d);
+            continue;
+        }
         if (len >= 36) {
             acpi_hdr h;
             acpi_hdr_parse(d, len, &h);

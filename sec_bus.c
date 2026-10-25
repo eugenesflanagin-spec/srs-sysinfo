@@ -1232,17 +1232,37 @@ static const char *pnp_known(const char *id)
     for (i = 0; t[i][0]; i++) if (!strncmp(id, t[i][0], strlen(t[i][0]))) return t[i][1];
     return NULL;
 }
-/* EISA 3-letter vendor from pnp.ids */
+/* Vendor of a device ID. "PNP0A08" style IDs (7 chars) carry a 3-letter EISA/PNP vendor (hwdata
+   pnp.ids); "AMDI0010" style IDs (8 chars) carry a 4-character ACPI vendor ID, which pnp.ids does not
+   list - those use a short table of ACPI vendor IDs, else the raw prefix is shown. */
 static void pnp_vendor(const char *id, char *b, size_t sz)
 {
+    static const char *const acpi[][2] = {
+        { "ACPI", "ACPI (generic, defined by the ACPI specification)" }, { "AMDI", "AMD" }, { "AMDP", "AMD" },
+        { "INTC", "Intel" }, { "INT3", "Intel" }, { "MSFT", "Microsoft" }, { "NVDA", "NVIDIA" }, { "QCOM", "Qualcomm" },
+        { "BRCM", "Broadcom" }, { "SYNA", "Synaptics" }, { "ELAN", "ELAN Microelectronics" }, { "NXP0", "NXP" },
+        { "LNXS", "Linux (kernel-defined)" }, { "LNXP", "Linux (kernel-defined)" }, { "LNXV", "Linux (kernel-defined)" },
+        { "LNXT", "Linux (kernel-defined)" }, { "LNXC", "Linux (kernel-defined)" }, { "HPQC", "HP" }, { "DELL", "Dell" },
+        { "LEN0", "Lenovo" }, { "IBM0", "IBM / Lenovo" }, { "ASUS", "ASUSTeK" }, { NULL, NULL } };
     char path[512], line[256];
+    size_t l = strcspn(id, ":"), i;
     FILE *f;
+    int alpha3 = 1;
     *b = 0;
+    if (!strncmp(id, "PNP", 3) && l == 7) { snprintf(b, sz, "PNP (generic, defined by the PnP / ACPI specifications)"); return; }
+    if (l == 8) {
+        for (i = 0; acpi[i][0]; i++) if (!strncmp(id, acpi[i][0], 4)) { snprintf(b, sz, "%s", acpi[i][1]); return; }
+        snprintf(b, sz, "ACPI vendor ID %.4s", id);
+        return;
+    }
+    for (i = 0; i < 3; i++) if (!isupper((unsigned char)id[i])) alpha3 = 0;
+    if (l != 7 || !alpha3) return;
     snprintf(path, sizeof path, "%s/pnp.ids", plat_hwdata_dir());
     if (!(f = fopen(path, "r"))) return;
     while (fgets(line, sizeof line, f))
         if (!strncmp(line, id, 3) && line[3] == '\t') { line[strcspn(line, "\r\n")] = 0; snprintf(b, sz, "%s", line + 4); break; }
     fclose(f);
+    if (*b && strstr(b, "Invalid Vendor")) snprintf(b, sz, "PNP vendor ID %.3s (not in the PNP ID registry)", id);
 }
 static void pnp_name(const char *id, char *b, size_t sz)
 {
