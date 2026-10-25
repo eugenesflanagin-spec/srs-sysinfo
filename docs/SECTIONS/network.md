@@ -252,7 +252,7 @@ status.
 - One branch per known device: name, address, icon (device type).
 - Under a device, its status words: `paired`, `trusted`, and `CONNECTED` if connected right now.
 
-**Healthy / typical values.** On the author's PC: controller "X3D [default]" with one phone,
+**Healthy / typical values.** On the author's PC: controller "MYPC [default]" with one phone,
 "paired trusted" (not connected at that moment).
 
 **Unusual values and what they suggest.** Paired but not trusted means the device has to be
@@ -388,8 +388,8 @@ Then the user block:
 Then `/etc/hostname`, and from `hostnamectl`: StaticHostname, PrettyHostname, Chassis (desktop,
 laptop, vm...), Deployment and Location, when set.
 
-**Healthy / typical values.** On the author's PC: NetBIOS Name X3D, no DNS domain, Full DNS Name
-X3D, user `user`, legacy name `X3D\user`, User ID 1000, Chassis desktop.
+**Healthy / typical values.** On the author's PC: NetBIOS Name MYPC, no DNS domain, Full DNS Name
+MYPC, user `user`, legacy name `MYPC\user`, User ID 1000, Chassis desktop.
 
 **Unusual values and what they suggest.** `/etc/hostname` different from DNS Host Name: the name
 was changed without a reboot, or something (DHCP, a VM tool) set a temporary name. A host name
@@ -819,7 +819,7 @@ Then a table: Adapter, Type, State, Speed, MAC Address, IPv4 (all addresses with
 The last line names the motherboard maker, model, BIOS version and BIOS date (for example
 "ASUSTeK COMPUTER INC. TUF GAMING X870-PRO WIFI7 W NEO BIOS 1805").
 
-**Healthy / typical values.** On the author's PC: host X3D, "11 (3 physical, 8 virtual), 7 up",
+**Healthy / typical values.** On the author's PC: host MYPC, "11 (3 physical, 8 virtual), 7 up",
 gateway `192.168.1.1 dev em1`, no IPv6 default route, DNS 127.0.0.1 (a local dnsmasq), IPv4
 forwarding on (needed by Docker and VMs), TCP congestion control `bbr3`, default qdisc `fq`.
 

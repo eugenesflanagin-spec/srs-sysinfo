@@ -79,7 +79,7 @@ cache line in [Fake SPDs](#fake-spds) use data from the root helper (srs-root); 
 ### How to read these items
 
 - Most items start with a title line: `srs-gui - <what> on \\<host> - <OS>`. On the author's PC
-  that reads `srs-gui - Help on \\X3D - CachyOS 7.3.0-273-tkg-bore-llvm`.
+  that reads `srs-gui - Help on \\MYPC - CachyOS 7.3.0-273-tkg-bore-llvm`.
 - `[=]` is a ticked box and `[_]` an empty one. A few items use `|X|` and `|_|` the same way.
 - SRS is read-only. None of these items change a setting, write a register or open a device.
 - SRS is one program image. Run with no arguments it is the window (srs-gui). Run with arguments

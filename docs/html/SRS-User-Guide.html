@@ -1370,11 +1370,11 @@ sysreport-search &#39;-save=[all]=share.txt&#39; --redact   # every item, identi
 <p>File layout: a header line with program, version, host, date and the
 item list, then each item starting with a line
 <code>[id]  [category]</code>:</p>
-<pre><code>srs-gui - System Report Search V1.1.0 X3D 2026-10-25 08:18:54  [[cache][sensors]]
+<pre><code>srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
-srs-gui - Cache Levels of CPU-0 on \\X3D - CachyOS 7.3.0-273-tkg-bore-llvm
+srs-gui - Cache Levels of CPU-0 on \\MYPC - CachyOS 7.3.0-273-tkg-bore-llvm
 
 Cache                 Size      Ways      Line        Sets       Shared by      CPUs
 L1 Data Cache         32K       8         64          64         2              0,8
@@ -4942,7 +4942,7 @@ read normal Linux files and need nothing special. <strong>MSRs</strong>
 needs root data: run the srs-root helper once (Menu -&gt; Run as root)
 and SRS shows the cached result. Several AMD items need the optional
 <code>ryzen_smu</code>, <code>zenergy</code> or <code>k10temp</code>
-drivers. Many pages start with a title line ("srs-gui - ... on \X3D -
+drivers. Many pages start with a title line ("srs-gui - ... on \MYPC -
 CachyOS ...") and some end with the motherboard name and BIOS
 version.</p>
 <h2 id="sections-processors--contents">Contents</h2>
@@ -9395,7 +9395,7 @@ physical cores, CPU packages, sticks installed.</li>
 and part number.</li>
 </ul>
 <p><strong>Healthy / typical values.</strong> Author's PC:
-<code>CachyOS 7.3.0-...  ASUS TUF GAMING X870-PRO WIFI7 W NEO  X3D::user  en_US.UTF-8  EDT  BIOS 1805 09/18/2026</code>;
+<code>CachyOS 7.3.0-...  ASUS TUF GAMING X870-PRO WIFI7 W NEO  MYPC::user  en_US.UTF-8  EDT  BIOS 1805 09/18/2026</code>;
 uptime 21 h 46 min; Mains Power; Resource Usage 35%; CPUs 16 Cores 8
 Chips 1 DIMMs 2.</p>
 <p><strong>Unusual values and what they suggest.</strong> The Committed
@@ -13919,7 +13919,7 @@ under it the devices it knows, with their status.</p>
 now.</li>
 </ul>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-controller "X3D [default]" with one phone, "paired trusted" (not
+controller "MYPC [default]" with one phone, "paired trusted" (not
 connected at that moment).</p>
 <p><strong>Unusual values and what they suggest.</strong> Paired but not
 trusted means the device has to be confirmed each time it connects.
@@ -14139,8 +14139,8 @@ same on Linux (Windows can differ on clusters).</p>
 StaticHostname, PrettyHostname, Chassis (desktop, laptop, vm...),
 Deployment and Location, when set.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-NetBIOS Name X3D, no DNS domain, Full DNS Name X3D, user
-<code>user</code>, legacy name <code>X3D\user</code>, User ID 1000,
+NetBIOS Name MYPC, no DNS domain, Full DNS Name MYPC, user
+<code>user</code>, legacy name <code>MYPC\user</code>, User ID 1000,
 Chassis desktop.</p>
 <p><strong>Unusual values and what they suggest.</strong>
 <code>/etc/hostname</code> different from DNS Host Name: the name was
@@ -14812,7 +14812,7 @@ addresses with prefix), Driver. The last line names the motherboard
 maker, model, BIOS version and BIOS date (for example "ASUSTeK COMPUTER
 INC. TUF GAMING X870-PRO WIFI7 W NEO BIOS 1805").</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC: host
-X3D, "11 (3 physical, 8 virtual), 7 up", gateway
+MYPC, "11 (3 physical, 8 virtual), 7 up", gateway
 <code>192.168.1.1 dev em1</code>, no IPv6 default route, DNS 127.0.0.1
 (a local dnsmasq), IPv4 forwarding on (needed by Docker and VMs), TCP
 congestion control <code>bbr3</code>, default qdisc <code>fq</code>.</p>
@@ -18018,7 +18018,7 @@ that owns them.</p>
 Wayland limit as <a href="#sections-linux-os--system-windows">System windows</a>
 applies.</p>
 <p><strong>Healthy / typical values.</strong> Author's PC:
-<code>0x01600002 0 - conky (X3D)</code>. PID 0 and <code>-</code> mean
+<code>0x01600002 0 - conky (MYPC)</code>. PID 0 and <code>-</code> mean
 the window did not publish its process ID (<code>_NET_WM_PID</code>).
 Some lightweight apps, conky among them, don't.</p>
 <p><strong>Where Linux gets it.</strong> <code>wmctrl -l -p</code>,
@@ -26578,7 +26578,7 @@ buffer)</a> <code>tzm</code></li>
 <li>Most items start with a title line:
 <code>srs-gui - &lt;what&gt; on \\&lt;host&gt; - &lt;OS&gt;</code>. On
 the author's PC that reads
-<code>srs-gui - Help on \\X3D - CachyOS 7.3.0-273-tkg-bore-llvm</code>.</li>
+<code>srs-gui - Help on \\MYPC - CachyOS 7.3.0-273-tkg-bore-llvm</code>.</li>
 <li><code>[=]</code> is a ticked box and <code>[_]</code> an empty one.
 A few items use <code>|X|</code> and <code>|_|</code> the same way.</li>
 <li>SRS is read-only. None of these items change a setting, write a
@@ -28814,7 +28814,7 @@ srs-gui &#39;-save=[sensors]&#39;
 sysreport-search &#39;-save=[all]=full-report.txt&#39;
 sysreport-search &#39;-save=[all]=for-forum.txt&#39; --redact</code></pre>
 <p>Output starts with a header and then each item:</p>
-<pre><code>srs-gui - System Report Search V1.1.0 X3D 2026-10-25 08:28:53  [[cpuid][cache]]
+<pre><code>srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...</code></pre>

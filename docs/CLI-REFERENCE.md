@@ -167,7 +167,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V1.1.0 X3D 2026-10-25 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...

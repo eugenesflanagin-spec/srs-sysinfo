@@ -1548,7 +1548,7 @@ power source, memory use, CPU and memory sticks. Refreshes every second.
 - One line per installed stick: bank, slot, size, type, speed, maker and part number.
 
 **Healthy / typical values.** Author's PC: `CachyOS 7.3.0-...  ASUS TUF GAMING X870-PRO WIFI7 W
-NEO  X3D::user  en_US.UTF-8  EDT  BIOS 1805 09/18/2026`; uptime 21 h 46 min; Mains Power;
+NEO  MYPC::user  en_US.UTF-8  EDT  BIOS 1805 09/18/2026`; uptime 21 h 46 min; Mains Power;
 Resource Usage 35%; CPUs 16 Cores 8 Chips 1 DIMMs 2.
 
 **Unusual values and what they suggest.** The Committed figure on the physical-memory row is the

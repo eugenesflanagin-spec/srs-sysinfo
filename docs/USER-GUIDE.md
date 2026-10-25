@@ -779,11 +779,11 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V1.1.0 X3D 2026-10-25 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
-srs-gui - Cache Levels of CPU-0 on \\X3D - CachyOS 7.3.0-273-tkg-bore-llvm
+srs-gui - Cache Levels of CPU-0 on \\MYPC - CachyOS 7.3.0-273-tkg-bore-llvm
 
 Cache                 Size      Ways      Line        Sets       Shared by      CPUs
 L1 Data Cache         32K       8         64          64         2              0,8

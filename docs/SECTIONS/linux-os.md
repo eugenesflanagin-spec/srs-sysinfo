@@ -1339,7 +1339,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 
 **What you see.** `Window ID`, `PID`, `Process` (the process name from `/proc/<pid>/comm`), `Title`. The same Wayland limit as [System windows](#system-windows) applies.
 
-**Healthy / typical values.** Author's PC: `0x01600002 0 - conky (X3D)`. PID 0 and `-` mean the window did not publish its process ID (`_NET_WM_PID`). Some lightweight apps, conky among them, don't.
+**Healthy / typical values.** Author's PC: `0x01600002 0 - conky (MYPC)`. PID 0 and `-` mean the window did not publish its process ID (`_NET_WM_PID`). Some lightweight apps, conky among them, don't.
 
 **Where Linux gets it.** `wmctrl -l -p`, `/proc/<pid>/comm`.
 

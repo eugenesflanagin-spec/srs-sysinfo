@@ -10,7 +10,7 @@ The quickest way in is the **Processors** button on the main panel. Its row of s
 table of CPU number n). Most items read normal Linux files and need nothing special. **MSRs** needs root
 data: run the srs-root helper once (Menu -> Run as root) and SRS shows the cached result. Several AMD
 items need the optional `ryzen_smu`, `zenergy` or `k10temp` drivers. Many pages start with a title line
-("srs-gui - ... on \\X3D - CachyOS ...") and some end with the motherboard name and BIOS version.
+("srs-gui - ... on \\MYPC - CachyOS ...") and some end with the motherboard name and BIOS version.
 
 ## Contents
 - [AMD Ryzen Power Management](#amd-ryzen-power-management) `amd-cpu`
