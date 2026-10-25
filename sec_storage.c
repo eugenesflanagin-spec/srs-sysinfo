@@ -458,6 +458,7 @@ static void s_volumes(srs_out *o)
     double tf[6] = { 0 }, tt[6] = { 0 }, tu[6] = { 0 };
     char seen[MAXD * 4][64];
     int nseen = 0;
+    if (!arg_set(o)) so_siv_header(o, "Volumes");
     if (arg_set(o)) {
         for (i = 0; i < n; i++) if (m[i].kind && mnt_match(&m[i], o->arg)) { vol_detail(o, &m[i]); free(m); return; }
         so_err(o, "No mounted volume matches that mount point or device.");
@@ -667,6 +668,16 @@ static void fs_detail(srs_out *o, const mnt *m, const bdev *b)
 }
 
 /* list mounted filesystems of the given types (one per filesystem), with stats */
+/* file-system type mounted at mp ("" if none) */
+static void mount_fstype(const char *mp, char *out, size_t sz)
+{
+    mnt *m;
+    int n = mounts_load(&m), i;
+    *out = 0;
+    for (i = 0; i < n; i++) if (!strcmp(m[i].mp, mp)) snprintf(out, sz, "%s", m[i].fstype);
+    free(m);
+}
+
 static int fs_stats(srs_out *o, const char *const *types, const char *what)
 {
     static const int tabs[] = { 200 };
@@ -711,7 +722,12 @@ static void s_ntfs(srs_out *o)
 {
     static const char *const t[] = { "ntfs3", "ntfs", NULL };
     static const char *const nat[] = { "btrfs", "ext4", "ext3", "ext2", "xfs", "f2fs", NULL };
-    so_siv_header(o, "NTFS Statistics");
+    if (arg_set(o)) {   /* ntfs:/mountpoint - title after the file system that is really there */
+        char ti[96], ty[32] = "";
+        mount_fstype(o->arg, ty, sizeof ty);
+        snprintf(ti, sizeof ti, "%s Statistics", *ty ? ty : "File System");
+        so_siv_header(o, ti);
+    } else so_siv_header(o, "NTFS Statistics");
     fs_stats(o, arg_set(o) ? NULL : t, "NTFS");
     if (!arg_set(o)) {
         so_par(o);
@@ -1041,6 +1057,7 @@ static void s_geometry(srs_out *o)
     char **dn;
     int nd = disks_list(&dn, 1), i;
     double tot = 0;
+    so_siv_header(o, "Drive Geometry");
     so_tabs(o, tabs, 8);
     so_row(o, 9, h, hc);
     so_par(o);
@@ -1740,7 +1757,11 @@ static void s_smart(srs_out *o)
         bytes_str((double)d.sectors * 512.0, sz, sizeof sz);
         smart_capable(&d, cap, sizeof cap);
         smart_summary(d.name, &s);
-        cached += smart_cache(d.name, path, sizeof path) != 0;
+        if (smart_cache(d.name, path, sizeof path)) {   /* srs-root leaves a "skipped:" placeholder for USB disks */
+            char first[64] = "";
+            rd_str(path, first, sizeof first);
+            cached += strncmp(first, "skipped", 7) != 0;
+        }
         tm[0] = 0;
         if (disk_hwmon(d.name, hw, sizeof hw)) { char q[480]; long v; snprintf(q, sizeof q, "%s/temp1_input", hw); if (rd_long(q, &v)) snprintf(tm, sizeof tm, "%.1fC", (double)v / 1000.0); }
         if (!*tm && *s.temp) snprintf(tm, sizeof tm, "%s", s.temp);
@@ -2039,9 +2060,16 @@ static void vendor_raid(srs_out *o, const char *title, const char *vname, const 
     so_kvf(o, "Checked", C_PURPLE, "PCI vendor %s%s%s%s%s (%s)", pci_vid, cls ? " class " : "", cls ? cls : "", usb_vid ? ", USB vendor " : "", usb_vid ? usb_vid : "", vname);
     so_par(o);
     n += pci_scan(o, pci_vid, cls);
-    if (usb_vid) { char u[16]; snprintf(u, sizeof u, "%s", usb_vid); n += usb_scan(o, u); }
-    if (!n) so_kv(o, "Status", C_ORANGE, "Not present on this system");
-    else so_kvf(o, "Status", C_GREEN, "%d device%s found; Linux manages these with %s", n, n == 1 ? "" : "s", linux_tool);
+    if (usb_vid) {
+        /* a vendor's USB storage bridges (e.g. JMicron USB-NVMe enclosures) are not RAID controllers */
+        char u[16];
+        int nu;
+        snprintf(u, sizeof u, "%s", usb_vid);
+        nu = usb_scan(o, u);
+        if (nu) so_kvf(o, "USB bridges", C_GRAY, "%d %s USB bridge%s above: storage bridges, RAID only if the bridge firmware is set up for it", nu, vname, nu == 1 ? "" : "s");
+    }
+    if (!n) so_kv(o, "Status", C_ORANGE, "No RAID controller of this kind present");
+    else so_kvf(o, "Status", C_GREEN, "%d PCI controller%s found; Linux manages these with %s", n, n == 1 ? "" : "s", linux_tool);
 }
 
 static void s_jmb_raid(srs_out *o) { vendor_raid(o, "JMicron JMB RAID", "JMicron", "0x197b", NULL, "152d", "the ahci driver + md/dm"); }
