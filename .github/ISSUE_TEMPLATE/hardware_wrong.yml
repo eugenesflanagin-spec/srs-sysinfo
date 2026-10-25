@@ -12,18 +12,17 @@ body:
         Run this in a terminal:
 
         ```sh
-        sysreport-search '-save=[all]' --redact
+        sysreport-search '-save=[all]' --redact > srs-report.txt
         ```
 
         (Keep the quotes: zsh and fish treat `[all]` as a file pattern without them.)
 
         `--redact` replaces serial numbers, UUIDs, machine/boot IDs and the host name with `XXXX`,
         so the file is safe to post. (IP addresses and Wi-Fi names are **not** masked; check the
-        file and remove them if you want.) The command prints where it saved the report; drag
-        that file into the box below, or paste its contents.
+        file and remove them if you want.) Then drag `srs-report.txt` into the box below.
 
-        For values that need root (SMBIOS serials, DIMM SPD, SMART), run `srs-root` once
-        first, or tick **Menu -> Options -> Refresh root data at boot**.
+        For values that need root (SMBIOS details, DIMM SPD, SMART), run `pkexec srs-root` once
+        first (one password prompt), or tick **Menu -> Options -> Refresh root data at boot**.
   - type: input
     id: version
     attributes:
@@ -74,6 +73,6 @@ body:
     id: report
     attributes:
       label: Report from `sysreport-search '-save=[all]' --redact`
-      description: Attach the saved file (drag it here) or paste it. Required, it is the most useful part.
+      description: Drag `srs-report.txt` here (or paste it). Required, it is the most useful part.
     validations:
       required: true
