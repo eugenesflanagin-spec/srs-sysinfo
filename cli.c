@@ -417,7 +417,7 @@ int srs_cli_main(int argc, char **argv)
     }
 #endif
     if (!strcmp(cmd, "-h") || !strcmp(cmd, "--help")) { fputs(USAGE, stdout); fputs("\n", stdout); fputs(HELP, stdout); return 0; }
-    if (!strcmp(cmd, "--version")) { printf("sysreport-search %s (%s)\nInspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),\nbuilt to improve on it; free for the Linux and open-source community.\nIndependent project, not affiliated with SIV or its author. GPL-2.0-or-later.\n", SRS_VERSION, plat_build_info()); return 0; }
+    if (!strcmp(cmd, "--version")) { printf("sysreport-search %s (%s)\nInspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),\nbuilt to improve on it; free for the Linux and open-source community.\nIndependent project, not affiliated with SIV or its author. GPL-2.0-or-later.\nHome page: https://github.com/eugenesflanagin-spec/srs-sysinfo\n", SRS_VERSION, plat_build_info()); return 0; }
     if (strcmp(cmd, "id") && strcmp(cmd, "find") && strcmp(cmd, "devices")) {
         char m[200];
         snprintf(m, sizeof m, "argument cmd: invalid choice: '%s' (choose from 'id', 'find', 'devices')", cmd);

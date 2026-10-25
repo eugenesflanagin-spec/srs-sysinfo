@@ -4,6 +4,11 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## Unreleased
+
+### Changed
+- `--version` shows the project's home page.
+
 ## 1.1.0 - 2026-10-25
 
 ### Added
