@@ -13,6 +13,7 @@
 #endif
 #include "sec.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,10 @@ static int guide_dir(char *out, size_t n)
         if (is_file(t)) break;
     }
     if (i == k) return 0;
-    if (!realpath(cand[i], out)) snprintf(out, n, "%s", cand[i]);
+    {
+        char rp[PATH_MAX];   /* realpath() needs a PATH_MAX buffer (FORTIFY_SOURCE aborts otherwise) */
+        snprintf(out, n, "%s", realpath(cand[i], rp) ? rp : cand[i]);
+    }
     return 1;
 }
 
