@@ -632,6 +632,90 @@ What the numbers show, step by step:
   three times, and compare the same steps as above. The [Tools reference](SECTIONS/tools.md)
   explains each mode in detail.
 
+### 9.2.2 Reading the CPU IPI Delay table - a worked example
+
+**In plain words:** the IPI Delay tool (Menu > Tools > IPI Delay, section 9.3) times how long one
+CPU takes to hand a small piece of data to another CPU, for every pair of CPUs. When two threads of
+a program share data (a lock, a queue, a game engine's job list), this is the delay they pay each
+time. The result is a big grid of numbers. This page shows how to read it, using one real result.
+
+**The PC.** One Ryzen 7 7800X3D: one CCD (core complex die, the chip that holds the cores), 8 cores,
+16 threads. As in 9.2.1, CPU-0 to CPU-7 are the first thread of cores 0 to 7, and CPU-8 to CPU-15
+are the second thread of the same cores (CPU-0 and CPU-8 share core 0, and so on). The test ran
+100,000 rounds per pair. Each number is in nanoseconds (ns, billionths of a second): the time for
+one cache line (a 64-byte block of memory) to go there and back, divided by 2, so it is the one-way
+time.
+
+> These numbers are one PC's example. Other CPUs, BIOS settings and kernels give different numbers,
+> and a difference of 1-2 ns between runs is normal noise. What carries over is the **pattern**.
+
+**The result:**
+
+```
+From\To 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15
+CPU-0   -  28 30 29 30 32 34 33 25 28 30 29 30 31 34 33
+CPU-1   28 -  30 28 31 28 33 34 28 23 30 27 31 28 32 31
+CPU-2   30 30 -  31 29 31 29 31 29 30 23 31 29 32 29 31
+CPU-3   29 28 31 -  31 27 30 29 28 28 31 23 31 27 30 29
+CPU-4   30 31 29 31 -  29 29 29 29 31 29 32 23 30 29 29
+CPU-5   32 28 31 27 29 -  31 27 29 28 31 27 30 23 32 28
+CPU-6   34 33 29 30 29 31 -  31 32 32 30 31 28 32 23 30
+CPU-7   33 34 31 29 29 27 31 -  33 31 33 29 29 27 31 24
+CPU-8   25 28 29 28 29 29 32 33 -  27 29 29 29 30 32 32
+CPU-9   28 23 30 28 31 28 32 31 27 -  31 28 31 28 32 30
+CPU-10  30 30 23 31 29 31 30 33 29 31 -  31 29 31 29 32
+CPU-11  29 27 31 23 32 27 31 29 29 28 31 -  32 27 30 28
+CPU-12  30 31 29 31 23 30 28 29 29 31 29 32 -  28 29 29
+CPU-13  31 28 32 27 30 23 32 27 30 28 31 27 28 -  32 27
+CPU-14  34 32 29 30 29 32 23 31 32 32 29 30 29 32 -  30
+CPU-15  33 31 31 29 29 28 30 24 32 30 32 28 29 27 30 -
+```
+
+**How to read it:**
+
+- Each **row** is the CPU that sends, each **column** is the CPU that receives. Find the row of one
+  CPU and the column of the other: the number where they cross is the delay in ns. Lower is faster.
+- The `-` on the diagonal is a CPU paired with itself. That is not measured.
+- Each pair is measured once, so the table is a mirror: CPU-3 to CPU-5 is the same number as
+  CPU-5 to CPU-3.
+
+What the numbers show, step by step:
+
+1. **The two threads of one core are the fastest pair in every row: 23-25 ns.** CPU-0 and CPU-8
+   (25), CPU-1 and CPU-9 (23), and so on up to CPU-7 and CPU-15 (24). Every row has its smallest
+   number in the column of its partner thread (CPU n and CPU n+8). These two threads live on the
+   same core and share its L1 and L2 caches, so the data never has to leave the core.
+
+2. **Every other pair is 27-34 ns.** Two different cores do not share L1 or L2. The data travels
+   through the L3 cache, which all 8 cores on the CCD share. That costs a few nanoseconds more.
+
+3. **Distance on the chip still shows a little.** The highest numbers are core 0 to cores 6 and 7
+   (CPU-0 to CPU-6: 34, CPU-0 to CPU-7: 33, and the same for their partner threads), and core 1 to
+   cores 6 and 7 (33-34). The cores reach the L3 over a ring, and cores that sit farther apart on
+   that ring take a little longer. The whole spread is only about 7 ns.
+
+4. **The table is even.** Apart from the partner threads, no block of the table stands out. That is
+   what a one-CCD CPU looks like: all cores are on the same die and share one L3.
+
+**On a CPU with two CCDs** (for example a Ryzen 9 7950X or 9950X) the table typically looks
+different. Pairs on the same CCD look like the table above, but pairs where one CPU is on the first
+CCD and the other is on the second CCD show a second block of much higher numbers, typically around
+70-80 ns. Those pairs do not share an L3: the data has to cross the Infinity Fabric link between
+the two dies. The exact numbers depend on the CPU, the memory and fabric clocks, and the BIOS.
+
+**What this means for you:**
+
+- **Find partner threads.** The smallest number in each row tells you which two CPUs share one
+  core, whatever numbering your PC uses.
+- **See the CCD layout.** A block of much higher numbers shows where one CCD ends and the next
+  begins, and which CPUs belong to which CCD.
+- **Pin threads that talk to each other a lot.** Games, audio work (a DAW and its plug-ins) and other
+  timing-sensitive programs run smoother when their busy threads stay on one CCD, and the lowest
+  delay is on one core's two threads. Tools such as `taskset` can keep a program on chosen CPUs.
+- **Do not expect it to change with tuning.** Curve Optimizer and voltage changes move the clock
+  speed and temperature, but the delay mostly depends on how the chip is built, so this table stays
+  about the same. Run it to learn your CPU's layout, not to measure a tweak.
+
 ### 9.3 IPI Delay
 
 **In plain words:** measures how long it takes one CPU core to "ping" another and get an answer,
@@ -639,6 +723,8 @@ for every pair of CPUs. Shows as a table in nanoseconds and a colour heat map (g
 red = slow). Cores that share a cache or a chip answer faster; cores on different chips
 (for example two CCDs on a Ryzen 9) answer slower.
 Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run**.
+For a step-by-step reading of one real result (partner threads, the L3, what a two-CCD CPU
+looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922-reading-the-cpu-ipi-delay-table---a-worked-example).
 
 ### 9.4 Latency
 

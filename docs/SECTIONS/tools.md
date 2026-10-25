@@ -416,6 +416,10 @@ keeps SIV's name, but it does not send real interrupts. It measures the core-to-
 delay, which is the cost every program pays when threads on two cores share data (locks, queues,
 game engine job systems).
 
+For a step-by-step reading of one real 16-CPU result (partner threads, the shared L3, what a two-CCD
+CPU looks like, and what the table is useful for), see the User Guide, section 9.2.2
+[Reading the CPU IPI Delay table - a worked example](../USER-GUIDE.md#922-reading-the-cpu-ipi-delay-table---a-worked-example).
+
 ---
 ## IPI Dump  
 `ipi-dmp` - Linux data
