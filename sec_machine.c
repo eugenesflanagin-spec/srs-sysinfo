@@ -876,7 +876,13 @@ static void s_spd(srs_out *o)
     slot_t sl[16];
     int src, n, i;
     so_siv_header(o, "SPD");
-    if (root_path("spd.txt", p, sizeof p) && rd_all(p, &txt) >= 0) {
+    if (root_path("spd.txt", p, sizeof p) && rd_all(p, &txt) >= 0 && strstr(txt, "decoded: 0")) {
+        /* decode-dimms found nothing (e.g. DDR5 behind spd5118, which it does not read): use SMBIOS */
+        so_note(o, "srs-root cache spd.txt: decode-dimms decoded 0 DIMMs (DDR5 SPD hubs are not supported by it);");
+        so_note(o, "showing the SMBIOS type 17 summary instead.");
+        so_par(o);
+        free(txt);
+    } else if (root_path("spd.txt", p, sizeof p) && rd_all(p, &txt) >= 0) {
         so_note(o, "srs-root cache spd.txt (decode-dimms):");
         so_par(o);
         so_lines(o, C_VALUE, txt);
@@ -905,7 +911,8 @@ static void s_spd(srs_out *o)
     }
     so_note(o, "Full SPD decode (timings, XMP/EXPO profiles, manufacture date) comes from the srs-root cache spd.txt.");
     so_note(o, "srs never reads the SPD EEPROM directly (SMBus access); the summary above is SMBIOS type 17.");
-    needs_root(o);
+    if (!n) so_err(o, "No SMBIOS memory devices (no udev import and no dmidecode cache)");
+    if (!root_path("spd.txt", p, sizeof p)) needs_root(o);
     so_board_footer(o);
 }
 
