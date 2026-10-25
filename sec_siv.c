@@ -441,6 +441,14 @@ static void s_siv_setup(srs_out *o)
         { "Highlight Matches", "1", "Highlight Find matches" },
         { "Font Name", "Tahoma", "Panel font" },
         { "SIO Sensors", "", "Re-enabled Super-I/O inputs, e.g. nct6799:AUXTIN1,..." },
+        { "GPU Load Command", "", "Program started by the burner's GPU load option" },
+        { "Tray Icon", "1", "Show the system tray icon" },
+        { "Close To Tray", "0", "Close button hides to the tray" },
+        { "Minimize To Tray", "1", "Minimize hides to the tray (X11 / XWayland)" },
+        { "Start In Tray", "0", "Start hidden in the tray" },
+        { "Theme", "Light", "Light / Dark / System (follow the desktop)" },
+        { "Update Interval", "0", "Live panel refresh in ms (0 = each panel's own rate, -1 = paused)" },
+        { "Redact Reports", "0", "Mask serials, UUIDs, MACs and the host name in saved reports" },
     };
     static const int tabs[] = { 30, 180, 340 };
     char v[512];
@@ -1088,7 +1096,7 @@ static void s_initial(srs_out *o)
 {
     static const int tabs[] = { 40 };
     static const char *steps[] = {
-        "Read SRSDEF.ini (~/.config/srs) - Colour Find Text, Highlight Matches, Font Name, SIO Sensors",
+        "Read SRSDEF.ini (~/.config/srs) - every key is listed in [siv-setup]",
         "Load pci.ids and usb.ids (beside the program, else /usr/share/hwdata) into sorted tables",
         "Enumerate PCI and USB devices from sysfs and resolve their names",
         "Locate the newest report under ~/sysreports for Find",
