@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 1.1.2. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 1.1.3. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -115,7 +115,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-1.1.2-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-1.1.3-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -143,8 +143,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-1.1.2-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.2-linux-x86_64
+tar xzf srs-sysinfo-1.1.3-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.3-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```

@@ -191,7 +191,7 @@ static void rx_build(void)
     rx_file("/etc/machine-id");
     if (!gethostname(host, sizeof host) && strlen(host) >= 2 && strcmp(host, "localhost")) {
         /* short host names skip rx_add's length filter; like every value they are only masked as a
-           whole word, so "X3D" is masked in "\\\\X3D" but not in "7800X3D" */
+           whole word, so a host named "PC1" is masked in "\\\\PC1" but not in "PC10" */
         rx_push(host);
     }
     if (g_nrx) qsort(g_rx, (size_t)g_nrx, sizeof *g_rx, rx_cmp);

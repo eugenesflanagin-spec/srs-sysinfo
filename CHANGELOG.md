@@ -4,6 +4,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.1.3 - 2026-10-25
+
+### Changed
+- **User guide: example screenshots and example values use a generic computer name (MYPC).**
+  Seven screenshots (main window, Machine, CPUs, PCI Bus, USB Bus, Sensor Status, CPU Benchmarks)
+  and two "typical values" examples (Graphics, Linux OS) now show MYPC as the computer name.
+
 ## 1.1.2 - 2026-10-25
 
 ### Added

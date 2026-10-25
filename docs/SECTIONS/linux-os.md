@@ -1277,7 +1277,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 - One block per connected monitor: `Primary Desktop Display #1` / `Desktop Display #n` with connector name, `enabled`/`disabled`, the preferred mode, and its `Kernel driver`.
 - Footer: the board's maker, model and BIOS.
 
-**Healthy / typical values.** Author's PC: "CachyOS Build rolling Kernel 7.3.0-273-tkg-bore-llvm x86_64", ID `cachyos` like `arch`, Hostname X3D, installed 2026-03-09, systemd 262, Chassis Desktop. KDE on Wayland. 16 lines of `AMD Ryzen 7 7800X3D 8-Core Processor 5.05GHz (Family 25 Model 97 Stepping 2)` with microcode `0xa60120c`. Time zone America/New_York (EDT -0400), clocksource tsc, resolution 1 ns. BIOS 09/18/2026 American Megatrends 1805, UEFI. Displays `DP-3` 2560x1440 and `HDMI-A-1` 1920x1080, both on `amdgpu`.
+**Healthy / typical values.** Author's PC: "CachyOS Build rolling Kernel 7.3.0-273-tkg-bore-llvm x86_64", ID `cachyos` like `arch`, Hostname MYPC, installed 2026-03-09, systemd 262, Chassis Desktop. KDE on Wayland. 16 lines of `AMD Ryzen 7 7800X3D 8-Core Processor 5.05GHz (Family 25 Model 97 Stepping 2)` with microcode `0xa60120c`. Time zone America/New_York (EDT -0400), clocksource tsc, resolution 1 ns. BIOS 09/18/2026 American Megatrends 1805, UEFI. Displays `DP-3` 2560x1440 and `HDMI-A-1` 1920x1080, both on `amdgpu`.
 
 **Unusual values and what they suggest.**
 - Microcode differs between CPU lines: a microcode update reached only some cores. This is rare; update the BIOS or the `*-ucode` package.

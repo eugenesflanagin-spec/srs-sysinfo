@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 1.1.2. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 1.1.3. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -168,7 +168,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-1.1.2-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-1.1.3-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -234,8 +234,8 @@ distribution - generic tarball</h3>
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
 an older distribution (Ubuntu 24.04) so it runs on most current ones
 (glibc 2.38 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-1.1.2-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.2-linux-x86_64
+<pre><code>tar xzf srs-sysinfo-1.1.3-linux-x86_64.tar.gz
+cd srs-sysinfo-1.1.3-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
@@ -17986,7 +17986,7 @@ time), <code>Load</code> (the raw <code>/proc/loadavg</code>: 1, 5 and
 </ul>
 <p><strong>Healthy / typical values.</strong> Author's PC: "CachyOS
 Build rolling Kernel 7.3.0-273-tkg-bore-llvm x86_64", ID
-<code>cachyos</code> like <code>arch</code>, Hostname X3D, installed
+<code>cachyos</code> like <code>arch</code>, Hostname MYPC, installed
 2026-03-09, systemd 262, Chassis Desktop. KDE on Wayland. 16 lines of
 <code>AMD Ryzen 7 7800X3D 8-Core Processor 5.05GHz (Family 25 Model 97 Stepping 2)</code>
 with microcode <code>0xa60120c</code>. Time zone America/New_York (EDT
@@ -19287,7 +19287,7 @@ table); BIOS (vendor, board, BIOS version and date); Processor; Memory
 (total RAM the kernel can use); Page file (swap) - total swap; DirectX
 version - "n/a on Linux; Vulkan <version>".</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-computer name X3D, CachyOS with kernel 7.3.0, ASUS TUF GAMING X870-PRO
+computer name MYPC, CachyOS with kernel 7.3.0, ASUS TUF GAMING X870-PRO
 WIFI7 W NEO, BIOS 1805 dated 09/18/2026, AMD Ryzen 7 7800X3D, memory
 30.45GB, swap 48.04GB, Vulkan 1.4.363.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
@@ -28806,7 +28806,7 @@ Benchmarks and stress (load the CPU; run only when you ask):
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
-<pre><code>sysreport-search 1.1.2 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+<pre><code>sysreport-search 1.1.3 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.

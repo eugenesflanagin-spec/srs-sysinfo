@@ -337,7 +337,7 @@ Then **User-space drivers**: the same Vulkan and OpenGL rows as [Direct3D info](
 
 **What you see.** Current date/time; Computer name (hostname); Operating system; Kernel (name, release, architecture); System manufacturer and System model (from DMI, the firmware's hardware table); BIOS (vendor, board, BIOS version and date); Processor; Memory (total RAM the kernel can use); Page file (swap) - total swap; DirectX version - "n/a on Linux; Vulkan <version>".
 
-**Healthy / typical values.** On the author's PC: computer name X3D, CachyOS with kernel 7.3.0, ASUS TUF GAMING X870-PRO WIFI7 W NEO, BIOS 1805 dated 09/18/2026, AMD Ryzen 7 7800X3D, memory 30.45GB, swap 48.04GB, Vulkan 1.4.363.
+**Healthy / typical values.** On the author's PC: computer name MYPC, CachyOS with kernel 7.3.0, ASUS TUF GAMING X870-PRO WIFI7 W NEO, BIOS 1805 dated 09/18/2026, AMD Ryzen 7 7800X3D, memory 30.45GB, swap 48.04GB, Vulkan 1.4.363.
 
 **Unusual values and what they suggest.**
 - Memory a lot lower than the RAM you installed (for example 15 GB with 32 GB fitted): a stick is not detected, or memory is reserved for an integrated GPU. A few hundred MB less than installed is normal (firmware and kernel reservations); 30.45 GB of 32 GB is normal.
