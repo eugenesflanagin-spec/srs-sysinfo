@@ -697,11 +697,10 @@ static void rec_tick(void)
         if (now.mono - G.last_flush > 30) { G.last = now; rec_meta(); pdb_flush(); G.last_flush = now.mono; }
     }
     G.last = now;
-    /* alarms: in the recording process, or here when nobody records */
-    if (now.mono - G.last_slow >= 10 || G.last_slow == 0) {
-        G.other_rec = !G.locked && lock_probe_other();
-        if (G.locked || !G.other_rec) alarms_run(now.wall);
-    }
+    /* alarms: the recording process raises them; with nobody recording, the window does (never the
+       background recorder then, so the two never both notify) */
+    G.other_rec = !G.locked && lock_probe_other();
+    if (G.locked || (!G.headless && !G.other_rec)) alarms_run(now.wall);
 }
 
 static gboolean on_timer(gpointer d)

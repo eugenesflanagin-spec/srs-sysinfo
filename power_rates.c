@@ -146,7 +146,8 @@ int prt_zip_lookup(const char *zip, char *util, int usz, double *price)
     fclose(f);
     if (util[0] && nids > 1) {
         size_t l = strlen(util);
-        snprintf(util + l, (size_t)usz - l, " (or one of %d other utilities here)", nids - 1);
+        if (nids == 2) snprintf(util + l, (size_t)usz - l, " (or 1 other utility here)");
+        else snprintf(util + l, (size_t)usz - l, " (or one of %d other utilities here)", nids - 1);
     }
     for (i = 0; i < N(g_us); i++) if (!strcmp(g_us[i].code, state)) return i;
     return 0;
