@@ -119,7 +119,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (545 lines), one per line:
+Lists every item SRS knows (549 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS

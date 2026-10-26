@@ -3,7 +3,7 @@
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe, RH Software (rh-software.com).
 ## How to use this reference
 
-This reference explains **every item SRS can show** - all 545 of them - one by one. For each item it
+This reference explains **every item SRS can show** - all 549 of them - one by one. For each item it
 says, in this order:
 
 1. **In plain words** - what it is, in one to three short sentences.
@@ -51,7 +51,7 @@ The groups are in the same order as SRS's Menu.
 | Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & audio |
 | Buses / Devices (part 1) | 64 | [buses-1.md](buses-1.md) | USB & PCI devices |
 | Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
-| Tools | 28 | [tools.md](tools.md) | Benchmarks & stress; Tools |
+| Tools | 32 | [tools.md](tools.md) | Benchmarks & stress; Tools |
 | SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
 
 ## Every item
@@ -582,6 +582,10 @@ The groups are in the same order as SRS's Menu.
 | [IPI Dump](tools.md#ipi-dump) | `ipi-dmp` | Linux data |
 | [IPI Plots](tools.md#ipi-plots) | `ipi-plots` | Linux data |
 | [Memory Latency](tools.md#memory-latency) | `latency` | Linux data |
+| [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
+| [Crypto benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
+| [Prime sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |
+| [Benchmark history](tools.md#benchmark-history) | `bench-history` | Linux data |
 | [Lookup](tools.md#lookup) | `lookup` | Linux data |
 | [Ping](tools.md#ping) | `ping` | Linux data |
 | [Configuration Find](tools.md#configuration-find) | `reg-find` | Linux data |

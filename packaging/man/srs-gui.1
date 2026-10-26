@@ -36,7 +36,7 @@ from a cache filled by
 .BI \-\-gui\-open= PANEL
 Open the named items or tools at start: in the main window an item opens on its page, in the
 classic view as its own panel. For example
-.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " idlookup ", " find .
+.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " idlookup ", " find .
 .TP
 .B \-\-gui\-tray
 start in the system tray.
@@ -76,6 +76,9 @@ root-only data collected by srs-root.
 .TP
 .I ~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
 the summary of each finished CPU Burnin / CPU Stress run.
+.TP
+.I ~/.cache/srs/bench\-history.tsv
+one line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build).
 .TP
 .I /usr/share/hwdata/pci.ids, /usr/share/hwdata/usb.ids
 device name databases.
