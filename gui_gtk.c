@@ -2717,6 +2717,7 @@ typedef struct { GtkWidget *dot, *name, *text, *btn; } checkui;
 typedef struct {
     swin *w;
     GtkWidget *hb, *side, *stack, *search, *menubtn;
+    GtkWidget *badge, *badge_icon, *badge_lbl, *badge_root;   /* privilege badge (2.1) */
     GtkWidget *nb[CAT_N];
     factsui facts[CAT_N];
     GtkWidget *ov_sub, *ov_icon, *ov_verdict, *ov_vsub;
@@ -4333,11 +4334,59 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     gtk_menu_popup_at_widget(GTK_MENU(m), GTK_WIDGET(b), GDK_GRAVITY_SOUTH_EAST, GDK_GRAVITY_NORTH_EAST, NULL);
 }
 
+/* ---- privilege badge: what SRS can read right now ---- */
+/* euid 0 in the first user namespace (a user namespace's mapped "root" cannot read root data) */
+static int real_root(void)
+{
+    char b[128] = "";
+    unsigned a = 1, c = 1;
+    if (geteuid() != 0) return 0;
+    if (!rd_str("/proc/self/uid_map", b, sizeof b)) return 1;
+    return sscanf(b, "%u %u", &a, &c) == 2 && a == 0 && c == 0;
+}
+
+static void badge_update(void)
+{
+    const char *f;
+    char tip[900];
+    int root, full;
+    GStatBuf st;
+    if (!g_home || !g_home->badge) return;
+    root = real_root();
+    f = so_root_file("collected.txt");
+    full = root || f;
+    gtk_image_set_from_icon_name(GTK_IMAGE(g_home->badge_icon), icon_pick(full ? "security-high-symbolic|channel-secure-symbolic|emblem-ok-symbolic"
+                                                                                  : "security-low-symbolic|dialog-password-symbolic"), GTK_ICON_SIZE_BUTTON);
+    gtk_label_set_text(GTK_LABEL(g_home->badge_lbl), full ? "Full access" : "Limited (user)");
+    set_level_class(g_home->badge_icon, full ? LV_OK : LV_UNK);
+    if (root)
+        snprintf(tip, sizeof tip, "SRS is running as root: everything it shows is read directly, including drive health (SMART), "
+                                  "memory stick details (SPD), serial numbers and BIOS tables.");
+    else if (f && !g_stat(f, &st)) {
+        char when[64];
+        time_t now = time(NULL), m = st.st_mtime;
+        struct tm a, b;
+        localtime_r(&m, &a);
+        localtime_r(&now, &b);
+        strftime(when, sizeof when, a.tm_yday == b.tm_yday && a.tm_year == b.tm_year ? "at %H:%M" : "on %Y-%m-%d at %H:%M", &a);
+        snprintf(tip, sizeof tip, "Root data collected %s (srs-root, read-only). The items that need root - drive health (SMART), "
+                                  "memory stick details (SPD), serial numbers, BIOS and ACPI tables - show it.\n"
+                                  "Menu > Run as root collects it again; Options > Refresh root data at boot does it at every start.", when);
+    } else
+        snprintf(tip, sizeof tip, "SRS runs as your user. Some data can only be read as root: drive health (SMART), memory stick "
+                                  "details (SPD), serial numbers and BIOS tables (DMI), ACPI tables, CPU registers (MSRs) and the "
+                                  "kernel log.\nRun as root collects them once with one password prompt, read-only (srs-root); "
+                                  "Options > Refresh root data at boot does it at every start.");
+    gtk_widget_set_tooltip_text(g_home->badge, tip);
+    gtk_widget_set_visible(g_home->badge_root, !full);
+}
+
 /* ---- refresh, keys, lifetime ---- */
 static void home_refresh_data(void)
 {
     swin *t;
     if (!g_home) return;
+    badge_update();
     cap_flush();
     hs_update();
     if (g_home->cur == CAT_OVERVIEW) ov_update(); else facts_update(g_home->cur);
@@ -4438,6 +4487,23 @@ static void home_open(int as_main)
     gtk_widget_set_tooltip_text(b, "Read everything on this page again (F5)");
     g_signal_connect(b, "clicked", G_CALLBACK(on_refresh_btn), NULL);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), b);
+    {   /* privilege badge: "Full access" with root data, else "Limited (user)" and a Run as root button */
+        GtkWidget *bx = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+        g_home->badge = gtk_event_box_new();
+        g_home->badge_icon = gtk_image_new();
+        g_home->badge_lbl = label_cls("", "srs-cap", 0);
+        gtk_box_pack_start(GTK_BOX(bx), g_home->badge_icon, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(bx), g_home->badge_lbl, FALSE, FALSE, 0);
+        gtk_container_add(GTK_CONTAINER(g_home->badge), bx);
+        gtk_widget_set_margin_start(g_home->badge, 8);
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), g_home->badge);
+        g_home->badge_root = gtk_button_new_with_label("Run as root...");
+        gtk_widget_set_tooltip_text(g_home->badge_root, "Collect the root-only data once with one password prompt (srs-root, read-only)");
+        gtk_widget_set_no_show_all(g_home->badge_root, TRUE);
+        gtk_widget_set_valign(g_home->badge_root, GTK_ALIGN_CENTER);
+        g_signal_connect(g_home->badge_root, "clicked", G_CALLBACK(on_launch), (gpointer)"root");
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), g_home->badge_root);
+    }
     gtk_window_set_titlebar(GTK_WINDOW(w->win), hb);
 
     paned = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -4489,6 +4555,7 @@ static void home_open(int as_main)
     }
     gtk_widget_show_all(w->win);
     home_go(CAT_OVERVIEW);
+    badge_update();
     ov_update();
     gtk_widget_grab_focus(lb);
     g_home->tick = g_timeout_add(3000, home_tick, NULL);
