@@ -8,9 +8,11 @@
  * "Save to this lineup" or "Save as new lineup".
  * Tabs opened from the item list, the search, Details or a device lookup are temporary (italic):
  * they are not kept unless "Keep this tab" is chosen.
- * Items that cannot show anything here are hidden: SIV's Windows-only items, hardware SIV checks for
- * that is not present (bucket flags), and items whose output on this PC holds no values (a scan in
- * a child process, cached in ~/.cache/srs/empty-items.txt). "Show hidden items" lists them greyed.
+ * Items that cannot show anything here are hidden: SIV's Windows-only items and hardware SIV checks for
+ * that is not present (bucket flags, always), and items whose output on this PC holds no values. That
+ * last check runs in a child process, cached in ~/.cache/srs/empty-items.txt, only when the user asks
+ * (Options > Check now) or turns on Options > Check daily; it never runs the network items or Ping.
+ * "Show hidden items" lists them greyed.
  */
 
 enum { LAY_ROW, LAY_WRAP, LAY_SIDE, LAY_N };
@@ -129,6 +131,7 @@ static void lu_to_kf(const lineup *l, GKeyFile *kf, int state)
     for (c = 1; c < CAT_N; c++) {
         char grp[80], key[96];
         const GPtrArray *t = l->pg[c].tabs;
+        if (c == CAT_POWER) continue;   /* no item tabs on that page */
         snprintf(grp, sizeof grp, state ? "Tabs" : "Page %s", g_cats[c].name);
         snprintf(key, sizeof key, "%s", state ? g_cats[c].name : "Tabs");
         g_key_file_set_string_list(kf, grp, key, t ? (const char *const *)t->pdata : NULL, t ? t->len : 0);
@@ -274,6 +277,7 @@ static void tabs_state_load(void)
         lu_clear(&from);
         g_opt_alltabs = g_key_file_get_boolean(kf, "SRSDEF", "All Items As Tabs", NULL);
         g_opt_showhidden = g_key_file_get_boolean(kf, "SRSDEF", "Show Hidden Items", NULL);
+        g_opt_autoscan = g_key_file_get_boolean(kf, "SRSDEF", "Check Empty Items", NULL);
     }
     lu_clear(&base);
     g_key_file_free(kf);
@@ -289,6 +293,7 @@ static void tabs_state_save(void)
     lu_to_kf(&g_cur, kf, 1);
     g_key_file_set_boolean(kf, "SRSDEF", "All Items As Tabs", g_opt_alltabs);
     g_key_file_set_boolean(kf, "SRSDEF", "Show Hidden Items", g_opt_showhidden);
+    g_key_file_set_boolean(kf, "SRSDEF", "Check Empty Items", g_opt_autoscan);
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
 }
@@ -345,7 +350,9 @@ static int scan_empty_main(void)
         emptyctx e = { 0, 1, NULL };
         srs_out o;
         if (!s || !s->id || !s->fn || s->bucket != B_LINUX) continue;
-        if (!strcmp(s->id, "ping")) continue;   /* sends packets: never run by itself */
+        /* never the network items or Ping: they look at (or send to) the network, and this check must
+           not reach the network, whether the user started it or the daily check did */
+        if (!strcmp(s->id, "ping") || (s->group && !strcmp(s->group, "network"))) continue;
         if (s->needs_root && !so_root_file("collected.txt")) continue;   /* empty only for want of root data: keep it (and its Run as root button) */
         e.first = g_string_new(NULL);
         memset(&o, 0, sizeof o);
@@ -1237,11 +1244,18 @@ static void on_tabopt(GtkCheckMenuItem *mi, gpointer d)
         pages_fill_all();
         for (c = 1; c < CAT_N; c++) alllbl_update(c);
     }
-    if (on && (g_opt_alltabs || !GPOINTER_TO_INT(d))) empty_scan(0);
+    if (on && g_opt_autoscan && (g_opt_alltabs || !GPOINTER_TO_INT(d))) empty_scan(0);
 }
 
 static void on_tabs_dialog(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; tabs_dialog(g_home && g_home->cur > 0 ? g_home->cur : CAT_CPU); }
 static void on_rescan(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; empty_scan(1); }
+static void on_autoscan(GtkCheckMenuItem *mi, gpointer d)
+{
+    (void)d;
+    g_opt_autoscan = gtk_check_menu_item_get_active(mi);
+    tabs_state_save();
+    if (g_opt_autoscan) empty_scan(0);   /* now, unless the last check is less than a day old */
+}
 
 static void tabs_options(GtkWidget *menu)
 {
@@ -1275,8 +1289,18 @@ static void tabs_options(GtkWidget *menu)
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_opt_showhidden);
     g_signal_connect(it, "toggled", G_CALLBACK(on_tabopt), GINT_TO_POINTER(1));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
-    it = gtk_menu_item_new_with_mnemonic("Check a_gain which items have nothing to show");
-    gtk_widget_set_sensitive(it, !g_scan_running);
+    it = gtk_check_menu_item_new_with_mnemonic("Check _daily which items have nothing to show");
+    gtk_widget_set_tooltip_text(it, "Off (the default): SRS checks only when you choose Check now. On: once a day, in the "
+                                    "background, SRS reads every item to find the ones with nothing to show and hides them. "
+                                    "The network items and Ping are never part of the check. Windows-only items and hardware "
+                                    "that is not present are hidden either way.");
+    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_opt_autoscan);
+    g_signal_connect(it, "toggled", G_CALLBACK(on_autoscan), NULL);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    it = gtk_menu_item_new_with_mnemonic(g_scan_running ? "Check _now which items have nothing to show (running...)"
+                                                         : "Check _now which items have nothing to show");
+    gtk_widget_set_tooltip_text(it, "Read every item once now, in the background, and hide the ones with nothing to show on "
+                                    "this PC (never the network items or Ping)");
     g_signal_connect(it, "activate", G_CALLBACK(on_rescan), NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
@@ -1371,7 +1395,9 @@ static void td_search(GtkSearchEntry *e, gpointer d) { (void)e; gtk_list_box_inv
 static void td_page(GtkComboBox *cb, gpointer d)
 {
     tabsdlg *td = d;
-    td->cat = gtk_combo_box_get_active(cb) + 1;
+    const char *id = gtk_combo_box_get_active_id(cb);
+    int c;
+    for (c = 1; c < CAT_N; c++) if (id && !strcmp(id, g_cats[c].name)) { td->cat = c; break; }
     td_fill(td);
 }
 
@@ -1402,7 +1428,8 @@ static void tabs_dialog(int cat)
     grid = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_box_pack_start(GTK_BOX(grid), gtk_label_new_with_mnemonic("_Page:"), FALSE, FALSE, 0);
     td->combo = gtk_combo_box_text_new();
-    for (c = 1; c < CAT_N; c++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(td->combo), g_cats[c].title);
+    for (c = 1; c < CAT_N; c++)   /* Power & cost is its own page, without item tabs */
+        if (c != CAT_POWER) gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(td->combo), g_cats[c].name, g_cats[c].title);
     gtk_box_pack_start(GTK_BOX(grid), td->combo, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(ca), grid, FALSE, FALSE, 0);
     for (i = 0; i < 3; i++) {
@@ -1422,9 +1449,9 @@ static void tabs_dialog(int cat)
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(sw), td->list);
     gtk_box_pack_start(GTK_BOX(ca), sw, TRUE, TRUE, 0);
-    td->cat = cat < 1 ? 1 : cat;
+    td->cat = cat < 1 || cat == CAT_POWER ? 1 : cat;
     g_signal_connect(td->combo, "changed", G_CALLBACK(td_page), td);
-    gtk_combo_box_set_active(GTK_COMBO_BOX(td->combo), td->cat - 1);
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(td->combo), g_cats[td->cat].name);
     gtk_widget_show_all(td->dlg);
     if (gtk_dialog_run(GTK_DIALOG(td->dlg)) == GTK_RESPONSE_ACCEPT) {
         for (c = 1; c < CAT_N; c++) {

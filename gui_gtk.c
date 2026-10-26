@@ -129,6 +129,8 @@ static void tabs_options(GtkWidget *menu);   /* gui_tabs.inc */
 static void lineup_menu(GtkWidget *m);
 static int scan_empty_main(void);
 static void empty_scan(int force);
+/* Options > Check daily for items with nothing to show (SRSDEF.ini "Check Empty Items"): off unless the user turns it on */
+static int g_opt_autoscan;
 
 /* ======================================================================
  * GTK text backend for srs_out
@@ -988,7 +990,7 @@ static void root_done(GPid pid, gint status, gpointer data)
     }
     for (i = 0; i < g_wins->len; i++) { swin *w = g_ptr_array_index(g_wins, i); if (w->kind == W_SECTION) render(w); }
     home_refresh_data();
-    if (status == 0 && g_home_open) empty_scan(1);   /* items that were empty only for want of root data */
+    if (status == 0 && g_home_open && g_opt_autoscan) empty_scan(1);   /* items that were empty only for want of root data */
     if (g_main) {
         GtkWidget *m = gtk_message_dialog_new(GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL, status == 0 ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING,
                                               GTK_BUTTONS_OK, "%s", status == 0 ? "Root data collected into ~/.cache/srs/root"
@@ -3010,8 +3012,8 @@ static void theme_apply(void)
  * Guide, live refresh, double-click lookup). The classic (SIV-style) windows stay one click away.
  * Read-only like everything else: the summaries are parsed from the sections' own output.
  * ====================================================================== */
-enum { CAT_OVERVIEW, CAT_CPU, CAT_MEM, CAT_BOARD, CAT_GPU, CAT_STORAGE, CAT_NET, CAT_SENSORS, CAT_DEVICES, CAT_OS,
-       CAT_BENCH, CAT_TOOLS, CAT_POWER, CAT_N };
+enum { CAT_OVERVIEW, CAT_CPU, CAT_MEM, CAT_BOARD, CAT_GPU, CAT_STORAGE, CAT_NET, CAT_SENSORS, CAT_POWER, CAT_DEVICES, CAT_OS,
+       CAT_BENCH, CAT_TOOLS, CAT_N };
 
 typedef struct {
     const char *name, *title, *icons, *blurb;
@@ -3041,6 +3043,10 @@ static const catdef g_cats[CAT_N] = {
     { "sensors", "Sensors", "sensors-temperature-symbolic|temperature-symbolic|power-profile-balanced-symbolic",
       "Temperatures, fan speeds, voltages and power, read live from the hardware monitor chips.",
       { "sensors", "hw-status", "cooling", "power", NULL } },
+    /* 2.1: its own page (power.c), not section tabs; under Sensors (Alt+9) */
+    { "power", "Power & cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
+      "How much power this PC uses, what it costs, and its history. Estimates: the CPU and graphics card are measured, the rest is guessed.",
+      { NULL } },
     { "devices", "USB & PCI devices", "preferences-system-devices-symbolic|drive-removable-media-symbolic",
       "Every device in or plugged into the PC. Double-click a line with a device ID to look it up.",
       { "all-dev", "pci-bus", "usb-bus", "usb-tree", "hid-bus", "thunder", NULL } },
@@ -3054,10 +3060,6 @@ static const catdef g_cats[CAT_N] = {
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
-    /* 2.1: its own page (power.c), not section tabs; appended last so the other pages keep their Alt+N keys */
-    { "power", "Power & cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
-      "How much power this PC uses, what it costs, and its history. Estimates: the CPU and graphics card are measured, the rest is guessed.",
-      { NULL } },
 };
 
 enum { LV_UNK = -1, LV_OK, LV_WARN, LV_BAD };
@@ -4006,13 +4008,13 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     {
         GtkWidget *sw = make_view(t);
         gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
-        if (!strcmp(id, "startup")) {   /* Startup: the manager (switches, Undo, Add) and the report */
+        if (!strcmp(id, "startup")) {   /* Startup: the report (read-only, shown first) and the manager (switches, Undo, Add) */
             GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
+            gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");   /* the first child: the tab opens on it */
             gtk_stack_add_titled(GTK_STACK(st), startup_manager_new(), "manage", "Manage");
-            gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");
             gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
-            gtk_widget_set_tooltip_text(ss, "Manage: turn startup items off and on, add one. Report: the Startup programs item as text "
-                                            "(what Copy and Save Report give)");
+            gtk_widget_set_tooltip_text(ss, "Report (where the tab opens): the Startup programs item as text, read-only (what Copy and "
+                                            "Save Report give). Manage: turn startup items off and on, add one.");
             gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
             gtk_box_reorder_child(GTK_BOX(bar), ss, 1);
             gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
@@ -4731,6 +4733,7 @@ static int home_key(swin *w, GdkEventKey *ev)
     guint k = gdk_keyval_to_lower(ev->keyval);
     if (alt && !ctrl && k >= GDK_KEY_0 && k <= GDK_KEY_9) { home_go(k == GDK_KEY_0 ? 9 : (int)(k - GDK_KEY_1)); return TRUE; }
     if (alt && !ctrl && (k == GDK_KEY_minus || k == GDK_KEY_equal)) { home_go(k == GDK_KEY_minus ? 10 : 11); return TRUE; }
+    if (alt && !ctrl && k == GDK_KEY_BackSpace) { home_go(12); return TRUE; }   /* the 13th page (Tools): the key after = */
     switch (ev->keyval) {
     case GDK_KEY_F1: if (shift) open_item("help"); else open_guide(t ? t : NULL); return TRUE;
     case GDK_KEY_F5: home_refresh_data(); return TRUE;
@@ -4752,7 +4755,7 @@ static int home_key(swin *w, GdkEventKey *ev)
         case GDK_KEY_d: open_item("all-dev"); return TRUE;
         case GDK_KEY_h: toggle_highlight(); return TRUE;
         case GDK_KEY_w: if (t) gtk_widget_destroy(t->page); return TRUE;
-        case GDK_KEY_t: if (g_home->cur != CAT_OVERVIEW) picker_open(g_home->ctl[g_home->cur], g_home->cur, PK_ADD, NULL); return TRUE;
+        case GDK_KEY_t: if (g_home->cur != CAT_OVERVIEW && g_home->ctl[g_home->cur]) picker_open(g_home->ctl[g_home->cur], g_home->cur, PK_ADD, NULL); return TRUE;
         case GDK_KEY_Page_Up: case GDK_KEY_Page_Down:   /* every tab-bar layout, wherever the focus is */
             if (g_home->cur != CAT_OVERVIEW && g_home->nb[g_home->cur]) {
                 GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[g_home->cur]);
@@ -4848,7 +4851,7 @@ static void home_open(int as_main)
         char tip[300];
         gtk_box_pack_start(GTK_BOX(row), gtk_image_new_from_icon_name(icon_pick(g_cats[c].icons), GTK_ICON_SIZE_MENU), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), label_cls(g_cats[c].title, NULL, 0), FALSE, FALSE, 0);
-        static const char *const keyname[CAT_N] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", NULL };
+        static const char *const keyname[CAT_N] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace" };
         if (keyname[c]) snprintf(tip, sizeof tip, "%s\n(Alt+%s)", g_cats[c].blurb, keyname[c]);
         else snprintf(tip, sizeof tip, "%s", g_cats[c].blurb);
         gtk_widget_set_tooltip_text(row, tip);
@@ -4891,7 +4894,7 @@ static void home_open(int as_main)
     gtk_widget_show_all(w->win);
     layout_apply();
     lineup_label_update();
-    empty_scan(0);   /* in a child process, at most once a day: which items have nothing to show */
+    if (g_opt_autoscan) empty_scan(0);   /* opt-in: in a child process, at most once a day, which items have nothing to show */
     home_go(CAT_OVERVIEW);
     badge_update();
     ov_update();
