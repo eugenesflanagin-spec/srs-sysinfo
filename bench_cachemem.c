@@ -276,9 +276,11 @@ int cm_have_clzero(void)
 static void clz_range(char *d, size_t n)
 {
     size_t i;
-    for (i = 0; i < n; i += 256)
+    for (i = 0; i < n; i += 256) {
+        char *p = d + i;   /* rax is read and written: "+a" */
         __asm__ volatile("clzero\n\tlea 64(%%rax), %%rax\n\tclzero\n\tlea 64(%%rax), %%rax\n\tclzero\n\tlea 64(%%rax), %%rax\n\tclzero"
-                         : : "a"(d + i) : "memory");
+                         : "+a"(p) : : "memory");
+    }
 }
 
 int cm_isa_best(void)

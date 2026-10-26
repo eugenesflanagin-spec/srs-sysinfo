@@ -565,9 +565,14 @@ static int cmd_bench2(int argc, char **argv)
     }
     if (!strcmp(argv[1], "crypto")) {
         double secs = 1;
-        for (i = 2; i + 1 < argc; i++) {
-            if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
-            else if (!strcmp(argv[i], "--seconds")) secs = atof(argv[++i]);
+        for (i = 2; i < argc; i++) {
+            const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S]"); return 0; }
+            if (!v) return usage_error("crypto: option needs a value");
+            if (!strcmp(a, "--threads")) threads = atoi(v);
+            else if (!strcmp(a, "--seconds")) secs = atof(v);
+            else return usage_error("crypto: unknown option");
+            i++;
         }
         if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
         return bench_crypto(threads, secs, &o) ? 1 : 0;
@@ -575,9 +580,14 @@ static int cmd_bench2(int argc, char **argv)
     {
         double lim = 1e9;
         int rc;
-        for (i = 2; i + 1 < argc; i++) {
-            if (!strcmp(argv[i], "--limit")) lim = parse_count(argv[++i]);
-            else if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
+        for (i = 2; i < argc; i++) {
+            const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 100..1e11, e.g. 1g] [--threads N]"); return 0; }
+            if (!v) return usage_error("prime: option needs a value");
+            if (!strcmp(a, "--limit")) lim = parse_count(v);
+            else if (!strcmp(a, "--threads")) threads = atoi(v);
+            else return usage_error("prime: unknown option");
+            i++;
         }
         if (lim < 100 || lim > 1e11) return usage_error("prime: --limit must be 100..1e11");
         rc = bench_prime((uint64_t)(lim + 0.5), threads, &o, NULL);

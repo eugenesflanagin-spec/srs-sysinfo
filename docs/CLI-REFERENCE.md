@@ -20,9 +20,8 @@ SRS has four programs:
 
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
-> **Note:** `sysreport-search --help` lists only `id`, `find` and `devices`. The other commands
-> below (`-save`, `--list`, `burn`, `bench`, `ipi`, `latency`) work the same way but are not in
-> the built-in help text.
+> **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem` and `storage`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -65,7 +64,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
