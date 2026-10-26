@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -60,11 +60,14 @@ static const char *HELP =
     "           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]\n"
     "        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,\n"
     "        ~20 s; asks first, --yes starts at once)\n"
+    "  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]\n"
+    "        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,\n"
+    "        5 s per test); never touches existing files; asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
 #endif
@@ -467,6 +470,62 @@ static int cmd_cachemem(int argc, char **argv)
     return rc == 0 ? 0 : 1;
 }
 
+/* storage --dir FOLDER ... - explicit runs only; asks first */
+static int cmd_storage(int argc, char **argv)
+{
+    srs_out o;
+    storage_cfg c;
+    storage_where w;
+    char why[300];
+    int i, yes = 0, rc;
+    memset(&c, 0, sizeof c);
+    c.size_mb = 1024;
+    c.secs = 5;
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--dir") || !strcmp(a, "--size") || !strcmp(a, "--seconds") || !strcmp(a, "--profile");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "storage: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--dir")) c.dir = v;
+        else if (!strcmp(a, "--size")) c.size_mb = atof(v);
+        else if (!strcmp(a, "--seconds")) c.secs = atof(v);
+        else if (!strcmp(a, "--profile")) {
+            if (!strcmp(v, "light")) c.profile = 1;
+            else if (!strcmp(v, "standard")) c.profile = 0;
+            else return usage_error("storage: --profile is standard or light");
+        } else if (!strcmp(a, "--allow-usb")) c.allow_usb = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else { fprintf(stderr, "storage: unknown option '%s'\n", a); return 2; }
+    }
+    if (!c.dir) return usage_error("storage: --dir FOLDER is required (a folder on the drive to test)");
+    if (c.size_mb < 16 || c.size_mb > 65536) return usage_error("storage: --size must be 16..65536 MB");
+    if (c.secs < 0.5 || c.secs > 60) return usage_error("storage: --seconds must be 0.5..60");
+    if (!storage_probe(c.dir, &w)) { fprintf(stderr, "storage: not started - %s\n", w.problem); return 2; }
+    if (w.usb && !c.allow_usb) {
+        fprintf(stderr, "storage: not started - %s is on a USB drive (%s). Pass --allow-usb to test it anyway.\n", w.folder, w.model);
+        return 2;
+    }
+    if (!yes) {
+        char ans[16];
+        if (!isatty(0)) { fprintf(stderr, "storage: not started - run it from a terminal to be asked, or pass --yes\n"); return 2; }
+        fprintf(stderr, "Storage benchmark on %s (%s, %s, file system %s).\n"
+                        "It writes a new temporary test file of %.0f MB in %s and then reads and rewrites it\n"
+                        "for %.0f s per test (6 tests). Existing files are not touched; the test file is removed at the end.\n"
+                        "%sStart now? [y/N] ", w.model[0] ? w.model : w.disk, w.transport, w.folder, w.fstype, c.size_mb, w.folder, c.secs,
+                w.rotational ? "This is a hard disk: the random tests will be slow and noisy. " : "");
+        fflush(stderr);
+        if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "storage: not started\n"); return 2; }
+    }
+    rc = bench_storage(&c, &o, NULL, why, sizeof why);
+    if (rc < 0 && why[0]) fprintf(stderr, "storage: %s\n", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -570,6 +629,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
     if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
     if (!strcmp(cmd, "cachemem")) return cmd_cachemem(argc, argv);
+    if (!strcmp(cmd, "storage")) return cmd_storage(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

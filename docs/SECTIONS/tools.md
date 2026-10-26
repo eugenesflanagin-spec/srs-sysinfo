@@ -37,6 +37,7 @@ shows the last stored result.
 - [IPI Plots](#ipi-plots) `ipi-plots`
 - [Memory Latency](#memory-latency) `latency`
 - [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
+- [Storage benchmark](#storage-benchmark) `storage-bench`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -556,6 +557,65 @@ Fabric clock is read (read-only) from the `ryzen_smu` driver's PM table, layout 
 memory sticks come from the root DMI data (Tools > Collect root data). Stored in
 `~/.cache/srs/bench-cachemem.txt`; each run is added to the [Benchmark history](#benchmark-history).
 It asks before it starts, and only one benchmark runs at a time in SRS.
+
+---
+## Storage benchmark  
+`storage-bench` - Linux data
+
+**In plain words.** How fast the drive that holds a folder you choose can read and write: big
+files in one go (sequential), lots of small 4 KB pieces at once (like a busy system), and one small
+piece at a time (how snappy the PC feels). It works on its **own temporary test file only** - your
+files are never opened, changed or deleted.
+
+**What you see.** Six rows - Sequential 1 MiB (Q8T1), 4K random (Q32T16; Q8T4 in the Light
+profile) and 4K random (Q1T1), each Read and Write - with **Average** (the whole test), **Peak**
+(the best quarter second) and **IOPS** (requests per second) for the 4K rows. Then the response
+time of single 4K reads and writes (mean, median, 95% and 99% under, slowest), the drive model and
+connection (NVMe, SATA, USB; **never the serial number**), the folder and file system, the test
+file size and I/O mode, and the drive temperature before and after (when the drive has a sensor).
+Q = requests in flight per thread, T = threads; Q x T requests are in flight at once.
+
+| Setting | Choices |
+|---|---|
+| Folder | Any folder you can write to on the drive you want to test (default: your home folder) |
+| Test file | 256 MB, 1 GB (default), 4 GB, 16 GB |
+| Seconds per test | 1-30 (default 5) |
+| Profile | Standard (4K random Q32T16 = 16 threads) or Light (Q8T4 = at most 4 threads) |
+| Allow USB drives | Off by default |
+
+**Safety.**
+- The test file is created new (it can never be one of your files) and is **unlinked at once**: it
+  has no name while the test runs and its space is freed the moment the test ends - also after
+  Stop, a crash or a forced kill. Nothing is ever left behind.
+- Refused: folders in RAM (tmpfs - `/tmp` on many systems), network and FUSE file systems, read-only
+  media, and anything with less than twice the test size free (+0.5 GB). USB drives only when you
+  tick **Allow USB drives** (some USB enclosures drop off under heavy load). Hard disks get a
+  warning.
+- It asks before it starts, showing the drive, the folder and how much it writes.
+- Writes count only once they are on the drive (`fdatasync` is inside the timing).
+
+**Healthy / typical values.** Samsung 980 PRO 1 TB (PCIe 4.0 x4 NVMe), btrfs, 64 MB file, 1 s per
+test, Light profile: sequential read about 6,500 MB/s, write about 3,200 MB/s; 4K Q8T4 read about
+1,400 MB/s (350,000 IOPS); 4K Q1T1 read about 51 MB/s (median 72 us), write about 150 MB/s. A SATA
+SSD tops out near 550 MB/s sequential; a hard disk manages about 150-250 MB/s sequential and
+around 1 MB/s (100-200 IOPS) at 4K Q1T1.
+
+**Unusual values and what they suggest.**
+- NVMe sequential read far below its rating: the drive sits in a slower M.2 slot or PCIe lanes
+  are shared (see the PCI pages for the link speed and width), or it is hot and throttling (watch
+  the temperature line).
+- Write much lower on a longer test than a short one: the drive's fast SLC write cache filled up;
+  that is normal for consumer SSDs.
+- Small test files (256 MB) can fit in the drive's own cache and read very fast; use 1 GB or more
+  for figures to compare.
+- "buffered I/O" in the Test file line: the file system refused direct I/O; the page cache was
+  dropped before each read test, but results can still be a little high.
+
+**Where Linux gets it.** Built in: `O_DIRECT` I/O with Linux native asynchronous I/O (`io_submit`)
+for real queue depths, incompressible random data; the drive is found through
+`/proc/self/mountinfo` and `/sys/block` (device-mapper and RAID followed to the first member); the
+temperature from the drive's hwmon sensor. Drive health (SMART) is on the Storage page. Stored in
+`~/.cache/srs/bench-storage.txt`; each run is added to the [Benchmark history](#benchmark-history).
 
 ---
 ## SRS Pi  

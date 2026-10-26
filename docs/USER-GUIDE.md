@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 549 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 551 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -73,7 +73,7 @@ It also has tools:
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (549 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (551 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -326,7 +326,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 549 of them.
+as **Sensor status** or **SMART drives**; there are 551 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -1095,6 +1095,22 @@ clock (for example 105 MHz) show the real value; the Infinity Fabric clock needs
 driver (Ryzen 7000 desktop); memory speed and type need root data (Tools > Collect root data). The
 engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS. x86-64 CPUs only.
 
+### 9.12 Storage
+
+**In plain words:** how fast the drive that holds a folder you choose reads and writes - big files,
+many small pieces at once, and one small piece at a time (how snappy it feels) - plus the response
+time of single reads and writes. It uses its **own temporary test file only**; your files are never
+touched, and nothing is left behind, even if SRS is stopped or crashes.
+Open: the **Benchmarks & stress** page -> **Storage...**, or Menu -> Tools -> Storage Benchmark...
+in the classic view. Command line: `sysreport-search storage --dir FOLDER`.
+Controls: **Folder** (the line below it names the drive, its connection, the file system and the
+free space - never the serial number), **Test file** (256 MB, 1 GB, 4 GB, 16 GB), **Seconds per
+test** (default 5), **Standard / Light** (Light uses at most 4 threads), **Allow USB drives** (off
+by default), **Run** (asks first), **Stop**.
+
+Folders in RAM (`/tmp` on many systems is RAM, not a drive), on the network or on FUSE are refused,
+as is a drive with too little free space. Drive health (SMART) is on the **Storage** page.
+
 ## 10. Options
 
 **Menu -> Options** (in the main window's menu, the classic Menu and the tray's SRS Menu). All are
@@ -1186,7 +1202,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 549 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 551 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -1253,7 +1269,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt` | The last result of SRS Pi, Crypto, Prime Sieve and Cache & Memory. |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory and Storage. |
 | `~/.cache/srs/bench-history.tsv` | One line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
@@ -1319,7 +1335,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 549 items with the
+- **Two views, same data.** The main window and the classic view show the same 551 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.

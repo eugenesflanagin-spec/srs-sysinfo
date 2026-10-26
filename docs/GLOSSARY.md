@@ -26,6 +26,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ASLR (Address Space Layout Randomization)** - loading programs and libraries at random memory addresses each run, to make attacks harder. *See: [linux-os](SECTIONS/linux-os.md).*
 - **ASPM (Active State Power Management)** - lets a PCIe link drop into a low-power state when idle. *See: [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **Associativity (ways)** - how many places in a cache a given piece of memory may be stored; more ways means fewer collisions. *See: [processors](SECTIONS/processors.md).*
+- **Asynchronous I/O (AIO)** - handing the kernel several read or write requests at once and collecting the answers later; how the storage benchmark keeps Q requests in flight. *See: [tools](SECTIONS/tools.md).*
 - **ATA** - AT Attachment: the command set used by SATA (and older IDE/PATA) hard disks and SSDs. *See: [storage](SECTIONS/storage.md).*
 - **AUR (Arch User Repository)** - community build recipes for Arch-based systems. Packages built from it show as "foreign" in pacman. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Autosuspend** - the USB core's habit of putting an idle device to sleep after a set number of seconds; -1 turns it off. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -239,6 +240,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Interface (USB)** - One function of a USB device, with its own class and driver. One device can have several. *See: [buses-1](SECTIONS/buses-1.md).*
 - **IOMMU (input-output memory management unit)** - Input-Output Memory Management Unit; controls which memory each device can reach, needed for passing devices to virtual machines. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md), [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
 - **IOMMU group** - The smallest set of devices the IOMMU can isolate from each other. It matters for passing a device to a virtual machine. *See: [buses-1](SECTIONS/buses-1.md).*
+- **IOPS** - input/output operations per second: how many separate read or write requests a drive answers each second. *See: [tools](SECTIONS/tools.md).*
 - **IP block** - A reusable hardware building block inside an AMD chip (graphics core, video engine, memory controller...), each with its own version. *See: [graphics](SECTIONS/graphics.md).*
 - **IPI** - Inter-Processor Interrupt, a signal from one CPU to another. SRS's IPI Delay measures the core-to-core cache-line delay instead. *See: [tools](SECTIONS/tools.md).*
 - **IPMI (Intelligent Platform Management Interface)** - A standard for talking to a server's BMC: sensors, event log, remote power control. *See: [sensors](SECTIONS/sensors.md).*
@@ -350,6 +352,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## O
 
+- **O_DIRECT** - opening a file so reads and writes go straight to the drive, past Linux's page cache in RAM; benchmarks use it so they measure the drive, not the RAM. *See: [tools](SECTIONS/tools.md).*
 - **OpenCL** - An open standard for running general computing tasks on GPUs and other processors. *See: [graphics](SECTIONS/graphics.md).*
 - **OpenGL** - The older cross-platform 3D graphics interface; still used by many programs and older games. *See: [graphics](SECTIONS/graphics.md).*
 - **Option ROM** - firmware stored on a PCI card (listed as the ROM BAR), for example a graphics card's video BIOS. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
@@ -409,6 +412,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **qdisc (queueing discipline)** - the kernel's waiting line for outgoing packets, such as fq or fq_codel. *See: [network](SECTIONS/network.md), [srs-items](SECTIONS/srs-items.md).*
 - **QST (Quiet System Technology)** - Intel fan control built into the management engine of some 2007-2010 desktop boards. *See: [sensors](SECTIONS/sensors.md).*
+- **Queue depth (Q), threads (T)** - Q = how many requests one thread keeps waiting at the drive at once, T = how many threads do so; "Q32T16" keeps 512 requests in flight. *See: [tools](SECTIONS/tools.md).*
 - **Quirk (USB)** - a kernel workaround flag for a device that does not follow the USB standard exactly. *See: [buses-2](SECTIONS/buses-2.md).*
 
 ## R

@@ -26,6 +26,15 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   (Ryzen 7000 desktop with `ryzen_smu`), memory type / speed / channels (root data), cache sizes.
   Command line `sysreport-search cachemem` with LSA's options (`--threads`, `--seconds`, `--isa`,
   `--mem-mib`, `--only`, `--tests`, `--mib`, `--mem-write`, `--yes`). x86-64 only.
+- **Storage benchmark**: read and write speed of the drive that holds a folder you choose -
+  Sequential 1 MiB (Q8T1), 4K random (Q32T16, or Q8T4 in the Light profile) and 4K random (Q1T1),
+  each read and write, with average, peak, IOPS, 4K response times (mean, median, 95% / 99%,
+  slowest), drive model and connection (never the serial number), file system and drive
+  temperature before / after. Works only on its own temporary test file (created new and unlinked
+  at once, so nothing can be left behind - also after Stop, a crash or a kill); `O_DIRECT` with
+  Linux native AIO for real queue depths. Refuses RAM (tmpfs), network and FUSE folders and too
+  little free space; USB drives only when allowed; asks before it starts. Test file 256 MB - 16 GB,
+  1-30 s per test. Command line `sysreport-search storage --dir FOLDER`.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.

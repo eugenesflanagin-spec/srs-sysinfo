@@ -62,4 +62,19 @@ void sha256_hex(const void *data, size_t len, char hex[65]);
 /* ---- Prime sieve (bench_prime.c): count primes <= n, checked against pi(10^k) ---- */
 int bench_prime(uint64_t n, int threads, srs_out *o, volatile int *cancel);   /* 0 ok, 1 wrong, -1 bad, -2 cancelled */
 
+
+/* ---- Storage (bench_storage.c): read / write speed of the drive under a chosen folder ---- */
+typedef struct {
+    char folder[4096], mount[4096], source[4096], fstype[64], disk[64], model[128], transport[32], temp_path[4200];
+    char problem[256];        /* why it cannot be tested ("" = can) */
+    double free_bytes;
+    int usb, rotational, removable, readonly, not_a_drive, in_ram;
+} storage_where;
+typedef struct { const char *dir; double size_mb, secs; int profile, allow_usb; } storage_cfg;   /* profile 0 Standard, 1 Light */
+int  storage_probe(const char *dir, storage_where *w);     /* 1 = can be tested; fills w either way */
+double storage_temp_c(const storage_where *w);             /* drive temperature, 0 = no sensor */
+const char *storage_stage(void);
+/* 0 ok, 1 stopped, -1 not started (why says why), -2 I/O error (result shown) */
+int  bench_storage(const storage_cfg *c, srs_out *o, volatile int *cancel, char *why, size_t wn);
+
 #endif

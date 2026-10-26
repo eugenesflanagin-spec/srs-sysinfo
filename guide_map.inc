@@ -440,6 +440,7 @@
 { "startup", "sections-linux-os--startup-programs" },
 { "states", "sections-srs-items--lock-states" },
 { "stc", "sections-srs-items--stc-info-thread-contexts" },
+{ "storage-bench", "sections-tools--storage-benchmark" },
 { "stornvme", "sections-storage--nvme-stornvme" },
 { "synthetic", "sections-sensors--synthetic-sensors-setup" },
 { "sys-hal", "sections-buses-2--system-hal-resources" },

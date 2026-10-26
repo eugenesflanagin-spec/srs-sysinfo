@@ -84,6 +84,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **Cache & Memory** - Read / Write / Copy bandwidth and latency of the RAM and the L1, L2, L3
     caches, with the measured base clock and the Infinity Fabric clock (engine from the author's
     Linux System Audit 0.2.0, now part of SRS; x86-64).
+  - **Storage** - sequential 1 MiB, 4K random (high queue depth) and 4K Q1T1 read / write speed,
+    IOPS and response times of the drive under a folder you choose, on a temporary test file only
+    (unlinked at once, O_DIRECT, Linux AIO); RAM / network folders refused, USB drives opt-in.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -205,6 +208,7 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `sec_cpu.c` ... `sec_siv.c` | one file per group (cpu, machine, sensors, storage, network, os, gpu, bus, tools, siv) |
 | `sec_stubs.c` | generated from `CHECKLIST.tsv` by `gen_stubs.py`: every SIV item is registered |
 | `burner.c`, `bench.c` | CPU Burnin/Stress engine; Dhrystone, Whetstone, IPI, memory latency, run history |
+| `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |

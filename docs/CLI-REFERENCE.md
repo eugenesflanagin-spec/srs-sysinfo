@@ -46,6 +46,7 @@ sysreport-search latency [--max MB]
 sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
 sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
@@ -99,6 +100,9 @@ Benchmarks and stress (load the CPU; run only when you ask):
         ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
+        5 s per test); never touches existing files; asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
         Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
@@ -106,7 +110,7 @@ Benchmarks and stress (load the CPU; run only when you ask):
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
 ```
@@ -125,7 +129,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (549 lines), one per line:
+Lists every item SRS knows (551 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS
@@ -448,7 +452,22 @@ caches. It loads every CPU thread and the memory bus for about 20 seconds and **
 x86-64 only. Exit code 0 when it ran, 1 if memory could not be allocated, 2 for a bad option or no
 confirmation. See [tools.md](SECTIONS/tools.md#cache--memory-benchmark).
 
-Every `cachemem`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `storage` - drive read / write speed
+
+```
+sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+```
+
+Tests the drive that holds FOLDER on a new temporary test file (`--size`, 16-65536 MB, default
+1024) that is unlinked at once and gone when the test ends - existing files are never touched.
+Six tests of `--seconds S` each (0.5-60, default 5): sequential 1 MiB Q8T1, 4K random Q32T16
+(`--profile light`: Q8T4) and 4K random Q1T1, read and write; average, peak, IOPS and 4K Q1T1
+response times. Refuses RAM (tmpfs), network and FUSE folders and too little free space; USB
+drives only with `--allow-usb`. **Asks first**; `--yes` starts at once. Exit code 0 when it ran,
+1 when it was stopped or hit an I/O error, 2 when it did not start (the message says why). See
+[tools.md](SECTIONS/tools.md#storage-benchmark).
+
+Every `cachemem`, `storage`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -477,6 +496,7 @@ or one of these tool names:
 | `crypto` | Crypto benchmark |
 | `prime` | Prime Sieve |
 | `cachemem` | Cache & Memory |
+| `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

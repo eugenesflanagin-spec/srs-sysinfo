@@ -81,6 +81,25 @@ else
     echo "  skip  not x86-64"
 fi
 
+echo "== Storage: refusals (nothing is written)"
+if [ -d /dev/shm ] && [ "$(stat -f -c %T /dev/shm)" = tmpfs ]; then
+    out=$("$BIN" storage --dir /dev/shm --yes 2>&1); rc=$?
+    [ "$rc" = 2 ] && grep -q "in RAM" <<<"$out" && ok "a RAM folder (/dev/shm) is refused" || bad "storage on tmpfs: exit $rc: $out"
+fi
+"$BIN" storage --dir "$HOME" </dev/null >/dev/null 2>&1; [ $? = 2 ] && ok "storage asks first (no --yes, no terminal: not started)" || bad "storage started without --yes"
+"$BIN" storage --dir /nonexistent-srs-test --yes >/dev/null 2>&1; [ $? = 2 ] && ok "a missing folder is refused" || bad "missing folder accepted"
+# a real (small) run only on request: SRS_TEST_STORAGE_DIR=folder on a drive (64 MB, 1 s per test, Light profile)
+if [ -n "${SRS_TEST_STORAGE_DIR:-}" ]; then
+    before=$(ls -A "$SRS_TEST_STORAGE_DIR" | wc -l)
+    out=$("$BIN" storage --dir "$SRS_TEST_STORAGE_DIR" --size 64 --seconds 1 --profile light --yes); rc=$?
+    seq=$(awk '/^Sequential 1 MiB/{print $6}' <<<"$out")
+    after=$(ls -A "$SRS_TEST_STORAGE_DIR" | wc -l)
+    [ "$rc" = 0 ] && [ -n "$seq" ] && [ "$before" = "$after" ] && ok "storage run in $SRS_TEST_STORAGE_DIR: sequential read $seq MB/s; no file left behind" \
+        || bad "storage run: exit $rc, seq '$seq', files before $before after $after"
+else
+    echo "  skip  real storage run (set SRS_TEST_STORAGE_DIR=folder-on-a-drive to include it)"
+fi
+
 echo "== bad input is refused"
 "$BIN" pi --digits 50 >/dev/null 2>&1 && bad "pi --digits 50 accepted" || ok "pi --digits 50 refused"
 "$BIN" prime --limit 2e11 >/dev/null 2>&1 && bad "prime --limit 2e11 accepted" || ok "prime --limit 2e11 refused"

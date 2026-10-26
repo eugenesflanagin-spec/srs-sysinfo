@@ -3,7 +3,7 @@
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -58,8 +58,11 @@ count the primes up to \fIN\fR (default 1e9), checked against the known count.
 .TP
 \fBcachemem\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fIlevels\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-mib\fR] [\fB\-\-mem\-write\fR \fImode\fR] [\fB\-\-yes\fR]
 Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1\-L3 (all threads, about 20 s; asks first unless \fB\-\-yes\fR).
+.TP
+\fBstorage\fR \fB\-\-dir\fR \fIFOLDER\fR [\fB\-\-size\fR \fIMB\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-profile\fR \fBstandard\fR|\fBlight\fR] [\fB\-\-allow\-usb\fR] [\fB\-\-yes\fR]
+read / write speed of the drive holding \fIFOLDER\fR, on a temporary test file that is unlinked at once; existing files are never touched; asks first unless \fB\-\-yes\fR.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR and \fBcachemem\fR load the CPU and only run when asked.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR and \fBstorage\fR load the CPU or the drive and only run when asked.
 Run
 .B sysreport-search \-\-help
 for the full option list.

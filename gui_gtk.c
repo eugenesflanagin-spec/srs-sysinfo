@@ -53,7 +53,7 @@ static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "C
 static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE };
 
 typedef struct swin {
     wkind kind;
@@ -87,6 +87,7 @@ typedef struct swin {
     /* bench */
     GtkWidget *bm_mode, *bm_secs, *bm_run, *bm_cpus, *bm_rounds, *bm_max, *bm_status;
     GtkWidget *bm_digits, *bm_algo, *bm_threads, *bm_limit, *bm_stop, *bm_superpi;
+    GtkWidget *st_dir, *st_size, *st_profile, *st_usb, *st_info;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
@@ -493,6 +494,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
     else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
     else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
+    else if (!strcmp(t, "storagebench")) open_tool(W_BENCH, BK_STORAGE);
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
@@ -521,7 +523,7 @@ static void build_menu(GtkWidget *menu)
     static const struct { const char *label, *tool; } tools[] = {
         { "CPU _Burnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
         { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "P_rime Sieve...", "prime" },
-        { "Cache & _Memory...", "cachemem" },
+        { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1423,7 +1425,15 @@ static void build_burn(swin *w, GtkWidget *vb)
 /* ======================================================================
  * Benchmark / IPI / Latency window (runs on a worker thread, never automatically)
  * ====================================================================== */
-typedef struct { swin *w; int sub, mode, cpus, rounds, threads, algo, rc; double secs, limit; long max; size_t digits; volatile int cancel; } benchjob;
+typedef struct {
+    swin *w;
+    int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb;
+    double secs, limit, size_mb;
+    long max;
+    size_t digits;
+    char *dir, why[300];
+    volatile int cancel;
+} benchjob;
 
 /* the result file (bench-<name>.txt), window title and guide item of each benchmark window */
 static const char *bk_result(int sub, int mode)
@@ -1435,18 +1445,19 @@ static const char *bk_result(int sub, int mode)
     case BK_CRYPTO: return "crypto";
     case BK_PRIME: return "prime";
     case BK_CACHEMEM: return "cachemem";
+    case BK_STORAGE: return "storage";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
-    static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory" };
-    return sub >= 0 && sub <= BK_CACHEMEM ? t[sub] : "Benchmark";
+    static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory", "Storage Benchmark" };
+    return sub >= 0 && sub <= BK_STORAGE ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
-    static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory" };
-    return sub >= 0 && sub <= BK_CACHEMEM ? t[sub] : "benchmark";
+    static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory", "storage-bench" };
+    return sub >= 0 && sub <= BK_STORAGE ? t[sub] : "benchmark";
 }
 
 static gboolean bench_done(gpointer data)
@@ -1463,10 +1474,18 @@ static gboolean bench_done(gpointer data)
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
         gtk_widget_set_sensitive(w->bm_run, TRUE);
         if (w->bm_stop) gtk_widget_set_sensitive(w->bm_stop, FALSE);
+        if (j->sub == BK_STORAGE) {
+            char b[400];
+            snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
+                                          j->rc == -1 ? "Not started: " : "Finished with an error: ", j->rc < 0 ? j->why : "");
+            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
+        } else
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
-        if (j->rc == -2 || j->rc == -3) {
+        if (j->sub == BK_STORAGE) {
+            if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
+        } else if (j->rc == -2 || j->rc == -3) {
             so_err(&o, j->rc == -2 ? "Stopped before the end - this run has no result. The last finished result is below."
                                    : "Not enough memory for this size - try a smaller one. The last finished result is below.");
             so_par(&o);
@@ -1474,6 +1493,7 @@ static gboolean bench_done(gpointer data)
         } else if (!bench_show_last(name, &o)) so_err(&o, "No result (nothing to run in this mode on this CPU)");
         if (w->plot) gtk_widget_queue_draw(w->plot);
     }
+    g_free(j->dir);
     g_free(j);
     return G_SOURCE_REMOVE;
 }
@@ -1493,6 +1513,11 @@ static gpointer bench_worker(gpointer data)
         c.seconds = j->secs;
         j->rc = bench_cachemem(&c, NULL, &j->cancel);
         if (j->rc == 1) j->rc = 0;   /* stopped: the partial result is shown, marked as stopped */
+    } else if (j->sub == BK_STORAGE) {
+        storage_cfg c;
+        memset(&c, 0, sizeof c);
+        c.dir = j->dir; c.size_mb = j->size_mb; c.secs = j->secs; c.profile = j->profile; c.allow_usb = j->allow_usb;
+        j->rc = bench_storage(&c, NULL, &j->cancel, j->why, sizeof j->why);
     }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
@@ -1507,6 +1532,7 @@ static gboolean bench_tick(gpointer data)
     double el = g_get_monotonic_time() / 1e6 - w->run_t0;
     if (w->sub == BK_PI) snprintf(b, sizeof b, "Running %.0f s: %s", el, pi_stage());
     else if (w->sub == BK_CACHEMEM) snprintf(b, sizeof b, "Running %.0f s: %s", el, cm_stage());
+    else if (w->sub == BK_STORAGE) snprintf(b, sizeof b, "Running %.0f s: %s", el, storage_stage());
     else snprintf(b, sizeof b, "Running %.0f s...", el);
     gtk_label_set_text(GTK_LABEL(w->bm_status), b);
     return G_SOURCE_CONTINUE;
@@ -1546,6 +1572,42 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
+    if (w->sub == BK_STORAGE) {
+        static const double sizes[] = { 256, 1024, 4096, 16384 };
+        storage_where where;
+        GtkWidget *d;
+        char *dir = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(w->st_dir));
+        int ok, k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->st_size)), usb = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->st_usb));
+        double mb = sizes[k < 0 ? 1 : k];
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+        if (!dir || !storage_probe(dir, &where) || (where.usb && !usb)) {
+            char b[400];
+            snprintf(b, sizeof b, "Not started: %s", !dir ? "choose a folder" : where.problem[0] ? where.problem :
+                                                       "the folder is on a USB drive - tick Allow USB drives to test it");
+            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
+            g_free(dir);
+            return;
+        }
+        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+                                   "Start the storage benchmark on %s?", where.model[0] ? where.model : where.disk);
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "Connection: %s. Folder: %s (%s).\n\n"
+            "SRS writes a new temporary test file of %.0f MB there, then reads and rewrites it for %.0f seconds per test "
+            "(6 tests). Your existing files are not touched; the test file has no name while the test runs and is gone at the end, "
+            "even if SRS is stopped or crashes.%s",
+            where.transport, where.folder, where.fstype, mb, gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs)),
+            where.rotational ? "\n\nThis is a hard disk: the random tests are slow and noisy." :
+            where.usb ? "\n\nThis is a USB drive: some USB enclosures drop off under heavy load. Make sure nothing important is open on it." : "");
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+        if (!ok || w->running || g_bench_busy || burn_active()) { g_free(dir); return; }
+        j = g_new0(benchjob, 1);
+        j->dir = dir;
+        j->size_mb = mb;
+        j->secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        j->profile = gtk_combo_box_get_active(GTK_COMBO_BOX(w->st_profile)) == 1;
+        j->allow_usb = usb;
+    } else
     j = g_new0(benchjob, 1);
     j->w = w;
     j->sub = w->sub;
@@ -1561,6 +1623,8 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     } else if (w->sub == BK_LAT) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max)) * 1024 * 1024;
+    } else if (w->sub == BK_STORAGE) {
+        /* filled in above */
     } else {
         int k;
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_threads));
@@ -1581,7 +1645,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -1596,8 +1660,27 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         w->cancelp = NULL;
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
         gtk_widget_set_sensitive(w->bm_run, TRUE);
+        g_free(j->dir);
         g_free(j);
     }
+}
+
+/* Storage: show which drive the chosen folder is on (never the serial number) */
+static void on_storage_dir(GtkWidget *x, gpointer data)
+{
+    swin *w = data;
+    char *dir = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(w->st_dir)), b[600];
+    storage_where s;
+    (void)x;
+    if (!w->st_info) return;
+    if (!dir) { gtk_label_set_text(GTK_LABEL(w->st_info), "Choose a folder on the drive to test."); return; }
+    storage_probe(dir, &s);
+    if (s.problem[0]) snprintf(b, sizeof b, "Cannot test here: %s.", s.problem);
+    else snprintf(b, sizeof b, "Drive: %s (%s), %s, %.0f GB free.%s", s.model[0] ? s.model : s.disk[0] ? s.disk : "unknown",
+                  s.transport[0] ? s.transport : "unknown connection", s.fstype, s.free_bytes / 1e9,
+                  s.usb ? " USB drive: tick Allow USB drives to test it." : "");
+    gtk_label_set_text(GTK_LABEL(w->st_info), b);
+    g_free(dir);
 }
 
 /* SRS Pi: fill the Digits list with the decimal sizes or the SuperPi (power-of-two) sizes; 1M stays chosen */
@@ -1679,6 +1762,31 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_limit), 2);
         gtk_box_pack_start(GTK_BOX(row), w->bm_limit, FALSE, FALSE, 0);
         threads_spin(w, row, burn_ncpu(), "Threads that share the work. 1 = single-thread score.");
+    } else if (w->sub == BK_STORAGE) {
+        static const char *const sz[] = { "256 MB", "1 GB", "4 GB", "16 GB" };
+        gtk_box_pack_start(GTK_BOX(row), lbl("Folder"), FALSE, FALSE, 0);
+        w->st_dir = gtk_file_chooser_button_new("Choose a folder on the drive to test", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(w->st_dir), g_get_home_dir());
+        gtk_widget_set_tooltip_text(w->st_dir, "The test file goes into this folder, so the drive that holds it is tested. Existing files are never touched.");
+        g_signal_connect(w->st_dir, "selection-changed", G_CALLBACK(on_storage_dir), w);
+        gtk_box_pack_start(GTK_BOX(row), w->st_dir, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Test file"), FALSE, FALSE, 0);
+        w->st_size = gtk_combo_box_text_new();
+        for (m = 0; m < 4; m++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->st_size), sz[m]);
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->st_size), 1);
+        gtk_box_pack_start(GTK_BOX(row), w->st_size, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
+        w->bm_secs = spin(1, 30, 1, 5);
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+        w->st_profile = gtk_combo_box_text_new();
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->st_profile), "Standard (4K random Q32T16)");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->st_profile), "Light (4K random Q8T4)");
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->st_profile), 0);
+        gtk_widget_set_tooltip_text(w->st_profile, "Q = requests in flight per thread, T = threads. Light uses at most 4 threads.");
+        gtk_box_pack_start(GTK_BOX(row), w->st_profile, FALSE, FALSE, 0);
+        w->st_usb = gtk_check_button_new_with_mnemonic("Allow _USB drives");
+        gtk_widget_set_tooltip_text(w->st_usb, "Off by default: some USB enclosures drop off under heavy load.");
+        gtk_box_pack_start(GTK_BOX(row), w->st_usb, FALSE, FALSE, 0);
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -1696,13 +1804,23 @@ static void build_bench(swin *w, GtkWidget *vb)
     w->bm_run = sbtn("_Run");
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
-    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM) {
+    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
         gtk_box_pack_start(GTK_BOX(row), w->bm_stop, FALSE, FALSE, 0);
     }
-    w->bm_status = lbl("Not run - press Run (the CPUs will be busy while it runs)");
+    w->bm_status = lbl(w->sub == BK_STORAGE ? "Not run - press Run" : "Not run - press Run (the CPUs will be busy while it runs)");
+    if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
+        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+        gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
+        w->st_info = lbl("");
+        gtk_box_pack_start(GTK_BOX(r2), w->st_info, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), w->bm_status, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vb), r2, FALSE, FALSE, 0);
+        on_storage_dir(NULL, w);
+        return;
+    }
     gtk_box_pack_start(GTK_BOX(row), w->bm_status, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
 }
@@ -2500,7 +2618,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "storage-bench", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -3296,7 +3414,7 @@ static int cat_of_id(const char *id)
     if (!strcmp(g, "bus")) return CAT_DEVICES;
     if (!strcmp(g, "tools") && (!strncmp(base, "benchmark", 9) || !strncmp(base, "ipi", 3) || !strcmp(base, "latency") ||
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
-                                !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") ||
+                                !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") || !strcmp(base, "storage-bench") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -3514,6 +3632,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
     else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
     else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
+    else if (!strcmp(t, "storagebench")) open_tool(W_BENCH, BK_STORAGE);
     else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
     else if (!strcmp(t, "save")) save_dialog(0);
@@ -3897,6 +4016,9 @@ static GtkWidget *build_cat_page(int cat)
             grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
                 "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "Cache & _Memory...", "cachemem",
                 "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Storage", "How fast the drive that holds a folder you choose reads and writes: sequential, 4K random and response time.",
+                "Works on its own temporary test file only; never touches your files. USB drives only when you allow them. Asks before it starts.",
+                "St_orage...", "storagebench", "Open the Storage benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));
@@ -4359,6 +4481,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
             else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
             else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
+            else if (!strcmp(t, "storagebench")) open_tool(W_BENCH, BK_STORAGE);
             else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
             else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);
