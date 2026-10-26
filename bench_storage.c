@@ -33,6 +33,20 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+/* mountinfo writes space, tab, newline and backslash as \040 \011 \012 \134 */
+static void mi_unescape(char *s)
+{
+    char *o = s;
+    for (; *s; s++, o++) {
+        if (s[0] == '\\' && s[1] >= '0' && s[1] <= '3' && s[2] >= '0' && s[2] <= '7' && s[3] >= '0' && s[3] <= '7') {
+            *o = (char)((s[1] - '0') * 64 + (s[2] - '0') * 8 + (s[3] - '0'));
+            s += 3;
+        } else
+            *o = *s;
+    }
+    *o = 0;
+}
+
 static const char *volatile g_st_stage = "";
 const char *storage_stage(void) { return g_st_stage; }
 
@@ -101,6 +115,8 @@ int storage_probe(const char *dir, storage_where *w)
             char mp[PATH_MAX], fs[64], src[PATH_MAX], *dash = strstr(l, " - ");
             size_t ml;
             if (!dash || sscanf(l, "%*s %*s %*s %*s %4095s", mp) != 1 || sscanf(dash + 3, "%63s %4095s", fs, src) != 2) continue;
+            mi_unescape(mp);
+            mi_unescape(src);
             ml = strlen(mp);
             if (strncmp(real, mp, ml) || (real[ml] && real[ml] != '/' && strcmp(mp, "/"))) continue;
             if (ml >= bl) {
@@ -151,7 +167,10 @@ int storage_probe(const char *dir, storage_where *w)
         if (g.gl_pathc) snprintf(w->temp_path, sizeof w->temp_path, "%s", g.gl_pathv[0]);
         globfree(&g);
     }
-    if (w->not_a_drive) snprintf(w->problem, sizeof w->problem, w->in_ram ? "this folder is in RAM (%s), not on a drive" :
+    if (w->not_a_drive && !strcmp(w->fstype, "fuseblk"))
+        snprintf(w->problem, sizeof w->problem, "this folder is on a drive used through a FUSE driver (fuseblk, e.g. NTFS-3G or exFAT); "
+                 "the result would measure the driver, not the drive");
+    else if (w->not_a_drive) snprintf(w->problem, sizeof w->problem, w->in_ram ? "this folder is in RAM (%s), not on a drive" :
                                  "this folder is on a %s file system (network, FUSE or read-only image), not directly on a drive", w->fstype);
     else if (w->readonly) snprintf(w->problem, sizeof w->problem, "this folder is on a read-only file system");
     else if (access(real, W_OK)) snprintf(w->problem, sizeof w->problem, "you cannot write to this folder");
@@ -204,9 +223,10 @@ static void *st_worker(void *arg)
     unsigned char *buf = NULL;
     uint64_t seed = 0x9E3779B97F4A7C15ull ^ ((uint64_t)j->idx * 0x100000001B3ull), blocks = j->file_bytes / j->bs;
     uint64_t seqpos = (blocks / (uint64_t)j->nthreads) * (uint64_t)j->idx;   /* threads start at different places */
-    int i, inflight = 0;
-    if (!cb || !cbp || !ev || !t_sub || !busy || posix_memalign((void **)&buf, 4096, j->bs * (size_t)j->qd) || io_setup_((unsigned)j->qd, &ctx)) {
-        j->err = errno ? errno : ENOMEM;
+    int i, inflight = 0, pm = 0;
+    errno = 0;
+    if (!cb || !cbp || !ev || !t_sub || !busy || (pm = posix_memalign((void **)&buf, 4096, j->bs * (size_t)j->qd)) || io_setup_((unsigned)j->qd, &ctx)) {
+        j->err = pm ? pm : errno ? errno : ENOMEM;   /* posix_memalign returns its error, it does not set errno */
         goto out;
     }
     for (i = 0; i < (int)(j->bs * (size_t)j->qd); i++) buf[i] = (unsigned char)xs64(&seed);   /* incompressible */

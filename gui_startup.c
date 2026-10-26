@@ -783,7 +783,7 @@ static void add_dialog(smgr *m)
         GKeyFile *kf;
         sitem fake = { 0 };
         if (is_app && !ai) { g_free(name); tell(m, GTK_MESSAGE_INFO, "Pick a program in the list, or choose A command."); continue; }
-        if (!is_app && !*g_strstrip((char *)cmd)) { g_free(name); tell(m, GTK_MESSAGE_INFO, "Type the command to run."); continue; }
+        if (!is_app && !cmd[strspn(cmd, " \t\r\n")]) { g_free(name); tell(m, GTK_MESSAGE_INFO, "Type the command to run."); continue; }
         if (!*name) { g_free(name); name = g_strdup(ai ? g_app_info_get_display_name(ai) : cmd); }
         base = ai ? strip_codes(g_app_info_get_commandline(ai)) : NULL;
         if (!ai || delay > 0) {   /* through sh: a command line, or a pause first */

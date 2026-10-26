@@ -2314,6 +2314,7 @@ static void on_bg_toggle(GtkToggleButton *t, gpointer d)
 {
     int on = gtk_toggle_button_get_active(t);
     char *p = bg_unit_path();
+    const char *fail = NULL;
     (void)d;
     if (G.loading) { g_free(p); return; }
     if (on) {
@@ -2323,12 +2324,11 @@ static void on_bg_toggle(GtkToggleButton *t, gpointer d)
         const char *const r2[] = { "systemctl", "--user", "enable", "--now", "srs-power-recorder.service", NULL };
         g_mkdir_with_parents(dir, 0755);
         txt = g_strdup_printf("# Written by SRS (Power & cost > Setup). Remove it there, or delete this file.\n"
-                              "[Unit]\nDescription=SRS power recorder (Power & cost history)\n\n"
+                              "[Unit]\nDescription=SRS power recorder (Power & cost history)\nStartLimitIntervalSec=600\nStartLimitBurst=5\n\n"
                               "[Service]\nExecStart=\"%s\" --power-recorder\nRestart=on-failure\nRestartSec=30\nNice=10\n\n"
                               "[Install]\nWantedBy=default.target\n", exe ? exe : "srs-gui");
-        g_file_set_contents(p, txt, -1, NULL);
-        run_cmd(r1, NULL);
-        run_cmd(r2, NULL);
+        if (!g_file_set_contents(p, txt, -1, NULL)) fail = "Could not write the service file in ~/.config/systemd/user.";
+        else if (run_cmd(r1, NULL) || run_cmd(r2, NULL)) fail = "The service file was written, but systemctl --user could not start it.";
         g_free(txt); g_free(exe); g_free(dir);
     } else {
         const char *const r1[] = { "systemctl", "--user", "disable", "--now", "srs-power-recorder.service", NULL };
@@ -2339,6 +2339,7 @@ static void on_bg_toggle(GtkToggleButton *t, gpointer d)
     }
     g_free(p);
     bg_status();
+    if (fail && G.s_bgstat) gtk_label_set_text(GTK_LABEL(G.s_bgstat), fail);
 }
 
 static void on_delete_history(GtkButton *b, gpointer d)

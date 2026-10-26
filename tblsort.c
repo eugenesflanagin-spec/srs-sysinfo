@@ -96,7 +96,8 @@ int ts_value(const char *s, double *v)
     p = skip_ws(s);
     if (*p == '[' || *p == '(') p = skip_ws(p + 1);   /* "[1234]" PIDs, "(5)" counts */
     /* YYYY-MM-DD [HH:MM[:SS]] */
-    if (sscanf(p, "%4d-%2d-%2d", &y, &mo, &d) == 3 && isdigit((unsigned char)p[3]) && p[4] == '-' && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+    if (sscanf(p, "%4d-%2d-%2d", &y, &mo, &d) == 3 && isdigit((unsigned char)p[3]) && p[4] == '-' && isdigit((unsigned char)p[5]) && isdigit((unsigned char)p[6]) && p[7] == '-' &&
+        isdigit((unsigned char)p[8]) && isdigit((unsigned char)p[9]) && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
         x = days_from_civil(y, mo, d) * 86400.0;
         e = skip_ws(p + 10);
         if (*e == 'T') e++;

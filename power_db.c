@@ -122,7 +122,9 @@ int pdb_flush(void)
 {
     if (!g_db || !g_tx) return 0;
     g_tx = 0;
-    return exec("COMMIT") ? -1 : 0;
+    if (!exec("COMMIT")) return 0;
+    exec("ROLLBACK");   /* e.g. SQLITE_BUSY: end the transaction so the next BEGIN works; these samples are lost */
+    return -1;
 }
 
 static int begin(void)

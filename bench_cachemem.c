@@ -859,7 +859,7 @@ static void cm_render(srs_out *o, void *c)
     if (mts > 0) {
         so_kvf(o, "Memory", C_VALUE, "%s-%d, %d stick%s%s%.0d%s", type[0] ? type : "DRAM", mts, n, n == 1 ? "" : "s",
                nch > 0 ? ", " : "", nch, nch > 1 ? " channels" : nch == 1 ? " channel" : "");
-        so_kvf(o, "Memory clock", C_VALUE, "%.0f MHz (= %.1f x base clock)", mts / 2.0, mts / 2.0 / (x->base > 0 ? x->base : 100.0));
+        so_kvf(o, "Memory clock", C_VALUE, "%.0f MHz", mts / 2.0);
     } else so_kv(o, "Memory", C_GRAY, "speed and type need root data: Tools > Collect root data (srs-root)");
     {
         char c[3][24];
