@@ -1274,12 +1274,23 @@ static int gpu_cmd_ok(swin *w, const char *cmd)
     return ok;
 }
 
+/* one benchmark at a time across all windows, and no burner while one runs: two loads at once
+   would spoil each other's results */
+static int g_bench_busy;
+
 static void on_burn_start(GtkWidget *x, gpointer data)
 {
     swin *w = data;
     burn_cfg c;
     int i, n = 0;
     (void)x;
+    if (g_bench_busy) {
+        GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                                              "A benchmark is running. Start the burner when it has finished.");
+        gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+        return;
+    }
     burn_cfg_default(&c);
     for (i = 0; i < w->nb_cpu; i++) { c.enabled[i] = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpu[i])); n += c.enabled[i]; }
     c.mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_same)) ? BURN_SAME : BURN_SWAP;
@@ -1438,6 +1449,7 @@ static gboolean bench_done(gpointer data)
 {
     benchjob *j = data;
     swin *w = j->w;
+    g_bench_busy = 0;
     if (g_ptr_array_find(g_wins, w, NULL)) {
         srs_out o;
         gctx g;
@@ -1502,7 +1514,12 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     benchjob *j;
     GThread *th;
     (void)x;
-    if (w->running || burn_active()) { gtk_widget_error_bell(w->win); return; }
+    if (w->running || g_bench_busy || burn_active()) {
+        gtk_widget_error_bell(w->win);
+        gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - CPU Burnin / Stress is running"
+                                                                  : "Not started - another benchmark is running; wait for it to finish");
+        return;
+    }
     j = g_new0(benchjob, 1);
     j->w = w;
     j->sub = w->sub;
@@ -1541,9 +1558,11 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
     gtk_label_set_text(GTK_LABEL(w->bm_status), "Running...");
     if (w->sub >= BK_PI && !w->timer) w->timer = g_timeout_add(500, bench_tick, w);
+    g_bench_busy = 1;
     th = g_thread_try_new("srs-bench", bench_worker, j, NULL);
     if (th) g_thread_unref(th);
     else {
+        g_bench_busy = 0;
         w->running = 0;
         w->cancelp = NULL;
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }

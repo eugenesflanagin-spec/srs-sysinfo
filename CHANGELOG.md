@@ -27,6 +27,11 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   (classic view); `--gui-open=pi|crypto|prime`.
 - `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
 
+### Fixed
+- Only one benchmark runs at a time across all windows (before, two benchmark windows could run at
+  once and spoil each other's results), and CPU Burnin / Stress will not start while a benchmark
+  runs. The window says why it did not start.
+
 ## 2.0.0 - 2026-10-26
 
 This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per
