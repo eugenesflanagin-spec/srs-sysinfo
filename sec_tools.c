@@ -82,6 +82,78 @@ static void s_latency(srs_out *o)
     not_run(o, "Menu > Tools > Latency, then Run", "srs-gui latency [--max MB]");
 }
 
+static void s_pi(srs_out *o)
+{
+    if (bench_show_last("pi", o)) return;
+    so_siv_header(o, "SRS Pi");
+    not_run(o, "Benchmarks & stress > SRS Pi, then Run", "srs-gui pi [--digits 1m] [--threads N] [--method chudnovsky|agm]");
+}
+
+static void s_cachemem(srs_out *o)
+{
+    if (bench_show_last("cachemem", o)) return;
+    so_siv_header(o, "Cache & Memory benchmark");
+    not_run(o, "Benchmarks & stress > Cache & Memory, then Run", "srs-gui cachemem [--threads N] [--seconds S] [--yes]");
+}
+
+static void s_storage(srs_out *o)
+{
+    if (bench_show_last("storage", o)) return;
+    so_siv_header(o, "Storage benchmark");
+    not_run(o, "Benchmarks & stress > Storage, then choose a folder and Run",
+            "srs-gui storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--yes]");
+}
+
+static void s_crypto(srs_out *o)
+{
+    if (bench_show_last("crypto", o)) return;
+    so_siv_header(o, "Crypto benchmark");
+    not_run(o, "Benchmarks & stress > Crypto, then Run", "srs-gui crypto [--threads N] [--seconds S]");
+}
+
+static void s_prime(srs_out *o)
+{
+    if (bench_show_last("prime", o)) return;
+    so_siv_header(o, "Prime sieve");
+    not_run(o, "Benchmarks & stress > Prime Sieve, then Run", "srs-gui prime [--limit 1e10] [--threads N]");
+}
+
+/* [bench-history] - the run history of SRS Pi, Crypto and Prime sieve, newest first */
+static void s_bench_history(srs_out *o)
+{
+    static const int tabs[] = { 150, 220, 520, 980 };
+    char path[1100], *txt, *lines[400];
+    const char *h = getenv("HOME");
+    int n = 0, i;
+    so_siv_header(o, "Benchmark history (newest first)");
+    snprintf(path, sizeof path, "%s/.cache/srs/bench-history.tsv", h ? h : "");
+    if (rd_all(path, &txt) < 0) {
+        so_kv(o, "Status", C_ORANGE, "No runs yet");
+        so_note(o, "Every run of Cache & Memory, Storage, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
+        return;
+    }
+    {
+        char *save = NULL, *l;
+        for (l = strtok_r(txt, "\n", &save); l; l = strtok_r(NULL, "\n", &save)) {
+            if (!strncmp(l, "time\t", 5)) continue;
+            if (n == 400) { memmove(lines, lines + 1, sizeof lines - sizeof *lines); n--; }
+            lines[n++] = l;
+        }
+    }
+    so_tabs(o, tabs, 4);
+    so_row(o, 5, (const char *const[]){ "When", "Test", "Settings", "Result", "Build" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+    for (i = n - 1; i >= 0; i--) {
+        char *c[5] = { "", "", "", "", "" }, *save = NULL, *f;
+        int k = 0;
+        for (f = strtok_r(lines[i], "\t", &save); f && k < 5; f = strtok_r(NULL, "\t", &save)) c[k++] = f;
+        so_row(o, 5, (const char *const *)c, (const int[]){ C_GRAY, C_PURPLE, C_VALUE, strstr(c[3], "WRONG") ? C_RED : C_BLACK, C_GRAY });
+    }
+    so_par(o);
+    so_note(o, "Compare results only between runs with the same settings and the same Build: a package built for any x86-64 CPU "
+               "scores lower than one built for this CPU (-march=native).");
+    free(txt);
+}
+
 /* [lookup] - SIV's Lookup panel: the name-database files and program files */
 static void file_row(srs_out *o, const char *desc, const char *path, const char *ident, const char *url)
 {
@@ -370,6 +442,12 @@ const srs_item sec_tools[] = {
     { "ipi-dmp", "hardware", "IPI Dump", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "ipi-plots", "hardware", "IPI Plots", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "latency", "hardware", "Memory Latency", B_LINUX, 0, "built-in pointer chase", s_latency, 0, "tools" },
+    { "cache-memory", "tools", "Cache & Memory benchmark", B_LINUX, 0, "built-in (bandwidth and latency of the RAM and L1-L3)", s_cachemem, 0, "tools" },
+    { "storage-bench", "tools", "Storage benchmark", B_LINUX, 0, "built-in (temporary test file, O_DIRECT, Linux AIO)", s_storage, 0, "tools" },
+    { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
+    { "crypto-bench", "tools", "Crypto benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
+    { "prime-sieve", "tools", "Prime sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },
+    { "bench-history", "tools", "Benchmark history", B_LINUX, 0, "~/.cache/srs/bench-history.tsv", s_bench_history, 0, "tools" },
     { "lookup", "hardware", "Lookup", B_LINUX, 0, "/usr/share/hwdata/*.ids", s_lookup, 0, "tools" },
     { "ping", "windows", "Ping", B_LINUX, 0, "ping (default gateway)", s_ping, 0, "tools" },
     { "reg-find", "windows", "Configuration Find", B_LINUX, 0, "/etc, ~/.config", s_reg_find, 0, "tools" },

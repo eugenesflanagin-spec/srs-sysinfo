@@ -1,0 +1,14 @@
+pkgbase = lsa-sysinfo
+	pkgdesc = Linux System Audit is now part of SRS (srs-sysinfo): transitional package with the lsa and lsa-gui commands
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/eugenesflanagin-spec/lsa-sysinfo
+	arch = any
+	license = GPL-2.0-or-later
+	depends = srs-sysinfo>=2.1.0
+	source = lsa
+	source = lsa-gui
+	sha256sums = 99f81f32098d12e541d1886abac40d1d2df3e039fab95f739ded21d46c9b2bd5
+	sha256sums = afb80c96bab029a7e8cc7916a49244c575113116a6bac714bcd5d3b2102d066b
+
+pkgname = lsa-sysinfo

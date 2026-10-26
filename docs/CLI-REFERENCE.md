@@ -43,6 +43,11 @@ sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|sw
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search crypto [--threads N] [--seconds S]
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
@@ -90,8 +95,22 @@ Benchmarks and stress (load the CPU; run only when you ask):
         core-to-core (cache-line ping-pong) latency matrix
   latency [--max MB]
         memory latency by block size, up to MB (1..4096, default 256)
+  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
+        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
+  crypto [--threads N] [--seconds S]
+        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
+        5 s per test); never touches existing files; asks first, --yes starts at once
+  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
+           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
+        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
+        ~20 s; asks first, --yes starts at once)
+  prime [--limit 1e8|1e9|1e10|N] [--threads N]
+        count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
 ```
@@ -110,7 +129,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (545 lines), one per line:
+Lists every item SRS knows (551 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS
@@ -372,6 +391,84 @@ sysreport-search latency [--max MB]
 block size, nanoseconds per read and the cache level. See
 [tools.md](SECTIONS/tools.md#memory-latency).
 
+### `pi` - SRS Pi: pi to many digits, every digit checked
+
+```
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+```
+
+`--digits` is the number of decimal places (default `1m` = 1,000,000; `k` = thousand, `m` =
+million; `ki` = 1,024 and `mi` = 1,048,576 for the **SuperPi sizes** 16ki ... 32mi; 100 to 32mi). The listed sizes are checked digit for digit with built-in SHA-256
+checksums; other sizes only have their first 100 digits checked. `--threads N` (default 1) splits
+the Chudnovsky series over N threads; `--method agm` uses Gauss-Legendre (always one thread).
+`--save-digits FILE` writes the digits (without "3.") to FILE. Exit code 0 when every checked digit
+is right, 1 when a digit is wrong or memory ran out, 2 for a bad option. See
+[tools.md](SECTIONS/tools.md#srs-pi).
+
+### `crypto` - AES-128 and SHA-256 speed
+
+```
+sysreport-search crypto [--threads N] [--seconds S]
+```
+
+Measures AES-128-CTR and SHA-256 in MB/s on one thread and on N threads (default all), with
+AES-NI / SHA-NI when the CPU has them and in plain C. `--seconds S` per measurement, 0.1 to 60
+(default 1). The FIPS test vectors are checked first; exit code 1 if they fail. See
+[tools.md](SECTIONS/tools.md#crypto-benchmark).
+
+### `prime` - count the primes up to a limit
+
+```
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+```
+
+Counts the primes up to `--limit` (default 1e9; 100 to 1e11) on N threads (default all) and checks
+the count for the powers of ten 1e7 to 1e11. Exit code 1 when the count is wrong. See
+[tools.md](SECTIONS/tools.md#prime-sieve).
+
+### `cachemem` - Cache & Memory benchmark
+
+```
+sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
+                          [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]
+                          [--mem-write auto|clzero|stream] [--yes]
+```
+
+Read / Write / Copy (MB/s, caches in GB/s) and Latency (ns) of the RAM and the L1, L2 and L3
+caches. It loads every CPU thread and the memory bus for about 20 seconds and **asks first**;
+`--yes` (`-y`) starts at once (scripts). Without a terminal and without `--yes` it does not start
+(exit code 2).
+
+| Option | Meaning |
+|---|---|
+| `--threads N` | Threads for the bandwidth tests (default all logical CPUs) |
+| `--seconds S` | Measuring time per value, 0.1-60 (default 1) |
+| `--isa` | Force the vector code (default: the best the CPU has) |
+| `--mem-mib M` | RAM block in MiB, all threads together (default 1024, at least 4 x L3) |
+| `--only` / `--tests` | Run only some rows / columns, e.g. `--only l1 --tests read` |
+| `--mib` | Binary units (MiB/s, GiB/s) |
+| `--mem-write` | RAM write method: `auto` (CLZERO on AMD CPUs that have it), `clzero`, `stream` |
+
+x86-64 only. Exit code 0 when it ran, 1 if memory could not be allocated, 2 for a bad option or no
+confirmation. See [tools.md](SECTIONS/tools.md#cache--memory-benchmark).
+
+### `storage` - drive read / write speed
+
+```
+sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+```
+
+Tests the drive that holds FOLDER on a new temporary test file (`--size`, 16-65536 MB, default
+1024) that is unlinked at once and gone when the test ends - existing files are never touched.
+Six tests of `--seconds S` each (0.5-60, default 5): sequential 1 MiB Q8T1, 4K random Q32T16
+(`--profile light`: Q8T4) and 4K random Q1T1, read and write; average, peak, IOPS and 4K Q1T1
+response times. Refuses RAM (tmpfs), network and FUSE folders and too little free space; USB
+drives only with `--allow-usb`. **Asks first**; `--yes` starts at once. Exit code 0 when it ran,
+1 when it was stopped or hit an I/O error, 2 when it did not start (the message says why). See
+[tools.md](SECTIONS/tools.md#storage-benchmark).
+
+Every `cachemem`, `storage`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+
 ---
 
 ## `srs-gui` window options
@@ -395,6 +492,11 @@ or one of these tool names:
 | `bench` | Benchmark |
 | `ipi` | IPI Delay |
 | `latency` | Latency |
+| `pi` | SRS Pi |
+| `crypto` | Crypto benchmark |
+| `prime` | Prime Sieve |
+| `cachemem` | Cache & Memory |
+| `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

@@ -3,7 +3,7 @@
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -46,8 +46,23 @@ core-to-core (cache-line ping-pong) latency matrix.
 .TP
 \fBlatency\fR [\fB\-\-max\fR \fIMB\fR]
 memory latency by block size, up to \fIMB\fR (1..4096, default 256).
+.TP
+\fBpi\fR [\fB\-\-digits\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-method\fR \fBchudnovsky\fR|\fBagm\fR] [\fB\-\-save\-digits\fR \fIFILE\fR]
+SRS Pi: pi to \fIN\fR decimal places (128k..32m, or SuperPi sizes 16ki..32mi; default 1m, 1 thread); every digit is checked.
+.TP
+\fBcrypto\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR]
+AES\-128 and SHA\-256 speed in MB/s, with AES\-NI / SHA\-NI and in plain C.
+.TP
+\fBprime\fR [\fB\-\-limit\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR]
+count the primes up to \fIN\fR (default 1e9), checked against the known count.
+.TP
+\fBcachemem\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fIlevels\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-mib\fR] [\fB\-\-mem\-write\fR \fImode\fR] [\fB\-\-yes\fR]
+Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1\-L3 (all threads, about 20 s; asks first unless \fB\-\-yes\fR).
+.TP
+\fBstorage\fR \fB\-\-dir\fR \fIFOLDER\fR [\fB\-\-size\fR \fIMB\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-profile\fR \fBstandard\fR|\fBlight\fR] [\fB\-\-allow\-usb\fR] [\fB\-\-yes\fR]
+read / write speed of the drive holding \fIFOLDER\fR, on a temporary test file that is unlinked at once; existing files are never touched; asks first unless \fB\-\-yes\fR.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR and \fBlatency\fR load the CPU and only run when asked.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR and \fBstorage\fR load the CPU or the drive and only run when asked.
 Run
 .B sysreport-search \-\-help
 for the full option list.

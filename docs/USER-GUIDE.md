@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 545 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 551 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -73,7 +73,7 @@ It also has tools:
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (545 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (551 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -326,7 +326,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 545 of them.
+as **Sensor status** or **SMART drives**; there are 551 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -978,8 +978,9 @@ classic view.
 Controls: **Largest block (MB)** (1-1024, default 256), **Run**. Results: a table (block size,
 time in ns, level) and a curve.
 
-For a full Cache & Memory **bandwidth** benchmark, see the sister project
-[lsa-sysinfo](https://github.com/eugenesflanagin-spec/lsa-sysinfo).
+For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
+The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory and
+Storage - are in [9.7](#97-srs-pi) to [9.12](#912-storage).
 
 ### 9.5 Device ID Lookup
 
@@ -1034,6 +1035,81 @@ Controls:
 | **Lookup** | Open Device ID Lookup. |
 
 If there is no report yet, Find tells you to run SRS Full System Report first.
+
+### 9.7 SRS Pi
+
+**In plain words:** SRS works out pi to many decimal places and checks every digit. The time shows
+how fast one core does heavy number work; a wrong digit means the PC made a mistake (often an
+unstable overclock or memory).
+Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Tools -> SRS Pi... in the
+classic view. On the command line: `sysreport-search pi --digits 1m`.
+Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
+author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
+1M = 1,048,576 ... 32M = 33,554,432), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
+SuperPi uses, one thread), **Threads** (default 1, for a single-thread score), **Run** and **Stop**.
+While it runs the status line shows the time so far and the current step (series, division, square
+root). Closing the window also stops it.
+
+Times are **SRS Pi** times, not SuperPi times. SuperPi's "1M" is 1,048,576 digits; SRS's 1 million
+is 1,000,000 - tick **SuperPi sizes** for the same digit counts as SuperPi. 32 million digits takes several minutes and 1-2 GB of memory.
+
+### 9.8 Crypto
+
+**In plain words:** how fast the CPU encrypts (AES-128) and fingerprints (SHA-256) data, with and
+without its built-in crypto instructions (AES-NI, SHA-NI).
+Open: the **Benchmarks & stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
+Controls: **Threads** (right-hand column; the left column is always one thread), **Seconds per
+measurement** (default 1; about 8 seconds in all), **Run**. The official FIPS test vectors are
+checked before every run.
+
+### 9.9 Prime Sieve
+
+**In plain words:** counts the prime numbers up to 100 million, 1 billion, 10 billion or
+100 billion and checks the count. Simple integer and cache work that scales with threads.
+Open: the **Benchmarks & stress** page -> **Prime Sieve...**. Command line:
+`sysreport-search prime --limit 1e10`.
+Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
+
+### 9.10 Benchmark history
+
+Every SRS Pi, Crypto and Prime Sieve run adds one line to `~/.cache/srs/bench-history.tsv`
+(time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
+page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
+package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
+own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.
+
+### 9.11 Cache & Memory
+
+**In plain words:** how fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long
+they take to answer. Use it after a BIOS, EXPO/XMP or memory-timing change.
+Open: the **Benchmarks & stress** page -> **Cache & Memory...**, or Menu -> Tools -> Cache &
+Memory... in the classic view. Command line: `sysreport-search cachemem`.
+Controls: **Threads** (default all; the bandwidth results need all of them), **Seconds per test**
+(default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
+**Stop**. The status line names the value being measured. A stopped run shows the values it
+finished and says so.
+
+Close other programs first and **never run another benchmark at the same time** (SRS lets only one
+run; it cannot stop other programs). The base clock is measured, so boards with a raised reference
+clock (for example 105 MHz) show the real value; the Infinity Fabric clock needs the `ryzen_smu`
+driver (Ryzen 7000 desktop); memory speed and type need root data (Tools > Collect root data). The
+engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS. x86-64 CPUs only.
+
+### 9.12 Storage
+
+**In plain words:** how fast the drive that holds a folder you choose reads and writes - big files,
+many small pieces at once, and one small piece at a time (how snappy it feels) - plus the response
+time of single reads and writes. It uses its **own temporary test file only**; your files are never
+touched, and nothing is left behind, even if SRS is stopped or crashes.
+Open: the **Benchmarks & stress** page -> **Storage...**, or Menu -> Tools -> Storage Benchmark...
+in the classic view. Command line: `sysreport-search storage --dir FOLDER`.
+Controls: **Folder** (the line below it names the drive, its connection, the file system and the
+free space - never the serial number), **Test file** (256 MB, 1 GB, 4 GB, 16 GB), **Seconds per
+test** (default 5), **Standard / Light** (Light uses at most 4 threads), **Allow USB drives** (off
+by default), **Run** (asks first), **Stop**.
+
+Folders in RAM (`/tmp` on many systems is RAM, not a drive), on the network or on FUSE are refused,
+as is a drive with too little free space. Drive health (SMART) is on the **Storage** page.
 
 ## 10. Options
 
@@ -1126,7 +1202,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 545 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 551 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -1193,6 +1269,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory and Storage. |
+| `~/.cache/srs/bench-history.tsv` | One line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
@@ -1257,7 +1335,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 545 items with the
+- **Two views, same data.** The main window and the classic view show the same 551 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.

@@ -303,7 +303,7 @@ static void render_bench(srs_out *o, bench_mode m, const brow *r, int n, double 
     so_board_footer(o);
 }
 
-static void save_render(const char *name, void (*fn)(srs_out *, void *), void *ctx, srs_out *o)
+void bench_save_render(const char *name, void (*fn)(srs_out *, void *), void *ctx, srs_out *o)
 {
     char path[1100];
     FILE *f;
@@ -379,7 +379,7 @@ int bench_run(bench_mode m, double secs, srs_out *o)
     default: break;
     }
     c.m = m; c.r = r; c.n = n; c.secs = secs; c.note = NULL;
-    save_render(mode_ids[m], bench_fn, &c, o);
+    bench_save_render(mode_ids[m], bench_fn, &c, o);
     return 0;
 }
 
@@ -466,7 +466,7 @@ int bench_ipi(int max_cpus, int rounds, srs_out *o)
     for (i = 0; i < n; i++)
         for (j = i + 1; j < n; j++) c.m[i * n + j] = c.m[j * n + i] = pingpong(i, j, rounds);
     sched_setaffinity(0, sizeof saved, &saved);
-    save_render("ipi-delay", ipi_fn, &c, o);
+    bench_save_render("ipi-delay", ipi_fn, &c, o);
     free(g_ipi_m);
     g_ipi_m = c.m;   /* kept for the GUI heat map */
     g_ipi_n = n;
@@ -575,9 +575,59 @@ int bench_latency(long max_bytes, srs_out *o)
         c.n++;
     }
     free(buf);
-    save_render("latency", lat_fn, &c, o);
+    bench_save_render("latency", lat_fn, &c, o);
     g_lat = c;
     return 0;
+}
+
+void bench_history_add(const char *test, const char *params, const char *result)
+{
+    char path[1100], t[32];
+    FILE *f;
+    time_t now = time(NULL);
+    snprintf(path, sizeof path, "%s/bench-history.tsv", cache_dir());
+    if (!(f = fopen(path, "a"))) return;
+    if (ftell(f) == 0) fputs("time\ttest\tsettings\tresult\tbuild\n", f);
+    strftime(t, sizeof t, "%Y-%m-%d %H:%M:%S", localtime(&now));
+    fprintf(f, "%s\t%s\t%s\t%s\t%s\n", t, test, params, result, bench_build_tag());
+    fclose(f);
+}
+
+/* which code the compiler was allowed to use: the same CPU gives different scores from a generic
+   -march=x86-64 -O2 package and a -march=native -O3 build, so results carry this tag */
+const char *bench_build_tag(void)
+{
+    static char b[160];
+    const char *isa =
+#if defined(__AVX512F__)
+        "x86-64-v4 (AVX-512)";
+#elif defined(__AVX2__)
+        "x86-64-v3 (AVX2)";
+#elif defined(__SSE4_2__)
+        "x86-64-v2 (SSE4.2)";
+#elif defined(__x86_64__)
+        "x86-64 baseline";
+#elif defined(__i386__)
+        "i686";
+#elif defined(__aarch64__)
+        "aarch64";
+#else
+        "generic";
+#endif
+#if defined(__clang__)
+    snprintf(b, sizeof b, "clang %d.%d, %s%s", __clang_major__, __clang_minor__, isa,
+#elif defined(__GNUC__)
+    snprintf(b, sizeof b, "gcc %d.%d, %s%s", __GNUC__, __GNUC_MINOR__, isa,
+#else
+    snprintf(b, sizeof b, "cc, %s%s", isa,
+#endif
+#if defined(__OPTIMIZE__)
+             ", optimised"
+#else
+             ", not optimised"
+#endif
+    );
+    return b;
 }
 
 int bench_show_last(const char *name, srs_out *o)

@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -51,9 +51,23 @@ static const char *HELP =
     "        core-to-core (cache-line ping-pong) latency matrix\n"
     "  latency [--max MB]\n"
     "        memory latency by block size, up to MB (1..4096, default 256)\n"
+    "  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]\n"
+    "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;\n"
+    "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432\n"
+    "  crypto [--threads N] [--seconds S]\n"
+    "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)\n"
+    "  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]\n"
+    "           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]\n"
+    "        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,\n"
+    "        ~20 s; asks first, --yes starts at once)\n"
+    "  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]\n"
+    "        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,\n"
+    "        5 s per test); never touches existing files; asks first, --yes starts at once\n"
+    "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
+    "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
 #endif
@@ -350,6 +364,225 @@ static int cmd_bench(int argc, char **argv)
         return bench_latency(mb * 1024 * 1024, &o) ? 1 : 0;
     }
 }
+
+/* "1m" -> 1000000, "128k" -> 128000, "1e9" -> 10^9, plain numbers as they are; 0 = not a number */
+static double parse_count(const char *s)
+{
+    char *e;
+    double v = strtod(s, &e);
+    if (e == s || v <= 0) return 0;
+    if (*e == 'k' || *e == 'K') { v *= 1e3; e++; }
+    else if (*e == 'm' || *e == 'M') { v *= 1e6; e++; }
+    else if (*e == 'g' || *e == 'G') { v *= 1e9; e++; }
+    if (*e == 'i' && e > s && strchr("kKmMgG", e[-1])) {   /* binary: 1ki = 1024, 1mi = 1,048,576 (SuperPi sizes) */
+        v = v / (e[-1] == 'k' || e[-1] == 'K' ? 1e3 : e[-1] == 'm' || e[-1] == 'M' ? 1e6 : 1e9) *
+            (e[-1] == 'k' || e[-1] == 'K' ? 1024.0 : e[-1] == 'm' || e[-1] == 'M' ? 1048576.0 : 1073741824.0);
+        e++;
+    }
+    return *e ? 0 : v;
+}
+
+#include "bench_cachemem.h"
+
+/* "a,b,c" -> bit mask over names[]; 0 and a message for an unknown word */
+static int cm_parse_list(const char *opt, const char *v, const char *const *names, const int *bits, const char *valid, unsigned *mask)
+{
+    char w[32];
+    while (*v) {
+        size_t l = strcspn(v, ","), k;
+        int found = 0;
+        snprintf(w, sizeof w, "%.*s", (int)(l < sizeof w - 1 ? l : sizeof w - 1), v);
+        for (k = 0; names[k]; k++) if (!strcmp(w, names[k])) { *mask |= 1u << bits[k]; found = 1; }
+        if (l && !found) { fprintf(stderr, "cachemem: unknown %s value '%s' (valid: %s)\n", opt, w, valid); return 0; }
+        v += l + (v[l] == ',');
+    }
+    if (!*mask) { fprintf(stderr, "cachemem: %s needs a value (valid: %s)\n", opt, valid); return 0; }
+    return 1;
+}
+
+/* cachemem [options] - Cache & Memory benchmark; asks before it starts unless --yes */
+static int cmd_cachemem(int argc, char **argv)
+{
+    srs_out o;
+    cm_cfg c;
+    unsigned lvmask = 0, temask = 0;
+    int i, lv, te, yes = 0, rc;
+    so_text_init(&o, stdout);
+    cm_cfg_default(&c);
+    for (i = 2; i < argc; i++) {
+        static const char *const lvn[] = { "mem", "l1", "l2", "l3", NULL }, *const ten[] = { "read", "write", "copy", "latency", "lat", NULL };
+        static const int lvb[] = { CM_MEM, CM_L1, CM_L2, CM_L3 }, teb[] = { CM_READ, CM_WRITE, CM_COPY, CM_LAT, CM_LAT };
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--threads") || !strcmp(a, "--seconds") || !strcmp(a, "--mem-mib") || !strcmp(a, "--mem-write") ||
+                   !strcmp(a, "--isa") || !strcmp(a, "--only") || !strcmp(a, "--tests");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]\n"
+                 "                                 [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]\n"
+                 "                                 [--mem-write auto|clzero|stream] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "cachemem: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--threads")) c.threads = atoi(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--mem-mib")) c.mem_mib = atol(v);
+        else if (!strcmp(a, "--mib")) c.mb = 1048576.0;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--mem-write")) {
+            if (!strcmp(v, "stream")) c.mem_write = CM_MW_STREAM;
+            else if (!strcmp(v, "clzero")) c.mem_write = CM_MW_CLZERO;
+            else if (!strcmp(v, "auto")) c.mem_write = CM_MW_AUTO;
+            else { fprintf(stderr, "cachemem: unknown --mem-write value '%s' (valid: auto, clzero, stream)\n", v); return 2; }
+        } else if (!strcmp(a, "--isa")) {
+            if (!strcmp(v, "avx512")) c.isa = CM_ISA_AVX512;
+            else if (!strcmp(v, "avx2")) c.isa = CM_ISA_AVX2;
+            else if (!strcmp(v, "sse2")) c.isa = CM_ISA_SSE2;
+            else { fprintf(stderr, "cachemem: unknown --isa value '%s' (valid: avx512, avx2, sse2)\n", v); return 2; }
+        } else if (!strcmp(a, "--only")) {
+            if (!cm_parse_list("--only", v, lvn, lvb, "mem, l1, l2, l3", &lvmask)) return 2;
+        } else if (!strcmp(a, "--tests")) {
+            if (!cm_parse_list("--tests", v, ten, teb, "read, write, copy, latency (or lat)", &temask)) return 2;
+        } else { fprintf(stderr, "cachemem: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("cachemem: --seconds must be 0.1..60");
+    if (lvmask || temask) {
+        if (!lvmask) lvmask = 0xF;
+        if (!temask) temask = 0xF;
+        for (lv = 0; lv < CM_NLEVEL; lv++)
+            for (te = 0; te < CM_NTEST; te++)
+                if ((lvmask >> lv & 1) && (temask >> te & 1)) c.run_mask |= 1u << (lv * CM_NTEST + te);
+    }
+    if (!cm_available()) { bench_cachemem(&c, &o, NULL); return 1; }
+    if (!yes) {
+        char ans[16];
+        if (!isatty(0)) {
+            fprintf(stderr, "cachemem: not started - it loads every CPU thread and the memory bus for about 20 s.\n"
+                            "          Run it from a terminal to be asked, or pass --yes to start without asking.\n");
+            return 2;
+        }
+        fprintf(stderr, "The Cache & Memory benchmark loads every CPU thread and the memory bus for about 20 seconds.\n"
+                        "Close other programs (and other benchmarks) for accurate results. Start now? [y/N] ");
+        fflush(stderr);
+        if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "cachemem: not started\n"); return 2; }
+    }
+    rc = bench_cachemem(&c, &o, NULL);
+    if (rc < 0) fprintf(stderr, "cachemem: could not allocate the test memory\n");
+    return rc == 0 ? 0 : 1;
+}
+
+/* storage --dir FOLDER ... - explicit runs only; asks first */
+static int cmd_storage(int argc, char **argv)
+{
+    srs_out o;
+    storage_cfg c;
+    storage_where w;
+    char why[300];
+    int i, yes = 0, rc;
+    memset(&c, 0, sizeof c);
+    c.size_mb = 1024;
+    c.secs = 5;
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--dir") || !strcmp(a, "--size") || !strcmp(a, "--seconds") || !strcmp(a, "--profile");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "storage: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--dir")) c.dir = v;
+        else if (!strcmp(a, "--size")) c.size_mb = atof(v);
+        else if (!strcmp(a, "--seconds")) c.secs = atof(v);
+        else if (!strcmp(a, "--profile")) {
+            if (!strcmp(v, "light")) c.profile = 1;
+            else if (!strcmp(v, "standard")) c.profile = 0;
+            else return usage_error("storage: --profile is standard or light");
+        } else if (!strcmp(a, "--allow-usb")) c.allow_usb = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else { fprintf(stderr, "storage: unknown option '%s'\n", a); return 2; }
+    }
+    if (!c.dir) return usage_error("storage: --dir FOLDER is required (a folder on the drive to test)");
+    if (c.size_mb < 16 || c.size_mb > 65536) return usage_error("storage: --size must be 16..65536 MB");
+    if (c.secs < 0.5 || c.secs > 60) return usage_error("storage: --seconds must be 0.5..60");
+    if (!storage_probe(c.dir, &w)) { fprintf(stderr, "storage: not started - %s\n", w.problem); return 2; }
+    if (w.usb && !c.allow_usb) {
+        fprintf(stderr, "storage: not started - %s is on a USB drive (%s). Pass --allow-usb to test it anyway.\n", w.folder, w.model);
+        return 2;
+    }
+    if (!yes) {
+        char ans[16];
+        if (!isatty(0)) { fprintf(stderr, "storage: not started - run it from a terminal to be asked, or pass --yes\n"); return 2; }
+        fprintf(stderr, "Storage benchmark on %s (%s, %s, file system %s).\n"
+                        "It writes a new temporary test file of %.0f MB in %s and then reads and rewrites it\n"
+                        "for %.0f s per test (6 tests). Existing files are not touched; the test file is removed at the end.\n"
+                        "%sStart now? [y/N] ", w.model[0] ? w.model : w.disk, w.transport, w.folder, w.fstype, c.size_mb, w.folder, c.secs,
+                w.rotational ? "This is a hard disk: the random tests will be slow and noisy. " : "");
+        fflush(stderr);
+        if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "storage: not started\n"); return 2; }
+    }
+    rc = bench_storage(&c, &o, NULL, why, sizeof why);
+    if (rc < 0 && why[0]) fprintf(stderr, "storage: %s\n", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
+/* pi | crypto | prime - explicit runs only */
+static int cmd_bench2(int argc, char **argv)
+{
+    srs_out o;
+    int i, threads = 0;
+    so_text_init(&o, stdout);
+    if (!strcmp(argv[1], "pi")) {
+        double digits = 1e6;
+        int method = PI_CHUDNOVSKY, rc;
+        const char *save = NULL;
+        char *d = NULL;
+        threads = 1;
+        for (i = 2; i < argc; i++) {
+            const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]"); return 0; }
+            if (!v) return usage_error("pi: option needs a value");
+            if (!strcmp(a, "--digits")) digits = parse_count(v);
+            else if (!strcmp(a, "--threads")) threads = atoi(v);
+            else if (!strcmp(a, "--method")) {
+                if (!strcmp(v, "agm") || !strcmp(v, "gauss-legendre")) method = PI_AGM;
+                else if (!strcmp(v, "chudnovsky")) method = PI_CHUDNOVSKY;
+                else return usage_error("pi: --method is chudnovsky or agm");
+            } else if (!strcmp(a, "--save-digits")) save = v;
+            else return usage_error("pi: unknown option");
+            i++;
+        }
+        if (digits < 100 || digits > PI_MAXDIGITS) return usage_error("pi: --digits must be 100..32mi");
+        rc = bench_pi((size_t)digits, threads, method, &o, NULL, save ? &d : NULL);
+        if (rc == -3) fprintf(stderr, "pi: out of memory\n");
+        if (d && save) {
+            FILE *f = fopen(save, "w");
+            if (f) { fputs(d, f); fclose(f); } else fprintf(stderr, "pi: cannot write %s\n", save);
+        }
+        free(d);
+        return rc == 0 ? 0 : 1;
+    }
+    if (!strcmp(argv[1], "crypto")) {
+        double secs = 1;
+        for (i = 2; i + 1 < argc; i++) {
+            if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
+            else if (!strcmp(argv[i], "--seconds")) secs = atof(argv[++i]);
+        }
+        if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
+        return bench_crypto(threads, secs, &o) ? 1 : 0;
+    }
+    {
+        double lim = 1e9;
+        int rc;
+        for (i = 2; i + 1 < argc; i++) {
+            if (!strcmp(argv[i], "--limit")) lim = parse_count(argv[++i]);
+            else if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
+        }
+        if (lim < 100 || lim > 1e11) return usage_error("prime: --limit must be 100..1e11");
+        rc = bench_prime((uint64_t)(lim + 0.5), threads, &o, NULL);
+        return rc == 0 ? 0 : 1;
+    }
+}
 #endif
 
 int srs_cli_main(int argc, char **argv)
@@ -394,6 +627,9 @@ int srs_cli_main(int argc, char **argv)
 #ifdef __linux__
     if (!strcmp(cmd, "burn")) return cmd_burn(argc, argv);
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
+    if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
+    if (!strcmp(cmd, "cachemem")) return cmd_cachemem(argc, argv);
+    if (!strcmp(cmd, "storage")) return cmd_storage(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

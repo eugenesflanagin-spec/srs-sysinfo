@@ -160,3 +160,12 @@ layout: main panel + PCI Bus / USB Bus / ALL Dev / Lookup / Find / Data Files / 
 - **Classification:** each item was then mapped to a Linux data source, or marked "not present" (hardware SIV supports that a typical PC lacks) or "Windows-only" with the nearest Linux equivalent, in `CHECKLIST.tsv`.
 
 No part of SIV's executable code was disassembled, decompiled or reused, and none of SIV's data files (`PCIDEVS.txt`, `USBDEVS.txt`, ...) are included. Device names come from the hwdata project instead.
+
+## Cache & Memory benchmark (SRS 2.1)
+
+The Cache & Memory benchmark's measuring engine (`bench_cachemem.c`) is the engine of Linux System
+Audit (LSA) 0.2.0, the same author's GPL-2.0-or-later project, moved into SRS unchanged; LSA was
+written from published descriptions of how cache and memory bandwidth and latency are measured
+(Read / Write / Copy per cache level, random pointer-chase latency), not from any other program's
+code. SRS adds its own window, wording and system lines. The LSA repository keeps its own
+EVIDENCE.md and its releases, including the Windows build.

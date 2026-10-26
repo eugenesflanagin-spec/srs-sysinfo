@@ -36,6 +36,12 @@ shows the last stored result.
 - [IPI Dump](#ipi-dump) `ipi-dmp`
 - [IPI Plots](#ipi-plots) `ipi-plots`
 - [Memory Latency](#memory-latency) `latency`
+- [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
+- [Storage benchmark](#storage-benchmark) `storage-bench`
+- [SRS Pi](#srs-pi) `srs-pi`
+- [Crypto benchmark](#crypto-benchmark) `crypto-bench`
+- [Prime sieve](#prime-sieve) `prime-sieve`
+- [Benchmark history](#benchmark-history) `bench-history`
 - [Lookup](#lookup) `lookup`
 - [Ping](#ping) `ping`
 - [Configuration Find](#configuration-find) `reg-find`
@@ -507,6 +513,227 @@ full delay. Lines are 64 bytes. A 200 ms busy spin first brings the core to full
 and fastest (tens of KB per core), L2 is bigger (about 1-2 MB per core), and L3 is shared by many
 cores (tens of MB). Data the CPU uses often stays close. Latency (waiting time) matters most for
 programs that jump around in memory, such as games and databases.
+
+---
+## Cache & Memory benchmark  
+`cache-memory` - Linux data
+
+**In plain words.** How fast the RAM and each cache level (L1, L2, L3) can **read**, **write** and
+**copy** data, and how long each takes to answer one request (**latency**). It shows whether the
+memory runs as fast as it should after a BIOS, EXPO/XMP or memory-timing change, and what each
+cache level gives you.
+
+**What you see.** A table: rows Memory (RAM), L1 cache, L2 cache, L3 cache; columns Read, Write,
+Copy (MB/s for the RAM, GB/s for the caches; 1 MB = 1,000,000 bytes) and Latency (ns). Below it:
+threads and vector code used (AVX-512, AVX2 or SSE2), how the RAM write was measured, the processor,
+the measured clock during the run, the **base clock** (measured, so a board running 105 MHz shows
+105), the multiplier, the **Infinity Fabric clock** (AMD Ryzen 7000 desktop with the `ryzen_smu`
+driver), the memory type, speed and channels (from root data), the memory clock as a multiple of
+the base clock, and the cache sizes.
+
+| Value | How it is measured |
+|---|---|
+| Read / Write / Copy | One thread pinned to every chosen logical CPU, each in its own block sized to stay inside that cache level (half of its share of L1 / L2 / L3), or for the RAM a block of at least 4 x L3 (at least 256 MB, default 1 GB). Best of repeated 40-80 ms trials over the measuring time (default 1 s per value). **Copy counts the bytes read plus the bytes written.** |
+| RAM Write on AMD | With CLZERO (whole zeroed cache lines written to memory), one thread per core, in 4 KB turns, over 256 MB or 2.5 x L3 - what the memory itself absorbs. Ordinary streaming stores stop at the core-to-memory link's write limit; `--mem-write stream` shows that figure. Other CPUs use streaming stores. |
+| Latency | One thread, a random chain through every 64-byte line of a block. Caches on ordinary 4 KB pages (L1: half of L1d, L2: half of L2, L3: 8 x L2); the RAM on 2 MB pages over 8 x L3 (at least 256 MB, at most half of free RAM), so page-table walks and L3 hits do not distort it. |
+
+**Healthy / typical values.** Ryzen 7 7800X3D, 2 x 16 GB DDR5-6000, FCLK 2000-2133, all 16 threads:
+RAM about 63,700 MB/s read, 93,800 MB/s write (CLZERO), 63,600 MB/s copy, 80-82 ns; L1 about
+2,300 GB/s read and 0.8 ns; L2 about 1,200 GB/s and 3.7 ns; L3 about 700 GB/s and 11-12 ns. Results
+vary by a few % from run to run.
+
+**Unusual values and what they suggest.**
+- RAM read far below the kit's rating (DDR5-6000 dual channel: roughly 60,000+ MB/s): EXPO/XMP off,
+  one stick in the wrong slot (single channel), or the memory controller at a lower ratio.
+- RAM latency well over 90 ns on DDR5: loose timings, or UCLK at half the memory clock.
+- Everything 10-50% low or jumping between runs: other programs are busy. Close them and run again;
+  **never run another benchmark (or a second copy of SRS) at the same time** - both results are
+  spoiled.
+
+**Where Linux gets it.** Built in. The measuring engine comes unchanged from Linux System Audit
+(LSA) 0.2.0, the same author's project, now part of SRS. x86-64 CPUs only (it uses x86-64 vector
+code). The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal frequency; the Infinity
+Fabric clock is read (read-only) from the `ryzen_smu` driver's PM table, layout 0x540104 only; the
+memory sticks come from the root DMI data (Tools > Collect root data). Stored in
+`~/.cache/srs/bench-cachemem.txt`; each run is added to the [Benchmark history](#benchmark-history).
+It asks before it starts, and only one benchmark runs at a time in SRS.
+
+---
+## Storage benchmark  
+`storage-bench` - Linux data
+
+**In plain words.** How fast the drive that holds a folder you choose can read and write: big
+files in one go (sequential), lots of small 4 KB pieces at once (like a busy system), and one small
+piece at a time (how snappy the PC feels). It works on its **own temporary test file only** - your
+files are never opened, changed or deleted.
+
+**What you see.** Six rows - Sequential 1 MiB (Q8T1), 4K random (Q32T16; Q8T4 in the Light
+profile) and 4K random (Q1T1), each Read and Write - with **Average** (the whole test), **Peak**
+(the best quarter second) and **IOPS** (requests per second) for the 4K rows. Then the response
+time of single 4K reads and writes (mean, median, 95% and 99% under, slowest), the drive model and
+connection (NVMe, SATA, USB; **never the serial number**), the folder and file system, the test
+file size and I/O mode, and the drive temperature before and after (when the drive has a sensor).
+Q = requests in flight per thread, T = threads; Q x T requests are in flight at once.
+
+| Setting | Choices |
+|---|---|
+| Folder | Any folder you can write to on the drive you want to test (default: your home folder) |
+| Test file | 256 MB, 1 GB (default), 4 GB, 16 GB |
+| Seconds per test | 1-30 (default 5) |
+| Profile | Standard (4K random Q32T16 = 16 threads) or Light (Q8T4 = at most 4 threads) |
+| Allow USB drives | Off by default |
+
+**Safety.**
+- The test file is created new (it can never be one of your files) and is **unlinked at once**: it
+  has no name while the test runs and its space is freed the moment the test ends - also after
+  Stop, a crash or a forced kill. Nothing is ever left behind.
+- Refused: folders in RAM (tmpfs - `/tmp` on many systems), network and FUSE file systems, read-only
+  media, and anything with less than twice the test size free (+0.5 GB). USB drives only when you
+  tick **Allow USB drives** (some USB enclosures drop off under heavy load). Hard disks get a
+  warning.
+- It asks before it starts, showing the drive, the folder and how much it writes.
+- Writes count only once they are on the drive (`fdatasync` is inside the timing).
+
+**Healthy / typical values.** Samsung 980 PRO 1 TB (PCIe 4.0 x4 NVMe), btrfs, 64 MB file, 1 s per
+test, Light profile: sequential read about 6,500 MB/s, write about 3,200 MB/s; 4K Q8T4 read about
+1,400 MB/s (350,000 IOPS); 4K Q1T1 read about 51 MB/s (median 72 us), write about 150 MB/s. A SATA
+SSD tops out near 550 MB/s sequential; a hard disk manages about 150-250 MB/s sequential and
+around 1 MB/s (100-200 IOPS) at 4K Q1T1.
+
+**Unusual values and what they suggest.**
+- NVMe sequential read far below its rating: the drive sits in a slower M.2 slot or PCIe lanes
+  are shared (see the PCI pages for the link speed and width), or it is hot and throttling (watch
+  the temperature line).
+- Write much lower on a longer test than a short one: the drive's fast SLC write cache filled up;
+  that is normal for consumer SSDs.
+- Small test files (256 MB) can fit in the drive's own cache and read very fast; use 1 GB or more
+  for figures to compare.
+- "buffered I/O" in the Test file line: the file system refused direct I/O; the page cache was
+  dropped before each read test, but results can still be a little high.
+
+**Where Linux gets it.** Built in: `O_DIRECT` I/O with Linux native asynchronous I/O (`io_submit`)
+for real queue depths, incompressible random data; the drive is found through
+`/proc/self/mountinfo` and `/sys/block` (device-mapper and RAID followed to the first member); the
+temperature from the drive's hwmon sensor. Drive health (SMART) is on the Storage page. Stored in
+`~/.cache/srs/bench-storage.txt`; each run is added to the [Benchmark history](#benchmark-history).
+
+---
+## SRS Pi  
+`srs-pi` - Linux data
+
+**In plain words.** SRS works out pi (3.14159...) to many decimal places - from 128 thousand up to
+32 million - and then checks every single digit. It is a classic CPU test: the time tells you how
+fast one core is at heavy number work, and a wrong digit means the computer made a mistake, which
+usually points to an unstable overclock, too little voltage or bad memory.
+
+**What you see.**
+
+| Line | Meaning | Why it matters |
+|---|---|---|
+| Digits | How many decimal places were worked out (after "3."). 1 million = 1,000,000. With **SuperPi sizes** ticked, powers of two: 1M = 1,048,576, marked "(SuperPi size 1M)". | Bigger takes longer and uses more memory. |
+| Method | Chudnovsky series (fast) or Gauss-Legendre / AGM (the method SuperPi uses). | Only compare runs made with the same method. |
+| Threads | 1 = single-thread score. Chudnovsky can split its work over more threads; AGM always uses one. | |
+| Time | Seconds from start to the last digit (the check is not counted). | Lower is faster. |
+| Check | "every digit right" when the SHA-256 checksum of all the digits matches the true digits. | Anything else means a wrong result: do not trust that PC's stability. |
+| Last 20 digits | The end of the result, for a quick look. | |
+| Build | Compiler and CPU code level the program was built for. | Results only compare between alike builds. |
+
+If never run, the item shows `Status Not run yet` and the command line.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, package build (generic x86-64, -O2), one thread:
+128 thousand digits 0.23 s, 1 million 3.1 s, 2 million 7.7 s, 4 million 17.7 s, 8 million 39.6 s.
+1 million on 4 threads: 1.4 s. Gauss-Legendre is about four times slower than Chudnovsky
+(1 million: 13.2 s). A build made for this CPU (`-march=native -O3`) did 1 million in 2.1 s.
+
+**Unusual values and what they suggest.**
+- Check says "wrong": the hardware made an error. Undo the last overclock or voltage change and run
+  it again; a wrong result at stock settings points to memory (run a memory tester).
+- Much slower than usual: another program is busy, the CPU is hot and throttling, or a power-saving
+  profile is active.
+- "Not enough memory": 32 million digits needs about 1-2 GB of free RAM (more with more threads).
+
+**Where Linux gets it.** Built in (no outside program): big numbers in base 10^8, multiplied with a
+number-theoretic transform; Newton steps for division and square roots. The true digits' SHA-256
+checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into SRS (computed once with the
+independent mpmath library). Stored in `~/.cache/srs/bench-pi.txt`; each run is added to the
+[Benchmark history](#benchmark-history).
+
+**Background.** SuperPi (1995) made "pi to 1 million digits" a famous overclocking test. SRS Pi is
+SRS's own program with its own name and timings; its times are **not** SuperPi times. SuperPi's
+"1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly 1,000,000. Tick **SuperPi sizes** to
+work out the same digit counts SuperPi does (16K = 16,384 up to 32M = 33,554,432), so at least the
+amount of work matches; each of these sizes has its own built-in checksum too. 1M = 1,048,576 digits
+took 4.2 s on one thread on the 7800X3D (a little more than 5% over 1,000,000 digits, because the
+multiplications step up to the next power-of-two size).
+
+---
+## Crypto benchmark  
+`crypto-bench` - Linux data
+
+**In plain words.** How fast the CPU can encrypt data (AES-128, used by disk encryption, VPNs and
+HTTPS) and make fingerprints of data (SHA-256, used by package checks, backups and git). Each is
+measured twice: with the CPU's own crypto instructions (AES-NI, SHA-NI) and in plain C without
+them, so you can see how much the hardware helps.
+
+**What you see.** A table in MB/s (1 MB = 1,000,000 bytes) with one column for one thread and one
+for the chosen number of threads (default: all), and a Check line.
+
+| Row | Meaning |
+|---|---|
+| AES-128-CTR, AES-NI | AES-128 in counter mode using the AES instructions, eight blocks at a time. |
+| AES-128-CTR, plain C | The same work with lookup tables in ordinary C code. |
+| SHA-256, SHA-NI | SHA-256 using the SHA extensions. |
+| SHA-256, plain C | SHA-256 in ordinary C code. |
+
+A row says "not available on this CPU" when the CPU lacks those instructions.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, one thread: AES-NI about 15,000 MB/s, plain C about
+180 MB/s; SHA-NI about 2,100 MB/s, plain C about 430 MB/s. With four threads the numbers grow about
+four times. For comparison, `openssl speed` on the same core: AES-128-CTR about 12,600 MB/s,
+SHA-256 about 2,400 MB/s.
+
+**Unusual values and what they suggest.** Check not "pass": the CPU gave a wrong answer - treat it
+like a failed stability test. AES-NI rows missing on a modern CPU: the instructions may be
+switched off in the BIOS or hidden by a virtual machine.
+
+**Where Linux gets it.** Built in, written from the standards FIPS 197 (AES) and FIPS 180-4
+(SHA-256). Before every run the official test vectors are checked, and the hardware results are
+compared with the plain C results. Stored in `~/.cache/srs/bench-crypto.txt`. Runs about
+8 seconds at the default of 1 second per measurement.
+
+---
+## Prime sieve  
+`prime-sieve` - Linux data
+
+**In plain words.** Counts all the prime numbers up to a limit (100 million to 100 billion) and
+checks the count against the known answer. It is simple integer and cache work that splits well
+over many threads.
+
+**What you see.** Limit, Threads, Time, Speed (million numbers per second), Primes found, and a
+Check line ("right" when the count matches the known value, for example 455,052,511 primes below
+10 billion).
+
+**Healthy / typical values.** Ryzen 7 7800X3D, up to 10 billion: 4.5 s on one thread, 1.15 s on
+four threads. The specialised `primesieve` program does the one-thread run in 0.75 s: SRS uses a
+plain, easy-to-read sieve, so compare SRS with SRS.
+
+**Where Linux gets it.** Built in: a segmented sieve of Eratosthenes over the odd numbers, in
+128 KB pieces that fit in the L2 cache, shared between threads. Stored in
+`~/.cache/srs/bench-prime.txt`.
+
+---
+## Benchmark history  
+`bench-history` - Linux data
+
+**In plain words.** A list of every SRS Pi, Crypto and Prime sieve run, newest first, so you can
+compare before and after a change (BIOS setting, kernel, cooler).
+
+**What you see.** When, Test, Settings (digits, threads, method), Result, and Build. Results in red
+were wrong.
+
+**Where Linux gets it.** `~/.cache/srs/bench-history.tsv`, a tab-separated text file (one line per
+run) that any spreadsheet opens. Only compare lines with the same settings and the same Build: a
+package built for every x86-64 CPU can be much slower than one built for this CPU.
 
 ---
 ## Lookup  

@@ -12,7 +12,7 @@
 pkgname=srs-sysinfo
 pkgver=1.1.0   # set by build-arch.sh
 pkgrel=1
-pkgdesc="Linux system information viewer inspired by SIV64X (independent, not affiliated with SIV): GTK3 GUI, 545 report items, user guide, CPU burner, benchmarks"
+pkgdesc="Linux system information viewer inspired by SIV64X (independent, not affiliated with SIV): GTK3 GUI, 551 report items, user guide, CPU burner, benchmarks"
 arch=('x86_64')
 url="https://github.com/eugenesflanagin-spec/srs-sysinfo"
 license=('GPL-2.0-or-later')

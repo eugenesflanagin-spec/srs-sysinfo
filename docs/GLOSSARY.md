@@ -12,7 +12,9 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ACPI (Advanced Configuration and Power Interface)** - Advanced Configuration and Power Interface; the firmware tables and code that describe the board's devices, power states and interrupts to the operating system. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md), [sensors](SECTIONS/sensors.md).*
 - **ACPI namespace** - The tree of named objects in the ACPI tables, e.g. `\_SB_.PCI0.SBRG.EC0_`, which is the firmware's own map of the board's devices. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
 - **AER (Advanced Error Reporting)** - A PCI Express feature that counts and reports link errors (correctable and uncorrectable) to the kernel. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md).*
+- **AES (Advanced Encryption Standard), AES-NI** - the standard way to encrypt data (disk encryption, VPN, HTTPS). AES-NI are CPU instructions that do one AES round in hardware, many times faster than plain code. *See: [tools](SECTIONS/tools.md).*
 - **Affinity mask** - a bit pattern, one bit per CPU, saying which CPUs a task may run on. `FFFF` = CPUs 0-15. *See: [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md).*
+- **AGM (arithmetic-geometric mean), Gauss-Legendre** - a way to compute pi that doubles the number of correct digits at every step; the method SuperPi uses. *See: [tools](SECTIONS/tools.md).*
 - **AIO** - All-In-One liquid cooler: a sealed pump, radiator and fans in one unit. *See: [tools](SECTIONS/tools.md).*
 - **AIO (all-in-one) cooler** - A sealed liquid cooler with pump, radiator and fans in one kit. *See: [sensors](SECTIONS/sensors.md).*
 - **ALSA (Advanced Linux Sound Architecture)** - The kernel's sound driver layer. It talks to the sound chips and gives each card numbered devices such as `hw:1,0`. *See: [graphics](SECTIONS/graphics.md).*
@@ -24,6 +26,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ASLR (Address Space Layout Randomization)** - loading programs and libraries at random memory addresses each run, to make attacks harder. *See: [linux-os](SECTIONS/linux-os.md).*
 - **ASPM (Active State Power Management)** - lets a PCIe link drop into a low-power state when idle. *See: [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **Associativity (ways)** - how many places in a cache a given piece of memory may be stored; more ways means fewer collisions. *See: [processors](SECTIONS/processors.md).*
+- **Asynchronous I/O (AIO)** - handing the kernel several read or write requests at once and collecting the answers later; how the storage benchmark keeps Q requests in flight. *See: [tools](SECTIONS/tools.md).*
 - **ATA** - AT Attachment: the command set used by SATA (and older IDE/PATA) hard disks and SSDs. *See: [storage](SECTIONS/storage.md).*
 - **AUR (Arch User Repository)** - community build recipes for Arch-based systems. Packages built from it show as "foreign" in pacman. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Autosuspend** - the USB core's habit of putting an idle device to sleep after a set number of seconds; -1 turns it off. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -38,6 +41,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **bcdDevice / bcdUSB** - fields in a USB device descriptor: the device's own release number, and the USB version it claims to follow. *See: [buses-2](SECTIONS/buses-2.md).*
 - **bfq** - Budget Fair Queueing: a Linux I/O scheduler that suits spinning disks and slow USB devices. *See: [storage](SECTIONS/storage.md).*
 - **Binary MOF** - a compressed description of a vendor's WMI classes, stored in the firmware. *See: [machine](SECTIONS/machine.md).*
+- **Binary splitting** - computing a long series by splitting it in halves again and again and joining the halves with big multiplications, so the work stays fast and can be shared between threads. *See: [tools](SECTIONS/tools.md).*
 - **Bind mount** - Attaching a folder of an existing filesystem at a second place in the folder tree. *See: [storage](SECTIONS/storage.md).*
 - **BMC (Baseboard Management Controller)** - A small separate computer on server boards that monitors sensors and allows remote management through IPMI. *See: [sensors](SECTIONS/sensors.md).*
 - **BogoMIPS** - a rough number from a busy loop the kernel times at boot; not a real speed benchmark. *See: [processors](SECTIONS/processors.md).*
@@ -62,10 +66,12 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **CEM (Card Electromechanical)** - The PCI Express standard for normal plug-in cards; `board_info type : cem` means a regular desktop graphics card. *See: [graphics](SECTIONS/graphics.md).*
 - **Charmap** - a glibc file that defines a character set; used when building locales. *See: [linux-os](SECTIONS/linux-os.md).*
 - **CHS** - Cylinder-Head-Sector: the old way of addressing disk blocks, replaced by LBA. SRS shows the legacy 255-head, 63-sector translation. *See: [storage](SECTIONS/storage.md).*
+- **Chudnovsky series** - a formula for pi that gives about 14 more digits for every term; the fastest way known to compute many digits. *See: [tools](SECTIONS/tools.md).*
 - **Class code** - The PCI number that says what kind of device it is, e.g. 0300 display, 0108 NVMe, 0604 PCI bridge. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Clock source** - the hardware timer Linux uses to keep time (tsc, hpet, acpi_pm). *See: [processors](SECTIONS/processors.md).*
 - **Clocksource** - the hardware counter the kernel reads to keep time (TSC, HPET, ACPI PM timer). *See: [linux-os](SECTIONS/linux-os.md).*
 - **Cluster** - The smallest unit of space a FAT, exFAT or NTFS filesystem hands out to a file. *See: [storage](SECTIONS/storage.md).*
+- **CLZERO** - an AMD instruction that writes a whole zeroed 64-byte cache line straight to memory; the Cache & Memory benchmark uses it to measure how fast the RAM itself can take writes. *See: [tools](SECTIONS/tools.md).*
 - **CMOS** - the battery-backed clock chip and its small memory on the motherboard; the name comes from the chip technology. *See: [machine](SECTIONS/machine.md).*
 - **Code page** - an old table that maps byte values to characters (e.g. 437, 1252). UTF-8 has replaced code pages on Linux. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Code point** - Unicode's number for one character, written like `U+0041`. *See: [linux-os](SECTIONS/linux-os.md).*
@@ -234,6 +240,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Interface (USB)** - One function of a USB device, with its own class and driver. One device can have several. *See: [buses-1](SECTIONS/buses-1.md).*
 - **IOMMU (input-output memory management unit)** - Input-Output Memory Management Unit; controls which memory each device can reach, needed for passing devices to virtual machines. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md), [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
 - **IOMMU group** - The smallest set of devices the IOMMU can isolate from each other. It matters for passing a device to a virtual machine. *See: [buses-1](SECTIONS/buses-1.md).*
+- **IOPS** - input/output operations per second: how many separate read or write requests a drive answers each second. *See: [tools](SECTIONS/tools.md).*
 - **IP block** - A reusable hardware building block inside an AMD chip (graphics core, video engine, memory controller...), each with its own version. *See: [graphics](SECTIONS/graphics.md).*
 - **IPI** - Inter-Processor Interrupt, a signal from one CPU to another. SRS's IPI Delay measures the core-to-core cache-line delay instead. *See: [tools](SECTIONS/tools.md).*
 - **IPMI (Intelligent Platform Management Interface)** - A standard for talking to a server's BMC: sensors, event log, remote power control. *See: [sensors](SECTIONS/sensors.md).*
@@ -336,6 +343,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **NSS (Name Service Switch)** - glibc's list that decides where names are looked up and in what order. *See: [network](SECTIONS/network.md).*
 - **NTFS** - New Technology File System: the main Windows filesystem; Linux reads and writes it with the ntfs3 driver. *See: [storage](SECTIONS/storage.md).*
 - **NTP (Network Time Protocol)** - the protocol that keeps the clock in sync with time servers over the network. *See: [linux-os](SECTIONS/linux-os.md).*
+- **NTT (number-theoretic transform)** - a relative of the FFT that works with whole numbers modulo a prime, used to multiply numbers with millions of digits quickly and exactly. *See: [tools](SECTIONS/tools.md).*
 - **NUMA** - Non-Uniform Memory Access; a design where memory is attached to particular CPUs, so "far" memory is slower. *See: [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md), [tools](SECTIONS/tools.md).*
 - **NUMA node** - A group of CPUs and memory that are close to each other. Desktops have one node, which Linux shows as -1 for PCI devices. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
 - **NVMe** - Non-Volatile Memory Express: the protocol fast SSDs use over PCIe. *See: [storage](SECTIONS/storage.md).*
@@ -344,6 +352,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## O
 
+- **O_DIRECT** - opening a file so reads and writes go straight to the drive, past Linux's page cache in RAM; benchmarks use it so they measure the drive, not the RAM. *See: [tools](SECTIONS/tools.md).*
 - **OpenCL** - An open standard for running general computing tasks on GPUs and other processors. *See: [graphics](SECTIONS/graphics.md).*
 - **OpenGL** - The older cross-platform 3D graphics interface; still used by many programs and older games. *See: [graphics](SECTIONS/graphics.md).*
 - **Option ROM** - firmware stored on a PCI card (listed as the ROM BAR), for example a graphics card's video BIOS. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
@@ -403,6 +412,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **qdisc (queueing discipline)** - the kernel's waiting line for outgoing packets, such as fq or fq_codel. *See: [network](SECTIONS/network.md), [srs-items](SECTIONS/srs-items.md).*
 - **QST (Quiet System Technology)** - Intel fan control built into the management engine of some 2007-2010 desktop boards. *See: [sensors](SECTIONS/sensors.md).*
+- **Queue depth (Q), threads (T)** - Q = how many requests one thread keeps waiting at the drive at once, T = how many threads do so; "Q32T16" keeps 512 requests in flight. *See: [tools](SECTIONS/tools.md).*
 - **Quirk (USB)** - a kernel workaround flag for a device that does not follow the USB standard exactly. *See: [buses-2](SECTIONS/buses-2.md).*
 
 ## R
@@ -443,7 +453,9 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Secure Boot** - a UEFI feature that only starts boot loaders and kernels signed with trusted keys. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
 - **Setup Mode** - UEFI Secure Boot state with no Platform Key installed, in which keys can be changed freely. *See: [machine](SECTIONS/machine.md).*
 - **SEV** - Secure Encrypted Virtualization; AMD server feature that encrypts virtual machine memory. *See: [processors](SECTIONS/processors.md).*
+- **SHA-256, SHA-NI** - SHA-256 makes a 256-bit "fingerprint" of data (package checks, backups, git); SHA-NI are CPU instructions that speed it up. *See: [tools](SECTIONS/tools.md).*
 - **Shared library** - a `.so` code file many programs use at once, such as `libc.so.6`. *See: [srs-items](SECTIONS/srs-items.md).*
+- **Sieve of Eratosthenes** - finding prime numbers by crossing out the multiples of each prime; what remains are the primes. *See: [tools](SECTIONS/tools.md).*
 - **Sink / source** - In a sound server, a sink is where sound goes (speakers, HDMI); a source is where sound comes from (microphone, line in). *See: [graphics](SECTIONS/graphics.md).*
 - **SLAAC (stateless address autoconfiguration)** - the way an IPv6 device builds its own address from the router's advertisements. *See: [network](SECTIONS/network.md).*
 - **Slab** - the kernel's allocator for its own small objects; "reclaimable" slab is cache it can drop. *See: [linux-os](SECTIONS/linux-os.md).*

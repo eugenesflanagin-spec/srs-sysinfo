@@ -4,6 +4,59 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.1.0 - 2026-10-26
+
+### Added
+- **SRS Pi**: works out pi to 128 thousand, 1, 2, 4, 8, 16 or 32 million decimal places and checks
+  every digit against built-in SHA-256 checksums of the true digits. Two methods: Chudnovsky (fast,
+  can split its work over threads) and Gauss-Legendre / AGM (the method SuperPi uses, one thread).
+  Window with Digits, Method, Threads, Run and Stop, and a status line showing the current step;
+  command line `sysreport-search pi [--digits 1m] [--threads N] [--method chudnovsky|agm]
+  [--save-digits FILE]`. Times are SRS Pi times, not SuperPi times (SuperPi's "1M" is 1,048,576
+  digits). Example, Ryzen 7 7800X3D, package build, one thread: 1 million digits 3.1 s.
+  **SuperPi sizes**: a tick box (and `--digits 16ki` ... `32mi` on the command line) switches to the
+  power-of-two digit counts SuperPi uses, 16K = 16,384 ... 1M = 1,048,576 ... 32M = 33,554,432,
+  each with its own built-in checksum.
+- **Cache & Memory benchmark** - Linux System Audit (LSA), the author's own project, is now part
+  of SRS. Read / Write / Copy bandwidth and Latency of the RAM and the L1, L2 and L3 caches, with
+  the measuring engine of LSA 0.2.0 unchanged (same results), in an SRS window and SRS's own
+  wording: Threads, Seconds per test, Run (asks first: about 20 s on every thread), Stop, live
+  status. Below the table: threads and vector code, RAM write method, measured clock, the
+  **measured base clock** (105 MHz on boards that raise it), multiplier, **Infinity Fabric clock**
+  (Ryzen 7000 desktop with `ryzen_smu`), memory type / speed / channels (root data), cache sizes.
+  Command line `sysreport-search cachemem` with LSA's options (`--threads`, `--seconds`, `--isa`,
+  `--mem-mib`, `--only`, `--tests`, `--mib`, `--mem-write`, `--yes`). x86-64 only.
+- **Storage benchmark**: read and write speed of the drive that holds a folder you choose -
+  Sequential 1 MiB (Q8T1), 4K random (Q32T16, or Q8T4 in the Light profile) and 4K random (Q1T1),
+  each read and write, with average, peak, IOPS, 4K response times (mean, median, 95% / 99%,
+  slowest), drive model and connection (never the serial number), file system and drive
+  temperature before / after. Works only on its own temporary test file (created new and unlinked
+  at once, so nothing can be left behind - also after Stop, a crash or a kill); `O_DIRECT` with
+  Linux native AIO for real queue depths. Refuses RAM (tmpfs), network and FUSE folders and too
+  little free space; USB drives only when allowed; asks before it starts. Test file 256 MB - 16 GB,
+  1-30 s per test. Command line `sysreport-search storage --dir FOLDER`.
+- **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
+  AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
+  run. `sysreport-search crypto [--threads N] [--seconds S]`.
+- **Prime Sieve**: counts the primes up to 10^8 ... 10^11 on N threads and checks the count.
+  `sysreport-search prime [--limit 1e10] [--threads N]`.
+- **Benchmark history**: every SRS Pi, Crypto and Prime Sieve run adds a line to
+  `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
+  result carries a **Build** line (compiler, CPU code level), because a generic package build and a
+  `-march=native` build of the same version score differently.
+- Benchmarks & stress page: SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
+  (classic view); `--gui-open=pi|crypto|prime`.
+- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+
+### Changed
+- The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
+  memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).
+
+### Fixed
+- Only one benchmark runs at a time across all windows (before, two benchmark windows could run at
+  once and spoil each other's results), and CPU Burnin / Stress will not start while a benchmark
+  runs. The window says why it did not start.
+
 ## 2.0.0 - 2026-10-26
 
 This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per
