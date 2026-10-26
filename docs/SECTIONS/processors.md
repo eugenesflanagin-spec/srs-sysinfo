@@ -376,7 +376,7 @@ that grows after a kernel update is normal: newly found issues get added.
 
 **What you see.** The same layout as [CPU Speeds](#cpu-speeds): the driver/boost line and the
 per-CPU table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor, EPP). Below it, since
-2.1, **Stock and in effect now**: each clock at stock next to what it is now.
+2.2, **Stock and in effect now**: each clock at stock next to what it is now.
 
 | Row | Stock | In effect now |
 |---|---|---|
@@ -591,7 +591,7 @@ under light load; HW Min 426MHz, HW Max 5.05GHz. Current can read a little above
 - HW Max equal to the base clock: boost off in the BIOS.
 - All columns `-`: no cpufreq driver (virtual machine, or the driver failed to load).
 
-Since 2.1 the same **Stock and in effect now** table as [CPU Clocks](#cpu-clocks) follows the
+Since 2.2 the same **Stock and in effect now** table as [CPU Clocks](#cpu-clocks) follows the
 per-CPU table (both items share one page).
 
 **Where Linux gets it.** `/sys/devices/system/cpu/cpuN/cpufreq/` (`scaling_*`, `cpuinfo_*`,

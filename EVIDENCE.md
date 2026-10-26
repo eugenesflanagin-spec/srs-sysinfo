@@ -161,7 +161,7 @@ layout: main panel + PCI Bus / USB Bus / ALL Dev / Lookup / Find / Data Files / 
 
 No part of SIV's executable code was disassembled, decompiled or reused, and none of SIV's data files (`PCIDEVS.txt`, `USBDEVS.txt`, ...) are included. Device names come from the hwdata project instead.
 
-## Cache & Memory benchmark (SRS 2.1)
+## Cache & Memory benchmark (SRS 2.2)
 
 The Cache & Memory benchmark's measuring engine (`bench_cachemem.c`) is the engine of Linux System
 Audit (LSA) 0.2.0, the same author's GPL-2.0-or-later project, moved into SRS unchanged; LSA was

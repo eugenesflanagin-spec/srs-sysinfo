@@ -880,7 +880,7 @@ static void s_amd_smu(srs_out *o)
 }
 
 /* ----------------------------------------------------------------------
- * [cpu-clocks] second table (2.1): each clock at stock (the 100 MHz reference clock) next to what
+ * [cpu-clocks] second table (2.2): each clock at stock (the 100 MHz reference clock) next to what
  * is in effect now, for a PC run with another base clock (BCLK / AM5 eCLK, e.g. 105 MHz).
  * Base clock: measured, the way LSA does it - the invariant TSC runs at the nominal clock, and ACPI
  * CPPC nominal_freq is that clock at a 100 MHz reference, so base = TSC x 100 / nominal_freq.

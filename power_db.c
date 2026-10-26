@@ -79,7 +79,7 @@ int pdb_open(const char *path)
     chmod(path, 0600);   /* a usage history says when someone is at the PC: keep it private */
     sqlite3_busy_timeout(g_db, 3000);
     if (exec(schema)) { sqlite3_close(g_db); g_db = NULL; return -1; }
-    /* schema 2 (2.1.0): busy time and energy per minute; older files get the columns added */
+    /* schema 2 (2.2.0): busy time and energy per minute; older files get the columns added */
     {
         sqlite3_stmt *st;
         int ver = 0;

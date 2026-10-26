@@ -43,7 +43,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 ![SRS 2.0 main window: the Overview page](docs/images/overview-light.png)
 
 - **Main window** (new in 2.0): a sidebar of pages - **Overview**, Processor, Memory,
-  Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, **Power & cost** (2.1), USB &
+  Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, **Power & cost** (2.2), USB &
   PCI devices, Operating system, Benchmarks & stress, Tools.
   - **Overview** answers "Is my PC OK?": status lights for CPU and graphics temperature, drive
     health (SMART) and temperature, hardware errors (machine checks, ECC errors, faulty memory
@@ -54,7 +54,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     (same text, colours and live updates as the classic panels) with Refresh, Copy, Guide (F1),
     a Live switch and **Open in window**. **All N items** is a searchable jump list of every item
     of the page, the expert ones too.
-  - **Tabs your way** (2.1): add (**+**, Ctrl+T), close, replace (right-click > Replace with...),
+  - **Tabs your way** (2.2): add (**+**, Ctrl+T), close, replace (right-click > Replace with...),
     drag and keep tabs; SRS remembers each page's tabs and their order. Per page in Options: the
     standard tabs, the ones you tick, or every item; or every item as a tab on all pages. Tab bar:
     one scrolling row, wrapped rows or a side list. **Lineups** save a whole arrangement: Basic,
@@ -62,24 +62,24 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     hardware this PC does not have are hidden; **Options -> Check now** (or the opt-in **Check
     daily**) also hides items that come out empty here, never running the network items;
     **Show hidden items** lists them.
-  - **Sortable tables** (2.1): click a column heading (first click ascending ▲, second descending ▼);
+  - **Sortable tables** (2.2): click a column heading (first click ascending ▲, second descending ▼);
     numbers sort by value with their units (MB/GB, MHz, °C, RPM, %), dates by date. **Reset view**
     puts the item's order back; Copy and Save Report always keep it.
-  - **Startup manager** (2.1, Operating system -> Startup programs; the tab opens on the read-only
+  - **Startup manager** (2.2, Operating system -> Startup programs; the tab opens on the read-only
     **Report**, **Manage** is next to it): turn any autostart
     entry, user service or (after a warning, with pkexec) system service off and on again without
     deleting anything; Undo, Restore default, and **Add to startup** for a program or a command with
     an optional delay. Desktop essentials (Plasma, PipeWire, KWallet, portals, polkit agent) ask first.
   - **Badge** in the title bar: **Full access** when SRS runs as root or root data was collected
     (hover for when), else **Limited (user)** with a **Run as root...** button.
-  - **CPU Clocks** (2.1) adds **Stock and in effect now**: the base clock measured (BCLK / eCLK),
+  - **CPU Clocks** (2.2) adds **Stock and in effect now**: the base clock measured (BCLK / eCLK),
     core base / boost / now at stock and in effect, and FCLK / UCLK / MCLK from the SMU (ryzen_smu).
   - **Search** in the title bar (Ctrl+F) finds any item by name or id (`processor:3` works);
     Enter searches the text of the current tab, F3 for the next match.
   - **Menu**: Save Report, Save All Items, Copy This Tab, Lineup, Options, Run as root, Find in System
     Report, Device ID Lookup, Classic View, the full Classic Menu, User Guide, About SRS, Quit.
   - The tools below open from the **Benchmarks & stress** and **Tools** pages too.
-  - **Power & cost** (new in 2.1, under Sensors, Alt+9): an estimate of the whole PC's power at the wall with its likely
+  - **Power & cost** (new in 2.2, under Sensors, Alt+9): an estimate of the whole PC's power at the wall with its likely
     range (the CPU and graphics card measured, the rest from an editable parts list and the power
     supply's efficiency), the cost at your price (flat, tiered or time-of-use, any currency, or an
     offline area average), recording off / for a set time / always into a local SQLite history,
@@ -210,10 +210,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.1.0-x86_64.AppImage
-    ./srs-sysinfo-2.1.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.1.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.1.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.2.0-x86_64.AppImage
+    ./srs-sysinfo-2.2.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.2.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.2.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied

@@ -4,7 +4,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## 2.1.0 - 2026-10-26
+## 2.2.0 - 2026-10-26
 
 Power & cost, five new benchmarks, and a main window you can arrange: tab lineups, sortable tables,
 a Startup manager, CPU clocks at stock and in effect, and a badge that shows what SRS can read.

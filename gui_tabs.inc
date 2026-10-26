@@ -1,4 +1,4 @@
-/* gui_tabs.inc - included by gui_gtk.c (one translation unit): the main window's tabs (2.1).
+/* gui_tabs.inc - included by gui_gtk.c (one translation unit): the main window's tabs (2.2).
  *
  * Each page shows a list of items as tabs. The list, its order, "every item as a tab" and the tab-bar
  * layout make up the current state, kept in SRSDEF.ini [Tabs] across restarts. A lineup is a named
@@ -1548,11 +1548,11 @@ static gboolean lineup_first_ask(gpointer d)
     int i, pick = g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT;
     (void)d;
     if (!g_lu_ask || !g_main) return G_SOURCE_REMOVE;
-    dlg = gtk_dialog_new_with_buttons(g_lu_returning ? "SRS 2.1: your tabs" : "Welcome to SRS", GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+    dlg = gtk_dialog_new_with_buttons(g_lu_returning ? "SRS 2.2: your tabs" : "Welcome to SRS", GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                       "_OK", GTK_RESPONSE_OK, NULL);
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_container_set_border_width(GTK_CONTAINER(box), 14);
-    l = gtk_label_new(g_lu_returning ? "SRS 2.1 can arrange its pages in lineups.\nYour pages stay as you know them (the Enthusiast lineup) unless you pick another:"
+    l = gtk_label_new(g_lu_returning ? "SRS 2.2 can arrange its pages in lineups.\nYour pages stay as you know them (the Enthusiast lineup) unless you pick another:"
                                      : "Which tabs would you like on SRS's pages?");
     gtk_label_set_xalign(GTK_LABEL(l), 0);
     gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);

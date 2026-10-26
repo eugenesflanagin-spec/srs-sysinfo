@@ -5,7 +5,7 @@ pkgbase = lsa-sysinfo
 	url = https://github.com/eugenesflanagin-spec/lsa-sysinfo
 	arch = any
 	license = GPL-2.0-or-later
-	depends = srs-sysinfo>=2.1.0
+	depends = srs-sysinfo>=2.2.0
 	source = lsa
 	source = lsa-gui
 	sha256sums = 99f81f32098d12e541d1886abac40d1d2df3e039fab95f739ded21d46c9b2bd5

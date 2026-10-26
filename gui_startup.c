@@ -1,4 +1,4 @@
-/* gui_startup.c - the Startup tab's manager (srs-gui main window, 2.1).
+/* gui_startup.c - the Startup tab's manager (srs-gui main window, 2.2).
  *
  * What starts with the desktop or the user session, and switches to turn each item off and on
  * again. Nothing is ever deleted:

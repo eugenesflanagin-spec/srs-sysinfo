@@ -1,4 +1,4 @@
-/* gui_startup.h - the Startup tab's manager (srs-gui main window, 2.1) */
+/* gui_startup.h - the Startup tab's manager (srs-gui main window, 2.2) */
 #ifndef GUI_STARTUP_H
 #define GUI_STARTUP_H
 

@@ -98,13 +98,13 @@ typedef struct swin {
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
-    /* sortable tables (main-window tabs, 2.1): the last render op by op, replayed in the chosen order */
+    /* sortable tables (main-window tabs, 2.2): the last render op by op, replayed in the chosen order */
     GArray *rec;
     char *plain;             /* the text in the item's own order: what Copy copies, so it stays as before */
     int nblk, blk_line[TS_MAXBLK], blk_cols[TS_MAXBLK], sort_col[TS_MAXBLK], sort_dir[TS_MAXBLK];
     char *blk_head[TS_MAXBLK];   /* header cells, tab-separated (tooltips) */
     GtkWidget *reset_btn;
-    /* main-window tab (2.1): a temporary tab is not kept in the page's tab list */
+    /* main-window tab (2.2): a temporary tab is not kept in the page's tab list */
     int temp;
     GtkWidget *tablbl, *tabtxt;
 } swin;
@@ -328,7 +328,7 @@ static void out_begin_live(swin *w, srs_out *o, gctx *g, const char *arg)
 }
 
 /* ======================================================================
- * sortable tables (2.1). A main-window tab records its item's output op by op, finds the tables
+ * sortable tables (2.2). A main-window tab records its item's output op by op, finds the tables
  * in it (a row of C_LABEL headings followed by rows on the same tab stops), and replays the ops
  * with the rows of each table in the order the user picked by clicking a heading. The text view,
  * its colours, Find, double-click lookup and the live refresh stay as they were; Copy copies the
@@ -3043,7 +3043,7 @@ static const catdef g_cats[CAT_N] = {
     { "sensors", "Sensors", "sensors-temperature-symbolic|temperature-symbolic|power-profile-balanced-symbolic",
       "Temperatures, fan speeds, voltages and power, read live from the hardware monitor chips.",
       { "sensors", "hw-status", "cooling", "power", NULL } },
-    /* 2.1: its own page (power.c), not section tabs; under Sensors (Alt+9) */
+    /* 2.2: its own page (power.c), not section tabs; under Sensors (Alt+9) */
     { "power", "Power & cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
       "How much power this PC uses, what it costs, and its history. Estimates: the CPU and graphics card are measured, the rest is guessed.",
       { NULL } },
@@ -3076,9 +3076,9 @@ typedef struct { GtkWidget *dot, *name, *text, *btn; } checkui;
 typedef struct {
     swin *w;
     GtkWidget *hb, *side, *stack, *search, *menubtn;
-    GtkWidget *badge, *badge_icon, *badge_lbl, *badge_root;   /* privilege badge (2.1) */
+    GtkWidget *badge, *badge_icon, *badge_lbl, *badge_root;   /* privilege badge (2.2) */
     GtkWidget *nb[CAT_N];
-    GtkWidget *strip[CAT_N], *ctl[CAT_N], *alllbl[CAT_N], *pagebox[CAT_N];   /* tab lineups (2.1, gui_tabs.inc) */
+    GtkWidget *strip[CAT_N], *ctl[CAT_N], *alllbl[CAT_N], *pagebox[CAT_N];   /* tab lineups (2.2, gui_tabs.inc) */
     GtkWidget *lineup_lbl;
     factsui facts[CAT_N];
     GtkWidget *ov_sub, *ov_icon, *ov_verdict, *ov_vsub;

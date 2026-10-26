@@ -1254,7 +1254,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 
 **Unusual values and what they suggest.** A ticked entry you do not recognise: check its command. Malware and adware often hide in `~/.config/autostart`. Two entries starting the same tray app: you get two icons. Slow logins: look for `sleep N &&` commands and heavy apps here.
 
-**Turning items off and on (2.1).** In the main window the Startup programs tab opens on **Report**:
+**Turning items off and on (2.2).** In the main window the Startup programs tab opens on **Report**:
 this item as text, as above. **Manage**, next to it, is every entry with a switch, Undo, Restore
 default and Add to startup. Nothing is deleted. See the user guide, section 6.9.
 
