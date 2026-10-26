@@ -481,7 +481,7 @@ wave	hardware	Wave devices	LINUX	gpu	no	/proc/asound/pcm; card*/pcm*/sub0/hw_par
 wer	windows	Error reporting	LINUX	os	no	/etc/systemd/coredump.conf; coredumpctl	Windows Error Reporting settings
 wi-fi	windows	Wi-Fi SSIDs	LINUX	network	no	iw dev; /proc/net/wireless; nmcli wifi list --rescan no	visible Wi-Fi networks
 win-ce	windows	Windows CE devices	WINONLY	os	no	none	Windows CE / ActiveSync devices
-windows	windows	Windows (OS) panel	LINUX	os	no	/etc/os-release; uname; hostnamectl	OS version, user, uptime, locale
+windows	windows	General Info	LINUX	os	no	/etc/os-release; uname; hostnamectl	OS version, user, uptime, locale
 winsat	windows	WinSAT	WINONLY	os	no	none	WinSAT assessment scores
 wlan	windows	WLAN profiles	LINUX	network	yes	nmcli connection show (no secrets)	WLAN profiles
 words	tuning	Words	LINUX	siv	no	internal	translated words list

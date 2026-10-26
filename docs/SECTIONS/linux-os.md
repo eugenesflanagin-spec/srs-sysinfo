@@ -84,7 +84,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 - [Dr Watson / crash debugger](#dr-watson--crash-debugger) `watson`
 - [Error reporting](#error-reporting) `wer`
 - [Windows CE devices](#windows-ce-devices) `win-ce`
-- [Windows (OS) panel](#windows-os-panel) `windows`
+- [General Info](#general-info) `windows`
 - [WinSAT](#winsat) `winsat`
 - [Time zones](#time-zones) `zones`
 
@@ -1258,7 +1258,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## System  
 `system` - Linux data
 
-**In plain words.** The overview panel: what Linux you run, on what hardware, since when, and how the desktop is set up. It is the Linux version of SIV's Windows panel. The main-window **Linux** button opens it, and [Windows (OS) panel](#windows-os-panel) shows the same page.
+**In plain words.** The overview panel: what Linux you run, on what hardware, since when, and how the desktop is set up. It is the Linux version of SIV's Windows panel. The main-window **Linux** button opens it, and [General Info](#general-info) shows the same page.
 
 **What you see.**
 - Top block (four lines):
@@ -1514,10 +1514,10 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 **What you see.** `Status - Windows-only item in SIV`, `Linux equivalent - none`. That is expected.
 
 ---
-## Windows (OS) panel  
+## General Info  
 `windows` - Linux data
 
-**In plain words.** This is the panel SIV shows behind its "Windows" button. In SRS it is the Linux overview, the same page as [System](#system), opened by the main-window **Linux** button.
+**In plain words.** This is the panel SIV shows behind its "Windows" button (called "Windows (OS) panel" before SRS 1.2.0). In SRS it is the Linux overview, the same page as [System](#system), opened by the main-window **Linux** button.
 
 **What you see.** Exactly the fields described under [System](#system): distribution and kernel, install date, init and chassis, desktop session, system folders, kernel command line, one line per CPU, power and time zone, up-time and load, user and locale, BIOS, and connected monitors with their kernel driver. The panel's sub-buttons (Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, ALL Dev, Graphics) open the matching items in other groups.
 

@@ -42,6 +42,8 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   is known.
 
 ### Changed
+- The **Windows (OS) panel** is now called **General Info**, in the new window, the classic menu and
+  reports. Its ID is still `windows`, so `--gui-open=windows`, `-save` reports and saved links keep working.
 - Without a `Theme=` setting the new window follows the desktop's light / dark setting; the classic
   view still starts light. A saved Theme is used as before.
 - In the new window the panel text is 9 pt instead of 8 pt (the classic panels keep 8 pt).

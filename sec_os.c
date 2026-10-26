@@ -3401,7 +3401,7 @@ const srs_item sec_os[] = {
     { "watson", "windows", "Dr Watson / crash debugger", B_LINUX, 0, "/proc/sys/kernel/core_pattern; coredumpctl", s_watson, 0, "os" },
     { "wer", "windows", "Error reporting", B_LINUX, 0, "/etc/systemd/coredump.conf; coredumpctl", s_wer, 0, "os" },
     { "win-ce", "windows", "Windows CE devices", B_WINONLY, 0, "none", NULL, 0, "os" },
-    { "windows", "windows", "Windows (OS) panel", B_LINUX, 0, "/etc/os-release; uname; hostnamectl", s_windows, 0, "os" },
+    { "windows", "windows", "General Info", B_LINUX, 0, "/etc/os-release; uname; hostnamectl", s_windows, 0, "os" },
     { "winsat", "windows", "WinSAT", B_WINONLY, 0, "none", NULL, 0, "os" },
     { "zones", "windows", "Time zones", B_LINUX, 0, "timedatectl list-timezones; /usr/share/zoneinfo", s_zones, 0, "os" },
     { NULL, NULL, NULL, B_LINUX, 0, NULL, NULL, 0, NULL }

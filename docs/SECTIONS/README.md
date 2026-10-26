@@ -354,7 +354,7 @@ The groups are in the same order as SRS's Menu.
 | [Dr Watson / crash debugger](linux-os.md#dr-watson--crash-debugger) | `watson` | Linux data |
 | [Error reporting](linux-os.md#error-reporting) | `wer` | Linux data |
 | [Windows CE devices](linux-os.md#windows-ce-devices) | `win-ce` | Windows-only (Linux equivalent shown) |
-| [Windows (OS) panel](linux-os.md#windows-os-panel) | `windows` | Linux data |
+| [General Info](linux-os.md#general-info) | `windows` | Linux data |
 | [WinSAT](linux-os.md#winsat) | `winsat` | Windows-only (Linux equivalent shown) |
 | [Time zones](linux-os.md#time-zones) | `zones` | Linux data |
 

@@ -484,7 +484,7 @@ const srs_item sec_stubs[] = {
     { "wer", "windows", "Error reporting", B_LINUX, 0, "/etc/systemd/coredump.conf; coredumpctl", NULL, 0, "os" },
     { "wi-fi", "windows", "Wi-Fi SSIDs", B_LINUX, 0, "iw dev; /proc/net/wireless; nmcli wifi list --rescan no", NULL, 0, "network" },
     { "win-ce", "windows", "Windows CE devices", B_WINONLY, 0, "none", NULL, 0, "os" },
-    { "windows", "windows", "Windows (OS) panel", B_LINUX, 0, "/etc/os-release; uname; hostnamectl", NULL, 0, "os" },
+    { "windows", "windows", "General Info", B_LINUX, 0, "/etc/os-release; uname; hostnamectl", NULL, 0, "os" },
     { "winsat", "windows", "WinSAT", B_WINONLY, 0, "none", NULL, 0, "os" },
     { "wlan", "windows", "WLAN profiles", B_LINUX, 1, "nmcli connection show (no secrets)", NULL, 0, "network" },
     { "words", "tuning", "Words", B_LINUX, 0, "internal", NULL, 0, "siv" },
