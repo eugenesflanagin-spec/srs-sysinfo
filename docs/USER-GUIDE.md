@@ -317,15 +317,29 @@ The Overview starts with a line about the PC (board, Linux distribution, time si
 
 | Check | Based on | OK / check / problem |
 |---|---|---|
-| **CPU temperature** | The hottest CPU sensor (k10temp, coretemp, zenpower) | below 85 °C / 85-94 °C / 95 °C and up |
-| **Graphics temperature** | The GPU's hotspot (junction) sensor, which runs hotter than the edge | below 95 °C / 95-104 °C / 105 °C and up |
+| **CPU temperature** | The hottest CPU sensor (k10temp, coretemp, zenpower), against the CPU's own maximum temperature (*limit*, see below) | below limit − 10 °C / up to limit − 3 °C / limit − 2 °C and up |
+| **Graphics temperature** | The GPU's hotspot (junction) sensor, which runs hotter than the edge, against the card's own critical temperature (*crit*) | below crit − 15 °C / up to crit − 6 °C / crit − 5 °C and up |
 | **Drive health (SMART)** | Each drive's own self-check, from srs-root's cache | all PASSED / - / any FAILED. "Not checked yet" until srs-root has run once. USB adapters usually cannot pass SMART on. |
-| **Drive temperature** | The warmest drive | below 60 °C / 60-69 °C / 70 °C and up |
+| **Drive temperature** | Every drive, against its own warning temperature (*warn*) | below warn − 10 °C / up to warn − 1 °C / warn and up |
 | **Hardware errors** | Kernel taint flag M (the CPU reported a machine check), EDAC counters (ECC memory), HardwareCorrupted in /proc/meminfo | none / corrected ECC errors / a machine check, uncorrected errors or faulty pages taken out of use |
 | **Free disk space** | The file system mounted at / | below 90 % used / 90-96 % / 97 % and up |
 | **Memory in use** | Memory used by programs (cache does not count) | below 90 % / 90-94 % / 95 % and up |
 | **Sensor alarms** | Alarm flags of the hardware monitor chips | none / any |
 | **CPU throttling** | Thermal throttling counters (shown only on CPUs that count them, such as Intel) | never / any |
+
+**Where the limits come from.** Each sensor's own limit wherever it publishes one:
+
+- **CPU:** Intel processors report their maximum (coretemp). AMD's driver does not, so for AMD
+  desktop Ryzen SRS uses AMD's specified maximum for the model, for example 89 °C for a Ryzen 7
+  7800X3D and 95 °C for a Ryzen 9000.
+- **Graphics:** the card's own critical temperature for the hotspot sensor, for example 110 °C on
+  a Radeon RX 9070 XT.
+- **Drives:** each NVMe or SATA drive's own warning temperature, for example 81.85 °C on a
+  Samsung 980 PRO. Drives are compared one by one, so a cooler drive with a low limit is not
+  hidden behind a warmer one.
+
+Where no limit is known, a general one is used: CPU 85 / 95 °C, graphics 95 / 105 °C, drives
+60 / 70 °C. The tooltip says which one applies.
 
 Hover over a line for its limits; **Details** opens the page and tab with the full readings. The
 checks repeat every 3 seconds (drive data every 30 seconds); **F5** reads everything again now.

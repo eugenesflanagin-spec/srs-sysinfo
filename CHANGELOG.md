@@ -36,6 +36,10 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   **Classic view** button under the sidebar, `srs-gui --gui-classic`, and the menu entry's
   **Classic View** action. **Options -> Start in classic view** makes it the default (saved as
   `Classic View=1` in `SRSDEF.ini`); `--gui-new` opens the new window anyway.
+- **"Is my PC OK?" uses each sensor's own temperature limits**: the CPU's maximum (Intel's own
+  report, or AMD's specification for desktop Ryzen models), the graphics card's critical
+  hotspot temperature, and each drive's own warning temperature. General limits only where none
+  is known.
 
 ### Changed
 - Without a `Theme=` setting the new window follows the desktop's light / dark setting; the classic

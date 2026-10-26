@@ -587,14 +587,15 @@ yet).</td>
 <tbody>
 <tr>
 <td><strong>CPU temperature</strong></td>
-<td>The hottest CPU sensor (k10temp, coretemp, zenpower)</td>
-<td>below 85 °C / 85-94 °C / 95 °C and up</td>
+<td>The hottest CPU sensor (k10temp, coretemp, zenpower), against the
+CPU's own maximum temperature (<em>limit</em>, see below)</td>
+<td>below limit − 10 °C / up to limit − 3 °C / limit − 2 °C and up</td>
 </tr>
 <tr>
 <td><strong>Graphics temperature</strong></td>
 <td>The GPU's hotspot (junction) sensor, which runs hotter than the
-edge</td>
-<td>below 95 °C / 95-104 °C / 105 °C and up</td>
+edge, against the card's own critical temperature (<em>crit</em>)</td>
+<td>below crit − 15 °C / up to crit − 6 °C / crit − 5 °C and up</td>
 </tr>
 <tr>
 <td><strong>Drive health (SMART)</strong></td>
@@ -604,8 +605,9 @@ run once. USB adapters usually cannot pass SMART on.</td>
 </tr>
 <tr>
 <td><strong>Drive temperature</strong></td>
-<td>The warmest drive</td>
-<td>below 60 °C / 60-69 °C / 70 °C and up</td>
+<td>Every drive, against its own warning temperature
+(<em>warn</em>)</td>
+<td>below warn − 10 °C / up to warn − 1 °C / warn and up</td>
 </tr>
 <tr>
 <td><strong>Hardware errors</strong></td>
@@ -637,6 +639,23 @@ such as Intel)</td>
 </tr>
 </tbody>
 </table>
+<p><strong>Where the limits come from.</strong> Each sensor's own limit
+wherever it publishes one:</p>
+<ul>
+<li><strong>CPU:</strong> Intel processors report their maximum
+(coretemp). AMD's driver does not, so for AMD desktop Ryzen SRS uses
+AMD's specified maximum for the model, for example 89 °C for a Ryzen 7
+7800X3D and 95 °C for a Ryzen 9000.</li>
+<li><strong>Graphics:</strong> the card's own critical temperature for
+the hotspot sensor, for example 110 °C on a Radeon RX 9070 XT.</li>
+<li><strong>Drives:</strong> each NVMe or SATA drive's own warning
+temperature, for example 81.85 °C on a Samsung 980 PRO. Drives are
+compared one by one, so a cooler drive with a low limit is not hidden
+behind a warmer one.</li>
+</ul>
+<p>Where no limit is known, a general one is used: CPU 85 / 95 °C,
+graphics 95 / 105 °C, drives 60 / 70 °C. The tooltip says which one
+applies.</p>
 <p>Hover over a line for its limits; <strong>Details</strong> opens the
 page and tab with the full readings. The checks repeat every 3 seconds
 (drive data every 30 seconds); <strong>F5</strong> reads everything

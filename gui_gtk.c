@@ -2369,7 +2369,134 @@ static void fmt_uptime(char *out, size_t sz)
     else snprintf(out, sz, "%ld min", m);
 }
 
-typedef struct { int total, passed, failed, unknown; double tmax; char tdev[40]; } smartsum;
+/* ---- temperature limits: each sensor's own where it publishes one ---- */
+
+/* °C from a hwmon millidegree file, 0 when missing or not plausible */
+static double rd_limit(const char *path)
+{
+    long v;
+    return rd_long(path, &v) && v >= 40000 && v <= 150000 ? v / 1000.0 : 0;
+}
+
+/* highest value of a temp*_<kind> file of the first hwmon chip whose name starts with chip */
+static double hwmon_limit(const char *chip, const char *kind)
+{
+    char **hw;
+    int n = dir_list("/sys/class/hwmon", &hw), i, t;
+    double best = 0;
+    for (i = 0; i < n; i++) {
+        char nm[64], p[512];
+        snprintf(p, sizeof p, "/sys/class/hwmon/%s/name", hw[i]);
+        if (!rd_str(p, nm, sizeof nm) || strncmp(nm, chip, strlen(chip))) continue;
+        for (t = 1; t <= 64; t++) {
+            snprintf(p, sizeof p, "/sys/class/hwmon/%s/temp%d_%s", hw[i], t, kind);
+            best = MAX(best, rd_limit(p));
+        }
+        if (best > 0) break;
+    }
+    dir_free(hw, n);
+    return best;
+}
+
+/* The CPU's maximum operating temperature (where it starts slowing itself down).
+   Intel's coretemp publishes it (temp*_crit / _max); AMD's k10temp does not, so for
+   AMD desktop Ryzen it comes from AMD's specification for the model ("Max. Operating
+   Temperature (Tjmax)" on amd.com). 0 = unknown. */
+static double cpu_limit(const char **source)
+{
+    double l;
+    char *info = NULL, *model = NULL;
+    if ((l = hwmon_limit("coretemp", "crit")) > 0 || (l = hwmon_limit("coretemp", "max")) > 0) {
+        *source = "the CPU's own limit (coretemp)";
+        return l;
+    }
+    if (rd_all("/proc/cpuinfo", &info) >= 0) {
+        char *m = strstr(info, "model name");
+        if (m && (m = strchr(m, ':'))) model = g_strndup(m + 2, strcspn(m + 2, "\n"));
+        free(info);
+    }
+    if (!model) return 0;
+    static const struct { const char *re; double tj; } amd[] = {
+        { "Ryzen [579] 7[89]\\d0X3D", 89 },                  /* 7800X3D, 7900X3D, 7950X3D */
+        { "Ryzen 5 7600X3D", 89 },
+        { "Ryzen [3579] 9\\d\\d0X3D", 95 },                  /* 9800X3D, 9900X3D, 9950X3D */
+        { "Ryzen [3579] 5[5-8]00X3D", 90 },                   /* 5500X3D - 5800X3D */
+        { "Ryzen [3579] [79]\\d\\d\\d(X|F)?( |$)", 95 },      /* Ryzen 7000 / 9000 desktop */
+        { "Ryzen [3579] 5\\d\\d\\dG(E|T)?( |$)", 95 },        /* Ryzen 5000 G (APU) */
+        { "Ryzen [3579] 5\\d\\d\\dXT?( |$)", 90 },            /* Ryzen 5000 desktop */
+        { "Ryzen [3579] 5\\d\\d\\d( |$)", 90 },
+    };
+    for (size_t i = 0; i < G_N_ELEMENTS(amd) && !l; i++)
+        if (g_regex_match_simple(amd[i].re, model, 0, 0)) l = amd[i].tj;
+    g_free(model);
+    if (l > 0) *source = "AMD's maximum for this processor model";
+    return l;
+}
+
+/* the GPU junction (hotspot) sensor's own critical temperature (amdgpu temp2_crit) */
+static double gpu_limit(void)
+{
+    char **c;
+    int n = dir_list("/sys/class/drm", &c), i;
+    double l = 0;
+    for (i = 0; i < n && !l; i++) {
+        char p[512], **h;
+        int nh, j;
+        long v;
+        if (strncmp(c[i], "card", 4) || strchr(c[i], '-')) continue;
+        snprintf(p, sizeof p, "/sys/class/drm/%s/device/gpu_busy_percent", c[i]);
+        if (!rd_long(p, &v)) continue;
+        snprintf(p, sizeof p, "/sys/class/drm/%s/device/hwmon", c[i]);
+        nh = dir_list(p, &h);
+        for (j = 0; j < nh && !l; j++) {
+            snprintf(p, sizeof p, "/sys/class/drm/%s/device/hwmon/%s/temp2_crit", c[i], h[j]);
+            if (!(l = rd_limit(p))) {
+                snprintf(p, sizeof p, "/sys/class/drm/%s/device/hwmon/%s/temp1_crit", c[i], h[j]);
+                l = rd_limit(p);
+            }
+        }
+        dir_free(h, nh);
+    }
+    dir_free(c, n);
+    return l;
+}
+
+/* a drive's own warning temperature (NVMe / drivetemp temp1_max), else its critical one minus 5 */
+static double drive_limit(const char *dev)
+{
+    char d[64], p[512], **h;
+    int nh, j;
+    double l = 0;
+    const char *b = strrchr(dev, '/') ? strrchr(dev, '/') + 1 : dev;
+    snprintf(d, sizeof d, "%s", b);
+    if (!strncmp(d, "nvme", 4)) {
+        char *n = strchr(d + 4, 'n');   /* nvme2n1 -> controller nvme2 */
+        if (n) *n = 0;
+        snprintf(p, sizeof p, "/sys/class/nvme/%s", d);
+    } else
+        snprintf(p, sizeof p, "/sys/block/%s/device/hwmon", d);
+    nh = dir_list(p, &h);
+    for (j = 0; j < nh && !l; j++) {
+        char q[700];
+        if (strncmp(h[j], "hwmon", 5)) continue;
+        snprintf(q, sizeof q, "%s/%s/temp1_max", p, h[j]);
+        if (!(l = rd_limit(q))) {
+            snprintf(q, sizeof q, "%s/%s/temp1_crit", p, h[j]);
+            if ((l = rd_limit(q)) > 0) l -= 5;
+        }
+    }
+    dir_free(h, nh);
+    return l;
+}
+
+/* hot from `hot`, warm from `warm` */
+static int temp_level(double x, double warm, double hot) { return x >= hot ? LV_BAD : x >= warm ? LV_WARN : LV_OK; }
+
+typedef struct {
+    int total, passed, failed, unknown;
+    double tmax; char tdev[40];             /* warmest drive */
+    double tw, tlim; char twdev[40];        /* drive closest to its own limit, and that limit (0 = generic) */
+} smartsum;
 static void smart_sum(smartsum *m)
 {
     cap *c = cap_get("smart", 30000);
@@ -2388,7 +2515,13 @@ static void smart_sum(smartsum *m)
         if (!strcmp(cell(r, hcol), "PASSED") || !strcmp(cell(r, hcol), "OK")) m->passed++;
         else if (strstr(cell(r, hcol), "FAIL")) m->failed++;
         else m->unknown++;
-        if (tcol >= 0 && atof(cell(r, tcol)) > m->tmax) { m->tmax = atof(cell(r, tcol)); snprintf(m->tdev, sizeof m->tdev, "%s", cell(r, 0)); }
+        if (tcol >= 0 && atof(cell(r, tcol)) > 0) {
+            double t = atof(cell(r, tcol)), lim = drive_limit(cell(r, 0)), hot = lim > 0 ? lim : 70;
+            if (t > m->tmax) { m->tmax = t; snprintf(m->tdev, sizeof m->tdev, "%s", cell(r, 0)); }
+            if (!*m->twdev || t - hot > m->tw - (m->tlim > 0 ? m->tlim : 70)) {
+                m->tw = t; m->tlim = lim; snprintf(m->twdev, sizeof m->twdev, "%s", cell(r, 0));
+            }
+        }
     }
 }
 
@@ -2690,23 +2823,39 @@ static void checks_collect(check *c)
     for (i = 0; i < NCHECK; i++) { c[i].show = 1; c[i].level = LV_UNK; }
 
     c[0].name = "CPU temperature"; c[0].item = "sensors";
-    if (g_hs.cpu_temp > 0) {
-        double x = g_hs.cpu_temp;
-        c[0].level = x >= 95 ? LV_BAD : x >= 85 ? LV_WARN : LV_OK;
-        snprintf(c[0].text, sizeof c[0].text, "%.0f °C - %s", x, x >= 95 ? "hot. The CPU may be slowing itself down; check the cooler and airflow."
-                 : x >= 85 ? "warm. Fine under heavy load; if it stays this high when idle, check the cooler." : "normal");
-    } else snprintf(c[0].text, sizeof c[0].text, "No CPU temperature sensor found (k10temp / coretemp not loaded?)");
-    snprintf(c[0].tip, sizeof c[0].tip, "Hottest CPU sensor (%s). OK below 85 °C, warm 85-94 °C, hot from 95 °C.",
-             *g_hs.cpu_temp_name ? g_hs.cpu_temp_name : "none");
+    {
+        const char *src = "a general limit (this CPU's own maximum is not known)";
+        double lim = cpu_limit(&src), hot = lim > 0 ? lim - 2 : 95, warm = lim > 0 ? lim - 10 : 85;
+        if (g_hs.cpu_temp > 0) {
+            double x = g_hs.cpu_temp;
+            c[0].level = temp_level(x, warm, hot);
+            snprintf(c[0].text, sizeof c[0].text, "%.0f °C - %s", x, x >= hot ? "at its limit. The CPU is slowing itself down to stay cool; check the cooler and airflow."
+                     : x >= warm ? "warm. Fine under heavy load; if it stays this high when idle, check the cooler." : "normal");
+        } else snprintf(c[0].text, sizeof c[0].text, "No CPU temperature sensor found (k10temp / coretemp not loaded?)");
+        if (lim > 0)
+            snprintf(c[0].tip, sizeof c[0].tip, "Hottest CPU sensor (%s). Limit %.0f °C, from %s. OK below %.0f °C, warm %.0f-%.0f °C, at the limit from %.0f °C.",
+                     *g_hs.cpu_temp_name ? g_hs.cpu_temp_name : "none", lim, src, warm, warm, hot - 1, hot);
+        else
+            snprintf(c[0].tip, sizeof c[0].tip, "Hottest CPU sensor (%s). This CPU's maximum is not known, so %s is used: OK below 85 °C, warm 85-94 °C, hot from 95 °C.",
+                     *g_hs.cpu_temp_name ? g_hs.cpu_temp_name : "none", src);
+    }
 
     c[1].name = "Graphics temperature"; c[1].item = "gpu-temp";
-    if (g_hs.gpu_temp > 0) {
-        double x = g_hs.gpu_temp;
-        c[1].level = x >= 105 ? LV_BAD : x >= 95 ? LV_WARN : LV_OK;
-        snprintf(c[1].text, sizeof c[1].text, "%.0f °C hotspot - %s", x, x >= 105 ? "hot. Check the card's fans and the case airflow."
-                 : x >= 95 ? "warm. Normal for a short heavy game or benchmark." : "normal");
-    } else snprintf(c[1].text, sizeof c[1].text, "No graphics temperature sensor found");
-    snprintf(c[1].tip, sizeof c[1].tip, "The GPU's hottest point (junction sensor), which runs hotter than the edge. OK below 95 °C, warm 95-104 °C, hot from 105 °C.");
+    {
+        double lim = gpu_limit(), hot = lim > 0 ? lim - 5 : 105, warm = lim > 0 ? lim - 15 : 95;
+        if (g_hs.gpu_temp > 0) {
+            double x = g_hs.gpu_temp;
+            c[1].level = temp_level(x, warm, hot);
+            snprintf(c[1].text, sizeof c[1].text, "%.0f °C hotspot - %s", x, x >= hot ? "close to its limit. Check the card's fans and the case airflow."
+                     : x >= warm ? "warm. Normal for a short heavy game or benchmark." : "normal");
+        } else snprintf(c[1].text, sizeof c[1].text, "No graphics temperature sensor found");
+        if (lim > 0)
+            snprintf(c[1].tip, sizeof c[1].tip, "The GPU's hottest point (junction sensor), which runs hotter than the edge. The card's own critical "
+                     "temperature is %.0f °C. OK below %.0f °C, warm %.0f-%.0f °C, close to the limit from %.0f °C.", lim, warm, warm, hot - 1, hot);
+        else
+            snprintf(c[1].tip, sizeof c[1].tip, "The GPU's hottest point (junction sensor). The card publishes no limit, so a general one is used: "
+                     "OK below 95 °C, warm 95-104 °C, hot from 105 °C.");
+    }
 
     smart_sum(&m);
     c[2].name = "Drive health (SMART)"; c[2].item = "smart";
@@ -2725,11 +2874,17 @@ static void checks_collect(check *c)
 
     c[3].name = "Drive temperature"; c[3].item = "smart";
     if (m.tmax > 0) {
-        c[3].level = m.tmax >= 70 ? LV_BAD : m.tmax >= 60 ? LV_WARN : LV_OK;
-        snprintf(c[3].text, sizeof c[3].text, "Warmest %.0f °C (%s) - %s", m.tmax, m.tdev, m.tmax >= 70 ? "hot; drives may slow down. Add airflow or a heatsink."
-                 : m.tmax >= 60 ? "warm" : "normal");
+        /* judged by the drive closest to its own warning temperature */
+        double hot = m.tlim > 0 ? m.tlim : 70, warm = hot - 10;
+        c[3].level = temp_level(m.tw, warm, hot);
+        if (c[3].level == LV_OK)
+            snprintf(c[3].text, sizeof c[3].text, "Warmest %.0f °C (%s) - normal", m.tmax, m.tdev);
+        else
+            snprintf(c[3].text, sizeof c[3].text, "%.0f °C (%s) - %s", m.tw, m.twdev, c[3].level == LV_BAD
+                     ? "at the drive's own warning temperature; it may slow down. Add airflow or a heatsink." : "warm, getting near the drive's own limit");
     } else snprintf(c[3].text, sizeof c[3].text, "No drive temperatures yet");
-    snprintf(c[3].tip, sizeof c[3].tip, "Highest drive temperature. OK below 60 °C, warm 60-69 °C, hot from 70 °C.");
+    snprintf(c[3].tip, sizeof c[3].tip, "Each drive is compared with its own warning temperature (NVMe / drivetemp temp1_max) where it publishes one, "
+             "otherwise with 70 °C. Warm from 10 °C below that.");
 
     err_sum(&e);
     c[4].name = "Hardware errors"; c[4].item = "memory";
