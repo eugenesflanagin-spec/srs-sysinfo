@@ -19,6 +19,7 @@
 #include "bench.h"
 #include "bench_cachemem.h"
 #include "bench_os.h"
+#include "bench_compute.h"
 #include "power.h"
 #include "tblsort.h"
 #include "gui_startup.h"
@@ -61,11 +62,12 @@ static int g_classic_session;  /* this run started in the classic (SIV-style) ma
 static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortable Tables") */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_LAST = BK_OSLAT };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_LAST = BK_COMPUTE };
 /* --gui-open / menu / launcher names of the 2.2 benchmark windows (the older ones are listed where they are used) */
 static int bench_tool_sub(const char *t)
 {
     if (!strcmp(t, "oslatency")) return BK_OSLAT;
+    if (!strcmp(t, "compute")) return BK_COMPUTE;
     return -1;
 }
 
@@ -102,6 +104,7 @@ typedef struct swin {
     GtkWidget *bm_mode, *bm_secs, *bm_run, *bm_cpus, *bm_rounds, *bm_max, *bm_status;
     GtkWidget *bm_digits, *bm_algo, *bm_threads, *bm_limit, *bm_stop, *bm_superpi;
     GtkWidget *st_dir, *st_size, *st_profile, *st_usb, *st_info;
+    GtkWidget *cp_isa, *cp_single;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
@@ -915,6 +918,7 @@ static void build_menu(GtkWidget *menu)
         { "CPU _Burnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
         { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "P_rime Sieve...", "prime" },
         { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "_OS Latency...", "oslatency" },
+        { "CPU Co_mpute...", "compute" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1840,6 +1844,7 @@ static void build_burn(swin *w, GtkWidget *vb)
 typedef struct {
     swin *w;
     int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb, stopped;
+    int isa, single;                      /* CPU Compute: code path, 1 thread only */
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -1859,19 +1864,20 @@ static const char *bk_result(int sub, int mode)
     case BK_CACHEMEM: return "cachemem";
     case BK_STORAGE: return "storage";
     case BK_OSLAT: return "os-latency";
+    case BK_COMPUTE: return "compute";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
     static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory", "Storage Benchmark",
-                                       "OS Latency" };
+                                       "OS Latency", "CPU Compute" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
     static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory", "storage-bench",
-                                       "os-latency" };
+                                       "os-latency", "cpu-compute" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "benchmark";
 }
 
@@ -1895,12 +1901,23 @@ static gboolean bench_done(gpointer data)
                                           j->rc == -1 ? "Not started: " : "Finished with an error: ", j->rc < 0 ? j->why : "");
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
         } else if (j->stopped) gtk_label_set_text(GTK_LABEL(w->bm_status), "Stopped - the empty cells were not measured");
+        else if (j->rc == -4) {
+            char b[400];
+            snprintf(b, sizeof b, "Not started: %s", j->why);
+            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
+        }
         else
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
         if (j->sub == BK_STORAGE) {
             if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
+        } else if (j->rc == -4) {
+            char b[400];
+            snprintf(b, sizeof b, "Not started: %s. The last finished result is below.", j->why);
+            so_err(&o, b);
+            so_par(&o);
+            if (!bench_show_last(name, &o)) so_note(&o, "No finished run yet.");
         } else if (j->rc == -2 || j->rc == -3) {
             so_err(&o, j->rc == -2 ? "Stopped before the end - this run has no result. The last finished result is below."
                                    : "Not enough memory for this size - try a smaller one. The last finished result is below.");
@@ -1941,7 +1958,17 @@ static gpointer bench_worker(gpointer data)
         c.jitter_secs = j->secs;
         j->rc = bench_os(&c, NULL, NULL, &j->cancel);
         if (j->rc == 1) { j->rc = 0; j->stopped = 1; }   /* stopped: the partial result is shown, marked as stopped */
-        else if (j->rc < 0) j->rc = -3;
+        else if (j->rc < 0) { j->rc = -4; snprintf(j->why, sizeof j->why, "not available on this system, or out of memory"); }
+    } else if (j->sub == BK_COMPUTE) {
+        cp_cfg c;
+        cp_cfg_default(&c);
+        c.threads = j->threads;
+        c.seconds = j->secs;
+        c.isa = j->isa;
+        c.single_only = j->single;
+        j->rc = bench_compute(&c, NULL, &j->cancel);
+        if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
+        else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "CPU Burnin / Stress is running, or out of memory"); }
     }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
@@ -1958,6 +1985,7 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_CACHEMEM) snprintf(b, sizeof b, "Running %.0f s: %s", el, cm_stage());
     else if (w->sub == BK_STORAGE) snprintf(b, sizeof b, "Running %.0f s: %s", el, storage_stage());
     else if (w->sub == BK_OSLAT) snprintf(b, sizeof b, "Running %.0f s: %s", el, os_stage());
+    else if (w->sub == BK_COMPUTE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cp_stage());
     else snprintf(b, sizeof b, "Running %.0f s...", el);
     gtk_label_set_text(GTK_LABEL(w->bm_status), b);
     return G_SOURCE_CONTINUE;
@@ -2012,6 +2040,30 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             "small-file operations for about %.0f seconds. Light load: one or two CPUs are busy, never all of them.\n\n"
             "Nothing on the system is changed. The file test works in its own temporary folder in ~/.cache/srs, which is "
             "removed at the end. Close other programs for steadier numbers.", 1 + 2.4 * n / 20000 + s);
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+        if (!ok || w->running || g_bench_busy || burn_active()) return;
+    }
+    if (w->sub == BK_COMPUTE) {
+        GtkWidget *d;
+        int ok;
+        cp_cfg c;
+        cp_cfg_default(&c);
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_threads));
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+        c.threads = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
+        c.seconds = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        c.single_only = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->cp_single));
+        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
+                                   "Start the CPU Compute benchmark?");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "It runs matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot and a small ray tracer for about %.0f seconds, "
+            "first on one thread%s.\n\n%s%s"
+            "An unstable overclock or undervolt can crash the PC under this kind of load. Tick \"1 thread only\" to keep it light. "
+            "Close other programs for accurate results.",
+            cp_estimate_seconds(&c), c.single_only ? " only" : c.threads > 1 ? " and then on the chosen threads at once" : "",
+            c.single_only ? "" : "With all threads every CPU is 100% busy and gets hot. ",
+            cp_isa_best() == CP_ISA_AVX512 ? "This CPU has AVX-512, which draws a lot of power. " : "");
         ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
@@ -2093,13 +2145,18 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         } else if (w->sub == BK_PRIME) {
             k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_limit));
             j->limit = prime_limits[k < 0 ? 1 : k];
+        } else if (w->sub == BK_COMPUTE) {
+            k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->cp_isa));
+            j->isa = k < 0 ? CP_ISA_AUTO : k;
+            j->single = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->cp_single));
+            j->secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
         } else {   /* crypto, cache & memory */
             gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
             j->secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -2256,6 +2313,28 @@ static void build_bench(swin *w, GtkWidget *vb)
         w->bm_secs = spin(1, 30, 1, 3);
         gtk_widget_set_tooltip_text(w->bm_secs, "How long a 1 ms periodic timer is watched for late wake-ups.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+    } else if (w->sub == BK_COMPUTE) {
+        threads_spin(w, row, burn_ncpu(), "The right-hand column uses this many threads (one per CPU); the left column always uses one.");
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
+        w->bm_secs = spin(0.1, 10, 0.1, 0.5);
+        gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
+        gtk_widget_set_tooltip_text(w->bm_secs, "Measuring time of each of the 9 tests, per column.");
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Code"), FALSE, FALSE, 0);
+        w->cp_isa = gtk_combo_box_text_new();
+        for (m = CP_ISA_AUTO; m < CP_NISA; m++) {
+            char l[80];
+            snprintf(l, sizeof l, "%s%s", m == CP_ISA_AUTO ? "Best this CPU has: " : cp_isa_name(m),
+                     m == CP_ISA_AUTO ? cp_isa_name(cp_isa_best()) : m == CP_ISA_C || cp_isa_ok(m) ? "" : " (not on this CPU)");
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->cp_isa), l);
+        }
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->cp_isa), 0);
+        gtk_widget_set_tooltip_text(w->cp_isa, "The instruction set for matrix multiply, multiply-add, N-body and Mandelbrot. "
+                                               "A choice the CPU lacks falls back to the best it has. FFT and the ray tracer are plain C.");
+        gtk_box_pack_start(GTK_BOX(row), w->cp_isa, FALSE, FALSE, 0);
+        w->cp_single = gtk_check_button_new_with_mnemonic("_1 thread only");
+        gtk_widget_set_tooltip_text(w->cp_single, "Skip the all-threads column: light load, about half the time.");
+        gtk_box_pack_start(GTK_BOX(row), w->cp_single, FALSE, FALSE, 0);
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -2273,7 +2352,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     w->bm_run = sbtn("_Run");
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
-    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT) {
+    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -3109,7 +3188,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "storage-bench", "os-latency", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -3909,7 +3988,7 @@ static int cat_of_id(const char *id)
     if (!strcmp(g, "tools") && (!strncmp(base, "benchmark", 9) || !strncmp(base, "ipi", 3) || !strcmp(base, "latency") ||
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
                                 !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") || !strcmp(base, "storage-bench") ||
-                                !strcmp(base, "os-latency") ||
+                                !strcmp(base, "os-latency") || !strcmp(base, "cpu-compute") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -4481,6 +4560,10 @@ static GtkWidget *build_cat_page(int cat)
                 "starting threads and programs, wake-ups, timer lateness (with the CPU scheduler in use), page faults and small-file operations.",
                 "Busy on one or two CPUs for about 6 seconds. Asks before it starts.", "_OS Latency...", "oslatency",
                 "Open the OS Latency window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("CPU Compute", "Floating-point number crunching: matrix multiply, peak multiply-add, FFT, N-body gravity, "
+                "Mandelbrot and a small ray tracer, on one thread and on all threads, with the best vector code the CPU has. Every answer is checked.",
+                "All threads 100 % busy for about 10 seconds (AVX-512 where the CPU has it). Asks before it starts; \"1 thread only\" keeps it light.",
+                "CPU Co_mpute...", "compute", "Open the CPU Compute window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));

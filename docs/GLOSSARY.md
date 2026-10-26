@@ -33,7 +33,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Autosuspend** - the USB core's habit of putting an idle device to sleep after a set number of seconds; -1 turns it off. *See: [buses-2](SECTIONS/buses-2.md).*
 - **AUXTIN** - Auxiliary temperature inputs on a Nuvoton Super I/O chip. The board maker decides which are wired; unwired ones float and show fake values. *See: [sensors](SECTIONS/sensors.md).*
 - **Available Spare** - NVMe health field: the percentage of spare flash blocks an SSD has left (starts at 100%). *See: [storage](SECTIONS/storage.md).*
-- **AVX / AVX2 / AVX-512** - Advanced Vector Extensions; instruction sets that work on many numbers at once (256 or 512 bits wide). *See: [processors](SECTIONS/processors.md).*
+- **AVX / AVX2 / AVX-512** - Advanced Vector Extensions; instruction sets that work on many numbers at once (256 or 512 bits wide: 8 or 16 single-precision numbers per instruction). AVX-512 draws a lot of power under full load. *See: [processors](SECTIONS/processors.md), [tools](SECTIONS/tools.md).*
 
 ## B
 
@@ -115,6 +115,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **dev_t** - The major:minor number pair the kernel uses to find a device file in /dev. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Device descriptor** - The USB record that gives a device's vendor ID, product ID, release number and class. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Device-mapper (dm)** - The Linux kernel layer that maps virtual block devices onto real ones; used by LVM and dm-crypt. *See: [storage](SECTIONS/storage.md).*
+- **DGEMM, SGEMM** - double- and single-precision general matrix multiply: the standard way to measure floating-point speed, counted as 2 x n³ operations for n x n matrices. *See: [tools](SECTIONS/tools.md).*
 - **DHCP (Dynamic Host Configuration Protocol)** - the way a router hands out IP addresses, gateway and DNS settings to devices automatically. *See: [network](SECTIONS/network.md).*
 - **DHCP lease** - an IP address the router lends to a device for a set time; the device renews it before it runs out. *See: [network](SECTIONS/network.md).*
 - **Dhrystone** - a classic integer (whole-number) CPU benchmark. Its score is given in DMIPS. *See: [tools](SECTIONS/tools.md).*
@@ -177,6 +178,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **FCH (Fusion Controller Hub)** - AMD's built-in southbridge logic: SMBus, LPC, GPIO, power management. *See: [buses-1](SECTIONS/buses-1.md).*
 - **fclk / socclk / dcefclk** - GPU clocks for the internal data fabric, the chip's support logic, and the display engine. *See: [graphics](SECTIONS/graphics.md).*
 - **FCLK / UCLK / MCLK** - on AMD: Infinity Fabric clock, memory controller clock and memory clock. *See: [machine](SECTIONS/machine.md).*
+- **FFT (Fast Fourier Transform)** - a fast way to split a signal into its frequencies; used in audio, images and science. Counted as 5 N log2 N operations for N points. *See: [tools](SECTIONS/tools.md).*
 - **File descriptor** - a small number a process uses for each open file, pipe, socket or device; the Linux version of a Windows handle. *See: [linux-os](SECTIONS/linux-os.md).*
 - **File lock** - a marker a program sets so others know it is using a file; listed in `/proc/locks`. *See: [srs-items](SECTIONS/srs-items.md).*
 - **firewalld zone** - a named set of firewall rules; each network interface belongs to one zone. *See: [network](SECTIONS/network.md).*
@@ -198,6 +200,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Gateway** - the router that forwards your packets to other networks, usually your home router. *See: [network](SECTIONS/network.md).*
 - **GBM (Generic Buffer Management)** - A library compositors use to get GPU memory buffers for the screen. *See: [graphics](SECTIONS/graphics.md).*
 - **GC (graphics core)** - The 3D and compute engine of an AMD GPU. Its version gives the `gfx` target name (GC 12.0.1 = `gfx1201`). *See: [graphics](SECTIONS/graphics.md).*
+- **GFLOPS** - billions of floating-point (decimal-point) operations per second. *See: [tools](SECTIONS/tools.md).*
 - **GLVND** - The vendor-neutral OpenGL dispatch library that lets several OpenGL drivers be installed side by side. *See: [graphics](SECTIONS/graphics.md).*
 - **Governor (CPU)** - the cpufreq policy that decides which speed to ask for (performance, powersave, schedutil). *See: [linux-os](SECTIONS/linux-os.md), [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md).*
 - **GPE (General Purpose Event)** - General Purpose Event; an ACPI event bit used for wake-up and hot-plug signals. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
@@ -303,6 +306,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **MAC address (Media Access Control)** - the 6-byte hardware address of a network adapter. *See: [network](SECTIONS/network.md).*
 - **MADT** - Multiple APIC Description Table (signature APIC); lists the CPU threads and interrupt controllers. *See: [machine](SECTIONS/machine.md).*
+- **Mandelbrot set** - a famous fractal; drawing it is a simple, repeatable floating-point test. Measured in Mpixels/s. *See: [tools](SECTIONS/tools.md).*
 - **MangoHud** - A Linux in-game overlay that shows frame rate, temperatures, clocks and more, and can limit the frame rate. *See: [graphics](SECTIONS/graphics.md).*
 - **Masquerade** - NAT (network address translation): many devices share one address on the way out. *See: [network](SECTIONS/network.md).*
 - **MBR** - Master Boot Record: the old partition table format (shown as `dos`), with four primary partitions and one-byte type codes. *See: [storage](SECTIONS/storage.md).*
@@ -341,6 +345,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## N
 
+- **N-body simulation** - working out the gravity between every pair of a group of bodies (stars, planets); a classic floating-point workload. *See: [tools](SECTIONS/tools.md).*
 - **Namespace** - A slice of an NVMe SSD presented as one disk; consumer SSDs have one. *See: [storage](SECTIONS/storage.md).*
 - **NDP (Neighbor Discovery Protocol)** - the IPv6 version of ARP. *See: [network](SECTIONS/network.md).*
 - **NetBIOS browsing** - the old Windows way of listing computers on a LAN through an elected master browser. *See: [network](SECTIONS/network.md).*
@@ -436,6 +441,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Rank** - a set of memory chips on a stick that is accessed together; sticks are single- or dual-rank. *See: [machine](SECTIONS/machine.md).*
 - **RAPL (Running Average Power Limit)** - A CPU feature that counts energy used; Linux exposes it under /sys/class/powercap, named intel-rapl even on AMD. *See: [processors](SECTIONS/processors.md), [sensors](SECTIONS/sensors.md).*
 - **Raw value** - A SMART attribute's actual counter (sectors, hours, degrees); its format is up to the maker. *See: [storage](SECTIONS/storage.md).*
+- **Ray tracing** - drawing a picture by following rays of light from the eye into a scene, with shadows and reflections. *See: [tools](SECTIONS/tools.md).*
 - **Regex** - regular expression, a text search pattern (for example `^` = start of line, `.` = any character). *See: [tools](SECTIONS/tools.md).*
 - **Regular expression (regex)** - a search pattern, e.g. `nvme[0-9]` matches nvme0, nvme1 and so on. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Report descriptor** - The HID record that tells the PC which buttons, axes and LEDs a device has. *See: [buses-1](SECTIONS/buses-1.md).*

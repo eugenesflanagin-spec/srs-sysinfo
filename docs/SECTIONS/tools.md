@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -39,6 +39,7 @@ shows the last stored result.
 - [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
 - [Storage benchmark](#storage-benchmark) `storage-bench`
 - [OS latency benchmark](#os-latency-benchmark) `os-latency`
+- [CPU compute benchmark](#cpu-compute-benchmark) `cpu-compute`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -679,6 +680,65 @@ and the kernel command line; CONFIG_HZ from `/boot/config-<release>` or the kern
 (not from `/proc/config.gz`); the clock source from `/sys/devices/system/clocksource`; THP from
 `/sys/kernel/mm/transparent_hugepage`. Stored in `~/.cache/srs/bench-os-latency.txt`; each run is
 added to the [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+
+---
+## CPU compute benchmark  
+`cpu-compute` - Linux data
+
+**In plain words.** How fast the processor does floating-point number crunching, the maths in 3D,
+video, science and AI programs. Higher is better. Every answer is checked: a wrong answer is shown
+as **WRONG** instead of a score.
+
+**What you see.** One row per test with the result on **1 thread** and on **N threads** (default
+all logical CPUs, one pinned thread per CPU, each with its own copy of the work), the unit, the
+code path used (**Code**) and the check. Below: the self-test, the threads and the measuring time.
+
+| Test (`--tests` word) | What it does | Unit |
+|---|---|---|
+| Matrix multiply, single / double (`sgemm`, `dgemm`) | 288 x 288 matrices, register-blocked | GFLOPS (2 n³ per multiply) |
+| Peak multiply-add, single / double (`fma-sp`, `fma-dp`) | 12 independent chains of multiply-adds | GFLOPS (a fused multiply-add counts 2) |
+| FFT, single / double (`fft-sp`, `fft-dp`) | 4096-point complex radix-2 transform | GFLOPS (5 N log2 N per transform) |
+| N-body (`nbody`) | gravity between 1,024 bodies, double precision | GFLOPS (20 per pair) |
+| Mandelbrot (`mandelbrot`) | 640 x 480, up to 255 steps, double precision | Mpixels/s |
+| Ray tracer (`raytrace`) | 320 x 240, 4 balls on a floor, shadows, 2 reflections, single precision | Mpixels/s |
+
+| Setting | Choices |
+|---|---|
+| Threads | 1 to all logical CPUs (default all) |
+| Seconds per test | 0.1-10 in the window (command line 0.1-60), default 0.5 |
+| Code | best available (default), plain C, SSE2, AVX2 + FMA, AVX-512; a path the CPU lacks falls back to the best it has |
+| 1 thread only | skip the N-thread column |
+
+**How the answers are checked.** Matrix multiply uses inputs whose products and sums are exact, so
+the result must match an integer reference exactly on every code path. Multiply-add returns every
+value to its start exactly. The FFT is compared with a direct transform and an energy check
+(Parseval). N-body is compared with a separate double-precision reference. The Mandelbrot vector
+code must give the same picture as plain C. The ray tracer's single-precision picture is compared
+with a double-precision one. Every timed repeat must give the same output as the first. A failed
+check shows the row as WRONG (red), the history line says WRONG and the exit code is 1.
+
+**Safety.** It asks before it starts. With N threads every CPU is 100% busy and gets hot, and
+AVX-512 draws a lot of power: an unstable overclock or undervolt may crash the PC. **1 thread
+only** keeps it light. It does not start while CPU Burnin or Stress runs.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, AVX-512, 2 threads, 0.1 s (a short test run, not
+a full result): SGEMM about 145 GFLOPS on 1 thread, DGEMM about 77, peak multiply-add single about
+160, FFT single about 8, N-body about 29 GFLOPS, Mandelbrot about 44 Mpixels/s, ray tracer about
+28 Mpixels/s; the 2-thread column is about double. Plain C SGEMM on the same CPU is about 7 GFLOPS,
+SSE2 about 47, AVX2 about 121.
+
+**Unusual values and what they suggest.**
+- **WRONG** in any row: the CPU gave a wrong answer - an unstable overclock, undervolt or memory
+  setting. Go back to stock settings and run it again.
+- The N-thread column far below threads x the 1-thread figure: thermal or power limits, or other
+  programs are busy.
+- AVX-512 not much faster than AVX2: normal on CPUs that run AVX-512 at half width (Zen 4) or
+  lower their clock under AVX-512 load.
+
+**Where Linux gets it.** Built in: SRS's own code with Intel intrinsics, the code path chosen at
+run time with `__builtin_cpu_supports`, so a generic x86-64 package still uses AVX-512. On ARM
+(aarch64) only plain C runs. Stored in `~/.cache/srs/bench-compute.txt`; each run is added to the
+[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
 ## SRS Pi  

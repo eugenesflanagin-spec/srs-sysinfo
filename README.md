@@ -117,6 +117,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **OS Latency** - how quickly the operating system answers: system calls, context switches,
     thread / program start, wake-ups, timer lateness (with the CPU scheduler in use), page faults
     and small-file operations, as median / 95% / 99% / worst; one or two CPUs, about 6 s.
+  - **CPU Compute** - matrix multiply (SGEMM / DGEMM), peak multiply-add, FFT, N-body, Mandelbrot
+    and a ray tracer in GFLOPS / Mpixels/s on 1 and all threads, with the best vector code the CPU
+    has (SSE2, AVX2, AVX-512); every answer checked, a wrong one shown as WRONG.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -194,6 +197,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
     srs-gui ipi [--cpus N] [--rounds R]    srs-gui latency [--max MB]
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
+    srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
 `sysreport-search` takes the same commands. `--help` lists them all; the full reference is in
 the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SRS User Guide
@@ -250,9 +254,11 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `burner.c`, `bench.c` | CPU Burnin/Stress engine; Dhrystone, Whetstone, IPI, memory latency, run history |
 | `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
+| `bench_compute.c` | CPU Compute benchmark (SGEMM / DGEMM, multiply-add, FFT, N-body, Mandelbrot, ray tracer; SSE2 / AVX2 / AVX-512) |
 | `bench_os.c` | OS Latency benchmark (system calls, context switches, wake-ups, timers, page faults, file metadata) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
+| `tests/bench-compute-test.sh` | CPU Compute self-test on every code path, spoilt-result detection, Stop, CLI |
 | `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
@@ -270,7 +276,10 @@ part of SRS.
 
 The new benchmarks are SRS's own code, written from published sources: the Chudnovsky series
 (D. V. and G. V. Chudnovsky, 1988), the Gauss-Legendre / Brent-Salamin AGM (1976), FIPS 197 (AES),
-FIPS 180-4 (SHA-256) and the sieve of Eratosthenes. SRS Pi's reference checksums were computed once
+FIPS 180-4 (SHA-256) and the sieve of Eratosthenes; CPU Compute uses the register-blocked
+matrix multiply described by Goto and van de Geijn (2008), the Cooley-Tukey FFT (1965), direct-sum
+N-body gravity with Plummer softening, the Mandelbrot escape-time algorithm and Whitted-style ray
+tracing (1980). SRS Pi's reference checksums were computed once
 with [mpmath](https://mpmath.org) (BSD licence); mpmath is not part of SRS.
 
 The Power & cost page's built-in price and CO2 tables come from public data: U.S. Energy

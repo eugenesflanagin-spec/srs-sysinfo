@@ -89,6 +89,15 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   scx_lavd, BORE, EEVDF), preemption mode, CONFIG_HZ, clock source, timer slack and THP mode.
   Light (one or two CPUs, about 6 s), changes no system setting, asks before it starts (`--yes`
   skips the question), Stop works; its temporary file folder in `~/.cache/srs` is always removed.
+- **CPU Compute benchmark** (`sysreport-search compute`, Benchmarks & stress -> CPU Compute,
+  `--gui-open=compute`): floating-point work in GFLOPS / Mpixels/s on 1 thread and N threads -
+  matrix multiply SGEMM / DGEMM (288 x 288), peak multiply-add (single, double), FFT 4096 points
+  (single, double), N-body (1,024 bodies), Mandelbrot (640 x 480) and a small ray tracer
+  (320 x 240). Plain C, SSE2, AVX2 + FMA and AVX-512 code chosen at run time (a generic x86-64
+  package still uses AVX-512; `--code` forces one). Every answer is checked against a reference
+  (exact for matrix multiply and multiply-add); a wrong one is shown as WRONG, not as a score.
+  Asks before it starts and warns that an unstable overclock or undervolt can crash the PC under
+  this load; `--single` / "1 thread only" keeps it light. Stop works.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -98,9 +107,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
-- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, SRS Pi, Crypto and Prime Sieve
+- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, SRS Pi, Crypto and Prime Sieve
   buttons and tabs; Menu -> Tools entries (classic view); desktop-menu actions;
-  `--gui-open=cachemem|storagebench|oslatency|pi|crypto|prime`. Every one of these windows asks
+  `--gui-open=cachemem|storagebench|oslatency|compute|pi|crypto|prime`. Every one of these windows asks
   before it starts, saying what it does, for how long and how much load.
 
 **Main window**
@@ -158,6 +167,8 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - `tests/bench-os-test.sh`: OS Latency engine test (tiny runs, ordered statistics, Stop, no child
   process or temporary folder left, ask-first in the CLI). `make test-bench` runs all benchmark
   tests against `dist/native/sysreport-search`.
+- `tests/bench-compute-test.sh`: CPU Compute self-test on every code path the CPU has, detection
+  of a spoilt result on every kernel, each code path forced, Stop, sanitizer run, CLI.
 
 ### Changed
 
@@ -190,6 +201,9 @@ with your hardware and the report SRS made, and I'll fix it. Not tried on real h
   says so), not used day to day.
 - OS Latency: run only on Linux 7.x with the scx_lavd scheduler; BORE, EEVDF and CFS are recognised
   from the kernel's settings but were not run here.
+- CPU Compute: the AVX-512 code has only run on a Zen 4 CPU (Ryzen 7 7800X3D); the SSE2, AVX2 and
+  plain C paths were checked by forcing each one on that same CPU (self-tests), not on older CPUs.
+  The 32-bit (i686) self-test passed; the aarch64 build ran its plain C self-test only.
 
 ### Fixed
 

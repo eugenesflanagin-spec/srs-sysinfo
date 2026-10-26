@@ -182,3 +182,7 @@ or result files were used or looked at for them. Public sources are credited in 
   files for the scheduler, clock source and transparent huge pages, and the kernel documentation
   for sched_ext. Timing a context switch by passing a byte back and forth through
   a pipe is a long-standing, widely published method.
+- **CPU Compute** (`bench_compute.c`): textbook algorithms (register-blocked matrix multiply,
+  radix-2 Cooley-Tukey FFT, direct-sum N-body, Mandelbrot escape time, Whitted ray tracing) and the
+  Intel Intrinsics Guide for the SSE2 / AVX2 / AVX-512 code; the results are checked against
+  references computed by SRS itself.

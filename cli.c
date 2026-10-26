@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -67,11 +67,16 @@ static const char *HELP =
     "        how quickly the OS answers: system calls, context switches, thread / process start, wake-ups,\n"
     "        timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink\n"
     "        (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)\n"
+    "  compute [--threads N] [--seconds S] [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]\n"
+    "          [--code auto|c|sse2|avx2|avx512] [--single] [--yes]\n"
+    "        CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /\n"
+    "        Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%\n"
+    "        busy (--single: one thread); asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -597,6 +602,65 @@ static int cmd_os_latency(int argc, char **argv)
     return rc == 0 ? 0 : rc == 1 ? 1 : 2;
 }
 
+#include "bench_compute.h"
+
+/* compute [options] - CPU Compute benchmark; asks first unless --yes */
+static int cmd_compute(int argc, char **argv)
+{
+    srs_out o;
+    cp_cfg c;
+    int i, rc, yes = 0;
+    char what[600];
+    cp_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--threads") || !strcmp(a, "--seconds") || !strcmp(a, "--tests") || !strcmp(a, "--code");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search compute [--threads N] [--seconds S]\n"
+                 "                                [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]\n"
+                 "                                [--code auto|c|sse2|avx2|avx512] [--single] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "compute: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--threads")) c.threads = atoi(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--single")) c.single_only = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--code")) {
+            int k;
+            for (k = 0; k < CP_NISA && strcmp(v, cp_isa_id(k)); k++) ;
+            if (k == CP_NISA) { fprintf(stderr, "compute: unknown --code value '%s' (valid: auto, c, sse2, avx2, avx512)\n", v); return 2; }
+            c.isa = k;
+        } else if (!strcmp(a, "--tests")) {
+            char buf[256], *t, *sp;
+            snprintf(buf, sizeof buf, "%s", v);
+            for (t = strtok_r(buf, ",", &sp); t; t = strtok_r(NULL, ",", &sp)) {
+                int k;
+                for (k = 0; k < CP_NTEST && strcmp(t, cp_test_id[k]); k++) ;
+                if (k == CP_NTEST) {
+                    fprintf(stderr, "compute: unknown --tests value '%s' (valid: sgemm, dgemm, fma-sp, fma-dp, fft-sp, fft-dp, nbody, mandelbrot, raytrace)\n", t);
+                    return 2;
+                }
+                c.run_mask |= 1u << k;
+            }
+            if (!c.run_mask) return usage_error("compute: --tests needs at least one test");
+        } else { fprintf(stderr, "compute: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("compute: --seconds must be 0.1..60");
+    if (c.threads < 0 || c.threads > BURN_MAXCPU) return usage_error("compute: --threads must be 1 or more (0 = all)");
+    if (!cp_available()) { bench_compute(&c, &o, NULL); return 2; }
+    snprintf(what, sizeof what, "CPU Compute runs matrix multiply, multiply-add, FFT, N-body, Mandelbrot and a ray tracer for about %.0f s,\n"
+             "%s%s\nAn unstable overclock or undervolt can crash the PC under this load (--single keeps it light).",
+             cp_estimate_seconds(&c), c.single_only ? "on one thread only." : "on one thread and then on all chosen threads at once: every CPU 100% busy.",
+             cp_isa_best() == CP_ISA_AVX512 && (c.isa == CP_ISA_AUTO || c.isa == CP_ISA_AVX512) ? " It uses AVX-512, which draws a lot of power." : "");
+    if (!yes && !ask_start("compute", what)) return 2;
+    rc = bench_compute(&c, &o, NULL);
+    if (rc == -1) fprintf(stderr, "compute: not started - CPU Burnin / Stress is running, or out of memory\n");
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -712,6 +776,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "cachemem")) return cmd_cachemem(argc, argv);
     if (!strcmp(cmd, "storage")) return cmd_storage(argc, argv);
     if (!strcmp(cmd, "os-latency")) return cmd_os_latency(argc, argv);
+    if (!strcmp(cmd, "compute")) return cmd_compute(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

@@ -1089,6 +1089,8 @@ report SRS made, and I'll fix it. Not tried on real hardware so far:
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
 - OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
   recognised from the kernel's settings but were not run here.
+- CPU Compute: the AVX-512 code has only run on a Zen 4 CPU (Ryzen 7000); the SSE2, AVX2 and plain C
+  code was checked by forcing each one on that same CPU, not on older CPUs.
 
 
 ### 9.1 CPU Burnin and CPU Stress
@@ -1377,7 +1379,7 @@ time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
 The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
-Storage and OS Latency - are in [9.7](#97-srs-pi) to [9.13](#913-os-latency).
+Storage, OS Latency and CPU Compute - are in [9.7](#97-srs-pi) to [9.14](#914-cpu-compute).
 
 ### 9.5 Device ID Lookup
 
@@ -1469,7 +1471,7 @@ Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
 
 ### 9.10 Benchmark history
 
-Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency run adds one line to
+Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency and CPU Compute run adds one line to
 `~/.cache/srs/bench-history.tsv`
 (time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
@@ -1540,6 +1542,37 @@ The file test works in its own temporary folder in `~/.cache/srs`, which is remo
 after Stop, and (if SRS was killed) on the next run. The result is saved to
 `~/.cache/srs/bench-os-latency.txt` and added to the [Benchmark history](#910-benchmark-history).
 Tested on one PC only - see the note at the start of this chapter.
+
+### 9.14 CPU Compute
+
+**In plain words:** how fast the processor does floating-point number crunching - the kind of
+maths in 3D, video, science and AI programs. Six kinds of work: **matrix multiply** (SGEMM in
+single and DGEMM in double precision), **peak multiply-add** (the most sums the CPU can do),
+**FFT** (splitting a signal into frequencies), **N-body** (gravity between 1,024 stars),
+**Mandelbrot** (a fractal picture) and a small **ray tracer** (a picture with shadows and
+reflections). Each runs on one thread and then on all threads at once. **Higher is better.**
+Every answer is checked against a known result: a wrong answer is shown as **WRONG** in red
+instead of a score, which points to an unstable overclock or undervolt.
+Open: the **Benchmarks & stress** page -> **CPU Compute...**, or Menu -> Tools -> CPU Compute...
+in the classic view. Command line: `sysreport-search compute`.
+Controls: **Threads** (default all), **Seconds per test** (default 0.5), **Code** (the best
+instruction set the CPU has - SSE2, AVX2 or AVX-512 - or a chosen one), **1 thread only** (skips
+the all-threads column: light load, half the time), **Run** (asks first), **Stop**. It takes about
+10 seconds at the defaults.
+
+**What the numbers mean.** **GFLOPS** = billions of floating-point operations per second (matrix
+multiply, multiply-add, FFT, N-body); **Mpixels/s** = millions of picture points per second
+(Mandelbrot, ray tracer). The left column is one thread, the right column all the chosen threads;
+the **Code** column says which instruction set was used. FFT and the ray tracer are plain C. The
+numbers compare PCs and settings with each other; they are lower than a tuned maths library
+(BLAS) would reach.
+
+**Safety:** with all threads, every CPU is 100% busy and gets hot, and AVX-512 draws a lot of
+power: **an unstable overclock or undervolt can crash the PC** under this load. Tick **1 thread
+only** (command line `--single`) to keep it light. It will not start while CPU Burnin or Stress
+runs. The result is saved to `~/.cache/srs/bench-compute.txt` and added to the
+[Benchmark history](#910-benchmark-history). Tested on one PC only - see the note at the start of
+this chapter.
 
 ## 10. Options
 
@@ -1714,8 +1747,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency. |
-| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency (time, test, settings, result, build). |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt`, `bench-compute.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency and CPU Compute. |
+| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency and CPU Compute (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |

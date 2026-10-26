@@ -23,8 +23,8 @@ HDRS      := srs.h
 # the SIV section engine (Linux images): every SIV item, the burner and the benchmarks
 SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c sec_sensors.c sec_storage.c sec_network.c \
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
-             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c guide.c
-SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h sec_default_save.inc guide_map.inc
+             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c guide.c
+SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h sec_default_save.inc guide_map.inc
 LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread
 
 # --- PE layout copied field-for-field from SIV64X.exe / SIV32X.exe (objdump -p) ---
@@ -134,7 +134,7 @@ $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDR
 
 # correctness tests of the benchmarks: short runs on a few threads, results in a throw-away HOME.
 # Not part of the package builds' check (they time real work); run by hand before a release.
-BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh
+BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done
 

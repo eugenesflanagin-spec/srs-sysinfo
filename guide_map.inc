@@ -99,6 +99,7 @@
 { "cpu", "sections-processors--cpu-table" },
 { "cpu-bits", "sections-processors--cpu-description" },
 { "cpu-clocks", "sections-processors--cpu-clocks" },
+{ "cpu-compute", "sections-tools--cpu-compute-benchmark" },
 { "cpu-export", "sections-processors--cpu-export" },
 { "cpu-levels", "sections-processors--cpu-idle-levels" },
 { "cpu-oc-data", "sections-processors--cpu-oc-data" },

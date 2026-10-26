@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage` and `os-latency`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency` and `compute`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -48,6 +48,7 @@ sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
 sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
+sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -65,7 +66,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -112,10 +113,15 @@ Benchmarks and stress (load the CPU; run only when you ask):
         how quickly the OS answers: system calls, context switches, thread / process start, wake-ups,
         timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink
         (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)
+  compute [--threads N] [--seconds S] [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
+          [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+        CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /
+        Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%
+        busy (--single: one thread); asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -508,7 +514,39 @@ $ sysreport-search os-latency --only syscall,timer --yes
 
 See [tools.md](SECTIONS/tools.md#os-latency-benchmark).
 
-Every `cachemem`, `storage`, `os-latency`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `compute` - CPU Compute (floating-point work)
+
+```
+sysreport-search compute [--threads N] [--seconds S]
+                         [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
+                         [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+```
+
+Matrix multiply (SGEMM / DGEMM), peak multiply-add, FFT, N-body, Mandelbrot and a small ray tracer,
+in GFLOPS or Mpixels/s, on 1 thread and on N threads, with the best vector code the CPU has. Every
+answer is checked; a wrong one is shown as WRONG. With N threads every CPU is 100% busy (AVX-512
+where the CPU has it), so it **asks first**; `--yes` (`-y`) starts at once. Without a terminal and
+without `--yes` it does not start (exit code 2). An unstable overclock or undervolt can crash the
+PC under this load; `--single` keeps it light.
+
+| Option | Meaning |
+|---|---|
+| `--threads N` | Threads for the right-hand column (default 0 = all logical CPUs) |
+| `--seconds S` | Measuring time per test and column, 0.1-60 (default 0.5) |
+| `--tests` | Run only some tests, e.g. `--tests dgemm,mandelbrot` |
+| `--code` | Force a code path (a path the CPU lacks falls back to the best it has) |
+| `--single` | Only the 1-thread column (light load, half the time) |
+
+Exit code 0 when every check passed, 1 when a check failed (WRONG) or it was stopped, 2 when it did
+not start (bad option, not confirmed, CPU Burnin running). Example:
+
+```
+$ sysreport-search compute --single --tests sgemm,nbody --yes
+```
+
+See [tools.md](SECTIONS/tools.md#cpu-compute-benchmark).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -540,6 +578,7 @@ or one of these tool names:
 | `cachemem` | Cache & Memory |
 | `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
 | `oslatency` | OS Latency |
+| `compute` | CPU Compute |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
