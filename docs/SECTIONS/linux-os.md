@@ -1517,7 +1517,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## General Info  
 `windows` - Linux data
 
-**In plain words.** This is the panel SIV shows behind its "Windows" button (called "Windows (OS) panel" before SRS 1.2.0). In SRS it is the Linux overview, the same page as [System](#system), opened by the main-window **Linux** button.
+**In plain words.** This is the panel SIV shows behind its "Windows" button (called "Windows (OS) panel" before SRS 2.0). In SRS it is the Linux overview, the same page as [System](#system), opened by the main-window **Linux** button.
 
 **What you see.** Exactly the fields described under [System](#system): distribution and kernel, install date, init and chassis, desktop session, system folders, kernel command line, one line per CPU, power and time zone, up-time and load, user and locale, BIOS, and connected monitors with their kernel driver. The panel's sub-buttons (Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, ALL Dev, Graphics) open the matching items in other groups.
 

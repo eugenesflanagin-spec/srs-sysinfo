@@ -1,5 +1,5 @@
 id	category	title	bucket	group	needs_root	linux_source	siv_content
-about	tuning	About SIV	LINUX	siv	no	internal: program version/build; uname; /etc/os-release; hwdata *.ids	SIV version, release date, copyright, build/host info
+about	tuning	About SRS	LINUX	siv	no	internal: program version/build; uname; /etc/os-release; hwdata *.ids	SIV version, release date, copyright, build/host info
 acpi-buses	hardware	ACPI PCI root buses	LINUX	machine	no	/sys/bus/acpi/devices/PNP0A08:00; /sys/class/pci_bus	ACPI PCI root bridges and bus ranges
 acpi-dev	hardware	ACPI devices	LINUX	machine	no	/sys/bus/acpi/devices	ACPI namespace devices (HID, path, status)
 acpi-ec	hardware	ACPI embedded controller	LINUX	machine	yes	/sys/bus/acpi/devices/PNP0C09:00 (EC registers not read)	EC register dump (ECACPI)

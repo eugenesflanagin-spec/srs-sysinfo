@@ -589,7 +589,7 @@ The groups are in the same order as SRS's Menu.
 
 | Item | id | Badge |
 |---|---|---|
-| [About SIV](srs-items.md#about-siv) | `about` | Linux data |
+| [About SRS](srs-items.md#about-srs) | `about` | Linux data |
 | [BSB info (battery/HID sensor buffer)](srs-items.md#bsb-info-batteryhid-sensor-buffer) | `bsi` | Linux data |
 | [CPU group buffer](srs-items.md#cpu-group-buffer) | `cgb` | Linux data |
 | [CSV logging](srs-items.md#csv-logging) | `csv` | Linux data |

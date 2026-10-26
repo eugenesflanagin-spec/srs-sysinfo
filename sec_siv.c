@@ -228,13 +228,16 @@ static void s_about(srs_out *o)
     so_kv(o, "Settings", C_PURPLE, ini_path());
     so_kv(o, "Live data", C_VALUE, "sysfs, procfs, CPUID, hwmon, systemd-hwdb; root-only data from the srs-root helper's cache");
     so_par(o);
+    so_kv(o, "Created by", C_GREEN, "Eugene Flanagin");
+    so_kv(o, "Licensed under", C_GREEN, "GNU General Public License v2.0 or later (GPL-2.0-or-later)");
+    so_kv(o, "Home page", C_TEAL, "https://github.com/eugenesflanagin-spec/srs-sysinfo");
+    so_par(o);
     so_kv(o, "Why SRS", C_GREEN, "I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it.");
     so_kv(o, "", C_GREEN, "SRS is free and open source for the Linux and open-source community.");
     so_kv(o, "Credit", C_GREEN, "SIV is by Ray Hinchliffe, RH Software - https://rh-software.com - with thanks for the original.");
     so_kv(o, "", C_GRAY, "Layout and item names modelled on SIV64X's observable output (-save dump, panels, strings).");
     so_kv(o, "", C_GRAY, "No SIV code, binaries or data files are used, included or disassembled.");
     so_kv(o, "", C_GRAY, "SRS is not affiliated with, endorsed or supported by RH Software; please do not report SRS issues to them.");
-    so_kv(o, "Licence", C_VALUE, "GPL-2.0-or-later  (https://github.com/eugenesflanagin-spec/srs-sysinfo)");
     so_kv(o, "Disclaimer", C_GRAY, "This program is free software and you use it entirely at your own risk.");
 }
 
@@ -1785,7 +1788,7 @@ static void s_makers(srs_out *o)
  * table
  * ====================================================================== */
 const srs_item sec_siv[] = {
-    { "about", "tuning", "About SIV", B_LINUX, 0, "internal: program version/build; uname; /etc/os-release; hwdata *.ids", s_about, 0, "siv" },
+    { "about", "tuning", "About SRS", B_LINUX, 0, "internal: program version/build; uname; /etc/os-release; hwdata *.ids", s_about, 0, "siv" },
     { "bsi", "xxb", "BSB info (battery/HID sensor buffer)", B_LINUX, 0, "/sys/class/power_supply; /sys/bus/hid/devices", s_bsi, 2000, "siv" },
     { "cgb", "xxb", "CPU group buffer", B_LINUX, 0, "/sys/devices/system/cpu/online", s_cgb, 0, "siv" },
     { "csv", "tuning", "CSV logging", B_LINUX, 0, "internal: -save text writer", s_csv, 0, "siv" },

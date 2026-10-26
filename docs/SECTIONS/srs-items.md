@@ -15,7 +15,7 @@ cache line in [Fake SPDs](#fake-spds) use data from the root helper (srs-root); 
 **Menu -> Run as root**.
 
 ## Contents
-- [About SIV](#about-siv) `about`
+- [About SRS](#about-srs) `about`
 - [BSB info (battery/HID sensor buffer)](#bsb-info-batteryhid-sensor-buffer) `bsi`
 - [CPU group buffer](#cpu-group-buffer) `cgb`
 - [CSV logging](#csv-logging) `csv`
@@ -87,7 +87,7 @@ cache line in [Fake SPDs](#fake-spds) use data from the root helper (srs-root); 
   made the report.
 
 ---
-## About SIV  
+## About SRS  
 `about` - Linux data
 
 **In plain words.** Who made this program, which version you have, what it is running on, and
@@ -110,7 +110,8 @@ which name-database files it uses.
 | PCI Device Names / USB Device Names / PnP / Monitor Names | Path of each name database, then its date and version (from the file header) or the file date. | Old files mean new devices show as "unknown". |
 | Settings | Path of the settings file SRSDEF.ini. | Where your choices are kept. |
 | Live data | The kinds of source SRS reads. | Reminds you some data needs the root helper. |
-| Why SRS / Credit / Licence / Disclaimer | Origin, credit to SIV's author, licence (GPL-2.0-or-later) and use-at-your-own-risk note. | Legal and credit information. |
+| Created by / Licensed under / Home page | The author (Eugene Flanagin), the licence (GPL-2.0-or-later) and the GitHub page. | Who made it and where to get it. |
+| Why SRS / Credit / Disclaimer | Origin, credit to SIV's author and use-at-your-own-risk note. | Credit information. |
 
 **Healthy / typical values.** On the author's PC: `V1.1.0`, built with gcc 16.2.1 and glibc,
 image `/usr/bin/sysreport-search (1.38MB)`, Linux 7.3.0 x86_64 on an ASUS TUF GAMING X870-PRO

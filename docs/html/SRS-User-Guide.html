@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 1.2.0. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 2.0.0. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -5249,7 +5249,7 @@ physical cores one at a time</a></td>
 </thead>
 <tbody>
 <tr>
-<td><a href="#sections-srs-items--about-siv">About SIV</a></td>
+<td><a href="#sections-srs-items--about-srs">About SRS</a></td>
 <td><code>about</code></td>
 <td>Linux data</td>
 </tr>
@@ -19027,7 +19027,7 @@ SRS.</p>
 <h2 id="sections-linux-os--general-info">General Info</h2>
 <p><code>windows</code> - Linux data</p>
 <p><strong>In plain words.</strong> This is the panel SIV shows behind
-its "Windows" button (called "Windows (OS) panel" before SRS 1.2.0). In
+its "Windows" button (called "Windows (OS) panel" before SRS 2.0). In
 SRS it is the Linux overview, the same page as <a
 href="#sections-linux-os--system">System</a>, opened by the main-window
 <strong>Linux</strong> button.</p>
@@ -27131,7 +27131,7 @@ line in <a href="#sections-srs-items--fake-spds">Fake SPDs</a> use data from the
 (srs-root); start it with <strong>Menu -&gt; Run as root</strong>.</p>
 <h2 id="sections-srs-items--contents">Contents</h2>
 <ul>
-<li><a href="#sections-srs-items--about-siv">About SIV</a> <code>about</code></li>
+<li><a href="#sections-srs-items--about-srs">About SRS</a> <code>about</code></li>
 <li><a href="#sections-srs-items--bsb-info-batteryhid-sensor-buffer">BSB info (battery/HID
 sensor buffer)</a> <code>bsi</code></li>
 <li><a href="#sections-srs-items--cpu-group-buffer">CPU group buffer</a>
@@ -27237,7 +27237,7 @@ So "this process" in the items below is whichever one made the
 report.</li>
 </ul>
 <hr />
-<h2 id="sections-srs-items--about-siv">About SIV</h2>
+<h2 id="sections-srs-items--about-srs">About SRS</h2>
 <p><code>about</code> - Linux data</p>
 <p><strong>In plain words.</strong> Who made this program, which version
 you have, what it is running on, and which name-database files it
@@ -27321,10 +27321,15 @@ header) or the file date.</td>
 <td>Reminds you some data needs the root helper.</td>
 </tr>
 <tr>
-<td>Why SRS / Credit / Licence / Disclaimer</td>
-<td>Origin, credit to SIV's author, licence (GPL-2.0-or-later) and
-use-at-your-own-risk note.</td>
-<td>Legal and credit information.</td>
+<td>Created by / Licensed under / Home page</td>
+<td>The author (Eugene Flanagin), the licence (GPL-2.0-or-later) and the
+GitHub page.</td>
+<td>Who made it and where to get it.</td>
+</tr>
+<tr>
+<td>Why SRS / Credit / Disclaimer</td>
+<td>Origin, credit to SIV's author and use-at-your-own-risk note.</td>
+<td>Credit information.</td>
 </tr>
 </tbody>
 </table>
@@ -29354,7 +29359,7 @@ Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
 <p>Lists every item SRS knows (545 lines), one per line:</p>
-<pre><code>about                tuning    linux         siv      About SIV
+<pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
 <table>

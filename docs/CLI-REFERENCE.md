@@ -112,7 +112,7 @@ The part in brackets describes how your copy was built.
 Lists every item SRS knows (545 lines), one per line:
 
 ```
-about                tuning    linux         siv      About SIV
+about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods
 ```

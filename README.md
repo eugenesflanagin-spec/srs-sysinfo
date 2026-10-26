@@ -37,7 +37,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 
 ## Using it
 
-- **Main window** (new in 1.2): a sidebar of pages - **Overview**, Processor, Memory,
+- **Main window** (new in 2.0): a sidebar of pages - **Overview**, Processor, Memory,
   Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating
   system, Benchmarks & stress, Tools.
   - **Overview** answers "Is my PC OK?": status lights for CPU and graphics temperature, drive

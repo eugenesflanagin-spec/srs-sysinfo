@@ -4,7 +4,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## 1.2.0 - 2026-10-26
+## 2.0.0 - 2026-10-26
 
 ### Added
 - **A new main window: easier to find your way, nothing taken away.** One window with a sidebar of
@@ -42,6 +42,9 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   is known.
 
 ### Changed
+- **About SIV** is now called **About SRS** (ID still `about`).
+- **About** now starts with who made SRS, its licence and its home page: "Created by Eugene
+  Flanagin", "Licensed under GPL-2.0-or-later", https://github.com/eugenesflanagin-spec/srs-sysinfo.
 - The **Windows (OS) panel** is now called **General Info**, in the new window, the classic menu and
   reports. Its ID is still `windows`, so `--gui-open=windows`, `-save` reports and saved links keep working.
 - Without a `Theme=` setting the new window follows the desktop's light / dark setting; the classic
