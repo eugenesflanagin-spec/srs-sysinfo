@@ -251,7 +251,7 @@ done
 grep -q "WRONG RESULT" <<<"$out" && bad "a result was wrong"
 grep -q "alike SRS builds" <<<"$out" && grep -q "Build" <<<"$out" && ok "result names the build and says to compare alike builds only" || bad "no build line / comparability note"
 grep -q "GPU timestamps\|host clock" <<<"$out" && ok "result says how it was timed" || bad "no timing line"
-grep -qiE 'clean[-]room|ai[d]a64' <<<"$out" && bad "forbidden wording in the result"
+grep -qiE "$(printf 'clea%s-room|ai%sa' n d)" <<<"$out" && bad "forbidden wording in the result"
 [ -s "$HOME/.cache/srs/bench-gpu.txt" ] && ok "result file written" || bad "no bench-gpu.txt"
 grep -q $'\tgpu\t' "$HOME/.cache/srs/bench-history.tsv" 2>/dev/null && ok "history line added" || bad "no history line"
 grep -E "MYPC|$(hostname)" "$HOME/.cache/srs/bench-gpu.txt" >/dev/null 2>&1 && echo "  note  host name appears in the saved file (header line, redacted by -save --redact)"

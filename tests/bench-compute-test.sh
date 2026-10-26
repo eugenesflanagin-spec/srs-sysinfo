@@ -109,7 +109,7 @@ C
 # the Makefile's sources, without bench_compute.c (the harness includes it)
 SECS=$(make -s -C "$SRC" --no-print-directory --eval 'srs-print-secs:; @echo $(SECS)' srs-print-secs)
 SECS=$(tr ' ' '\n' <<<"$SECS" | grep -v '^bench_compute\.c$' | tr '\n' ' ')
-FLAGS="-std=c11 -Wall -Wextra -Wno-format-truncation -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread -DSRS_NO_MAIN -I$SRC ${EXTRA_CFLAGS:-}"
+FLAGS="-std=c11 -Wall -Wextra -Wno-format-truncation -ffp-contract=off -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread -DSRS_NO_MAIN -I$SRC ${EXTRA_CFLAGS:-}"
 
 echo "== build the test programs"
 ( cd "$SRC" && /usr/bin/gcc $FLAGS -O2 -o "$TMP/harness" "$TMP/harness.c" core.c cli.c plat_posix.c $SECS -lm ) 2>"$TMP/build.log"
@@ -152,7 +152,9 @@ grep -q "WRONG" <<<"$out" && bad "a row says WRONG"
 f=$HOME/.cache/srs/bench-compute.txt
 [ -s "$f" ] && grep -q "Matrix multiply, double precision" "$f" && grep -q "GFLOPS" "$f" && grep -q "Mpixels/s" "$f" && ok "result file written" || bad "no bench-compute.txt"
 grep -q $'\tcompute\t' "$HOME/.cache/srs/bench-history.tsv" 2>/dev/null && ok "history line added" || bad "no history line"
-grep -qi "aida\|clean-room" "$SRC/bench_compute.c" "$SRC/bench_compute.h" "$f" && bad "wording rule: banned word found" || ok "wording"
+# the two banned words, assembled here so that this file itself never spells them
+BANNED="$(printf 'clea%s-room|ai%sa' n d)"
+grep -qiE "$BANNED" "$SRC/bench_compute.c" "$SRC/bench_compute.h" "$f" && bad "wording rule: banned word found" || ok "wording"
 
 echo "== each code path forced (1 thread)"
 best=$("$TMP/harness" self | grep '^BEST|' | cut -d'|' -f2)

@@ -127,7 +127,9 @@ grep -q $'\tnet\tloopback streams=2' "$HOME/.cache/srs/bench-history.tsv" 2>/dev
 echo "== nothing private in the results"
 host=$(cat /proc/sys/kernel/hostname 2>/dev/null || hostname)
 all="$out"$'\n'"$(cat "$f" "$HOME/.cache/srs/bench-history.tsv" 2>/dev/null)"
-[ -n "$host" ] && grep -qiF -- "$host" <<<"$all" && bad "host name in the output" || ok "no host name"
+# whole words only: a short host name ("arch", "pc", "box") is also part of ordinary words in the output
+if [ ${#host} -lt 3 ]; then echo "  note  host name too short to search for"
+else grep -qiwF -- "$host" <<<"$all" && bad "host name in the output" || ok "no host name"; fi
 grep -qE '([0-9]{1,3}\.){3}[0-9]{1,3}' <<<"$all" && bad "an IPv4 address in the output: $(grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' <<<"$all" | head -1)" || ok "no IPv4 address"
 grep -qiE '([0-9a-f]{2}:){5}[0-9a-f]{2}|([0-9a-f]{1,4}:){3,7}[0-9a-f]{1,4}' <<<"$all" && bad "a MAC or IPv6 address in the output" || ok "no MAC or IPv6 address"
 
