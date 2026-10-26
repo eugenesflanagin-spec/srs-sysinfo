@@ -2,6 +2,9 @@
  * Pure C (libm only); see power_model.h.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
 #include "power_model.h"
 
 #include <math.h>
@@ -395,6 +398,47 @@ void pm_split_minutes(double t0, double t1, pm_minute_cb cb, void *ctx)
         cb(m, (b - a) / len, ctx);
         a = b;
     }
+}
+
+/* ====================================================================== sessions */
+int pm_sess_step(pm_sess *s, double t, double busy, double dt, double wh, double cost, double w, pm_sess_done *out)
+{
+    int hot = !isnan(busy) && busy >= s->thr;
+    if (!s->active) {
+        if (!hot) { s->up = 0; s->wh = s->cost = s->peak = 0; return 0; }
+        if (!s->up) { s->up = 1; s->above_since = t - dt; s->wh = s->cost = s->peak = 0; }
+        s->wh += wh; s->cost += cost;
+        if (w > s->peak) s->peak = w;
+        if (t - s->above_since >= s->start_s) { s->active = 1; s->up = 0; s->t0 = s->above_since; s->down = 0; s->tail_wh = s->tail_cost = 0; }
+        return 0;
+    }
+    if (hot) {
+        s->wh += wh + s->tail_wh;   /* a short pause belongs to the session */
+        s->cost += cost + s->tail_cost;
+        s->tail_wh = s->tail_cost = 0;
+        s->down = 0;
+        if (w > s->peak) s->peak = w;
+        return 0;
+    }
+    if (!s->down) { s->down = 1; s->below_since = t - dt; }
+    s->tail_wh += wh;
+    s->tail_cost += cost;
+    if (t - s->below_since < s->end_s) return 0;
+    out->t0 = s->t0; out->t1 = s->below_since; out->wh = s->wh; out->cost = s->cost; out->peak = s->peak;
+    s->active = s->up = s->down = 0;
+    s->wh = s->cost = s->peak = s->tail_wh = s->tail_cost = 0;
+    return 1;
+}
+
+int pm_sess_flush(pm_sess *s, double t, pm_sess_done *out)
+{
+    int r = s->active;
+    if (r) {
+        out->t0 = s->t0; out->t1 = s->down ? s->below_since : t; out->wh = s->wh; out->cost = s->cost; out->peak = s->peak;
+    }
+    s->active = s->up = s->down = 0;
+    s->wh = s->cost = s->peak = s->tail_wh = s->tail_cost = 0;
+    return r;
 }
 
 /* ====================================================================== alarms */

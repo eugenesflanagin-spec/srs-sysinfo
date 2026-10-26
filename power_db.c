@@ -58,11 +58,14 @@ int pdb_open(const char *path)
         "PRAGMA journal_mode=WAL;"
         "PRAGMA synchronous=NORMAL;"
         "CREATE TABLE IF NOT EXISTS minutes(t INTEGER PRIMARY KEY, secs_on REAL, secs_sleep REAL, secs_off REAL,"
-        " wh_mid REAL, wh_lo REAL, wh_hi REAL, wh_cpu REAL, wh_gpu REAL, cost REAL, w_max REAL, flags INTEGER);"
+        " wh_mid REAL, wh_lo REAL, wh_hi REAL, wh_cpu REAL, wh_gpu REAL, cost REAL, w_max REAL, flags INTEGER,"
+        " secs_busy REAL DEFAULT 0, wh_busy REAL DEFAULT 0);"
+        "CREATE TABLE IF NOT EXISTS sessions(t0 INTEGER, t1 INTEGER, wh REAL, cost REAL, peak REAL);"
+        "CREATE INDEX IF NOT EXISTS sessions_t0 ON sessions(t0);"
         "CREATE TABLE IF NOT EXISTS gaps(t0 INTEGER, t1 INTEGER, kind INTEGER);"
         "CREATE INDEX IF NOT EXISTS gaps_t0 ON gaps(t0);"
         "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);"
-        "PRAGMA user_version=1;";
+        "";
     if (g_db) pdb_close();
     g_err[0] = 0;
     snprintf(g_path, sizeof g_path, "%s", path);
@@ -76,12 +79,27 @@ int pdb_open(const char *path)
     chmod(path, 0600);   /* a usage history says when someone is at the PC: keep it private */
     sqlite3_busy_timeout(g_db, 3000);
     if (exec(schema)) { sqlite3_close(g_db); g_db = NULL; return -1; }
+    /* schema 2 (2.1.0): busy time and energy per minute; older files get the columns added */
+    {
+        sqlite3_stmt *st;
+        int ver = 0;
+        if (sqlite3_prepare_v2(g_db, "PRAGMA user_version", -1, &st, NULL) == SQLITE_OK) {
+            if (sqlite3_step(st) == SQLITE_ROW) ver = sqlite3_column_int(st, 0);
+            sqlite3_finalize(st);
+        }
+        if (ver < 2) {
+            sqlite3_exec(g_db, "ALTER TABLE minutes ADD COLUMN secs_busy REAL DEFAULT 0", NULL, NULL, NULL);   /* fails harmlessly when present */
+            sqlite3_exec(g_db, "ALTER TABLE minutes ADD COLUMN wh_busy REAL DEFAULT 0", NULL, NULL, NULL);
+            exec("PRAGMA user_version=2");
+        }
+    }
     if (sqlite3_prepare_v2(g_db,
-            "INSERT INTO minutes VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) ON CONFLICT(t) DO UPDATE SET"
+            "INSERT INTO minutes VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14) ON CONFLICT(t) DO UPDATE SET"
             " secs_on=secs_on+excluded.secs_on, secs_sleep=secs_sleep+excluded.secs_sleep, secs_off=secs_off+excluded.secs_off,"
             " wh_mid=wh_mid+excluded.wh_mid, wh_lo=wh_lo+excluded.wh_lo, wh_hi=wh_hi+excluded.wh_hi,"
             " wh_cpu=wh_cpu+excluded.wh_cpu, wh_gpu=wh_gpu+excluded.wh_gpu, cost=cost+excluded.cost,"
-            " w_max=max(w_max,excluded.w_max), flags=flags|excluded.flags", -1, &g_add, NULL) != SQLITE_OK) {
+            " w_max=max(w_max,excluded.w_max), flags=flags|excluded.flags,"
+            " secs_busy=secs_busy+excluded.secs_busy, wh_busy=wh_busy+excluded.wh_busy", -1, &g_add, NULL) != SQLITE_OK) {
         fail("prepare");
         sqlite3_close(g_db);
         g_db = NULL;
@@ -132,6 +150,8 @@ int pdb_add(long minute, const pdb_row *r)
     sqlite3_bind_double(g_add, 10, r->cost);
     sqlite3_bind_double(g_add, 11, r->w_max);
     sqlite3_bind_int(g_add, 12, r->flags);
+    sqlite3_bind_double(g_add, 13, r->secs_busy);
+    sqlite3_bind_double(g_add, 14, r->wh_busy);
     rc = sqlite3_step(g_add);
     sqlite3_reset(g_add);
     return rc == SQLITE_DONE ? 0 : fail("add");
@@ -197,7 +217,7 @@ static int group_iter(int group, long from, long to, row_cb cb, void *ctx)
     if (!g_db) return 0;
     snprintf(sql, sizeof sql,
              "SELECT min(t), strftime('%s', t, 'unixepoch', 'localtime') AS k, sum(wh_mid), sum(wh_lo), sum(wh_hi), sum(wh_cpu),"
-             " sum(wh_gpu), sum(cost), sum(secs_on), sum(secs_sleep), sum(secs_off), max(w_max)"
+             " sum(wh_gpu), sum(cost), sum(secs_on), sum(secs_sleep), sum(secs_off), max(w_max), sum(secs_busy), sum(wh_busy)"
              " FROM minutes WHERE t>=?1 AND t<?2 GROUP BY k ORDER BY min(t)", group_fmt(group));
     if (sqlite3_prepare_v2(g_db, sql, -1, &s, NULL) != SQLITE_OK) { fail("group"); return 0; }
     sqlite3_bind_int64(s, 1, from);
@@ -217,6 +237,8 @@ static int group_iter(int group, long from, long to, row_cb cb, void *ctx)
         o.secs_sleep = sqlite3_column_double(s, 9);
         o.secs_off = sqlite3_column_double(s, 10);
         o.w_max = sqlite3_column_double(s, 11);
+        o.secs_busy = sqlite3_column_double(s, 12);
+        o.wh_busy = sqlite3_column_double(s, 13);
         n++;
         if (cb(&o, ctx)) break;
     }
@@ -268,6 +290,43 @@ static long scalar(const char *sql)
 }
 long pdb_first_minute(void) { return scalar("SELECT ifnull(min(t),0) FROM minutes"); }
 long pdb_minutes_count(void) { return scalar("SELECT count(*) FROM minutes"); }
+
+int pdb_session(double t0, double t1, double wh, double cost, double peak)
+{
+    sqlite3_stmt *s;
+    int rc;
+    if (!g_db || t1 <= t0) return -1;
+    if (begin()) return -1;
+    if (sqlite3_prepare_v2(g_db, "INSERT INTO sessions VALUES(?1,?2,?3,?4,?5)", -1, &s, NULL) != SQLITE_OK) return fail("session");
+    sqlite3_bind_int64(s, 1, (sqlite3_int64)t0);
+    sqlite3_bind_int64(s, 2, (sqlite3_int64)t1);
+    sqlite3_bind_double(s, 3, wh);
+    sqlite3_bind_double(s, 4, cost);
+    sqlite3_bind_double(s, 5, peak);
+    rc = sqlite3_step(s);
+    sqlite3_finalize(s);
+    return rc == SQLITE_DONE ? 0 : fail("session");
+}
+
+int pdb_sessions(long from, long to, pdb_sess *out, int max)
+{
+    sqlite3_stmt *s;
+    int n = 0;
+    if (!g_db) return 0;
+    if (sqlite3_prepare_v2(g_db, "SELECT t0,t1,wh,cost,peak FROM sessions WHERE t1>?1 AND t0<?2 ORDER BY t0 DESC", -1, &s, NULL) != SQLITE_OK) return 0;
+    sqlite3_bind_int64(s, 1, from);
+    sqlite3_bind_int64(s, 2, to);
+    while (sqlite3_step(s) == SQLITE_ROW && n < max) {
+        out[n].t0 = (long)sqlite3_column_int64(s, 0);
+        out[n].t1 = (long)sqlite3_column_int64(s, 1);
+        out[n].wh = sqlite3_column_double(s, 2);
+        out[n].cost = sqlite3_column_double(s, 3);
+        out[n].peak = sqlite3_column_double(s, 4);
+        n++;
+    }
+    sqlite3_finalize(s);
+    return n;
+}
 
 int pdb_meta_get(const char *key, char *out, int sz)
 {
@@ -325,7 +384,9 @@ static int csv_row(const pdb_sum *r, void *ctx)
     num(c->f, hrs > 0 ? r->wh_mid / hrs : 0, 1, c->dec); fputs(c->sep, c->f);
     num(c->f, r->w_max, 1, c->dec); fputs(c->sep, c->f);
     num(c->f, r->secs_on / 3600, 4, c->dec); fputs(c->sep, c->f);
-    num(c->f, r->secs_sleep / 3600, 4, c->dec);
+    num(c->f, r->secs_sleep / 3600, 4, c->dec); fputs(c->sep, c->f);
+    num(c->f, r->secs_busy / 3600, 4, c->dec); fputs(c->sep, c->f);
+    num(c->f, r->wh_busy / 1000, 5, c->dec);
     fputc('\n', c->f);
     return 0;
 }
@@ -350,8 +411,8 @@ int pdb_export_csv(const char *file, int group, long from, long to, const char *
             p += len + (e ? 1 : 0);
         }
     }
-    fprintf(c.f, "period%sstart_utc%skwh_estimate%skwh_low%skwh_high%scpu_kwh_measured%sgpu_kwh_measured%scost_%s%savg_w%smax_w%shours_recorded%shours_asleep\n",
-            sep, sep, sep, sep, sep, sep, sep, currency && *currency ? currency : "money", sep, sep, sep, sep);
+    fprintf(c.f, "period%sstart_utc%skwh_estimate%skwh_low%skwh_high%scpu_kwh_measured%sgpu_kwh_measured%scost_%s%savg_w%smax_w%shours_recorded%shours_asleep%shours_busy%skwh_busy\n",
+            sep, sep, sep, sep, sep, sep, sep, currency && *currency ? currency : "money", sep, sep, sep, sep, sep, sep);
     n = group_iter(group, from, to, csv_row, &c);
     if (fclose(c.f)) { snprintf(g_err, sizeof g_err, "%s: %s", file, strerror(errno)); return -1; }
     return n;
@@ -401,7 +462,7 @@ int pdb_delete_all(void)
 {
     if (!g_db) return -1;
     pdb_flush();
-    if (exec("DELETE FROM minutes; DELETE FROM gaps; DELETE FROM meta WHERE k<>'schema'")) return -1;
+    if (exec("DELETE FROM minutes; DELETE FROM gaps; DELETE FROM sessions; DELETE FROM meta")) return -1;
     exec("VACUUM");
     return 0;
 }

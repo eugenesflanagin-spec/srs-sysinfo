@@ -248,6 +248,33 @@ static void t_alarms(void)
     CHECK(pm_alarm_check(&a, &in, &m, msg, sizeof msg) == 1 && strstr(msg, "$24"), "forecast 8 / 0.33 = 24 > 20 (%s)", msg);
 }
 
+static void t_sessions(void)
+{
+    pm_sess ss;
+    pm_sess_done d;
+    int t, n = 0;
+    double wh = 400.0 / 3600;   /* 400 W for 1 s */
+    memset(&ss, 0, sizeof ss);
+    ss.thr = 50; ss.start_s = 120; ss.end_s = 180;
+    for (t = 1; t <= 1020; t++) {
+        double busy = (t > 60 && t <= 360) || (t > 420 && t <= 720) ? 90 : (t > 360 && t <= 420) ? 10 : 5;
+        if (pm_sess_step(&ss, t, busy, 1, wh, wh * 0.15 / 1000, 400, &d)) n++;
+    }
+    CHECK(n == 1, "one session with a 60 s pause inside (%d)", n);
+    CHECK(NEAR(d.t0, 60, 1e-9) && NEAR(d.t1, 720, 1e-9), "session 60..720 s (got %g..%g)", d.t0, d.t1);
+    CHECK(NEAR(d.wh, 660 * wh, 1e-6), "energy of the session incl. the pause = %.3f Wh (got %.3f)", 660 * wh, d.wh);
+    memset(&ss, 0, sizeof ss);
+    ss.thr = 50; ss.start_s = 120; ss.end_s = 180;
+    n = 0;
+    for (t = 1; t <= 600; t++) if (pm_sess_step(&ss, t, t > 100 && t <= 200 ? 95 : 0, 1, wh, 0, 400, &d)) n++;
+    CHECK(n == 0 && !ss.active, "a 100 s burst is not a session");
+    memset(&ss, 0, sizeof ss);
+    ss.thr = 50; ss.start_s = 120; ss.end_s = 180;
+    for (t = 1; t <= 300; t++) pm_sess_step(&ss, t, 80, 1, wh, 0, 400, &d);
+    CHECK(pm_sess_flush(&ss, 300, &d) == 1 && NEAR(d.t1, 300, 1e-9) && NEAR(d.t0, 0, 1e-9), "flush ends a running session now");
+    CHECK(pm_sess_flush(&ss, 301, &d) == 0, "nothing left to flush");
+}
+
 /* ---- the database: minutes add up, groups, gaps, re-open, CSV ---- */
 static void t_db(void)
 {
@@ -267,6 +294,7 @@ static void t_db(void)
     CHECK(pdb_open(db) == 0, "open a new database at %s (%s)", db, pdb_error());
     memset(&r, 0, sizeof r);
     r.secs_on = 30; r.wh_mid = 1.0; r.wh_lo = 0.8; r.wh_hi = 1.3; r.wh_cpu = 0.4; r.wh_gpu = 0.3; r.cost = 0.00015; r.w_max = 150;
+    r.secs_busy = 10; r.wh_busy = 0.5;
     for (i = 0; i < 180; i++) {             /* 3 hours of minutes, each written in two halves */
         CHECK(pdb_add(t0 + i * 60, &r) == 0 || i, "add (%s)", pdb_error());
         pdb_add(t0 + i * 60, &r);
@@ -276,6 +304,14 @@ static void t_db(void)
     for (i = 0; i < n; i++) total += sums[i].wh_mid;
     CHECK(n >= 3 && n <= 4, "3 hours of minutes give 3-4 hour rows (%d)", n);
     CHECK(NEAR(total, 360, 1e-6), "2 x 1 Wh x 180 minutes = 360 Wh (got %g)", total);
+    total = 0;
+    for (i = 0; i < n; i++) total += sums[i].wh_busy;
+    CHECK(NEAR(total, 180, 1e-6), "busy energy adds up too: 180 Wh (got %g)", total);
+    CHECK(pdb_session(t0 + 60, t0 + 3600, 250, 0.04, 480) == 0, "store a session");
+    {
+        pdb_sess ss[4];
+        CHECK(pdb_sessions(t0, t0 + 7200, ss, 4) == 1 && NEAR(ss[0].wh, 250, 1e-9) && ss[0].t1 - ss[0].t0 == 3540, "read it back");
+    }
     CHECK(NEAR(pdb_sum_range(t0, t0 + 60 * 60, NULL), 120, 1e-6), "first hour = 120 Wh");
     pdb_gap(t0 + 200 * 60, t0 + 260 * 60, PDB_GAP_ASLEEP);
     pdb_meta_set("boot_id", "abc");
@@ -315,6 +351,7 @@ int main(void)
     t_prices();
     t_units();
     t_alarms();
+    t_sessions();
     t_db();
     printf("%d checks, %d failed\n", g_n, g_fail);
     return g_fail ? 1 : 0;

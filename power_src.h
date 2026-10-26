@@ -25,12 +25,18 @@ typedef struct {
     int rapl_state;                    /* 0 absent, 1 readable, 2 root-only */
     char lines[PSRC_LINES][400];       /* plain-words status of every source, for the Sources tab */
     int nlines;
+    char busy_path[PSRC_CH][320];      /* gpu_busy_percent of the graphics cards */
+    int nbusy;
+    unsigned long long cpu_total, cpu_idle;
 } psrc;
 
 void psrc_detect(psrc *s);
 /* read every source; dt = seconds since the last read (for counters). flags gets PM_F_* bits. */
 void psrc_read(psrc *s, double dt, pm_meas *m, int *flags);
 void psrc_clock(pm_clock *c);
+/* how busy the PC was since the last call: CPU % (all cores, /proc/stat) and the busiest graphics
+   card's gpu_busy_percent (NAN when unknown). Busy = either one at or above the threshold. */
+void psrc_load(psrc *s, double *cpu, double *gpu);
 /* boot time as wall-clock seconds (from /proc/stat btime), 0 unknown */
 double psrc_boot_wall(void);
 /* SRS's guess at the parts this PC has; returns how many were written */

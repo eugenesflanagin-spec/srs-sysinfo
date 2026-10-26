@@ -78,6 +78,7 @@ typedef struct {
     int interval;                 /* seconds between samples */
     double sleep_w, off_w;
     int disclaimer_ok, notify, dec_comma;
+    double busy_thr, sess_start_min, sess_end_min;
     pm_alarm alarm[MAXALARM];
     int nalarm;
     /* ---- runtime ---- */
@@ -87,6 +88,8 @@ typedef struct {
     pm_meas meas;
     pm_est est, prev_est;
     int have_est, flags;
+    double load_cpu, load_gpu, busy;
+    pm_sess sess;
     double ring_t[RING], ring_lo[RING], ring_mid[RING], ring_hi[RING];
     int ring_n, ring_i;
     int lockfd, locked, other_rec;
@@ -115,6 +118,8 @@ typedef struct {
     GtkWidget *a_view, *a_type, *a_limit, *a_unit, *a_secs, *a_conv, *a_notify, *a_last, *a_form;
     GtkListStore *a_store;
     GtkWidget *src_lbl, *src_raw;
+    GtkWidget *x_range, *x_thr, *x_start, *x_end, *x_sum, *x_view, *x_now;
+    GtkListStore *x_store;
 } pwstate;
 static pwstate G;
 
@@ -124,6 +129,8 @@ static void hist_reload(void);
 static void cfg_save(void);
 static void parts_fill(void);
 static void alarms_fill(void);
+static void sess_fill(void);
+static void sess_now_text(void);
 
 /* ====================================================================== paths and settings */
 static void paths(void)
@@ -159,6 +166,9 @@ static void defaults(void)
     G.sleep_w = 3;
     G.off_w = 1;
     G.notify = 1;
+    G.busy_thr = 50;
+    G.sess_start_min = 2;
+    G.sess_end_min = 3;
 }
 
 static double kf_dbl(GKeyFile *k, const char *g, const char *key, double def)
@@ -200,6 +210,9 @@ static void cfg_load(void)
     G.off_w = kf_dbl(k, "Power", "Off Watts", 1);
     G.notify = kf_int(k, "Power", "Desktop Notifications", 1);
     G.dec_comma = kf_int(k, "Power", "CSV Decimal Comma", 0);
+    G.busy_thr = kf_dbl(k, "Power", "Busy Percent", 50);
+    G.sess_start_min = kf_dbl(k, "Power", "Session Start Minutes", 2);
+    G.sess_end_min = kf_dbl(k, "Power", "Session End Minutes", 3);
     /* money */
     G.cur_idx = kf_int(k, "Price", "Currency", 0);
     pm_currency_get(G.cur_idx, &G.money);
@@ -319,6 +332,9 @@ static void cfg_save(void)
     kf_set_dbl(k, "Power", "Off Watts", G.off_w);
     g_key_file_set_integer(k, "Power", "Desktop Notifications", G.notify);
     g_key_file_set_integer(k, "Power", "CSV Decimal Comma", G.dec_comma);
+    kf_set_dbl(k, "Power", "Busy Percent", G.busy_thr);
+    kf_set_dbl(k, "Power", "Session Start Minutes", G.sess_start_min);
+    kf_set_dbl(k, "Power", "Session End Minutes", G.sess_end_min);
     g_key_file_set_integer(k, "Price", "Currency", G.cur_idx);
     g_key_file_set_string(k, "Price", "Symbol", G.money.sym);
     g_key_file_set_integer(k, "Price", "Symbol After", G.money.after);
@@ -533,9 +549,16 @@ static void rec_begin(void)
     pdb_flush();
 }
 
+static void sess_end(double wall)
+{
+    pm_sess_done d;
+    if (pm_sess_flush(&G.sess, wall, &d) && pdb_is_open() && G.locked && d.t1 - d.t0 >= 60) pdb_session(d.t0, d.t1, d.wh, d.cost, d.peak);
+}
+
 static void rec_end(void)
 {
     if (!G.locked) return;
+    sess_end(G.last.wall);
     if (pdb_is_open()) { rec_meta(); pdb_flush(); }
     lock_drop();
 }
@@ -624,6 +647,8 @@ static void rec_tick(void)
     else { psrc_read(&G.src, 0, &m, &fl); m = G.meas; fl |= PM_F_GAP; }   /* new baseline after a gap */
     G.meas = m;
     G.flags = fl;
+    psrc_load(&G.src, &G.load_cpu, &G.load_gpu);
+    G.busy = isnan(G.load_gpu) ? G.load_cpu : isnan(G.load_cpu) ? G.load_gpu : fmax(G.load_cpu, G.load_gpu);
     if (G.have_est) G.prev_est = G.est;
     pm_estimate(&m, G.parts, G.nparts, &G.psu, &G.est);
     if (!G.have_est) G.prev_est = G.est;
@@ -651,13 +676,24 @@ static void rec_tick(void)
             r.wh_gpu = isnan(m.gpu_w) ? 0 : m.gpu_w * dt / 3600;
             r.w_max = G.est.wall_mid;
             r.flags = fl;
+            if (!isnan(G.busy) && G.busy >= G.busy_thr) { r.secs_busy = dt; r.wh_busy = r.wh_mid; }
             rec_interval(now.wall - dt, now.wall, &r);
+            {
+                pm_sess_done d;
+                G.sess.thr = G.busy_thr;
+                G.sess.start_s = G.sess_start_min * 60;
+                G.sess.end_s = G.sess_end_min * 60;
+                if (pm_sess_step(&G.sess, now.wall, G.busy, dt, r.wh_mid, r.cost, G.est.wall_mid, &d)) pdb_session(d.t0, d.t1, d.wh, d.cost, d.peak);
+            }
         } else if (gap == PM_GAP_SLEEP) {
+            sess_end(G.last.wall);
             double s1 = now.wall - awake, s0 = s1 - sl;
             pdb_gap((long)s0, (long)s1, PDB_GAP_ASLEEP);
             if (G.sleep_w > 0) rec_fixed(s0, s1, G.sleep_w, 1);
-        } else
+        } else {
+            sess_end(G.last.wall);
             pdb_gap((long)G.last.wall, (long)now.wall, gap == PM_GAP_STALL ? PDB_GAP_STALL : PDB_GAP_NOREC);
+        }
         if (now.mono - G.last_flush > 30) { G.last = now; rec_meta(); pdb_flush(); G.last_flush = now.mono; }
     }
     G.last = now;
@@ -1028,6 +1064,7 @@ static void ui_slow(void)
         snprintf(s, sizeof s, "Nothing recorded yet.");
     gtk_label_set_text(GTK_LABEL(G.today), s);
     if (G.a_last) gtk_label_set_text(GTK_LABEL(G.a_last), G.last_alarm[0] ? G.last_alarm : "No alarm so far in this session.");
+    sess_now_text();
     if (G.s_psunow && G.have_est) {
         snprintf(s, sizeof s, "Right now: about %.0f W inside the PC = %.0f %% of %.0f W, efficiency %.0f %% (range %.0f-%.0f %%).",
                  G.est.dc_mid, G.psu.rating > 0 ? G.est.dc_mid / G.psu.rating * 100 : 0, G.psu.rating, G.est.eff_mid * 100,
@@ -1255,7 +1292,7 @@ static void hist_reload(void)
     long from, to;
     int r = gtk_combo_box_get_active(GTK_COMBO_BOX(G.h_range)), i, j, n;
     static pdb_sum got[HROWS];
-    double wh = 0, lo = 0, hi = 0, cost = 0, on = 0, sl = 0;
+    double wh = 0, lo = 0, hi = 0, cost = 0, on = 0, sl = 0, bs = 0, bwh = 0;
     char s[900], a[48], b[48], c[48], d[48];
     GtkTreeIter it;
     if (r < 0) r = HR_7D;
@@ -1278,6 +1315,7 @@ static void hist_reload(void)
     for (i = 0; i < G.h_n; i++) {
         pdb_sum *x = &G.h_rows[i];
         wh += x->wh_mid; lo += x->wh_lo; hi += x->wh_hi; cost += x->cost; on += x->secs_on; sl += x->secs_sleep;
+        bs += x->secs_busy; bwh += x->wh_busy;
         if (x->secs_on + x->secs_sleep + x->secs_off <= 0) continue;
         pm_fmt_wh(x->wh_mid, a, sizeof a);
         {
@@ -1308,6 +1346,13 @@ static void hist_reload(void)
         snprintf(s + strlen(s), sizeof s - strlen(s), "  \xc2\xb7  standing charge %s a day not in these totals", f);
     }
     if (G.co2_g > 0) snprintf(s + strlen(s), sizeof s - strlen(s), "  \xc2\xb7  about %.1f kg CO\xe2\x82\x82", wh / 1000 * G.co2_g / 1000);
+    if (wh > 0 && on > 0) {
+        char e1[32], e2[32];
+        pm_fmt_wh(bwh, e1, sizeof e1);
+        pm_fmt_wh(wh - bwh, e2, sizeof e2);
+        snprintf(s + strlen(s), sizeof s - strlen(s), "\nBusy (CPU or graphics at %.0f %% or more): %s in %.1f h (%.0f %% of the energy)  \xc2\xb7  "
+                 "idle, light use and sleep: %s in %.1f h", G.busy_thr, e1, bs / 3600, bwh / wh * 100, e2, (on + sl - bs) / 3600);
+    }
     gtk_label_set_text(GTK_LABEL(G.h_sum), s);
     gtk_widget_queue_draw(G.h_area);
 }
@@ -1552,6 +1597,135 @@ static GtkWidget *build_history(void)
                                              "was not recording are gaps, not zero use. While the PC sleeps or is off, SRS counts "
                                              "the watts set on the Setup tab.", "dim-label"), FALSE, FALSE, 0);
     return vb;
+}
+
+/* ====================================================================== Sessions tab */
+static void sess_reload(void)
+{
+    static pdb_sess ss[500];
+    int r = gtk_combo_box_get_active(GTK_COMBO_BOX(G.x_range)), n, i;
+    long now = (long)time(NULL), from = r == 0 ? now - 7 * 86400L : r == 1 ? now - 30 * 86400L : 0;
+    double wh = 0, cost = 0, secs = 0;
+    char s[600];
+    gtk_list_store_clear(G.x_store);
+    if (!db_ensure(0)) { gtk_label_set_text(GTK_LABEL(G.x_sum), "No history yet: sessions are found while Recording is on."); return; }
+    pdb_flush();
+    n = pdb_sessions(from, now + 60, ss, 500);
+    for (i = 0; i < n; i++) {
+        GtkTreeIter it;
+        char a[48], b[32], c[48], d[48], e[32], f[48];
+        time_t t0 = ss[i].t0;
+        struct tm tm;
+        double len = (double)(ss[i].t1 - ss[i].t0);
+        localtime_r(&t0, &tm);
+        strftime(a, sizeof a, "%a %Y-%m-%d %H:%M", &tm);
+        if (len >= 3600) snprintf(b, sizeof b, "%.0f h %02.0f min", floor(len / 3600), fmod(len / 60, 60));
+        else snprintf(b, sizeof b, "%.0f min", len / 60);
+        pm_fmt_wh(ss[i].wh, c, sizeof c);
+        money(ss[i].cost, d, sizeof d);
+        pm_fmt_w(ss[i].peak, e, sizeof e);
+        if (G.co2_g > 0) snprintf(f, sizeof f, "%.0f g", ss[i].wh / 1000 * G.co2_g); else snprintf(f, sizeof f, "-");
+        gtk_list_store_append(G.x_store, &it);
+        gtk_list_store_set(G.x_store, &it, 0, a, 1, b, 2, c, 3, d, 4, e, 5, f, -1);
+        wh += ss[i].wh; cost += ss[i].cost; secs += len;
+    }
+    {
+        char a[48], b[48];
+        pm_fmt_wh(wh, a, sizeof a);
+        money(cost, b, sizeof b);
+        if (n) snprintf(s, sizeof s, "%d session%s, %.1f h, %s, about %s (the whole PC while busy: SRS cannot split power by program).",
+                        n, n == 1 ? "" : "s", secs / 3600, a, b);
+        else snprintf(s, sizeof s, "No busy sessions in this range.");
+    }
+    gtk_label_set_text(GTK_LABEL(G.x_sum), s);
+}
+
+static void sess_now_text(void)
+{
+    char s[300], g[16], c[16], e[32];
+    if (!G.x_now) return;
+    if (isnan(G.load_gpu)) snprintf(g, sizeof g, "-"); else snprintf(g, sizeof g, "%.0f %%", G.load_gpu);
+    if (isnan(G.load_cpu)) snprintf(c, sizeof c, "-"); else snprintf(c, sizeof c, "%.0f %%", G.load_cpu);
+    if (G.sess.active) {
+        pm_fmt_wh(G.sess.wh, e, sizeof e);
+        snprintf(s, sizeof s, "Load now: CPU %s, graphics %s  \xc2\xb7  a session is running (%.0f min, %s so far).", c, g,
+                 (G.last.wall - G.sess.t0) / 60, e);
+    } else
+        snprintf(s, sizeof s, "Load now: CPU %s, graphics %s  \xc2\xb7  no session running.", c, g);
+    gtk_label_set_text(GTK_LABEL(G.x_now), s);
+}
+
+static void on_sess_set(GtkWidget *w, gpointer d)
+{
+    (void)w; (void)d;
+    if (G.loading) return;
+    G.busy_thr = gtk_spin_button_get_value(GTK_SPIN_BUTTON(G.x_thr));
+    G.sess_start_min = gtk_spin_button_get_value(GTK_SPIN_BUTTON(G.x_start));
+    G.sess_end_min = gtk_spin_button_get_value(GTK_SPIN_BUTTON(G.x_end));
+    cfg_save();
+}
+
+static void on_sess_range(GtkWidget *w, gpointer d) { (void)w; (void)d; sess_reload(); }
+
+static GtkWidget *build_sessions(void)
+{
+    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10), *hb, *tv, *sw;
+    static const char *const cols[] = { "Started", "Length", "Energy", "Cost", "Highest", "CO\xe2\x82\x82" };
+    int i;
+    gtk_container_set_border_width(GTK_CONTAINER(vb), 14);
+    gtk_box_pack_start(GTK_BOX(vb), wrap_lbl("A session is a stretch of heavy use, such as a game or a long render: the processor or the "
+                                             "graphics card busy at or above the level below for a few minutes. Its energy and cost are the "
+                                             "whole PC's while it lasted. Found while Recording is on.", "dim-label"), FALSE, FALSE, 0);
+    hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("Busy means at least", NULL, 0), FALSE, FALSE, 0);
+    G.x_thr = gtk_spin_button_new_with_range(5, 100, 5);
+    gtk_box_pack_start(GTK_BOX(hb), G.x_thr, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("% CPU or graphics load; a session starts after", NULL, 0), FALSE, FALSE, 0);
+    G.x_start = gtk_spin_button_new_with_range(1, 60, 1);
+    gtk_box_pack_start(GTK_BOX(hb), G.x_start, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("min and ends after", NULL, 0), FALSE, FALSE, 0);
+    G.x_end = gtk_spin_button_new_with_range(1, 60, 1);
+    gtk_box_pack_start(GTK_BOX(hb), G.x_end, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("min below it.", NULL, 0), FALSE, FALSE, 0);
+    g_signal_connect(G.x_thr, "value-changed", G_CALLBACK(on_sess_set), NULL);
+    g_signal_connect(G.x_start, "value-changed", G_CALLBACK(on_sess_set), NULL);
+    g_signal_connect(G.x_end, "value-changed", G_CALLBACK(on_sess_set), NULL);
+    gtk_box_pack_start(GTK_BOX(vb), hb, FALSE, FALSE, 0);
+    G.x_now = lbl("", NULL, 0);
+    gtk_box_pack_start(GTK_BOX(vb), G.x_now, FALSE, FALSE, 0);
+    hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    G.x_range = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(G.x_range), "Last 7 days");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(G.x_range), "Last 30 days");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(G.x_range), "Everything");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(G.x_range), 1);
+    g_signal_connect(G.x_range, "changed", G_CALLBACK(on_sess_range), NULL);
+    gtk_box_pack_start(GTK_BOX(hb), G.x_range, FALSE, FALSE, 0);
+    G.x_sum = wrap_lbl("", NULL);
+    gtk_box_pack_start(GTK_BOX(hb), G.x_sum, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), hb, FALSE, FALSE, 0);
+    G.x_store = gtk_list_store_new(6, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    tv = gtk_tree_view_new_with_model(GTK_TREE_MODEL(G.x_store));
+    G.x_view = tv;
+    for (i = 0; i < 6; i++) {
+        GtkCellRenderer *rr = gtk_cell_renderer_text_new();
+        if (i) g_object_set(rr, "xalign", 1.0, NULL);
+        gtk_tree_view_append_column(GTK_TREE_VIEW(tv), gtk_tree_view_column_new_with_attributes(cols[i], rr, "text", i, NULL));
+    }
+    sw = gtk_scrolled_window_new(NULL, NULL);
+    gtk_container_add(GTK_CONTAINER(sw), tv);
+    gtk_widget_set_size_request(sw, -1, 320);
+    gtk_box_pack_start(GTK_BOX(vb), sw, TRUE, TRUE, 0);
+    return vb;
+}
+
+static void sess_fill(void)
+{
+    G.loading = 1;
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(G.x_thr), G.busy_thr);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(G.x_start), G.sess_start_min);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(G.x_end), G.sess_end_min);
+    G.loading = 0;
 }
 
 /* ====================================================================== Price tab */
@@ -2617,9 +2791,11 @@ static GtkWidget *build_sources(void)
     G.src_lbl = wrap_lbl(g->str, NULL);
     g_string_free(g, TRUE);
     gtk_label_set_selectable(GTK_LABEL(G.src_lbl), TRUE);
+    gtk_widget_set_can_focus(G.src_lbl, FALSE);   /* a focused selectable label selects all of its text */
     gtk_box_pack_start(GTK_BOX(vb), frame("What SRS can measure on this PC", G.src_lbl), FALSE, FALSE, 0);
     G.src_raw = lbl("", "pw-mono", 0);
     gtk_label_set_selectable(GTK_LABEL(G.src_raw), TRUE);
+    gtk_widget_set_can_focus(G.src_raw, FALSE);
     gtk_box_pack_start(GTK_BOX(vb), frame("Raw readings (source, file, watts)", G.src_raw), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), wrap_lbl("SRS never changes who may read these files. On Linux 5.10 and later the CPU's powercap "
                                              "energy counter is root-only on purpose (PLATYPUS, CVE-2020-8694/8695/12912); the zenergy "
@@ -2673,7 +2849,8 @@ static void on_tab_switch(GtkNotebook *nb, GtkWidget *p, guint n, gpointer d)
 {
     (void)nb; (void)p; (void)d;
     if (n == 1) hist_reload();
-    if (n == 3) bg_status();
+    if (n == 2) { sess_reload(); sess_now_text(); }
+    if (n == 4) bg_status();
 }
 
 static void on_page_destroy(GtkWidget *w, gpointer d)
@@ -2750,6 +2927,7 @@ GtkWidget *power_page_new(void (*open_item)(const char *id))
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(G.nb), TRUE);
     gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_now(), gtk_label_new("Now"));
     gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_history(), gtk_label_new("History"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_sessions(), gtk_label_new("Sessions"));
     gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_price(), gtk_label_new("Price"));
     gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_setup(), gtk_label_new("Setup"));
     gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_alarms(), gtk_label_new("Alarms"));
@@ -2771,7 +2949,13 @@ GtkWidget *power_page_new(void (*open_item)(const char *id))
     price_fill();
     setup_fill();
     alarms_fill();
+    if (G.nalarm) {
+        GtkTreePath *p = gtk_tree_path_new_from_indices(0, -1);
+        gtk_tree_selection_select_path(gtk_tree_view_get_selection(GTK_TREE_VIEW(G.a_view)), p);
+        gtk_tree_path_free(p);
+    }
     a_form_load();
+    sess_fill();
     g_signal_connect(vb, "map", G_CALLBACK(on_page_map), NULL);
     g_signal_connect(vb, "destroy", G_CALLBACK(on_page_destroy), NULL);
     rec_tick();   /* first reading now; the next one gives the first measured interval */

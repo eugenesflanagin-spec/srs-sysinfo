@@ -136,6 +136,23 @@ void pm_fmt_wh(double wh, char *out, int sz);    /* "850 Wh", "3.42 kWh", "1.20 
 typedef void (*pm_minute_cb)(long minute_start, double frac, void *ctx);
 void pm_split_minutes(double t0, double t1, pm_minute_cb cb, void *ctx);
 
+/* ---- busy sessions (gaming, renders): the GPU or CPU busier than a threshold for a while ---- */
+typedef struct {
+    double thr;          /* busy % that counts (e.g. 50) */
+    double start_s;      /* busy this long before it counts as a session (e.g. 120) */
+    double end_s;        /* quiet this long ends it (e.g. 180); the quiet tail is not counted */
+    /* state */
+    int active, up, down;   /* up: busy, not yet long enough; down: quiet inside a session */
+    double above_since, below_since, t0;
+    double wh, cost, peak, tail_wh, tail_cost;
+} pm_sess;
+typedef struct { double t0, t1, wh, cost, peak; } pm_sess_done;
+/* one sample at wall time t (end of an interval of dt s that used wh / cost at about w watts);
+   returns 1 when a session has just ended (written to *out) */
+int pm_sess_step(pm_sess *s, double t, double busy, double dt, double wh, double cost, double w, pm_sess_done *out);
+/* end a running session now (recording stops, program exits); returns 1 if there was one */
+int pm_sess_flush(pm_sess *s, double t, pm_sess_done *out);
+
 /* ---- alarms ---- */
 enum { PA_W_NOW, PA_W_AVG, PA_E_DAY, PA_E_MONTH, PA_COST_DAY, PA_COST_MONTH, PA_FC_E_MONTH, PA_FC_COST_MONTH, PA_N };
 typedef struct {

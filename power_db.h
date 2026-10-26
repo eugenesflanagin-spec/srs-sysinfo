@@ -14,12 +14,13 @@ typedef struct {
     double cost;                              /* priced at the rate in force at the time */
     double w_max;
     int flags;                                /* PM_F_* bits seen in the minute */
+    double secs_busy, wh_busy;                /* the part of it with the CPU or GPU busy (see psrc_load) */
 } pdb_row;
 
 typedef struct {
     long t;                                   /* first minute in the group (UTC seconds) */
     char label[40];                           /* local time: "2026-10-26", "2026-10", ... */
-    double wh_mid, wh_lo, wh_hi, wh_cpu, wh_gpu, cost, secs_on, secs_sleep, secs_off, w_max;
+    double wh_mid, wh_lo, wh_hi, wh_cpu, wh_gpu, cost, secs_on, secs_sleep, secs_off, w_max, secs_busy, wh_busy;
 } pdb_sum;
 
 enum { PDB_MINUTE, PDB_HOUR, PDB_DAY, PDB_WEEK, PDB_MONTH, PDB_YEAR };
@@ -41,6 +42,11 @@ int pdb_group(int group, long from, long to, pdb_sum *out, int max);
 double pdb_sum_range(long from, long to, double *cost);
 long pdb_first_minute(void);
 long pdb_minutes_count(void);
+
+/* busy sessions (gaming, renders) */
+int pdb_session(double t0, double t1, double wh, double cost, double peak);
+typedef struct { long t0, t1; double wh, cost, peak; } pdb_sess;
+int pdb_sessions(long from, long to, pdb_sess *out, int max);   /* newest first */
 
 int pdb_meta_get(const char *key, char *out, int sz);
 int pdb_meta_set(const char *key, const char *val);

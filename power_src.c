@@ -190,6 +190,8 @@ static void gpu_detect(psrc *s)
                     "package, so it is not added again.", e->d_name, vram / 1048576);
             continue;
         }
+        snprintf(p, sizeof p, "/sys/class/drm/%s/device/gpu_busy_percent", e->d_name);
+        if (access(p, R_OK) == 0 && s->nbusy < PSRC_CH) snprintf(s->busy_path[s->nbusy++], sizeof s->busy_path[0], "%s", p);
         snprintf(base, sizeof base, "/sys/class/drm/%s/device/hwmon", e->d_name);
         if (!(h = opendir(base))) {
             if (!strcmp(dn, "amdgpu") || !strcmp(dn, "nouveau") || !strcmp(dn, "xe")) s->dgpu_unread = 1;
@@ -278,6 +280,29 @@ void psrc_clock(pm_clock *c)
     clock_gettime(CLOCK_REALTIME, &ts);
     c->wall = (double)ts.tv_sec + ts.tv_nsec / 1e9;
     if (!rd_str("/proc/sys/kernel/random/boot_id", c->boot_id, sizeof c->boot_id)) c->boot_id[0] = 0;
+}
+
+void psrc_load(psrc *s, double *cpu, double *gpu)
+{
+    FILE *f = fopen("/proc/stat", "r");
+    unsigned long long v[10] = { 0 }, tot = 0, idle;
+    int i;
+    *cpu = *gpu = NAN;
+    if (f) {
+        if (fscanf(f, "cpu %llu %llu %llu %llu %llu %llu %llu %llu", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7]) == 8) {
+            for (i = 0; i < 8; i++) tot += v[i];
+            idle = v[3] + v[4];
+            if (s->cpu_total && tot > s->cpu_total)
+                *cpu = 100.0 * (1.0 - (double)(idle - s->cpu_idle) / (double)(tot - s->cpu_total));
+            s->cpu_total = tot;
+            s->cpu_idle = idle;
+        }
+        fclose(f);
+    }
+    for (i = 0; i < s->nbusy; i++) {
+        double b;
+        if (rd_dbl(s->busy_path[i], &b) && (isnan(*gpu) || b > *gpu)) *gpu = b;
+    }
 }
 
 double psrc_boot_wall(void)
@@ -399,8 +424,9 @@ int psrc_default_parts(const psrc *s, pm_part *p, int max)
     if (s->ngpu)
         put(p, &n, max, "Rest of the graphics card (fans, memory, power stages)", PK_GPU_REST, 1, 1, 5, 30,
             "assumption: the driver's number leaves part of the card out");
-    put(p, &n, max, "Graphics card (only when it cannot be measured)", PK_GPU_EST, 1, s->dgpu_unread || !s->ngpu ? 1 : 1,
-        s->dgpu_unread ? 15 : 0, s->dgpu_unread ? 250 : 0, s->dgpu_unread ? "typical graphics card, idle to busy" : "no separate graphics card found");
+    if (s->dgpu_unread || s->ngpu)
+        put(p, &n, max, "Graphics card (only when it cannot be measured)", PK_GPU_EST, 1, 1, 15, 250,
+            s->ngpu ? "used only if the driver's reading stops; typical card, idle to busy" : "typical graphics card, idle to busy");
     if (ddr5) { snprintf(name, sizeof name, "Memory sticks (DDR5)"); put(p, &n, max, name, PK_FIXED, ddr5, 1, 1.5, 4, "typical guess per stick"); }
     else if (ddr4) put(p, &n, max, "Memory sticks (DDR4)", PK_FIXED, ddr4, 1, 1, 3, "typical guess per stick");
     else put(p, &n, max, "Memory sticks (number not detected)", PK_FIXED, 2, 1, 1, 4, "typical guess per stick; set the number");
