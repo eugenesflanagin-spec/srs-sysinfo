@@ -43,6 +43,14 @@ topic and a search box. The classic SIV-style windows are still there, one click
   report, or AMD's specification for desktop Ryzen models), the graphics card's critical
   hotspot temperature, and each drive's own warning temperature. General limits only where none
   is known.
+- **AppImage for any distribution, can update itself**: `srs-sysinfo-2.0.0-x86_64.AppImage` is one
+  file with everything inside; make it executable and run it, nothing is installed. It runs on
+  distributions with glibc 2.35 or newer (built on Ubuntu 22.04). AppImageUpdate fetches only the
+  changed parts of a new release. With arguments it is the command line (`--version`, `find ...`,
+  `srs-sysreport`). **Run as root** works from it: the helper script is copied to a private
+  folder first, because the administrator account cannot look inside a running AppImage. The
+  boot-time refresh needs the distribution package. The release workflow builds it, starts it in
+  fresh Debian 12 and Fedora 44 containers, and attaches it with its `.zsync` file.
 
 ### Changed
 - **About SIV** is now called **About SRS** (ID still `about`).

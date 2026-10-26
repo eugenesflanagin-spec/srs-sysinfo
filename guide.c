@@ -6,7 +6,7 @@
  * id in html/SRS-User-Guide.html. The guide is opened with the desktop's PDF viewer when it can
  * jump to a named destination (Okular: file.pdf#dest, Evince / Papers: --named-dest=dest),
  * otherwise the HTML build in the default browser (file:///...html#dest).
- * Search order for the guide: $SRS_DOC_DIR, /usr/share/doc/srs-sysinfo, <exe>/../share/doc/
+ * Search order for the guide: $SRS_DOC_DIR, $APPDIR/usr/share/doc/srs-sysinfo (AppImage), /usr/share/doc/srs-sysinfo, <exe>/../share/doc/
  * srs-sysinfo, <exe>/docs, <exe>/../../docs (a build tree: dist/linux-x86_64/ -> docs/). */
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
@@ -38,16 +38,43 @@ const char *srs_guide_anchor(const char *idarg)
 
 int srs_guide_count(void) { int i = 0; while (g_map[i].id) i++; return i; }
 
+/* Inside the AppImage, AppRun points GTK at the libraries and modules in the AppImage and
+   saves the desktop's own values as SRS_HOSTENV_<NAME> (SRS_HOSTENV_UNSET lists the ones that
+   were not set). The PDF viewer is a program of the desktop: give it the desktop's values back.
+   Called in the forked child only. */
+extern char **environ;
+static void host_env(void)
+{
+    char **saved = NULL, *un, *tok, *sp = NULL;
+    int n = 0, i;
+    for (i = 0; environ[i]; i++) n++;
+    saved = calloc((size_t)n + 1, sizeof *saved);
+    if (!saved) return;
+    for (i = n = 0; environ[i]; i++)
+        if (!strncmp(environ[i], "SRS_HOSTENV_", 12) && strncmp(environ[i], "SRS_HOSTENV_UNSET=", 18)) saved[n++] = strdup(environ[i] + 12);
+    for (i = 0; i < n; i++) {
+        char *eq = saved[i] ? strchr(saved[i], '=') : NULL;
+        if (!eq) continue;
+        *eq = 0;
+        setenv(saved[i], eq + 1, 1);
+        *eq = '=';
+    }
+    if ((un = getenv("SRS_HOSTENV_UNSET")) && (un = strdup(un)))
+        for (tok = strtok_r(un, " ", &sp); tok; tok = strtok_r(NULL, " ", &sp)) unsetenv(tok);
+}
+
 static int is_file(const char *p) { struct stat st; return !stat(p, &st) && S_ISREG(st.st_mode); }
 
 /* directory holding SRS-User-Guide.pdf and/or html/SRS-User-Guide.html */
 static int guide_dir(char *out, size_t n)
 {
-    char exe[1024], cand[6][1200], t[1300];
+    char exe[1024], cand[7][1200], t[1300];
     ssize_t l = readlink("/proc/self/exe", exe, sizeof exe - 1);
     int k = 0, i;
     const char *env = getenv("SRS_DOC_DIR");
+    const char *appdir = getenv("APPDIR");   /* AppImage: its own guide matches its version */
     if (env && *env) snprintf(cand[k++], sizeof cand[0], "%s", env);
+    if (appdir && *appdir) snprintf(cand[k++], sizeof cand[0], "%s/usr/share/doc/srs-sysinfo", appdir);
     snprintf(cand[k++], sizeof cand[0], "/usr/share/doc/srs-sysinfo");
     if (l > 0) {
         exe[l] = 0;
@@ -161,6 +188,7 @@ int srs_guide_open(const char *id, int dry_run, char *msg, size_t mn)
     if (pid < 0) { snprintf(msg, mn, "cannot start %s", argv[0]); return 0; }
     if (pid == 0) {
         setsid();
+        host_env();
         if (fork() == 0) { execvp(av[0], av); _exit(127); }
         _exit(0);
     }

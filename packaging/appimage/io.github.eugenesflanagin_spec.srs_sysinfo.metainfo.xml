@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata for SRS (used by the AppImage and software centres). Check with:
+     appstreamcli validate packaging/appimage/io.github.eugenesflanagin_spec.srs_sysinfo.metainfo.xml -->
+<component type="desktop-application">
+  <id>io.github.eugenesflanagin_spec.srs_sysinfo</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>SRS System Information</name>
+  <summary>Show what is inside your PC and whether it is healthy</summary>
+  <developer id="io.github.eugenesflanagin_spec">
+    <name>Eugene Flanagin</name>
+  </developer>
+  <description>
+    <p>
+      SRS is a system information viewer for Linux. It shows the processor, memory, motherboard
+      and BIOS, graphics and audio, drives, network, sensors, USB and PCI devices and the operating
+      system, in plain words first and with every detail one click away.
+    </p>
+    <p>
+      The Overview answers "Is my PC OK?": temperatures judged against each sensor's own limit,
+      drive health (SMART), hardware errors, free disk space and memory in use, each with a status
+      light and an explanation.
+    </p>
+    <p>
+      SRS is inspired by SIV (System Information Viewer) by Ray Hinchliffe, RH Software. It is an
+      independent project, not affiliated with SIV or its author, and contains no SIV code or data.
+      A classic view with SIV-style windows is included.
+    </p>
+    <p>Also included:</p>
+    <ul>
+      <li>CPU burn-in and stress tests, Dhrystone and Whetstone benchmarks and a memory latency test</li>
+      <li>Device ID lookup for PCI and USB devices</li>
+      <li>Reports saved as text, and a command-line report search</li>
+      <li>Optional root-only details (DMI, memory SPD, SMART, MSRs) collected with one password prompt</li>
+      <li>A built-in user guide: F1 opens it at the section for the item you are looking at</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">srs-gui.desktop</launchable>
+  <icon type="stock">srs</icon>
+  <url type="homepage">https://github.com/eugenesflanagin-spec/srs-sysinfo</url>
+  <url type="bugtracker">https://github.com/eugenesflanagin-spec/srs-sysinfo/issues</url>
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+  </categories>
+  <keywords>
+    <keyword>system information</keyword>
+    <keyword>hardware</keyword>
+    <keyword>sensors</keyword>
+    <keyword>SMART</keyword>
+    <keyword>benchmark</keyword>
+  </keywords>
+  <provides>
+    <binary>srs-gui</binary>
+    <binary>sysreport-search</binary>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The main window with the Overview page</caption>
+      <image>https://raw.githubusercontent.com/eugenesflanagin-spec/srs-sysinfo/main/docs/images/main-window.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The sensors panel in the classic view</caption>
+      <image>https://raw.githubusercontent.com/eugenesflanagin-spec/srs-sysinfo/main/docs/images/sensors.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="2.0.0" date="2026-10-26">
+      <description>
+        <p>A new main window with an Overview that answers "Is my PC OK?", one page per category,
+        search, and an AppImage for any distribution that can update itself. The classic SIV-style
+        windows are still available.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -13,6 +13,7 @@
  * SMU-backed attributes that are not plain sensors (pp_features, pp_power_profile_mode,
  * gpu_od/...) are deliberately not read. gpu_metrics: only its 4-byte header is decoded. */
 #define _GNU_SOURCE
+#include "srs.h"
 #include "sec.h"
 
 #include <ctype.h>
@@ -429,6 +430,14 @@ typedef struct {
     unsigned char ext_tags[8];
 } edid_t;
 
+/* hwdata's pnp.ids: the system's, or the AppImage's own copy on systems without hwdata */
+static const char *pnp_ids(void)
+{
+    static char p[1200];
+    if (!p[0]) snprintf(p, sizeof p, "%s/pnp.ids", plat_hwdata_dir());
+    return p;
+}
+
 /* common monitor vendors missing from hwdata's pnp.ids (UEFI PNP registry gaps) */
 static const char *const pnp_extra[][2] = { { "BNQ", "BenQ Corporation" }, { "AUS", "ASUSTek Computer Inc" }, { "MSI", "Micro-Star International" },
                                             { "AOC", "AOC International" }, { "GBT", "GIGA-BYTE Technology" }, { "XMI", "Xiaomi" },
@@ -439,7 +448,7 @@ static void pnp_lookup(const char *id, char *b, size_t sz)
     char *t, l[256];
     const char *p;
     b[0] = 0;
-    if (rd_all("/usr/share/hwdata/pnp.ids", &t) <= 0) { free(t); return; }
+    if (rd_all(pnp_ids(), &t) <= 0) { free(t); return; }
     p = t;
     while ((p = next_line(p, l, sizeof l)))
         if (!strncmp(l, id, 3) && l[3] == '\t') { snprintf(b, sz, "%s", l + 4); break; }
@@ -1106,9 +1115,9 @@ static void s_monitors(srs_out *o)
         char d[32] = "-";
         int cnt = 0;
         char *t;
-        if (rd_all("/usr/share/hwdata/pnp.ids", &t) > 0) { const char *p = t; while ((p = strchr(p, '\n'))) { cnt++; p++; } }
+        if (rd_all(pnp_ids(), &t) > 0) { const char *p = t; while ((p = strchr(p, '\n'))) { cnt++; p++; } }
         free(t);
-        if (stat("/usr/share/hwdata/pnp.ids", &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
+        if (stat(pnp_ids(), &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
         so_f(o, C_GRAY, "Monitor names from /usr/share/hwdata/pnp.ids Date %s (%d)", d, cnt);
         so_par(o);
     }
@@ -1125,8 +1134,8 @@ static void s_mon_info(srs_out *o)
     conn_t c[16];
     int ng, i, j, nc;
     so_siv_header(o, "Monitor ID Database");
-    if (rd_all("/usr/share/hwdata/pnp.ids", &t) <= 0) { free(t); so_err(o, "/usr/share/hwdata/pnp.ids not found (package hwdata)"); return; }
-    if (stat("/usr/share/hwdata/pnp.ids", &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
+    if (rd_all(pnp_ids(), &t) <= 0) { free(t); so_err(o, "/usr/share/hwdata/pnp.ids not found (package hwdata)"); return; }
+    if (stat(pnp_ids(), &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
     p = t; while ((p = strchr(p, '\n'))) { cnt++; p++; }
     so_tabs(o, tabs, 1);
     so_f(o, C_VALUE, "Database /usr/share/hwdata/pnp.ids  Date %s  %d PnP vendor IDs", d, cnt); so_par(o); so_par(o);

@@ -67,7 +67,23 @@ int plat_exedir(char *out, size_t outsz)
     return 0;
 }
 
-const char *plat_hwdata_dir(void) { return "/usr/share/hwdata"; }
+/* The system's ID files first (usually the newest); an AppImage brings its own copy for
+   systems without hwdata ($APPDIR is set by the AppImage runtime). */
+const char *plat_hwdata_dir(void)
+{
+    static char dir[1100];
+    const char *ad = getenv("APPDIR");
+    struct stat st;
+    if (!dir[0]) {
+        snprintf(dir, sizeof dir, "%s", "/usr/share/hwdata");
+        if (stat("/usr/share/hwdata/pci.ids", &st) && ad && *ad) {
+            char p[1200];
+            snprintf(p, sizeof p, "%s/usr/share/hwdata/pci.ids", ad);
+            if (!stat(p, &st)) snprintf(dir, sizeof dir, "%s/usr/share/hwdata", ad);
+        }
+    }
+    return dir;
+}
 const char *plat_sysfs(void) { return plat_isdir("/sys/bus") ? "/sys" : NULL; }
 const char *plat_home(void) { return getenv("HOME"); }
 char plat_sep(void) { return '/'; }

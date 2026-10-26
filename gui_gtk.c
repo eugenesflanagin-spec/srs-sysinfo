@@ -583,8 +583,15 @@ static void save_dialog(int all)
 static void root_done(GPid pid, gint status, gpointer data)
 {
     guint i;
-    (void)data;
+    char *copy = data;
     g_spawn_close_pid(pid);
+    if (copy) {   /* the AppImage's helper copy: remove it and its private folder */
+        char *dir = g_path_get_dirname(copy);
+        g_unlink(copy);
+        g_rmdir(dir);
+        g_free(dir);
+        g_free(copy);
+    }
     for (i = 0; i < g_wins->len; i++) { swin *w = g_ptr_array_index(g_wins, i); if (w->kind == W_SECTION) render(w); }
     home_refresh_data();
     if (g_main) {
@@ -596,10 +603,48 @@ static void root_done(GPid pid, gint status, gpointer data)
     }
 }
 
+/* Inside an AppImage the helper is in the AppImage's FUSE mount, which only the user who
+ * started it can read: root (pkexec) gets "permission denied". So, right before the prompt,
+ * copy the helper into a new private folder (mode 0700) in $XDG_RUNTIME_DIR (a local tmpfs that
+ * root can always read; ~/.cache/srs if there is none or it is mounted noexec) and pkexec that
+ * copy. pkexec and polkit are used exactly as for the packaged helper: the administrator password
+ * is asked for and the prompt names the file that runs. The copy is the same script as in the
+ * AppImage, which the user can already change, so nothing new is trusted; other users cannot
+ * read or change the folder. root_done() deletes it. Returns the copy's path (g_free) or NULL. */
+static char *root_helper_copy(const char *helper)
+{
+    const char *rt = g_getenv("XDG_RUNTIME_DIR");
+    char *bases[2], *copy = NULL, *txt = NULL;
+    gsize len = 0;
+    int i;
+    if (!g_file_get_contents(helper, &txt, &len, NULL)) return NULL;
+    bases[0] = rt && *rt && g_file_test(rt, G_FILE_TEST_IS_DIR) ? g_strdup(rt) : NULL;
+    bases[1] = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
+    g_mkdir_with_parents(bases[1], 0700);
+    for (i = 0; i < 2 && !copy; i++) {
+        char *tmpl, *dir;
+        if (!bases[i]) continue;
+        tmpl = g_build_filename(bases[i], "srs-root-XXXXXX", NULL);
+        if ((dir = g_mkdtemp_full(tmpl, 0700))) {
+            copy = g_build_filename(dir, "srs-root", NULL);
+            /* access(X_OK) also fails on a noexec mount: then try the next place */
+            if (!g_file_set_contents(copy, txt, (gssize)len, NULL) || g_chmod(copy, 0700) || access(copy, X_OK)) {
+                g_unlink(copy); g_rmdir(dir); g_free(copy); copy = NULL;
+            }
+        }
+        g_free(tmpl);
+    }
+    g_free(txt);
+    g_free(bases[0]);
+    g_free(bases[1]);
+    return copy;
+}
+
 static void run_root(void)
 {
-    char exe[1024] = "", helper[1100];
+    char exe[1024] = "", helper[1100], *copy = NULL;
     ssize_t l = readlink("/proc/self/exe", exe, sizeof exe - 1);
+    int appimage = g_getenv("APPIMAGE") != NULL;
     GtkWidget *m;
     GPid pid;
     if (l > 0) { exe[l] = 0; if (strrchr(exe, '/')) *strrchr(exe, '/') = 0; }
@@ -608,11 +653,29 @@ static void run_root(void)
     m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_OK_CANCEL,
                                "Collect root-only data with one pkexec prompt?\n\n"
                                "dmidecode, decode-dimms, smartctl / nvme smart-log, ACPI table copies, MSR reads, "
-                               "lspci config space, ioports/iomem, dmesg.\nRead-only; results go to ~/.cache/srs/root.\n\n%s", helper);
+                               "lspci config space, ioports/iomem, dmesg.\nRead-only; results go to ~/.cache/srs/root.\n\n%s%s", helper,
+                               appimage ? "\n\nAppImage: the administrator account cannot look inside the AppImage, so this "
+                                          "script is first copied to a private folder of yours and run from there. "
+                                          "The copy is deleted when it has finished." : "");
     if (gtk_dialog_run(GTK_DIALOG(m)) == GTK_RESPONSE_OK) {
         char *argv[] = { (char *)"pkexec", helper, NULL };
+        if (appimage) {
+            if (!(copy = root_helper_copy(helper))) {
+                GtkWidget *e = gtk_message_dialog_new(GTK_WINDOW(m), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "%s",
+                                                      "Could not copy the srs-root script out of the AppImage, so root-only data "
+                                                      "cannot be collected this time. The SRS package for your distribution does "
+                                                      "not need this step.");
+                gtk_dialog_run(GTK_DIALOG(e));
+                gtk_widget_destroy(e);
+                gtk_widget_destroy(m);
+                return;
+            }
+            argv[1] = copy;
+        }
         if (g_spawn_async(NULL, argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &pid, NULL))
-            g_child_watch_add(pid, root_done, NULL);
+            g_child_watch_add(pid, root_done, copy);
+        else if (copy)
+            root_done(0, -1, copy);
     }
     gtk_widget_destroy(m);
 }
@@ -1776,6 +1839,11 @@ static void autostart_set(int on)
         char exe[1024] = "/usr/bin/srs-gui", *dir = g_path_get_dirname(p), *txt;
         ssize_t l = readlink("/proc/self/exe", exe, sizeof exe - 1);
         if (l > 0) exe[l] = 0;
+        if (g_getenv("APPIMAGE")) {   /* the AppImage file, not its mount folder, which changes every start */
+            char *q = g_shell_quote(g_getenv("APPIMAGE"));
+            snprintf(exe, sizeof exe, "%s", q);
+            g_free(q);
+        }
         g_mkdir_with_parents(dir, 0755);
         txt = g_strdup_printf("[Desktop Entry]\nType=Application\nName=SRS System Information (tray)\n"
                               "Comment=Start SRS hidden in the system tray\nExec=%s --gui-tray\nIcon=srs\nTerminal=false\n"
@@ -1922,7 +1990,12 @@ static void build_options(GtkWidget *menu)
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
         if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC)
             gtk_widget_set_sensitive(it, FALSE);
-        if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) gtk_widget_set_sensitive(it, FALSE);
+        if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) {
+            gtk_widget_set_sensitive(it, FALSE);
+            if (g_getenv("APPIMAGE"))
+                gtk_widget_set_tooltip_text(it, "Needs the SRS package for your distribution: the boot-time service cannot "
+                                                "be installed from the AppImage. Run as root works.");
+        }
         g_signal_connect(it, "toggled", G_CALLBACK(on_option), GINT_TO_POINTER(opts[i].id));
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
