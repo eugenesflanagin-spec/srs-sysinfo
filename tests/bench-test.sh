@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# tests/bench-test.sh - correctness tests for the SRS Pi, Crypto and Prime sieve benchmarks.
+# tests/bench-test.sh - correctness tests for the SRS Pi, Crypto and Prime sieve benchmarks, and the
+# ask-first checks of bench / ipi / latency / pi / crypto / prime (and a tiny run of the first three).
 # Short runs only (about 15 s in all, at most 4 threads), so it is safe on a desktop.
 #
 #   tests/bench-test.sh [BINARY]        default: dist/native/sysreport-search (make native)
@@ -19,13 +20,49 @@ fail=0
 ok()  { printf '  ok    %s\n' "$*"; }
 bad() { printf '  FAIL  %s\n' "$*"; fail=1; }
 
+echo "== every benchmark asks first (no terminal, no --yes: not started, nothing written)"
+ASK=$TMP/ask-home
+mkdir -p "$ASK"
+for c in "bench pp --seconds 0.1" "ipi --cpus 2 --rounds 1000" "latency --max 1" "pi --digits 5000" "crypto --threads 1 --seconds 0.1" "prime --limit 1e7 --threads 1"; do
+    out=$(HOME=$ASK XDG_CACHE_HOME=$ASK/.cache "$BIN" $c </dev/null 2>&1 >/dev/null); rc=$?
+    [ "$rc" = 2 ] && grep -q "not started" <<<"$out" && grep -q "pass --yes" <<<"$out" && [ -z "$(ls -A "$ASK")" ] \
+        && ok "${c%% *} asks first (exit 2, nothing written)" || bad "${c%% *} without --yes: exit $rc, files: $(ls -A "$ASK")"
+done
+for c in "bench pp --nope" "bench --nope pp" "ipi --nope" "latency --nope" "pi --nope 1" "crypto --nope 1" "prime --nope 1" "bench pp --seconds" "ipi --cpus" "latency --max" "bench" "bench zz --yes"; do
+    HOME=$ASK XDG_CACHE_HOME=$ASK/.cache "$BIN" $c </dev/null >/dev/null 2>&1; rc=$?
+    [ "$rc" = 2 ] && [ -z "$(ls -A "$ASK")" ] && ok "'$c' refused (exit 2, not started)" || bad "'$c': exit $rc, files: $(ls -A "$ASK")"
+done
+for c in bench ipi latency pi crypto prime; do
+    out=$(HOME=$ASK XDG_CACHE_HOME=$ASK/.cache "$BIN" $c --help </dev/null 2>&1); rc=$?
+    [ "$rc" = 0 ] && grep -q "^usage: sysreport-search $c .*--yes" <<<"$out" && [ -z "$(ls -A "$ASK")" ] \
+        && ok "$c --help: usage, exit 0, not started" || bad "$c --help: exit $rc: $out"
+done
+if command -v script >/dev/null 2>&1; then   # on a terminal: "n" does not start, "y" does
+    out=$(printf 'n\n' | HOME=$ASK XDG_CACHE_HOME=$ASK/.cache script -qec "'$BIN' pi --digits 5000" /dev/null 2>&1)
+    grep -q "Start now? \[y/N\]" <<<"$out" && grep -q "pi: not started" <<<"$out" && [ -z "$(ls -A "$ASK")" ] \
+        && ok "on a terminal pi asks; answer n: not started" || bad "pi on a terminal, answer n: $out"
+    out=$(printf 'y\n' | HOME=$ASK XDG_CACHE_HOME=$ASK/.cache script -qec "'$BIN' pi --digits 5000" /dev/null 2>&1)
+    grep -q "Start now? \[y/N\]" <<<"$out" && grep -q "first 100 digits right" <<<"$out" \
+        && ok "on a terminal pi asks; answer y: it runs" || bad "pi on a terminal, answer y: $out"
+else
+    echo "  skip  terminal answers (no 'script' command)"
+fi
+
+echo "== tiny runs of bench / ipi / latency with --yes"
+out=$("$BIN" bench pp --seconds 0.1 --yes); rc=$?
+[ "$rc" = 0 ] && grep -q "MWIPS" <<<"$out" && [ -s "$HOME/.cache/srs/bench-benchmark-pp.txt" ] && ok "bench pp: $(grep '^Total' <<<"$out" | sed 's/  */ /g')" || bad "bench pp --yes: exit $rc"
+out=$("$BIN" ipi --cpus 2 --rounds 2000 --yes); rc=$?
+[ "$rc" = 0 ] && grep -q "CPU-1" <<<"$out" && [ -s "$HOME/.cache/srs/bench-ipi-delay.txt" ] && ok "ipi 2 CPUs ran" || bad "ipi --yes: exit $rc"
+out=$("$BIN" latency --max 4 --yes); rc=$?
+[ "$rc" = 0 ] && grep -q " ns" <<<"$out" && [ -s "$HOME/.cache/srs/bench-latency.txt" ] && ok "latency up to 4 MB ran" || bad "latency --yes: exit $rc"
+
 echo "== crypto self-test (FIPS 180-4 / FIPS 197 vectors, hardware vs plain C)"
-out=$("$BIN" crypto --threads 1 --seconds 0.1) && grep -q "test vectors pass" <<<"$out" && ok "$(grep Check <<<"$out" | sed 's/  */ /g')" || bad "crypto self-test"
+out=$("$BIN" crypto --threads 1 --seconds 0.1 --yes) && grep -q "test vectors pass" <<<"$out" && ok "$(grep Check <<<"$out" | sed 's/  */ /g')" || bad "crypto self-test"
 
 echo "== prime sieve against known prime counts"
 for spec in "1e7 1" "1e8 1" "1e8 4" "1e9 4" "12345 1"; do
     set -- $spec
-    out=$("$BIN" prime --limit "$1" --threads "$2"); rc=$?
+    out=$("$BIN" prime --limit "$1" --threads "$2" --yes); rc=$?
     cnt=$(sed -n 's/^Primes found *//p' <<<"$out")
     case $1 in
         1e7) want=664579 ;; 1e8) want=5761455 ;; 1e9) want=50847534 ;; 12345) want=1474 ;;
@@ -36,7 +73,7 @@ done
 echo "== SRS Pi: built-in check"
 for spec in "128k chudnovsky 1" "1m chudnovsky 1" "1m chudnovsky 4" "128k agm 1" "1m agm 1" "5000 chudnovsky 2" "16ki chudnovsky 1" "1mi chudnovsky 4"; do
     set -- $spec
-    out=$("$BIN" pi --digits "$1" --method "$2" --threads "$3" --save-digits "$TMP/pi-$1-$2-$3.txt"); rc=$?
+    out=$("$BIN" pi --digits "$1" --method "$2" --threads "$3" --save-digits "$TMP/pi-$1-$2-$3.txt" --yes); rc=$?
     t=$(sed -n 's/^Time *//p' <<<"$out")
     chk=$(sed -n 's/^Check *//p' <<<"$out")
     if [ "$1" = 5000 ]; then   # no checksum for odd sizes: the first 100 digits are checked
@@ -104,8 +141,8 @@ else
 fi
 
 echo "== bad input is refused"
-"$BIN" pi --digits 50 >/dev/null 2>&1 && bad "pi --digits 50 accepted" || ok "pi --digits 50 refused"
-"$BIN" prime --limit 2e11 >/dev/null 2>&1 && bad "prime --limit 2e11 accepted" || ok "prime --limit 2e11 refused"
+"$BIN" pi --digits 50 --yes >/dev/null 2>&1 && bad "pi --digits 50 accepted" || ok "pi --digits 50 refused"
+"$BIN" prime --limit 2e11 --yes >/dev/null 2>&1 && bad "prime --limit 2e11 accepted" || ok "prime --limit 2e11 refused"
 [ -s "$HOME/.cache/srs/bench-history.tsv" ] && ok "history written ($(($(wc -l <"$HOME/.cache/srs/bench-history.tsv") - 1)) runs)" || bad "no bench-history.tsv"
 
 [ $fail = 0 ] && echo "ALL PASSED" || echo "SOME TESTS FAILED"

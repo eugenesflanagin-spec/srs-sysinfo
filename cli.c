@@ -45,17 +45,21 @@ static const char *HELP =
     "Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
     "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
     "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
-    "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]\n"
-    "        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement)\n"
-    "  ipi [--cpus N] [--rounds R]\n"
-    "        core-to-core (cache-line ping-pong) latency matrix\n"
-    "  latency [--max MB]\n"
-    "        memory latency by block size, up to MB (1..4096, default 256)\n"
+    "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]\n"
+    "        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);\n"
+    "        asks first, --yes starts at once\n"
+    "  ipi [--cpus N] [--rounds R] [--yes]\n"
+    "        core-to-core (cache-line ping-pong) latency matrix; asks first, --yes starts at once\n"
+    "  latency [--max MB] [--yes]\n"
+    "        memory latency by block size, up to MB (1..4096, default 256); asks first, --yes starts at once\n"
     "  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]\n"
+    "     [--yes]\n"
     "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;\n"
-    "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432\n"
-    "  crypto [--threads N] [--seconds S]\n"
-    "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)\n"
+    "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432;\n"
+    "        asks first (with the time and the memory it needs), --yes starts at once\n"
+    "  crypto [--threads N] [--seconds S] [--yes]\n"
+    "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s);\n"
+    "        asks first, --yes starts at once\n"
     "  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]\n"
     "           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]\n"
     "        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,\n"
@@ -98,8 +102,9 @@ static const char *HELP =
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
     "        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once\n"
-    "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
-    "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
+    "  prime [--limit 1e8|1e9|1e10|N] [--threads N] [--yes]\n"
+    "        count the primes up to the limit, checked against the known count (default 1e9, all threads);\n"
+    "        asks first, --yes starts at once\n"
 #endif
     "\n"
     "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]\n"
@@ -369,36 +374,90 @@ static int cmd_burn(int argc, char **argv)
 }
 #include "bench.h"
 
-/* bench MODE [--seconds S] | ipi [--cpus N] [--rounds R] | latency [--max MB] - explicit runs only */
+/* ask before a benchmark starts: 1 = yes. Without a terminal it does not start (pass --yes). */
+static int ask_start(const char *cmd, const char *what)
+{
+    char ans[16];
+    if (!isatty(0)) {
+        fprintf(stderr, "%s: not started - %s\n%*s  Run it from a terminal to be asked, or pass --yes to start without asking.\n",
+                cmd, what, (int)strlen(cmd), "");
+        return 0;
+    }
+    fprintf(stderr, "%s\nStart now? [y/N] ", what);
+    fflush(stderr);
+    if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "%s: not started\n", cmd); return 0; }
+    return 1;
+}
+
+/* ask with the shared benchmark question (bench_ask_text), wrapped for a terminal: 1 = start */
+static int ask_bench(const char *cmd, const bench_ask *a)
+{
+    char title[200], body[2048], what[2400];
+    size_t i, k = 0, col = strlen(cmd) + 16, last = 0;   /* the first line starts after "cmd: not started - " */
+    if (bench_ask_text(a, title, sizeof title, body, sizeof body) < 0) return 1;   /* nothing would run: the run says so */
+    for (i = 0; body[i] && k + 2 < sizeof what; i++) {   /* wrap at about 100 columns on spaces */
+        what[k] = body[i];
+        if (body[i] == '\n') col = last = 0;
+        else if (body[i] == ' ') last = k;
+        if (++col > 100 && last && what[last] == ' ') { what[last] = '\n'; col = k - last; last = 0; }
+        k++;
+    }
+    what[k] = 0;
+    return ask_start(cmd, what);
+}
+
+/* bench MODE [--seconds S] | ipi [--cpus N] [--rounds R] | latency [--max MB] - explicit runs only; asks first unless --yes */
 static int cmd_bench(int argc, char **argv)
 {
     srs_out o;
+    bench_ask q;
+    const char *cmd = argv[1], *mode = NULL;
+    double secs = 1;
+    long mb = 256;
+    int i, m, yes = 0, cpus = 0, rounds = 20000;
+    memset(&q, 0, sizeof q);
     so_text_init(&o, stdout);
-    if (!strcmp(argv[1], "bench")) {
-        double secs = 1;
-        int m, i;
-        if (argc < 3) return usage_error("bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]");
-        for (i = 3; i + 1 < argc; i++) if (!strcmp(argv[i], "--seconds")) secs = atof(argv[++i]);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = (!strcmp(cmd, "bench") && !strcmp(a, "--seconds")) ||
+                   (!strcmp(cmd, "ipi") && (!strcmp(a, "--cpus") || !strcmp(a, "--rounds"))) ||
+                   (!strcmp(cmd, "latency") && !strcmp(a, "--max"));
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts(!strcmp(cmd, "bench") ? "usage: sysreport-search bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]" :
+                 !strcmp(cmd, "ipi") ? "usage: sysreport-search ipi [--cpus N] [--rounds R] [--yes]" :
+                 "usage: sysreport-search latency [--max MB] [--yes]");
+            return 0;
+        }
+        if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
+        if (need && !v) { fprintf(stderr, "%s: %s needs a value\n", cmd, a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--seconds") && need) secs = atof(v);
+        else if (!strcmp(a, "--cpus") && need) cpus = atoi(v);
+        else if (!strcmp(a, "--rounds") && need) rounds = atoi(v);
+        else if (!strcmp(a, "--max") && need) mb = atol(v);
+        else if (!strcmp(cmd, "bench") && !mode && a[0] != '-') mode = a;
+        else { fprintf(stderr, "%s: unknown option '%s'\n", cmd, a); return 2; }
+    }
+    if (!strcmp(cmd, "bench")) {
+        if (!mode) return usage_error("bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]");
         if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
         for (m = 0; m < BM_COUNT; m++)
-            if (!strcmp(argv[2], bench_mode_id((bench_mode)m) + 10)) return bench_run((bench_mode)m, secs, &o) ? 1 : 0;
+            if (!strcmp(mode, bench_mode_id((bench_mode)m) + 10)) {
+                q.kind = BA_BENCH; q.mode = m; q.secs = secs;
+                if (!yes && !ask_bench("bench", &q)) return 2;
+                return bench_run((bench_mode)m, secs, &o) ? 1 : 0;
+            }
         return usage_error("bench: unknown mode");
     }
-    if (!strcmp(argv[1], "ipi")) {
-        int cpus = 0, rounds = 20000, i;
-        for (i = 2; i + 1 < argc; i++) {
-            if (!strcmp(argv[i], "--cpus")) cpus = atoi(argv[++i]);
-            else if (!strcmp(argv[i], "--rounds")) rounds = atoi(argv[++i]);
-        }
+    if (!strcmp(cmd, "ipi")) {
+        q.kind = BA_IPI; q.cpus = cpus; q.rounds = rounds;
+        if (!yes && !ask_bench("ipi", &q)) return 2;
         return bench_ipi(cpus, rounds, &o) ? 1 : 0;
     }
-    {
-        long mb = 256;
-        int i;
-        for (i = 2; i + 1 < argc; i++) if (!strcmp(argv[i], "--max")) mb = atol(argv[++i]);
-        if (mb < 1 || mb > 4096) return usage_error("--max must be 1..4096 MB");
-        return bench_latency(mb * 1024 * 1024, &o) ? 1 : 0;
-    }
+    if (mb < 1 || mb > 4096) return usage_error("--max must be 1..4096 MB");
+    q.kind = BA_LAT; q.max_mb = (double)mb;
+    if (!yes && !ask_bench("latency", &q)) return 2;
+    return bench_latency(mb * 1024 * 1024, &o) ? 1 : 0;
 }
 
 /* "1m" -> 1000000, "128k" -> 128000, "1e9" -> 10^9, plain numbers as they are; 0 = not a number */
@@ -563,21 +622,6 @@ static int cmd_storage(int argc, char **argv)
 }
 
 #include "bench_os.h"
-
-/* ask before a benchmark starts: 1 = yes. Without a terminal it does not start (pass --yes). */
-static int ask_start(const char *cmd, const char *what)
-{
-    char ans[16];
-    if (!isatty(0)) {
-        fprintf(stderr, "%s: not started - %s\n%*s  Run it from a terminal to be asked, or pass --yes to start without asking.\n",
-                cmd, what, (int)strlen(cmd), "");
-        return 0;
-    }
-    fprintf(stderr, "%s\nStart now? [y/N] ", what);
-    fflush(stderr);
-    if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "%s: not started\n", cmd); return 0; }
-    return 1;
-}
 
 /* os-latency [options] - OS latency benchmark; light (one or two CPUs, about 6 s); asks first unless --yes */
 static int cmd_os_latency(int argc, char **argv)
@@ -1120,11 +1164,13 @@ static int cmd_gpu_compare(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
-/* pi | crypto | prime - explicit runs only */
+/* pi | crypto | prime - explicit runs only; asks first unless --yes */
 static int cmd_bench2(int argc, char **argv)
 {
     srs_out o;
-    int i, threads = 0;
+    bench_ask q;
+    int i, threads = 0, yes = 0;
+    memset(&q, 0, sizeof q);
     so_text_init(&o, stdout);
     if (!strcmp(argv[1], "pi")) {
         double digits = 1e6;
@@ -1134,7 +1180,8 @@ static int cmd_bench2(int argc, char **argv)
         threads = 1;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]"); return 0; }
+            if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("pi: option needs a value");
             if (!strcmp(a, "--digits")) digits = parse_count(v);
             else if (!strcmp(a, "--threads")) threads = atoi(v);
@@ -1147,6 +1194,8 @@ static int cmd_bench2(int argc, char **argv)
             i++;
         }
         if (digits < 100 || digits > PI_MAXDIGITS) return usage_error("pi: --digits must be 100..32mi");
+        q.kind = BA_PI; q.digits = digits; q.threads = threads; q.algo = method;
+        if (!yes && !ask_bench("pi", &q)) return 2;
         rc = bench_pi((size_t)digits, threads, method, &o, NULL, save ? &d : NULL);
         if (rc == -3) fprintf(stderr, "pi: out of memory\n");
         if (d && save) {
@@ -1160,7 +1209,8 @@ static int cmd_bench2(int argc, char **argv)
         double secs = 1;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S] [--yes]"); return 0; }
+            if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("crypto: option needs a value");
             if (!strcmp(a, "--threads")) threads = atoi(v);
             else if (!strcmp(a, "--seconds")) secs = atof(v);
@@ -1168,6 +1218,8 @@ static int cmd_bench2(int argc, char **argv)
             i++;
         }
         if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
+        q.kind = BA_CRYPTO; q.threads = threads; q.secs = secs;
+        if (!yes && !ask_bench("crypto", &q)) return 2;
         return bench_crypto(threads, secs, &o) ? 1 : 0;
     }
     {
@@ -1175,7 +1227,8 @@ static int cmd_bench2(int argc, char **argv)
         int rc;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 100..1e11, e.g. 1g] [--threads N]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 100..1e11, e.g. 1g] [--threads N] [--yes]"); return 0; }
+            if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("prime: option needs a value");
             if (!strcmp(a, "--limit")) lim = parse_count(v);
             else if (!strcmp(a, "--threads")) threads = atoi(v);
@@ -1183,6 +1236,8 @@ static int cmd_bench2(int argc, char **argv)
             i++;
         }
         if (lim < 100 || lim > 1e11) return usage_error("prime: --limit must be 100..1e11");
+        q.kind = BA_PRIME; q.limit = (double)(uint64_t)(lim + 0.5); q.threads = threads;
+        if (!yes && !ask_bench("prime", &q)) return 2;
         rc = bench_prime((uint64_t)(lim + 0.5), threads, &o, NULL);
         return rc == 0 ? 0 : 1;
     }
