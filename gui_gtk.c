@@ -18,6 +18,7 @@
 #include "burner.h"
 #include "bench.h"
 #include "tblsort.h"
+#include "gui_startup.h"
 
 #include <dlfcn.h>
 #include <math.h>
@@ -3541,6 +3542,12 @@ static void on_tab_btn(GtkButton *b, gpointer d)
     if (!strcmp(tg, "!pop")) open_section(t->id);
     else if (!strcmp(tg, "!root")) run_root();
     else if (!strcmp(tg, "!resetview")) tbl_reset(t);
+    else if (!strcmp(tg, "!copy") && !t->rendered) {   /* not drawn yet (Startup shows its manager first) */
+        render(t);
+        t->rendered = 1;
+        if (t->commit_id) { g_source_remove(t->commit_id); commit_idle(t); }
+        copy_all(t);
+    }
     else do_target(t, tg);
 }
 static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
@@ -3651,7 +3658,17 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     {
         GtkWidget *sw = make_view(t);
         gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
-        gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
+        if (!strcmp(id, "startup")) {   /* Startup: the manager (switches, Undo, Add) and the report */
+            GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
+            gtk_stack_add_titled(GTK_STACK(st), startup_manager_new(), "manage", "Manage");
+            gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");
+            gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
+            gtk_widget_set_tooltip_text(ss, "Manage: turn startup items off and on, add one. Report: the Startup programs item as text "
+                                            "(what Copy and Save Report give)");
+            gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
+            gtk_box_reorder_child(GTK_BOX(bar), ss, 1);
+            gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
+        } else gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
     }
     gtk_text_view_set_left_margin(GTK_TEXT_VIEW(t->view), 10);
     gtk_text_view_set_top_margin(GTK_TEXT_VIEW(t->view), 8);
