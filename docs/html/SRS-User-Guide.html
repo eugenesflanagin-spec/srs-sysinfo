@@ -61,7 +61,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 545 items, field by
+<strong>Section Reference</strong>: every one of the 549 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -128,7 +128,7 @@ size (shows your cache levels).</li>
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (545 in total with SRS's own extras):</p>
+5.87's report items (549 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -517,7 +517,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 545 of them.</p>
+<strong>SMART drives</strong>; there are 549 of them.</p>
 <table>
 <thead>
 <tr>
@@ -2148,7 +2148,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-545 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+549 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -2243,6 +2243,16 @@ run).</td>
 <tr>
 <td><code>~/.cache/srs/bench-&lt;mode&gt;.txt</code></td>
 <td>The last result of each benchmark mode, IPI Delay and Latency.</td>
+</tr>
+<tr>
+<td><code>~/.cache/srs/bench-pi.txt</code>,
+<code>bench-crypto.txt</code>, <code>bench-prime.txt</code></td>
+<td>The last result of SRS Pi, Crypto and Prime Sieve.</td>
+</tr>
+<tr>
+<td><code>~/.cache/srs/bench-history.tsv</code></td>
+<td>One line per SRS Pi, Crypto and Prime Sieve run (time, test,
+settings, result, build).</td>
 </tr>
 <tr>
 <td><code>~/sysreports/sysreport-*/</code></td>
@@ -2434,7 +2444,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 545 items with the same text. The classic
+classic view show the same 549 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -2729,7 +2739,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 545 of them - one by one. For each item it says, in this order:</p>
+all 549 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -2841,7 +2851,7 @@ buttons named in each group's introduction.</li>
 </tr>
 <tr>
 <td>Tools</td>
-<td>28</td>
+<td>32</td>
 <td><a href="#sections-tools">tools.md</a></td>
 <td>Benchmarks &amp; stress; Tools</td>
 </tr>
@@ -5443,6 +5453,26 @@ physical cores one at a time</a></td>
 <tr>
 <td><a href="#sections-tools--memory-latency">Memory Latency</a></td>
 <td><code>latency</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--srs-pi">SRS Pi</a></td>
+<td><code>srs-pi</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a></td>
+<td><code>crypto-bench</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--prime-sieve">Prime sieve</a></td>
+<td><code>prime-sieve</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--benchmark-history">Benchmark history</a></td>
+<td><code>bench-history</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
@@ -29899,7 +29929,7 @@ Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (545 lines), one per line:</p>
+<p>Lists every item SRS knows (549 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
