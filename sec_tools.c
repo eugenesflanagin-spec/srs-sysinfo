@@ -89,6 +89,13 @@ static void s_pi(srs_out *o)
     not_run(o, "Benchmarks & stress > SRS Pi, then Run", "srs-gui pi [--digits 1m] [--threads N] [--method chudnovsky|agm]");
 }
 
+static void s_cachemem(srs_out *o)
+{
+    if (bench_show_last("cachemem", o)) return;
+    so_siv_header(o, "Cache & Memory benchmark");
+    not_run(o, "Benchmarks & stress > Cache & Memory, then Run", "srs-gui cachemem [--threads N] [--seconds S] [--yes]");
+}
+
 static void s_crypto(srs_out *o)
 {
     if (bench_show_last("crypto", o)) return;
@@ -114,7 +121,7 @@ static void s_bench_history(srs_out *o)
     snprintf(path, sizeof path, "%s/.cache/srs/bench-history.tsv", h ? h : "");
     if (rd_all(path, &txt) < 0) {
         so_kv(o, "Status", C_ORANGE, "No runs yet");
-        so_note(o, "Every run of SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
+        so_note(o, "Every run of Cache & Memory, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
         return;
     }
     {
@@ -427,6 +434,7 @@ const srs_item sec_tools[] = {
     { "ipi-dmp", "hardware", "IPI Dump", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "ipi-plots", "hardware", "IPI Plots", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "latency", "hardware", "Memory Latency", B_LINUX, 0, "built-in pointer chase", s_latency, 0, "tools" },
+    { "cache-memory", "tools", "Cache & Memory benchmark", B_LINUX, 0, "built-in (bandwidth and latency of the RAM and L1-L3)", s_cachemem, 0, "tools" },
     { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
     { "crypto-bench", "tools", "Crypto benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
     { "prime-sieve", "tools", "Prime sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },

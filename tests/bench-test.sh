@@ -68,6 +68,19 @@ else
     echo "  skip  python3 mpmath not installed"
 fi
 
+echo "== Cache & Memory (small: 4 threads, L1/L2 only, 0.2 s per cell)"
+if [ "$(uname -m)" = x86_64 ]; then
+    out=$("$BIN" cachemem --threads 4 --seconds 0.2 --only l1,l2 --tests read,write,copy --yes); rc=$?
+    l1=$(awk '/^L1 cache/{print $3}' <<<"$out"); l2=$(awk '/^L2 cache/{print $3}' <<<"$out")
+    [ "$rc" = 0 ] && [ -n "$l1" ] && [ -n "$l2" ] && awk -v a="$l1" -v b="$l2" 'BEGIN{exit !(a>b && b>0)}' \
+        && ok "L1 read $l1 GB/s > L2 read $l2 GB/s" || bad "cachemem bandwidth: exit $rc, L1 '$l1', L2 '$l2'"
+    out=$("$BIN" cachemem --only l1 --tests latency --seconds 0.2 --yes); lat=$(awk '/^L1 cache/{print $6}' <<<"$out")
+    awk -v a="$lat" 'BEGIN{exit !(a>0.1 && a<5)}' && ok "L1 latency $lat ns" || bad "L1 latency '$lat'"
+    "$BIN" cachemem --only l1 --tests read </dev/null >/dev/null 2>&1; [ $? = 2 ] && ok "cachemem asks first (no --yes, no terminal: not started)" || bad "cachemem started without --yes"
+else
+    echo "  skip  not x86-64"
+fi
+
 echo "== bad input is refused"
 "$BIN" pi --digits 50 >/dev/null 2>&1 && bad "pi --digits 50 accepted" || ok "pi --digits 50 refused"
 "$BIN" prime --limit 2e11 >/dev/null 2>&1 && bad "prime --limit 2e11 accepted" || ok "prime --limit 2e11 refused"

@@ -51,7 +51,7 @@ The groups are in the same order as SRS's Menu.
 | Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & audio |
 | Buses / Devices (part 1) | 64 | [buses-1.md](buses-1.md) | USB & PCI devices |
 | Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
-| Tools | 32 | [tools.md](tools.md) | Benchmarks & stress; Tools |
+| Tools | 33 | [tools.md](tools.md) | Benchmarks & stress; Tools |
 | SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
 
 ## Every item
@@ -582,6 +582,7 @@ The groups are in the same order as SRS's Menu.
 | [IPI Dump](tools.md#ipi-dump) | `ipi-dmp` | Linux data |
 | [IPI Plots](tools.md#ipi-plots) | `ipi-plots` | Linux data |
 | [Memory Latency](tools.md#memory-latency) | `latency` | Linux data |
+| [Cache & Memory benchmark](tools.md#cache--memory-benchmark) | `cache-memory` | Linux data |
 | [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
 | [Crypto benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
 | [Prime sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |

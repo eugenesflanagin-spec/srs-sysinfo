@@ -36,6 +36,7 @@ shows the last stored result.
 - [IPI Dump](#ipi-dump) `ipi-dmp`
 - [IPI Plots](#ipi-plots) `ipi-plots`
 - [Memory Latency](#memory-latency) `latency`
+- [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -511,6 +512,50 @@ full delay. Lines are 64 bytes. A 200 ms busy spin first brings the core to full
 and fastest (tens of KB per core), L2 is bigger (about 1-2 MB per core), and L3 is shared by many
 cores (tens of MB). Data the CPU uses often stays close. Latency (waiting time) matters most for
 programs that jump around in memory, such as games and databases.
+
+---
+## Cache & Memory benchmark  
+`cache-memory` - Linux data
+
+**In plain words.** How fast the RAM and each cache level (L1, L2, L3) can **read**, **write** and
+**copy** data, and how long each takes to answer one request (**latency**). It shows whether the
+memory runs as fast as it should after a BIOS, EXPO/XMP or memory-timing change, and what each
+cache level gives you.
+
+**What you see.** A table: rows Memory (RAM), L1 cache, L2 cache, L3 cache; columns Read, Write,
+Copy (MB/s for the RAM, GB/s for the caches; 1 MB = 1,000,000 bytes) and Latency (ns). Below it:
+threads and vector code used (AVX-512, AVX2 or SSE2), how the RAM write was measured, the processor,
+the measured clock during the run, the **base clock** (measured, so a board running 105 MHz shows
+105), the multiplier, the **Infinity Fabric clock** (AMD Ryzen 7000 desktop with the `ryzen_smu`
+driver), the memory type, speed and channels (from root data), the memory clock as a multiple of
+the base clock, and the cache sizes.
+
+| Value | How it is measured |
+|---|---|
+| Read / Write / Copy | One thread pinned to every chosen logical CPU, each in its own block sized to stay inside that cache level (half of its share of L1 / L2 / L3), or for the RAM a block of at least 4 x L3 (at least 256 MB, default 1 GB). Best of repeated 40-80 ms trials over the measuring time (default 1 s per value). **Copy counts the bytes read plus the bytes written.** |
+| RAM Write on AMD | With CLZERO (whole zeroed cache lines written to memory), one thread per core, in 4 KB turns, over 256 MB or 2.5 x L3 - what the memory itself absorbs. Ordinary streaming stores stop at the core-to-memory link's write limit; `--mem-write stream` shows that figure. Other CPUs use streaming stores. |
+| Latency | One thread, a random chain through every 64-byte line of a block. Caches on ordinary 4 KB pages (L1: half of L1d, L2: half of L2, L3: 8 x L2); the RAM on 2 MB pages over 8 x L3 (at least 256 MB, at most half of free RAM), so page-table walks and L3 hits do not distort it. |
+
+**Healthy / typical values.** Ryzen 7 7800X3D, 2 x 16 GB DDR5-6000, FCLK 2000-2133, all 16 threads:
+RAM about 63,700 MB/s read, 93,800 MB/s write (CLZERO), 63,600 MB/s copy, 80-82 ns; L1 about
+2,300 GB/s read and 0.8 ns; L2 about 1,200 GB/s and 3.7 ns; L3 about 700 GB/s and 11-12 ns. Results
+vary by a few % from run to run.
+
+**Unusual values and what they suggest.**
+- RAM read far below the kit's rating (DDR5-6000 dual channel: roughly 60,000+ MB/s): EXPO/XMP off,
+  one stick in the wrong slot (single channel), or the memory controller at a lower ratio.
+- RAM latency well over 90 ns on DDR5: loose timings, or UCLK at half the memory clock.
+- Everything 10-50% low or jumping between runs: other programs are busy. Close them and run again;
+  **never run another benchmark (or a second copy of SRS) at the same time** - both results are
+  spoiled.
+
+**Where Linux gets it.** Built in. The measuring engine comes unchanged from Linux System Audit
+(LSA) 0.2.0, the same author's project, now part of SRS. x86-64 CPUs only (it uses x86-64 vector
+code). The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal frequency; the Infinity
+Fabric clock is read (read-only) from the `ryzen_smu` driver's PM table, layout 0x540104 only; the
+memory sticks come from the root DMI data (Tools > Collect root data). Stored in
+`~/.cache/srs/bench-cachemem.txt`; each run is added to the [Benchmark history](#benchmark-history).
+It asks before it starts, and only one benchmark runs at a time in SRS.
 
 ---
 ## SRS Pi  

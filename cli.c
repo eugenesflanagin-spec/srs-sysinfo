@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -56,11 +56,15 @@ static const char *HELP =
     "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432\n"
     "  crypto [--threads N] [--seconds S]\n"
     "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)\n"
+    "  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]\n"
+    "           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]\n"
+    "        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,\n"
+    "        ~20 s; asks first, --yes starts at once)\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
 #endif
@@ -375,6 +379,94 @@ static double parse_count(const char *s)
     return *e ? 0 : v;
 }
 
+#include "bench_cachemem.h"
+
+/* "a,b,c" -> bit mask over names[]; 0 and a message for an unknown word */
+static int cm_parse_list(const char *opt, const char *v, const char *const *names, const int *bits, const char *valid, unsigned *mask)
+{
+    char w[32];
+    while (*v) {
+        size_t l = strcspn(v, ","), k;
+        int found = 0;
+        snprintf(w, sizeof w, "%.*s", (int)(l < sizeof w - 1 ? l : sizeof w - 1), v);
+        for (k = 0; names[k]; k++) if (!strcmp(w, names[k])) { *mask |= 1u << bits[k]; found = 1; }
+        if (l && !found) { fprintf(stderr, "cachemem: unknown %s value '%s' (valid: %s)\n", opt, w, valid); return 0; }
+        v += l + (v[l] == ',');
+    }
+    if (!*mask) { fprintf(stderr, "cachemem: %s needs a value (valid: %s)\n", opt, valid); return 0; }
+    return 1;
+}
+
+/* cachemem [options] - Cache & Memory benchmark; asks before it starts unless --yes */
+static int cmd_cachemem(int argc, char **argv)
+{
+    srs_out o;
+    cm_cfg c;
+    unsigned lvmask = 0, temask = 0;
+    int i, lv, te, yes = 0, rc;
+    so_text_init(&o, stdout);
+    cm_cfg_default(&c);
+    for (i = 2; i < argc; i++) {
+        static const char *const lvn[] = { "mem", "l1", "l2", "l3", NULL }, *const ten[] = { "read", "write", "copy", "latency", "lat", NULL };
+        static const int lvb[] = { CM_MEM, CM_L1, CM_L2, CM_L3 }, teb[] = { CM_READ, CM_WRITE, CM_COPY, CM_LAT, CM_LAT };
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--threads") || !strcmp(a, "--seconds") || !strcmp(a, "--mem-mib") || !strcmp(a, "--mem-write") ||
+                   !strcmp(a, "--isa") || !strcmp(a, "--only") || !strcmp(a, "--tests");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]\n"
+                 "                                 [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]\n"
+                 "                                 [--mem-write auto|clzero|stream] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "cachemem: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--threads")) c.threads = atoi(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--mem-mib")) c.mem_mib = atol(v);
+        else if (!strcmp(a, "--mib")) c.mb = 1048576.0;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--mem-write")) {
+            if (!strcmp(v, "stream")) c.mem_write = CM_MW_STREAM;
+            else if (!strcmp(v, "clzero")) c.mem_write = CM_MW_CLZERO;
+            else if (!strcmp(v, "auto")) c.mem_write = CM_MW_AUTO;
+            else { fprintf(stderr, "cachemem: unknown --mem-write value '%s' (valid: auto, clzero, stream)\n", v); return 2; }
+        } else if (!strcmp(a, "--isa")) {
+            if (!strcmp(v, "avx512")) c.isa = CM_ISA_AVX512;
+            else if (!strcmp(v, "avx2")) c.isa = CM_ISA_AVX2;
+            else if (!strcmp(v, "sse2")) c.isa = CM_ISA_SSE2;
+            else { fprintf(stderr, "cachemem: unknown --isa value '%s' (valid: avx512, avx2, sse2)\n", v); return 2; }
+        } else if (!strcmp(a, "--only")) {
+            if (!cm_parse_list("--only", v, lvn, lvb, "mem, l1, l2, l3", &lvmask)) return 2;
+        } else if (!strcmp(a, "--tests")) {
+            if (!cm_parse_list("--tests", v, ten, teb, "read, write, copy, latency (or lat)", &temask)) return 2;
+        } else { fprintf(stderr, "cachemem: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("cachemem: --seconds must be 0.1..60");
+    if (lvmask || temask) {
+        if (!lvmask) lvmask = 0xF;
+        if (!temask) temask = 0xF;
+        for (lv = 0; lv < CM_NLEVEL; lv++)
+            for (te = 0; te < CM_NTEST; te++)
+                if ((lvmask >> lv & 1) && (temask >> te & 1)) c.run_mask |= 1u << (lv * CM_NTEST + te);
+    }
+    if (!cm_available()) { bench_cachemem(&c, &o, NULL); return 1; }
+    if (!yes) {
+        char ans[16];
+        if (!isatty(0)) {
+            fprintf(stderr, "cachemem: not started - it loads every CPU thread and the memory bus for about 20 s.\n"
+                            "          Run it from a terminal to be asked, or pass --yes to start without asking.\n");
+            return 2;
+        }
+        fprintf(stderr, "The Cache & Memory benchmark loads every CPU thread and the memory bus for about 20 seconds.\n"
+                        "Close other programs (and other benchmarks) for accurate results. Start now? [y/N] ");
+        fflush(stderr);
+        if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "cachemem: not started\n"); return 2; }
+    }
+    rc = bench_cachemem(&c, &o, NULL);
+    if (rc < 0) fprintf(stderr, "cachemem: could not allocate the test memory\n");
+    return rc == 0 ? 0 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -477,6 +569,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "burn")) return cmd_burn(argc, argv);
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
     if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
+    if (!strcmp(cmd, "cachemem")) return cmd_cachemem(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

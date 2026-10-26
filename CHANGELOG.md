@@ -17,6 +17,15 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   **SuperPi sizes**: a tick box (and `--digits 16ki` ... `32mi` on the command line) switches to the
   power-of-two digit counts SuperPi uses, 16K = 16,384 ... 1M = 1,048,576 ... 32M = 33,554,432,
   each with its own built-in checksum.
+- **Cache & Memory benchmark** - Linux System Audit (LSA), the author's own project, is now part
+  of SRS. Read / Write / Copy bandwidth and Latency of the RAM and the L1, L2 and L3 caches, with
+  the measuring engine of LSA 0.2.0 unchanged (same results), in an SRS window and SRS's own
+  wording: Threads, Seconds per test, Run (asks first: about 20 s on every thread), Stop, live
+  status. Below the table: threads and vector code, RAM write method, measured clock, the
+  **measured base clock** (105 MHz on boards that raise it), multiplier, **Infinity Fabric clock**
+  (Ryzen 7000 desktop with `ryzen_smu`), memory type / speed / channels (root data), cache sizes.
+  Command line `sysreport-search cachemem` with LSA's options (`--threads`, `--seconds`, `--isa`,
+  `--mem-mib`, `--only`, `--tests`, `--mib`, `--mem-write`, `--yes`). x86-64 only.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.

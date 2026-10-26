@@ -81,6 +81,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     concurrently or one at a time, D+D/W+W and D+W/W+D per core, physical / logical threads).
   - **IPI Delay** - core-to-core latency matrix with a heat map. **Latency** - memory latency by
     block size with a graph.
+  - **Cache & Memory** - Read / Write / Copy bandwidth and latency of the RAM and the L1, L2, L3
+    caches, with the measured base clock and the Infinity Fabric clock (engine from the author's
+    Linux System Audit 0.2.0, now part of SRS; x86-64).
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -202,6 +205,7 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `sec_cpu.c` ... `sec_siv.c` | one file per group (cpu, machine, sensors, storage, network, os, gpu, bus, tools, siv) |
 | `sec_stubs.c` | generated from `CHECKLIST.tsv` by `gen_stubs.py`: every SIV item is registered |
 | `burner.c`, `bench.c` | CPU Burnin/Stress engine; Dhrystone, Whetstone, IPI, memory latency, run history |
+| `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |

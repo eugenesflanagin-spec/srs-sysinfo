@@ -17,6 +17,7 @@
 #include "sec.h"
 #include "burner.h"
 #include "bench.h"
+#include "bench_cachemem.h"
 
 #include <dlfcn.h>
 #include <math.h>
@@ -52,7 +53,7 @@ static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "C
 static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM };
 
 typedef struct swin {
     wkind kind;
@@ -491,6 +492,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "pi")) open_tool(W_BENCH, BK_PI);
     else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
     else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
+    else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
@@ -519,6 +521,7 @@ static void build_menu(GtkWidget *menu)
     static const struct { const char *label, *tool; } tools[] = {
         { "CPU _Burnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
         { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "P_rime Sieve...", "prime" },
+        { "Cache & _Memory...", "cachemem" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1431,18 +1434,19 @@ static const char *bk_result(int sub, int mode)
     case BK_PI: return "pi";
     case BK_CRYPTO: return "crypto";
     case BK_PRIME: return "prime";
+    case BK_CACHEMEM: return "cachemem";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
-    static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve" };
-    return sub >= 0 && sub <= BK_PRIME ? t[sub] : "Benchmark";
+    static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory" };
+    return sub >= 0 && sub <= BK_CACHEMEM ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
-    static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve" };
-    return sub >= 0 && sub <= BK_PRIME ? t[sub] : "benchmark";
+    static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory" };
+    return sub >= 0 && sub <= BK_CACHEMEM ? t[sub] : "benchmark";
 }
 
 static gboolean bench_done(gpointer data)
@@ -1482,6 +1486,14 @@ static gpointer bench_worker(gpointer data)
     else if (j->sub == BK_PI) j->rc = bench_pi(j->digits, j->threads, j->algo, NULL, &j->cancel, NULL);
     else if (j->sub == BK_CRYPTO) j->rc = bench_crypto(j->threads, j->secs, NULL);
     else if (j->sub == BK_PRIME) j->rc = bench_prime((uint64_t)j->limit, j->threads, NULL, &j->cancel);
+    else if (j->sub == BK_CACHEMEM) {
+        cm_cfg c;
+        cm_cfg_default(&c);
+        c.threads = j->threads;
+        c.seconds = j->secs;
+        j->rc = bench_cachemem(&c, NULL, &j->cancel);
+        if (j->rc == 1) j->rc = 0;   /* stopped: the partial result is shown, marked as stopped */
+    }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
     return NULL;
@@ -1494,6 +1506,7 @@ static gboolean bench_tick(gpointer data)
     char b[200];
     double el = g_get_monotonic_time() / 1e6 - w->run_t0;
     if (w->sub == BK_PI) snprintf(b, sizeof b, "Running %.0f s: %s", el, pi_stage());
+    else if (w->sub == BK_CACHEMEM) snprintf(b, sizeof b, "Running %.0f s: %s", el, cm_stage());
     else snprintf(b, sizeof b, "Running %.0f s...", el);
     gtk_label_set_text(GTK_LABEL(w->bm_status), b);
     return G_SOURCE_CONTINUE;
@@ -1519,6 +1532,19 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - CPU Burnin / Stress is running"
                                                                   : "Not started - another benchmark is running; wait for it to finish");
         return;
+    }
+    if (w->sub == BK_CACHEMEM) {
+        GtkWidget *d;
+        int ok;
+        if (!cm_available()) { gtk_label_set_text(GTK_LABEL(w->bm_status), "Not available: needs an x86-64 CPU"); return; }
+        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+                                   "Start the Cache & Memory benchmark?");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "It keeps the chosen CPU threads and the memory bus busy for about 20 seconds.\n"
+            "For accurate results close other programs, and do not run any other benchmark at the same time.");
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+        if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
     j = g_new0(benchjob, 1);
     j->w = w;
@@ -1549,13 +1575,13 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         } else if (w->sub == BK_PRIME) {
             k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_limit));
             j->limit = prime_limits[k < 0 ? 1 : k];
-        } else {
+        } else {   /* crypto, cache & memory */
             gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
             j->secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -1653,6 +1679,13 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_limit), 2);
         gtk_box_pack_start(GTK_BOX(row), w->bm_limit, FALSE, FALSE, 0);
         threads_spin(w, row, burn_ncpu(), "Threads that share the work. 1 = single-thread score.");
+    } else if (w->sub == BK_CACHEMEM) {
+        threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
+        w->bm_secs = spin(0.2, 10, 0.1, 1);
+        gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
+        gtk_widget_set_tooltip_text(w->bm_secs, "Measuring time for each of the 16 results; the best trial is shown. 1 s gives the same results as 5 s.");
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
     } else {   /* BK_CRYPTO */
         threads_spin(w, row, burn_ncpu(), "The right-hand column uses this many threads; the left column always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per measurement"), FALSE, FALSE, 0);
@@ -1663,7 +1696,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     w->bm_run = sbtn("_Run");
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
-    if (w->sub == BK_PI || w->sub == BK_PRIME) {
+    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -2467,7 +2500,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -3263,7 +3296,7 @@ static int cat_of_id(const char *id)
     if (!strcmp(g, "bus")) return CAT_DEVICES;
     if (!strcmp(g, "tools") && (!strncmp(base, "benchmark", 9) || !strncmp(base, "ipi", 3) || !strcmp(base, "latency") ||
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
-                                !strcmp(base, "bench-history") ||
+                                !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -3480,6 +3513,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "pi")) open_tool(W_BENCH, BK_PI);
     else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
     else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
+    else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
     else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
     else if (!strcmp(t, "save")) save_dialog(0);
@@ -3860,6 +3894,9 @@ static GtkWidget *build_cat_page(int cat)
                 "Busy for a few seconds while it measures.", "_IPI Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run."));
             grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
                 "Busy for a few seconds while it measures.", "_Latency...", "lat", "Open the Latency window. Nothing runs until you press Run."));
+            grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
+                "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "Cache & _Memory...", "cachemem",
+                "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));
@@ -4321,6 +4358,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "pi")) open_tool(W_BENCH, BK_PI);
             else if (!strcmp(t, "crypto")) open_tool(W_BENCH, BK_CRYPTO);
             else if (!strcmp(t, "prime")) open_tool(W_BENCH, BK_PRIME);
+            else if (!strcmp(t, "cachemem")) open_tool(W_BENCH, BK_CACHEMEM);
             else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
             else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);

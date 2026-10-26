@@ -80,6 +80,7 @@
 { "bsi", "sections-srs-items--bsb-info-batteryhid-sensor-buffer" },
 { "burnin", "sections-tools--cpu-burnin" },
 { "cache", "sections-processors--cache-levels" },
+{ "cache-memory", "sections-tools--cache--memory-benchmark" },
 { "cgb", "sections-srs-items--cpu-group-buffer" },
 { "chipsets", "sections-buses-1--chipsets" },
 { "cl4-srv", "sections-linux-os--corsair-link-4-service" },

@@ -978,11 +978,9 @@ classic view.
 Controls: **Largest block (MB)** (1-1024, default 256), **Run**. Results: a table (block size,
 time in ns, level) and a curve.
 
-For a full Cache & Memory **bandwidth** benchmark, see the sister project
-[lsa-sysinfo](https://github.com/eugenesflanagin-spec/lsa-sysinfo).
-
-The newer benchmarks - SRS Pi, Crypto, Prime Sieve and the Benchmark history - are in
-[9.7](#97-srs-pi) to [9.10](#910-benchmark-history).
+For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
+The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory and
+Storage - are in [9.7](#97-srs-pi) to [9.12](#912-storage).
 
 ### 9.5 Device ID Lookup
 
@@ -1079,6 +1077,23 @@ Every SRS Pi, Crypto and Prime Sieve run adds one line to `~/.cache/srs/bench-hi
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
 package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
 own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.
+
+### 9.11 Cache & Memory
+
+**In plain words:** how fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long
+they take to answer. Use it after a BIOS, EXPO/XMP or memory-timing change.
+Open: the **Benchmarks & stress** page -> **Cache & Memory...**, or Menu -> Tools -> Cache &
+Memory... in the classic view. Command line: `sysreport-search cachemem`.
+Controls: **Threads** (default all; the bandwidth results need all of them), **Seconds per test**
+(default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
+**Stop**. The status line names the value being measured. A stopped run shows the values it
+finished and says so.
+
+Close other programs first and **never run another benchmark at the same time** (SRS lets only one
+run; it cannot stop other programs). The base clock is measured, so boards with a raised reference
+clock (for example 105 MHz) show the real value; the Infinity Fabric clock needs the `ryzen_smu`
+driver (Ryzen 7000 desktop); memory speed and type need root data (Tools > Collect root data). The
+engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS. x86-64 CPUs only.
 
 ## 10. Options
 
@@ -1238,7 +1253,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt` | The last result of SRS Pi, Crypto and Prime Sieve. |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt` | The last result of SRS Pi, Crypto, Prime Sieve and Cache & Memory. |
 | `~/.cache/srs/bench-history.tsv` | One line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |

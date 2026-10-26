@@ -70,6 +70,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Clock source** - the hardware timer Linux uses to keep time (tsc, hpet, acpi_pm). *See: [processors](SECTIONS/processors.md).*
 - **Clocksource** - the hardware counter the kernel reads to keep time (TSC, HPET, ACPI PM timer). *See: [linux-os](SECTIONS/linux-os.md).*
 - **Cluster** - The smallest unit of space a FAT, exFAT or NTFS filesystem hands out to a file. *See: [storage](SECTIONS/storage.md).*
+- **CLZERO** - an AMD instruction that writes a whole zeroed 64-byte cache line straight to memory; the Cache & Memory benchmark uses it to measure how fast the RAM itself can take writes. *See: [tools](SECTIONS/tools.md).*
 - **CMOS** - the battery-backed clock chip and its small memory on the motherboard; the name comes from the chip technology. *See: [machine](SECTIONS/machine.md).*
 - **Code page** - an old table that maps byte values to characters (e.g. 437, 1252). UTF-8 has replaced code pages on Linux. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Code point** - Unicode's number for one character, written like `U+0041`. *See: [linux-os](SECTIONS/linux-os.md).*

@@ -46,6 +46,7 @@ sysreport-search latency [--max MB]
 sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
 sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
@@ -98,10 +99,14 @@ Benchmarks and stress (load the CPU; run only when you ask):
         ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
+           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
+        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
+        ~20 s; asks first, --yes starts at once)
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
 ```
@@ -417,7 +422,33 @@ Counts the primes up to `--limit` (default 1e9; 100 to 1e11) on N threads (defau
 the count for the powers of ten 1e7 to 1e11. Exit code 1 when the count is wrong. See
 [tools.md](SECTIONS/tools.md#prime-sieve).
 
-Every `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `cachemem` - Cache & Memory benchmark
+
+```
+sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
+                          [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]
+                          [--mem-write auto|clzero|stream] [--yes]
+```
+
+Read / Write / Copy (MB/s, caches in GB/s) and Latency (ns) of the RAM and the L1, L2 and L3
+caches. It loads every CPU thread and the memory bus for about 20 seconds and **asks first**;
+`--yes` (`-y`) starts at once (scripts). Without a terminal and without `--yes` it does not start
+(exit code 2).
+
+| Option | Meaning |
+|---|---|
+| `--threads N` | Threads for the bandwidth tests (default all logical CPUs) |
+| `--seconds S` | Measuring time per value, 0.1-60 (default 1) |
+| `--isa` | Force the vector code (default: the best the CPU has) |
+| `--mem-mib M` | RAM block in MiB, all threads together (default 1024, at least 4 x L3) |
+| `--only` / `--tests` | Run only some rows / columns, e.g. `--only l1 --tests read` |
+| `--mib` | Binary units (MiB/s, GiB/s) |
+| `--mem-write` | RAM write method: `auto` (CLZERO on AMD CPUs that have it), `clzero`, `stream` |
+
+x86-64 only. Exit code 0 when it ran, 1 if memory could not be allocated, 2 for a bad option or no
+confirmation. See [tools.md](SECTIONS/tools.md#cache--memory-benchmark).
+
+Every `cachemem`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -445,6 +476,7 @@ or one of these tool names:
 | `pi` | SRS Pi |
 | `crypto` | Crypto benchmark |
 | `prime` | Prime Sieve |
+| `cachemem` | Cache & Memory |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
