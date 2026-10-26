@@ -24,7 +24,8 @@ Needed at run time
     dmidecode, smartmontools, nvme-cli, i2c-tools, pciutils, usbutils, lm-sensors,
     vulkan-tools, clinfo, mesa-utils, inxi, lshw, hwinfo;
     zlib, zstd, lz4 and xz (liblzma) for the Everyday Work benchmark's compression rows
-    (loaded at run time; a missing one only skips its rows)
+    (loaded at run time; a missing one only skips its rows); libcurl (libcurl4 / curl)
+    for the Network benchmark's optional internet speed test
 
 Try it without installing
   ./usr/bin/srs-gui

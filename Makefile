@@ -23,8 +23,8 @@ HDRS      := srs.h
 # the SIV section engine (Linux images): every SIV item, the burner and the benchmarks
 SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c sec_sensors.c sec_storage.c sec_network.c \
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
-             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c guide.c
-SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h bench_work.h sec_default_save.inc guide_map.inc
+             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c bench_net.c guide.c
+SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h bench_work.h bench_net.h sec_default_save.inc guide_map.inc
 # -ldl on the Linux link lines: the benchmarks load optional libraries (zlib, zstd, lz4, xz, libcurl) at
 # run time with dlopen; glibc 2.34+ has dlopen in libc, older glibc needs libdl
 LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread
@@ -136,7 +136,7 @@ $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDR
 
 # correctness tests of the benchmarks: short runs on a few threads, results in a throw-away HOME.
 # Not part of the package builds' check (they time real work); run by hand before a release.
-BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh
+BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh tests/bench-net-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done
 

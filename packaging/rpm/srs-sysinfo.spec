@@ -48,6 +48,12 @@ Suggests:       libzstd
 Suggests:       lz4-libs
 Suggests:       xz-libs
 %endif
+# libcurl, loaded at run time by the Network benchmark's optional internet speed test
+%if 0%{?suse_version}
+Suggests:       libcurl4
+%else
+Suggests:       libcurl
+%endif
 %if 0%{?suse_version}
 Suggests:       libayatana-appindicator3-1
 %else

@@ -108,6 +108,15 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   libraries are loaded at run time (`dlopen`), so they are optional; a missing one shows "not
   installed". Generated data only. Asks before it starts with the expected time; Stop works; one
   history line per test group.
+- **Network benchmark** (`sysreport-search net`, Benchmarks & stress -> Network,
+  `--gui-open=netbench`): loopback TCP throughput with 1 and N streams, UDP throughput and packet
+  loss, TCP and UDP round trip time (nothing leaves the computer); optional internet test with
+  DNS lookup (first, repeated, uncached), TCP connect and HTTPS (connect, TLS, reply) times and
+  download / upload speed with 1 and N streams against Cloudflare's public speed test. The
+  internet test asks separately (No is the default; `--yes` does not answer it, `--yes-internet`
+  does), stating the server, the data use (up to about 1000 MB with the defaults) and that the
+  server sees the public IP. libcurl is optional (loaded at run time). No addresses, host names or
+  network names in the results. Stop works.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -117,9 +126,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
-- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, SRS Pi, Crypto and Prime Sieve
+- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto and Prime Sieve
   buttons and tabs; Menu -> Tools entries (classic view); desktop-menu actions;
-  `--gui-open=cachemem|storagebench|oslatency|compute|work|pi|crypto|prime`. Every one of these windows asks
+  `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|pi|crypto|prime`. Every one of these windows asks
   before it starts, saying what it does, for how long and how much load.
 
 **Main window**
@@ -181,6 +190,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   of a spoilt result on every kernel, each code path forced, Stop, sanitizer run, CLI.
 - `tests/bench-work-test.sh`: Everyday Work under AddressSanitizer + UBSan: known answers, every
   codec round trip, the "not installed" path, Stop, result file, history lines, CLI.
+- `tests/bench-net-test.sh`: Network loopback test, no addresses or host name in the output,
+  Stop, refusals (http:// server, nothing chosen), strace check that only 127.0.0.1 is contacted,
+  and that `--internet` never starts without its own yes.
 
 ### Changed
 
@@ -219,6 +231,9 @@ with your hardware and the report SRS made, and I'll fix it. Not tried on real h
 - Everyday Work: run with one Arch Linux system's compression libraries (zlib-ng in zlib mode,
   zstd 1.5, lz4 1.10, xz 5.8); its time estimate is rough. The CPU-instruction CRC32C row is
   x86-64 only (ARM shows "not measured").
+- Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
+  connections are untested. Cloudflare's speed test endpoints are not a documented API; if they
+  change, the speed rows fail and DNS / connect times still work.
 
 ### Fixed
 

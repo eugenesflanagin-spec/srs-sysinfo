@@ -41,6 +41,7 @@ optdepends=(
   'zstd: zstd rows of the Everyday Work benchmark (loaded at run time)'
   'lz4: lz4 rows of the Everyday Work benchmark (loaded at run time)'
   'xz: xz rows of the Everyday Work benchmark (loaded at run time)'
+  'curl: libcurl for the optional internet speed test of the Network benchmark (loaded at run time)'
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')   # set by build-arch.sh

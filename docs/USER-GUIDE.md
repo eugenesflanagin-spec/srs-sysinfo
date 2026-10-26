@@ -1094,6 +1094,9 @@ report SRS made, and I'll fix it. Not tried on real hardware so far:
 - Everyday Work: run with the compression libraries of one Arch Linux system (zlib-ng in zlib
   mode, zstd 1.5, lz4 1.10, xz 5.8); other versions should work but give different speeds. The
   CRC32C row that uses the CPU's own instruction is x86-64 only.
+- Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
+  connections are untested. The internet speed test uses Cloudflare's public speed test server,
+  which is not a documented API and may change.
 
 
 ### 9.1 CPU Burnin and CPU Stress
@@ -1382,8 +1385,8 @@ time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
 The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
-Storage, OS Latency, CPU Compute and Everyday Work - are in [9.7](#97-srs-pi) to
-[9.15](#915-everyday-work).
+Storage, OS Latency, CPU Compute, Everyday Work and Network - are in [9.7](#97-srs-pi) to
+[9.16](#916-network).
 
 ### 9.5 Device ID Lookup
 
@@ -1475,7 +1478,7 @@ Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
 
 ### 9.10 Benchmark history
 
-Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute and Everyday Work run adds a line to
+Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network run adds a line to
 `~/.cache/srs/bench-history.tsv`
 (time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
@@ -1609,6 +1612,45 @@ threads are used, with a note, when memory is short). The result is saved to
 `~/.cache/srs/bench-work.txt`, and each test group adds a line to the
 [Benchmark history](#910-benchmark-history). Tested on one PC only - see the note at the start of
 this chapter.
+
+### 9.16 Network
+
+**In plain words:** two separate tests. **On this computer** sends data between two programs on
+your own PC through the loopback connection (127.0.0.1): it shows how fast Linux and the CPU can
+move network data, and how long a message takes to go there and back. Nothing leaves the
+computer, and the network card is not involved. **Internet speed test** (optional) measures your
+real connection with Cloudflare's public speed test server (speed.cloudflare.com): how long a name
+lookup takes (DNS), how long it takes to connect, and your download and upload speed with one and
+with several connections at once.
+Open: the **Benchmarks & stress** page -> **Network...**, or Menu -> Tools -> Network Benchmark...
+in the classic view. Command line: `sysreport-search net` (loopback) and `sysreport-search net
+--internet`.
+Controls: **On this computer (loopback)** (ticked), **Internet speed test (asks first)** (not
+ticked), **Streams** (connections at once for the "N streams" tests, default 4), **Seconds per
+test** (default 5), **IPv4 or IPv6 / IPv4 only / IPv6 only** (internet test), **Run**, **Stop**.
+The line under the controls names the connection (wired, Wi-Fi, VPN ...), its link speed and
+whether libcurl is installed - never an address.
+
+**Asking first.** Run asks before the loopback test (about 20 seconds, a few CPUs busy). The
+internet test **asks separately**, with No as the default answer, and says which server it
+contacts, what it measures, how long it takes and **how much data it may use - up to about
+1000 MB** with the standard settings (each of the four speed tests stops after 5 seconds or
+250 MB; about 250 MB on a 100 Mbit/s line). **Do not run it on a metered or mobile connection.**
+The server sees your public IP address, as with any web page; SRS does not show or save it. It
+never runs without that Yes. The speed rows need libcurl (installed on almost every Linux system);
+without it only the lookup and connect times are measured.
+
+**What the numbers mean.** **Mbit/s** = million bits per second (internet speeds are sold in
+Mbit/s; divide by 8 for MB/s). **Average** counts from the first byte received; **peak** is the
+best half second. **ms** = thousandths of a second, **µs** = millionths. **Median** = the middle
+value, **99% under** = all but the slowest 1%, **jitter** = how much the time changes from one try
+to the next, **lost** = UDP packets that never arrived. Internet results vary with the time of
+day, Wi-Fi, other traffic and the server.
+
+**Safety and privacy:** no IP address, MAC address, Wi-Fi network name or host name is shown or
+saved; only the IP version used. The result is saved to `~/.cache/srs/bench-net.txt` and added to
+the [Benchmark history](#910-benchmark-history). Tested on one PC on a wired connection only - see
+the note at the start of this chapter.
 
 ## 10. Options
 
@@ -1783,8 +1825,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt`, `bench-compute.txt`, `bench-work.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute and Everyday Work. |
-| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency and CPU Compute, and one per test group of Everyday Work (time, test, settings, result, build). |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt`, `bench-compute.txt`, `bench-work.txt`, `bench-net.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network. |
+| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute and Network, and one per test group of Everyday Work (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |

@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute` and `work`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work` and `net`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -50,6 +50,7 @@ sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [
 sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
 sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
+sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -67,7 +68,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -124,10 +125,16 @@ Benchmarks and stress (load the CPU; run only when you ask):
         Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing
         and a bytecode interpreter, 1 thread and N threads (default all), every result checked;
         generated data only; asks first, --yes starts at once
+  net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]
+      [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
+        Network: loopback TCP / UDP speed and round trip (default; nothing leaves the computer);
+        --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com
+        (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test
+        asks separately and only --yes-internet skips that question
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -586,7 +593,52 @@ $ sysreport-search work --only compress --libs zstd,lz4 --single --yes
 
 See [tools.md](SECTIONS/tools.md#everyday-work-benchmark).
 
-Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `net` - Network benchmark
+
+```
+sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB]
+                     [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
+```
+
+Without options: the loopback test only - TCP throughput with 1 and N streams, UDP throughput and
+loss, TCP and UDP round trip time between two programs on this PC (127.0.0.1). Nothing leaves the
+computer. It **asks first**; `--yes` (`-y`) starts the loopback test at once.
+
+`--internet` adds DNS, connect, HTTPS, download and upload tests against
+`https://speed.cloudflare.com`. Before it starts it prints the server, the hosts, the tests, the
+time and the data use (up to about 4 x `--max-mb`, 1000 MB with the defaults) and says the server
+sees your public IP address. **It asks its own question, which `--yes` does not answer**: type `y`
+at the prompt, or pass `--yes-internet` (scripts). Without a terminal and without
+`--yes-internet` the internet test does not start (exit code 2). `--internet` alone runs only the
+internet part; `--local --internet` runs both.
+
+| Option | Meaning |
+|---|---|
+| `--local` | The loopback test (the default when neither `--local` nor `--internet` is given) |
+| `--internet` | The internet tests (asks separately) |
+| `--seconds S` | Seconds per throughput test, 0.1-60 (default 5); round trip tests use at most 1 s |
+| `--streams N` | Connections for the "N streams" tests, 1-32 (default 4) |
+| `--samples N` | TCP connects per host for the connect-time test, 1-100 (default 10) |
+| `--max-mb MB` | Each transfer test stops after this many MB (default 250, 0 = no cap) |
+| `-4` / `-6` | IPv4 only / IPv6 only |
+| `--server URL` | Another speed test server with the same `/__down` and `/__up` paths (https only) |
+| `--hosts H,H` | Extra hosts for the connect-time test (`host` or `host:port`) |
+| `--yes` | Start the loopback test without asking |
+| `--yes-internet` | Start the internet test without asking |
+
+Without libcurl the DNS and connect tests still run and the HTTPS and speed rows say "not
+available". No IP address, MAC address, network name or host name is printed or saved. Exit code
+0 when it ran, 1 when it was stopped or a test failed, 2 when it did not start (bad option, not
+confirmed, no network connection for the internet test). Examples:
+
+```
+$ sysreport-search net --yes                      # loopback only
+$ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most about 200 MB
+```
+
+See [tools.md](SECTIONS/tools.md#network-benchmark).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -620,6 +672,7 @@ or one of these tool names:
 | `oslatency` | OS Latency |
 | `compute` | CPU Compute |
 | `work` | Everyday Work |
+| `netbench` | Network benchmark (`network` alone is the Network page's item) |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

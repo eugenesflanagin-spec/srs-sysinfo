@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -77,11 +77,17 @@ static const char *HELP =
     "        Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing\n"
     "        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;\n"
     "        generated data only; asks first, --yes starts at once\n"
+    "  net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]\n"
+    "      [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]\n"
+    "        Network: loopback TCP / UDP speed and round trip (default; nothing leaves the computer);\n"
+    "        --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com\n"
+    "        (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test\n"
+    "        asks separately and only --yes-internet skips that question\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -732,6 +738,84 @@ static int cmd_work(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_net.h"
+
+/* net [--local] [--internet] ... - loopback by default; asks first; the internet part asks separately */
+static int cmd_net(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]\n"
+        "                            [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]\n"
+        "  --local         loopback TCP / UDP speed and round trip (the default; nothing leaves the computer)\n"
+        "  --internet      DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com\n"
+        "  --yes           start the loopback test without asking\n"
+        "  --yes-internet  start the internet test without asking (it uses up to ~4 x --max-mb MB of data)";
+    srs_out o;
+    net_cfg c;
+    net_where w;
+    char why[300], ask[2048], what[500];
+    int i, yes = 0, yes_inet = 0, rc, chose = 0;
+    net_cfg_default(&c);
+    c.local = 0;
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--seconds") || !strcmp(a, "--streams") || !strcmp(a, "--samples") || !strcmp(a, "--max-mb") ||
+                   !strcmp(a, "--server") || !strcmp(a, "--hosts");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (need && !v) { fprintf(stderr, "net: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--local")) { c.local = 1; chose = 1; }
+        else if (!strcmp(a, "--internet")) { c.internet = 1; chose = 1; }
+        else if (!strcmp(a, "--seconds")) c.secs = atof(v);
+        else if (!strcmp(a, "--streams")) c.streams = atoi(v);
+        else if (!strcmp(a, "--samples")) c.samples = atoi(v);
+        else if (!strcmp(a, "--max-mb")) c.max_mb = atof(v);
+        else if (!strcmp(a, "--server")) c.server = v;
+        else if (!strcmp(a, "--hosts")) c.hosts = v;
+        else if (!strcmp(a, "-4")) c.ipv = 4;
+        else if (!strcmp(a, "-6")) c.ipv = 6;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--yes-internet")) yes_inet = 1;
+        else { fprintf(stderr, "net: unknown option '%s'\n", a); return 2; }
+    }
+    if (!chose) c.local = 1;   /* never the internet unless asked for */
+    if (c.secs < 0.1 || c.secs > 60) return usage_error("net: --seconds must be 0.1..60");
+    if (c.streams < 1 || c.streams > NET_MAX_STREAMS) return usage_error("net: --streams must be 1..32");
+    if (c.samples < 1 || c.samples > 100) return usage_error("net: --samples must be 1..100");
+    if (c.max_mb < 0) return usage_error("net: --max-mb must be 0 (no cap) or more");
+    if (c.internet && !net_probe(&c, &w)) { fprintf(stderr, "net: internet test not started - %s\n", w.problem); return 2; }
+    if (c.local) {
+        snprintf(what, sizeof what, "The network test on this computer sends data between two programs on this PC (loopback, 127.0.0.1):\n"
+                 "TCP speed with 1 and %d streams, UDP speed and loss, round trip time - about %.0f s, up to %d CPUs busy.\n"
+                 "Nothing leaves the computer.%s", c.streams, 3 * c.secs + 2 * (c.secs < 1 ? c.secs : 1) + 1, c.streams + 1,
+                 c.internet ? " (The internet test is asked about separately.)" : "");
+        if (!yes && !ask_start("net", what)) return 2;
+    }
+    if (c.internet) {   /* its own question: --yes does not answer it */
+        net_ask_text(&c, &w, ask, sizeof ask);
+        fprintf(stderr, "%s\n", ask);   /* what it contacts and how much data, also with --yes-internet */
+        if (!yes_inet) {
+            char ans[16];
+            if (!isatty(0)) {
+                fprintf(stderr, "net: internet test not started - run it from a terminal to be asked, or pass --yes-internet\n");
+                return 2;
+            }
+            fprintf(stderr, "Run the internet speed test now? [y/N] ");
+            fflush(stderr);
+            if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) {
+                fprintf(stderr, "net: internet test not started\n");
+                if (!c.local) return 2;
+                c.internet = 0;
+            }
+        }
+    }
+    why[0] = 0;
+    rc = bench_net(&c, &o, NULL, why, sizeof why);
+    if (rc < 0 && why[0]) fprintf(stderr, "net: %s\n", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -849,6 +933,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "os-latency")) return cmd_os_latency(argc, argv);
     if (!strcmp(cmd, "compute")) return cmd_compute(argc, argv);
     if (!strcmp(cmd, "work")) return cmd_work(argc, argv);
+    if (!strcmp(cmd, "net")) return cmd_net(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

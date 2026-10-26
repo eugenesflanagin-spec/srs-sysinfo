@@ -135,6 +135,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **DMIPS** - Dhrystone MIPS: Dhrystone loops per second divided by 1757, the speed of a DEC VAX 11/780. *See: [tools](SECTIONS/tools.md).*
 - **DNS (Domain Name System)** - the service that turns names like example.com into IP addresses. *See: [network](SECTIONS/network.md).*
 - **DNS cache** - a local store of recent DNS answers so repeated lookups are instant. *See: [network](SECTIONS/network.md).*
+- **DNS lookup** - turning a name like speed.cloudflare.com into an address; the first lookup asks the network, a repeat usually comes from a cache. *See: [tools](SECTIONS/tools.md).*
 - **DPM (dynamic power management)** - The GPU's list of clock and voltage steps; the firmware switches between them many times a second. *See: [graphics](SECTIONS/graphics.md), [srs-items](SECTIONS/srs-items.md).*
 - **DPMS (Display Power Management Signaling)** - The monitor's power state: On, Standby, Suspend or Off. *See: [graphics](SECTIONS/graphics.md).*
 - **DRAM** - Dynamic RAM, the main system memory. It is much slower to reach than the caches. *See: [tools](SECTIONS/tools.md).*
@@ -268,6 +269,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## J
 
 - **JEDEC** - the standards body for memory; the JEDEC speed is a stick's standard base speed. *See: [machine](SECTIONS/machine.md).*
+- **Jitter** - how much a time (round trip, connect) changes from one try to the next. *See: [tools](SECTIONS/tools.md).*
 - **Joule (J)** - a unit of energy: 3,600 J = 1 Wh. Linux energy counters count microjoules (millionths of a joule). *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Junction temperature** - the hottest point measured on a graphics chip, usually higher than its "edge" temperature. *See: [tools](SECTIONS/tools.md).*
 
@@ -299,6 +301,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Locale** - a bundle of language and regional rules: language, date and number format, sorting, currency. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
 - **Locally administered MAC** - a MAC address made up by software rather than assigned by the hardware maker. *See: [network](SECTIONS/network.md).*
 - **Logical CPU** - one hardware thread as Linux sees it. With SMT, each physical core shows up as two logical CPUs. *See: [srs-items](SECTIONS/srs-items.md), [tools](SECTIONS/tools.md).*
+- **Loopback (127.0.0.1)** - the computer's connection to itself; data never reaches a network card. *See: [tools](SECTIONS/tools.md).*
 - **LPC (Low Pin Count)** - A slim bus from the chipset to the Super I/O chip, TPM, serial port and BIOS flash. *See: [buses-1](SECTIONS/buses-1.md).*
 - **LPM (Link Power Management)** - USB power saving that puts the link into low-power states between transfers; some devices need it disabled. *See: [buses-2](SECTIONS/buses-2.md).*
 - **LSM (Linux Security Module)** - a pluggable security layer in the kernel, such as Yama, Landlock, AppArmor or SELinux. *See: [linux-os](SECTIONS/linux-os.md).*
@@ -312,6 +315,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Mandelbrot set** - a famous fractal; drawing it is a simple, repeatable floating-point test. Measured in Mpixels/s. *See: [tools](SECTIONS/tools.md).*
 - **MangoHud** - A Linux in-game overlay that shows frame rate, temperatures, clocks and more, and can limit the frame rate. *See: [graphics](SECTIONS/graphics.md).*
 - **Masquerade** - NAT (network address translation): many devices share one address on the way out. *See: [network](SECTIONS/network.md).*
+- **Mbit/s** - million bits per second; 8 bits = 1 byte, so 100 Mbit/s is 12.5 MB/s. Internet plans are sold in Mbit/s. *See: [tools](SECTIONS/tools.md).*
 - **MBR** - Master Boot Record: the old partition table format (shown as `dos`), with four primary partitions and one-byte type codes. *See: [storage](SECTIONS/storage.md).*
 - **MCA (Micro Channel Architecture)** - IBM's PS/2 expansion bus from 1987. *See: [buses-1](SECTIONS/buses-1.md).*
 - **MCE (Machine Check Exception)** - the CPU reporting a hardware error it detected, for example in cache or memory. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -457,6 +461,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Root complex** - The part of the CPU where PCIe starts. On AMD it is the device at `00:00.0`. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Root hub** - The virtual hub that stands for a USB host controller's ports. Each USB 3 controller has a 2.0 root hub and a 3.x root hub. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
 - **Round trip (compression)** - compress, then decompress, then compare with the original; it must be identical. *See: [tools](SECTIONS/tools.md).*
+- **Round trip time** - the time for a message to go to the other end and come back. *See: [tools](SECTIONS/tools.md).*
 - **RPC** - Remote Procedure Call, a way for one program to send commands to another over a network connection. *See: [tools](SECTIONS/tools.md).*
 - **RPM (revolutions per minute)** - Fan or pump speed. *See: [sensors](SECTIONS/sensors.md).*
 - **RSS (Resident Set Size)** - the RAM a process is really using right now. *See: [linux-os](SECTIONS/linux-os.md).*
@@ -545,6 +550,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Timer slack** - how much later than asked Linux may wake a sleeping thread, so that wake-ups can be grouped to save power; 50 µs by default. *See: [tools](SECTIONS/tools.md).*
 - **Tjmax** - the highest temperature a CPU allows before it throttles itself. *See: [tools](SECTIONS/tools.md).*
 - **TLB shootdown** - an interrupt one CPU sends others to make them forget cached address translations after memory mappings change. *See: [buses-2](SECTIONS/buses-2.md).*
+- **TLS handshake** - setting up the encrypted connection that https uses, before any data flows. *See: [tools](SECTIONS/tools.md).*
 - **TPM** - Trusted Platform Module; a security device that stores keys and measures the boot process. *See: [machine](SECTIONS/machine.md).*
 - **Transparent huge pages (THP)** - Linux handing out memory in 2 MiB pages instead of 4 KiB ones when it can, so the CPU needs fewer page-table look-ups. *See: [tools](SECTIONS/tools.md).*
 - **TRIM** - A command that tells an SSD which blocks no longer hold data, so it can erase them ahead of time. *See: [storage](SECTIONS/storage.md).*

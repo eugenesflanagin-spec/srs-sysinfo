@@ -21,6 +21,7 @@
 #include "bench_os.h"
 #include "bench_compute.h"
 #include "bench_work.h"
+#include "bench_net.h"
 #include "power.h"
 #include "tblsort.h"
 #include "gui_startup.h"
@@ -63,13 +64,14 @@ static int g_classic_session;  /* this run started in the classic (SIV-style) ma
 static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortable Tables") */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_LAST = BK_WORK };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_LAST = BK_NET };
 /* --gui-open / menu / launcher names of the 2.2 benchmark windows (the older ones are listed where they are used) */
 static int bench_tool_sub(const char *t)
 {
     if (!strcmp(t, "oslatency")) return BK_OSLAT;
     if (!strcmp(t, "compute")) return BK_COMPUTE;
     if (!strcmp(t, "work")) return BK_WORK;
+    if (!strcmp(t, "netbench")) return BK_NET;
     return -1;
 }
 
@@ -108,6 +110,7 @@ typedef struct swin {
     GtkWidget *st_dir, *st_size, *st_profile, *st_usb, *st_info;
     GtkWidget *cp_isa, *cp_single;
     GtkWidget *wk_grp[WK_NGROUP], *wk_lib[WK_NLIB], *wk_row;
+    GtkWidget *nt_local, *nt_inet, *nt_ipv, *nt_info;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
@@ -922,6 +925,7 @@ static void build_menu(GtkWidget *menu)
         { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "P_rime Sieve...", "prime" },
         { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "_OS Latency...", "oslatency" },
         { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
+        { "N_etwork Benchmark...", "netbench" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1849,6 +1853,7 @@ typedef struct {
     int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb, stopped;
     int isa, single;                      /* CPU Compute: code path, 1 thread only (Everyday Work too) */
     unsigned groups, libs;                /* Everyday Work: test groups, compression libraries */
+    int net_local, net_internet, ipv;     /* Network: loopback part, internet part (only after its own yes), IP version */
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -1870,19 +1875,20 @@ static const char *bk_result(int sub, int mode)
     case BK_OSLAT: return "os-latency";
     case BK_COMPUTE: return "compute";
     case BK_WORK: return "work";
+    case BK_NET: return "net";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
     static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory", "Storage Benchmark",
-                                       "OS Latency", "CPU Compute", "Everyday Work" };
+                                       "OS Latency", "CPU Compute", "Everyday Work", "Network Benchmark" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
     static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory", "storage-bench",
-                                       "os-latency", "cpu-compute", "everyday-work" };
+                                       "os-latency", "cpu-compute", "everyday-work", "net-bench" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "benchmark";
 }
 
@@ -1900,7 +1906,7 @@ static gboolean bench_done(gpointer data)
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
         gtk_widget_set_sensitive(w->bm_run, TRUE);
         if (w->bm_stop) gtk_widget_set_sensitive(w->bm_stop, FALSE);
-        if (j->sub == BK_STORAGE) {
+        if (j->sub == BK_STORAGE || j->sub == BK_NET) {
             char b[400];
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == -1 ? "Not started: " : "Finished with an error: ", j->rc < 0 ? j->why : "");
@@ -1915,7 +1921,7 @@ static gboolean bench_done(gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
-        if (j->sub == BK_STORAGE) {
+        if (j->sub == BK_STORAGE || j->sub == BK_NET) {
             if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
         } else if (j->rc == -4) {
             char b[400];
@@ -1985,6 +1991,15 @@ static gpointer bench_worker(gpointer data)
         j->rc = bench_work(&c, NULL, &j->cancel);
         if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
         else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "CPU Burnin / Stress is running, or out of memory"); }
+    } else if (j->sub == BK_NET) {
+        net_cfg c;
+        net_cfg_default(&c);
+        c.local = j->net_local;
+        c.internet = j->net_internet;   /* set only after the internet question was answered Yes */
+        c.streams = j->threads;
+        c.secs = j->secs;
+        c.ipv = j->ipv;
+        j->rc = bench_net(&c, NULL, &j->cancel, j->why, sizeof j->why);
     }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
@@ -2003,6 +2018,11 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_OSLAT) snprintf(b, sizeof b, "Running %.0f s: %s", el, os_stage());
     else if (w->sub == BK_COMPUTE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cp_stage());
     else if (w->sub == BK_WORK) snprintf(b, sizeof b, "Running %.0f s: %s", el, wk_stage());
+    else if (w->sub == BK_NET) {
+        double mb = net_live_mbps();
+        if (mb > 0) snprintf(b, sizeof b, "Running %.0f s: %s - %.0f Mbit/s", el, net_stage(), mb);
+        else snprintf(b, sizeof b, "Running %.0f s: %s", el, net_stage());
+    }
     else snprintf(b, sizeof b, "Running %.0f s...", el);
     gtk_label_set_text(GTK_LABEL(w->bm_status), b);
     return G_SOURCE_CONTINUE;
@@ -2114,6 +2134,67 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
+    if (w->sub == BK_NET) {
+        GtkWidget *d;
+        int local = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->nt_local)), inet = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->nt_inet));
+        int k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->nt_ipv));
+        net_cfg c;
+        net_where where;
+        char ask[2048];
+        net_cfg_default(&c);
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_threads));
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+        c.streams = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
+        c.secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        c.ipv = k == 1 ? 4 : k == 2 ? 6 : 0;
+        if (!local && !inet) { gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: tick On this computer, Internet speed test or both"); return; }
+        if (inet && !net_probe(&c, &where)) {
+            d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                                       "The internet speed test cannot run");
+            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s.%s", where.problem,
+                                                     local ? " Only the test on this computer can run." : "");
+            gtk_dialog_run(GTK_DIALOG(d));
+            gtk_widget_destroy(d);
+            inet = 0;
+            if (!local) return;
+        }
+        if (local) {
+            int ok;
+            d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+                                       "Start the network test on this computer?");
+            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+                "It sends data between two programs on this PC through the loopback connection (127.0.0.1): TCP speed with 1 and %d "
+                "streams, UDP speed and packet loss, and the round trip time, for about %.0f seconds. Nothing leaves the computer "
+                "and no network card is used. Up to %d CPUs are busy while it runs.%s",
+                c.streams, 3 * c.secs + 2 * (c.secs < 1 ? c.secs : 1) + 1, c.streams + 1,
+                inet ? "\n\nThe internet speed test is asked about separately next." : "");
+            ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+            gtk_widget_destroy(d);
+            if (!ok) return;
+        }
+        if (inet) {   /* never without its own Yes; the default button is No */
+            int ok;
+            net_ask_text(&c, &where, ask, sizeof ask);
+            d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
+                                       "Run the internet speed test?");
+            gtk_window_set_title(GTK_WINDOW(d), "Internet speed test");
+            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", ask);
+            gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
+            ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+            gtk_widget_destroy(d);
+            if (!ok) {
+                inet = 0;
+                if (!local) return;
+            }
+        }
+        if (w->running || g_bench_busy || burn_active()) return;
+        j = g_new0(benchjob, 1);
+        j->net_local = local;
+        j->net_internet = inet;
+        j->threads = c.streams;
+        j->secs = c.secs;
+        j->ipv = c.ipv;
+    } else
     if (w->sub == BK_STORAGE) {
         static const double sizes[] = { 256, 1024, 4096, 16384 };
         storage_where where;
@@ -2172,7 +2253,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     } else if (w->sub == BK_LAT) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max)) * 1024 * 1024;
-    } else if (w->sub == BK_STORAGE) {
+    } else if (w->sub == BK_STORAGE || w->sub == BK_NET) {
         /* filled in above */
     } else if (w->sub == BK_OSLAT) {
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max));
@@ -2208,7 +2289,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -2412,6 +2493,42 @@ static void build_bench(swin *w, GtkWidget *vb)
             gtk_box_pack_start(GTK_BOX(r2), w->wk_lib[m], FALSE, FALSE, 0);
         }
         w->wk_row = r2;   /* goes under the first row (below) */
+    } else if (w->sub == BK_NET) {
+        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        net_cfg c;
+        net_where where;
+        char b[600], spd[48] = "";
+        w->nt_local = gtk_check_button_new_with_mnemonic("On this _computer (loopback)");
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->nt_local), TRUE);
+        gtk_widget_set_tooltip_text(w->nt_local, "TCP / UDP speed and round trip time between two programs on this PC (127.0.0.1). Nothing leaves the computer.");
+        gtk_box_pack_start(GTK_BOX(row), w->nt_local, FALSE, FALSE, 0);
+        w->nt_inet = gtk_check_button_new_with_mnemonic("_Internet speed test (asks first)");
+        gtk_widget_set_tooltip_text(w->nt_inet, "DNS, connect and HTTPS times and download / upload speed against speed.cloudflare.com. "
+                                                "Uses up to about 1000 MB of data; asks first and says how much.");
+        gtk_box_pack_start(GTK_BOX(row), w->nt_inet, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Streams"), FALSE, FALSE, 0);
+        w->bm_threads = spin(1, NET_MAX_STREAMS, 1, 4);
+        gtk_widget_set_tooltip_text(w->bm_threads, "Connections at once for the \"N streams\" tests.");
+        gtk_box_pack_start(GTK_BOX(row), w->bm_threads, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
+        w->bm_secs = spin(1, 30, 1, 5);
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+        w->nt_ipv = gtk_combo_box_text_new();
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->nt_ipv), "IPv4 or IPv6");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->nt_ipv), "IPv4 only");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->nt_ipv), "IPv6 only");
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->nt_ipv), 0);
+        gtk_widget_set_tooltip_text(w->nt_ipv, "For the internet test.");
+        gtk_box_pack_start(GTK_BOX(row), w->nt_ipv, FALSE, FALSE, 0);
+        net_cfg_default(&c);
+        net_probe(&c, &where);   /* reads /proc and /sys only, sends nothing; also loads libcurl on the main thread */
+        if (where.ifc.speed_mbps > 0) snprintf(spd, sizeof spd, ", %ld Mbit/s", where.ifc.speed_mbps);
+        snprintf(b, sizeof b, "Connection: %s%s%s%s%s; %s", where.ifc.kind[0] ? where.ifc.kind : "none found",
+                 where.ifc.name[0] ? " (" : "", where.ifc.name, where.ifc.name[0] ? ")" : "", spd,
+                 where.curl[0] ? where.curl : "libcurl not installed: no download / upload test");
+        w->nt_info = lbl(b);
+        gtk_box_pack_start(GTK_BOX(r2), w->nt_info, FALSE, FALSE, 0);
+        w->wk_row = r2;
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -2429,7 +2546,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     w->bm_run = sbtn("_Run");
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
-    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK) {
+    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -2437,6 +2554,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     }
     w->bm_status = lbl(w->sub == BK_STORAGE ? "Not run - press Run" :
                        w->sub == BK_OSLAT ? "Not run - press Run (asks first; one or two CPUs busy for about 6 seconds)" :
+                       w->sub == BK_NET ? "Not run - press Run (asks first; the internet test asks separately)" :
                        "Not run - press Run (the CPUs will be busy while it runs)");
     if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
@@ -3266,7 +3384,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -4067,6 +4185,7 @@ static int cat_of_id(const char *id)
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
                                 !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") || !strcmp(base, "storage-bench") ||
                                 !strcmp(base, "os-latency") || !strcmp(base, "cpu-compute") || !strcmp(base, "everyday-work") ||
+                                !strcmp(base, "net-bench") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -4646,6 +4765,10 @@ static GtkWidget *build_cat_page(int cat)
                 "searching and checking text, and running a small program, on one thread and on all threads. Every result is checked.",
                 "All threads busy for about half a minute. Uses generated data, never your files. Asks before it starts.",
                 "_Everyday Work...", "work", "Open the Everyday Work window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Network", "On this computer: how fast Linux moves network data between two programs (loopback). "
+                "Optional internet speed test: DNS, connect time, download and upload speed against Cloudflare's public speed test.",
+                "Loopback: a few CPUs for about 20 seconds, nothing leaves the PC. The internet test asks separately and says how much data it uses.",
+                "N_etwork...", "netbench", "Open the Network benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));

@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -41,6 +41,7 @@ shows the last stored result.
 - [OS latency benchmark](#os-latency-benchmark) `os-latency`
 - [CPU compute benchmark](#cpu-compute-benchmark) `cpu-compute`
 - [Everyday work benchmark](#everyday-work-benchmark) `everyday-work`
+- [Network benchmark](#network-benchmark) `net-bench`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -801,6 +802,75 @@ compression libraries through `dlopen`; threads pinned with `sched_setaffinity`.
 `~/.cache/srs/bench-work.txt`; each test group adds a line (`work-compress`, `work-sort`,
 `work-hash`, `work-text`, `work-interp`) to the [Benchmark history](#benchmark-history). Only one
 benchmark runs at a time in SRS.
+
+---
+## Network benchmark  
+`net-bench` - Linux data
+
+**In plain words.** Two separate tests. **On this computer** (loopback, 127.0.0.1) sends data
+between two programs on this PC: how fast Linux and the CPU move network data, and how long a
+message takes to go there and back. Nothing leaves the computer and no network card is used.
+**Internet** (optional, asks separately) measures the real connection against Cloudflare's public
+speed test (speed.cloudflare.com): name lookup (DNS), connect and HTTPS times, and download and
+upload speed with 1 and N connections.
+
+**What you see.**
+
+| Row | How | Unit |
+|---|---|---|
+| TCP, 1 stream (loopback) | one connection, 128 KiB writes | Mbit/s average and peak |
+| TCP, N streams (loopback) | N connections at once (default 4) | Mbit/s |
+| UDP, 1472-byte packets (loopback) | one sender, one receiver; lost packets counted | Mbit/s received, % lost |
+| TCP / UDP round trip (loopback) | 8-byte ping-pong (TCP_NODELAY; UDP with sequence numbers) | median, best, 99% under, jitter |
+| DNS lookup (internet) | first lookup of the server name, repeated (median of 5, usually cached), one made-up name under the server's domain (not cached) | ms |
+| HTTPS request (internet) | 3 new connections: TCP connect, TLS handshake, server reply (medians) | ms |
+| Connect time (internet) | 10 plain TCP connects to port 443 of each host | median, best, 99%, jitter, lost |
+| Download / upload, 1 and N streams (internet) | `GET /__down?bytes=25000000` / `POST /__up` with 25 MB of random data per request, repeated until the time is up | Mbit/s average and peak |
+
+Below: the connection (kind such as wired, Wi-Fi, VPN; link speed, duplex, MTU, Wi-Fi signal),
+the IP version used, the libcurl version and whether a proxy variable is set (only its name).
+
+| Setting | Choices |
+|---|---|
+| Parts | On this computer (default on), Internet speed test (default off; asks separately) |
+| Streams | 1-32 (default 4) |
+| Seconds per test | 1-30 in the window (command line 0.1-60), default 5; round trip tests use at most 1 s |
+| IP version | IPv4 or IPv6 (default), IPv4 only, IPv6 only |
+| Data cap per transfer test | 250 MB (command line `--max-mb`, 0 = no cap) |
+
+**Safety and privacy.**
+- The loopback test asks before it starts; the internet test **asks separately** (No is the
+  default) and states the server, the hosts, the tests, the time and the data use - up to about
+  1000 MB with the defaults (4 x 250 MB; about 250 MB on a 100 Mbit/s line). It also says the
+  server sees your public IP address. It never runs without that Yes. Avoid metered or mobile
+  connections.
+- Nothing private is shown or saved: no IP address (local or public), MAC address, Wi-Fi network
+  name (SSID), host name or proxy address. Interface names that contain a MAC address
+  (`enx...`, `wlx...`) are shortened. Requests carry a plain `srs-sysinfo` user agent and no
+  cookies; https only, certificates checked.
+- Stop ends the current test within about 0.2 s (loopback) or at libcurl's next progress check
+  (internet); a DNS lookup in progress finishes first (bounded by the system's resolver timeout).
+
+**Healthy / typical values.** Loopback on a Ryzen 7 7800X3D (Linux 7.3, 0.3 s tests): TCP about
+110 Gbit/s on 1 stream and 205 Gbit/s on 2, UDP about 8 Gbit/s with 0-1% loss, TCP and UDP round
+trip about 7 µs. Internet results depend on your plan: a result close to the speed you pay for is
+healthy; Wi-Fi is often half of it or less.
+
+**Unusual values and what they suggest.**
+- Loopback far below these figures: a busy CPU, power saving, or firewall / traffic-shaping rules
+  that also apply to loopback.
+- Internet download far below your plan: Wi-Fi, other traffic in the house, a VPN, or a busy
+  server; run it again at another time and compare with https://speed.cloudflare.com in a browser.
+- High jitter or lost connects: an overloaded router or Wi-Fi interference.
+- Speed rows say "the server did not answer 200 OK": the public endpoints changed or are rate
+  limited (they are not a documented API); DNS and connect times still work.
+
+**Where Linux gets it.** Built in: plain sockets for loopback; `getaddrinfo` for DNS; libcurl
+(loaded at run time with `dlopen`, optional) for HTTPS and the transfers; the default route from
+`/proc/net/route` and `/proc/net/ipv6_route`; the interface from `/sys/class/net` and Wi-Fi signal
+from `/proc/net/wireless`. Setups with only policy routing (some VPNs) are reported as "no network
+connection". Stored in `~/.cache/srs/bench-net.txt`; each run is added to the
+[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
 ## SRS Pi  

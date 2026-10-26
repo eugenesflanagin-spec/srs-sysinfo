@@ -190,3 +190,7 @@ or result files were used or looked at for them. Public sources are credited in 
   CRC32 / CRC32C polynomials and slicing-by-8, FNV-1a, Boyer-Moore-Horspool, multikey quicksort,
   radix sort) and the public APIs of zlib, zstd, lz4 and liblzma, declared in the file and loaded
   with `dlopen` (no headers or code from those projects are included).
+- **Network** (`bench_net.c`): POSIX sockets and `getaddrinfo`; the libcurl easy API from its
+  public documentation (option numbers are libcurl's stable ABI values, checked against `curl.h`
+  by the test script with `-DNET_CHECK_CURL_ABI`); Cloudflare's public speed test endpoints as its
+  own web page uses them.

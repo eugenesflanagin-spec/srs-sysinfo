@@ -313,6 +313,7 @@
 { "my-browser", "sections-network--my-browser--ip-location" },
 { "my-ip-address", "sections-network--my-ip-address" },
 { "n2k-srv", "sections-linux-os--n2k-service" },
+{ "net-bench", "sections-tools--network-benchmark" },
 { "net-cards", "sections-network--network-cards" },
 { "net-names", "sections-network--network-provider-names" },
 { "network", "sections-network--network" },
