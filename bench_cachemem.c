@@ -861,8 +861,14 @@ static void cm_render(srs_out *o, void *c)
                nch > 0 ? ", " : "", nch, nch > 1 ? " channels" : nch == 1 ? " channel" : "");
         so_kvf(o, "Memory clock", C_VALUE, "%.0f MHz (= %.1f x base clock)", mts / 2.0, mts / 2.0 / (x->base > 0 ? x->base : 100.0));
     } else so_kv(o, "Memory", C_GRAY, "speed and type need root data: Tools > Collect root data (srs-root)");
-    so_kvf(o, "Cache sizes", C_VALUE, "L1 data %ld KB, L2 %ld KB, L3 %ld KB (per core / per L3 group)",
-           x->r.cache_kib[1], x->r.cache_kib[2], x->r.cache_kib[3]);
+    {
+        char c[3][24];
+        int i;
+        for (i = 1; i <= 3; i++)
+            if (x->r.cache_kib[i] >= 4096 && x->r.cache_kib[i] % 1024 == 0) snprintf(c[i - 1], sizeof c[0], "%ld MB", x->r.cache_kib[i] / 1024);
+            else snprintf(c[i - 1], sizeof c[0], "%ld KB", x->r.cache_kib[i]);
+        so_kvf(o, "Cache sizes", C_VALUE, "L1 data %s, L2 %s, L3 %s (per core / per L3 group)", c[0], c[1], c[2]);
+    }
     so_kv(o, "Run", C_GRAY, x->when);
     so_kv(o, "Build", C_GRAY, bench_build_tag());
     so_note(o, x->mib ? "1 MiB = 1,048,576 bytes. Copy counts the bytes read plus the bytes written." :

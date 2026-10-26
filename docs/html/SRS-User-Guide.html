@@ -61,7 +61,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 549 items, field by
+<strong>Section Reference</strong>: every one of the 551 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -128,7 +128,7 @@ size (shows your cache levels).</li>
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (549 in total with SRS's own extras):</p>
+5.87's report items (551 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -517,7 +517,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 549 of them.</p>
+<strong>SMART drives</strong>; there are 551 of them.</p>
 <table>
 <thead>
 <tr>
@@ -1701,12 +1701,11 @@ Open: the <strong>Benchmarks &amp; stress</strong> page -&gt;
 classic view. Controls: <strong>Largest block (MB)</strong> (1-1024,
 default 256), <strong>Run</strong>. Results: a table (block size, time
 in ns, level) and a curve.</p>
-<p>For a full Cache &amp; Memory <strong>bandwidth</strong> benchmark,
-see the sister project <a
-href="https://github.com/eugenesflanagin-spec/lsa-sysinfo">lsa-sysinfo</a>.</p>
-<p>The newer benchmarks - SRS Pi, Crypto, Prime Sieve and the Benchmark
-history - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
-href="#user-guide--910-benchmark-history">9.10</a>.</p>
+<p>For the <strong>bandwidth</strong> of the RAM and the caches, see <a
+href="#user-guide--911-cache--memory">9.11 Cache &amp; Memory</a>. The newer
+benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache
+&amp; Memory and Storage - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
+href="#user-guide--912-storage">9.12</a>.</p>
 <h3 id="user-guide--95-device-id-lookup">9.5 Device ID Lookup</h3>
 <p><strong>In plain words:</strong> every PCI and USB device has a
 number pair: <strong>vendor ID : device ID</strong> (for example
@@ -1822,15 +1821,18 @@ stress</strong> page -&gt; <strong>SRS Pi...</strong>, or Menu -&gt;
 Tools -&gt; SRS Pi... in the classic view. On the command line:
 <code>sysreport-search pi --digits 1m</code>. Controls:
 <strong>Digits</strong> (128 thousand to 32 million; each choice shows
-the time it took on the author's PC), <strong>Method</strong>
-(Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
-SuperPi uses, one thread), <strong>Threads</strong> (default 1, for a
-single-thread score), <strong>Run</strong> and <strong>Stop</strong>.
-While it runs the status line shows the time so far and the current step
-(series, division, square root). Closing the window also stops it.</p>
+the time it took on the author's PC), <strong>SuperPi sizes</strong>
+(tick for SuperPi's power-of-two digit counts: 16K = 16,384 ... 1M =
+1,048,576 ... 32M = 33,554,432), <strong>Method</strong> (Chudnovsky =
+fast, can use threads; Gauss-Legendre / AGM = the method SuperPi uses,
+one thread), <strong>Threads</strong> (default 1, for a single-thread
+score), <strong>Run</strong> and <strong>Stop</strong>. While it runs
+the status line shows the time so far and the current step (series,
+division, square root). Closing the window also stops it.</p>
 <p>Times are <strong>SRS Pi</strong> times, not SuperPi times. SuperPi's
-"1M" is 1,048,576 digits; SRS's 1 million is 1,000,000. 32 million
-digits takes several minutes and 1-2 GB of memory.</p>
+"1M" is 1,048,576 digits; SRS's 1 million is 1,000,000 - tick
+<strong>SuperPi sizes</strong> for the same digit counts as SuperPi. 32
+million digits takes several minutes and 1-2 GB of memory.</p>
 <h3 id="user-guide--98-crypto">9.8 Crypto</h3>
 <p><strong>In plain words:</strong> how fast the CPU encrypts (AES-128)
 and fingerprints (SHA-256) data, with and without its built-in crypto
@@ -1859,6 +1861,49 @@ with the same settings and the same <strong>Build</strong>: a package
 built for any x86-64 CPU (<code>-march=x86-64 -O2</code>) can score well
 below a build made for your own CPU (<code>-march=native -O3</code>) -
 for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.</p>
+<h3 id="user-guide--911-cache--memory">9.11 Cache &amp; Memory</h3>
+<p><strong>In plain words:</strong> how fast the RAM and the L1, L2 and
+L3 caches read, write and copy, and how long they take to answer. Use it
+after a BIOS, EXPO/XMP or memory-timing change. Open: the
+<strong>Benchmarks &amp; stress</strong> page -&gt; <strong>Cache &amp;
+Memory...</strong>, or Menu -&gt; Tools -&gt; Cache &amp; Memory... in
+the classic view. Command line: <code>sysreport-search cachemem</code>.
+Controls: <strong>Threads</strong> (default all; the bandwidth results
+need all of them), <strong>Seconds per test</strong> (default 1),
+<strong>Run</strong> (asks first: every thread and the memory bus are
+busy for about 20 seconds), <strong>Stop</strong>. The status line names
+the value being measured. A stopped run shows the values it finished and
+says so.</p>
+<p>Close other programs first and <strong>never run another benchmark at
+the same time</strong> (SRS lets only one run; it cannot stop other
+programs). The base clock is measured, so boards with a raised reference
+clock (for example 105 MHz) show the real value; the Infinity Fabric
+clock needs the <code>ryzen_smu</code> driver (Ryzen 7000 desktop);
+memory speed and type need root data (Tools &gt; Collect root data). The
+engine is the one from Linux System Audit (LSA) 0.2.0, which is now part
+of SRS. x86-64 CPUs only.</p>
+<h3 id="user-guide--912-storage">9.12 Storage</h3>
+<p><strong>In plain words:</strong> how fast the drive that holds a
+folder you choose reads and writes - big files, many small pieces at
+once, and one small piece at a time (how snappy it feels) - plus the
+response time of single reads and writes. It uses its <strong>own
+temporary test file only</strong>; your files are never touched, and
+nothing is left behind, even if SRS is stopped or crashes. Open: the
+<strong>Benchmarks &amp; stress</strong> page -&gt;
+<strong>Storage...</strong>, or Menu -&gt; Tools -&gt; Storage
+Benchmark... in the classic view. Command line:
+<code>sysreport-search storage --dir FOLDER</code>. Controls:
+<strong>Folder</strong> (the line below it names the drive, its
+connection, the file system and the free space - never the serial
+number), <strong>Test file</strong> (256 MB, 1 GB, 4 GB, 16 GB),
+<strong>Seconds per test</strong> (default 5), <strong>Standard /
+Light</strong> (Light uses at most 4 threads), <strong>Allow USB
+drives</strong> (off by default), <strong>Run</strong> (asks first),
+<strong>Stop</strong>.</p>
+<p>Folders in RAM (<code>/tmp</code> on many systems is RAM, not a
+drive), on the network or on FUSE are refused, as is a drive with too
+little free space. Drive health (SMART) is on the
+<strong>Storage</strong> page.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -2148,7 +2193,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-549 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+551 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -2246,8 +2291,10 @@ run).</td>
 </tr>
 <tr>
 <td><code>~/.cache/srs/bench-pi.txt</code>,
-<code>bench-crypto.txt</code>, <code>bench-prime.txt</code></td>
-<td>The last result of SRS Pi, Crypto and Prime Sieve.</td>
+<code>bench-crypto.txt</code>, <code>bench-prime.txt</code>,
+<code>bench-cachemem.txt</code>, <code>bench-storage.txt</code></td>
+<td>The last result of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory
+and Storage.</td>
 </tr>
 <tr>
 <td><code>~/.cache/srs/bench-history.tsv</code></td>
@@ -2444,7 +2491,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 549 items with the same text. The classic
+classic view show the same 551 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -2739,7 +2786,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 549 of them - one by one. For each item it says, in this order:</p>
+all 551 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -2851,7 +2898,7 @@ buttons named in each group's introduction.</li>
 </tr>
 <tr>
 <td>Tools</td>
-<td>32</td>
+<td>34</td>
 <td><a href="#sections-tools">tools.md</a></td>
 <td>Benchmarks &amp; stress; Tools</td>
 </tr>
@@ -5453,6 +5500,17 @@ physical cores one at a time</a></td>
 <tr>
 <td><a href="#sections-tools--memory-latency">Memory Latency</a></td>
 <td><code>latency</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory
+benchmark</a></td>
+<td><code>cache-memory</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--storage-benchmark">Storage benchmark</a></td>
+<td><code>storage-bench</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
@@ -26273,6 +26331,10 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <li><a href="#sections-tools--ipi-plots">IPI Plots</a> <code>ipi-plots</code></li>
 <li><a href="#sections-tools--memory-latency">Memory Latency</a>
 <code>latency</code></li>
+<li><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</a>
+<code>cache-memory</code></li>
+<li><a href="#sections-tools--storage-benchmark">Storage benchmark</a>
+<code>storage-bench</code></li>
 <li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
 <li><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a>
 <code>crypto-bench</code></li>
@@ -26953,6 +27015,183 @@ cores (tens of MB). Data the CPU uses often stays close. Latency
 (waiting time) matters most for programs that jump around in memory,
 such as games and databases.</p>
 <hr />
+<h2 id="sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</h2>
+<p><code>cache-memory</code> - Linux data</p>
+<p><strong>In plain words.</strong> How fast the RAM and each cache
+level (L1, L2, L3) can <strong>read</strong>, <strong>write</strong> and
+<strong>copy</strong> data, and how long each takes to answer one
+request (<strong>latency</strong>). It shows whether the memory runs as
+fast as it should after a BIOS, EXPO/XMP or memory-timing change, and
+what each cache level gives you.</p>
+<p><strong>What you see.</strong> A table: rows Memory (RAM), L1 cache,
+L2 cache, L3 cache; columns Read, Write, Copy (MB/s for the RAM, GB/s
+for the caches; 1 MB = 1,000,000 bytes) and Latency (ns). Below it:
+threads and vector code used (AVX-512, AVX2 or SSE2), how the RAM write
+was measured, the processor, the measured clock during the run, the
+<strong>base clock</strong> (measured, so a board running 105 MHz shows
+105), the multiplier, the <strong>Infinity Fabric clock</strong> (AMD
+Ryzen 7000 desktop with the <code>ryzen_smu</code> driver), the memory
+type, speed and channels (from root data), the memory clock as a
+multiple of the base clock, and the cache sizes.</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>How it is measured</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Read / Write / Copy</td>
+<td>One thread pinned to every chosen logical CPU, each in its own block
+sized to stay inside that cache level (half of its share of L1 / L2 /
+L3), or for the RAM a block of at least 4 x L3 (at least 256 MB, default
+1 GB). Best of repeated 40-80 ms trials over the measuring time (default
+1 s per value). <strong>Copy counts the bytes read plus the bytes
+written.</strong></td>
+</tr>
+<tr>
+<td>RAM Write on AMD</td>
+<td>With CLZERO (whole zeroed cache lines written to memory), one thread
+per core, in 4 KB turns, over 256 MB or 2.5 x L3 - what the memory
+itself absorbs. Ordinary streaming stores stop at the core-to-memory
+link's write limit; <code>--mem-write stream</code> shows that figure.
+Other CPUs use streaming stores.</td>
+</tr>
+<tr>
+<td>Latency</td>
+<td>One thread, a random chain through every 64-byte line of a block.
+Caches on ordinary 4 KB pages (L1: half of L1d, L2: half of L2, L3: 8 x
+L2); the RAM on 2 MB pages over 8 x L3 (at least 256 MB, at most half of
+free RAM), so page-table walks and L3 hits do not distort it.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, 2 x 16 GB
+DDR5-6000, FCLK 2000-2133, all 16 threads: RAM about 63,700 MB/s read,
+93,800 MB/s write (CLZERO), 63,600 MB/s copy, 80-82 ns; L1 about 2,300
+GB/s read and 0.8 ns; L2 about 1,200 GB/s and 3.7 ns; L3 about 700 GB/s
+and 11-12 ns. Results vary by a few % from run to run.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>RAM read far below the kit's rating (DDR5-6000 dual channel: roughly
+60,000+ MB/s): EXPO/XMP off, one stick in the wrong slot (single
+channel), or the memory controller at a lower ratio.</li>
+<li>RAM latency well over 90 ns on DDR5: loose timings, or UCLK at half
+the memory clock.</li>
+<li>Everything 10-50% low or jumping between runs: other programs are
+busy. Close them and run again; <strong>never run another benchmark (or
+a second copy of SRS) at the same time</strong> - both results are
+spoiled.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in. The measuring engine
+comes unchanged from Linux System Audit (LSA) 0.2.0, the same author's
+project, now part of SRS. x86-64 CPUs only (it uses x86-64 vector code).
+The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal
+frequency; the Infinity Fabric clock is read (read-only) from the
+<code>ryzen_smu</code> driver's PM table, layout 0x540104 only; the
+memory sticks come from the root DMI data (Tools &gt; Collect root
+data). Stored in <code>~/.cache/srs/bench-cachemem.txt</code>; each run
+is added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>. It
+asks before it starts, and only one benchmark runs at a time in SRS.</p>
+<hr />
+<h2 id="sections-tools--storage-benchmark">Storage benchmark</h2>
+<p><code>storage-bench</code> - Linux data</p>
+<p><strong>In plain words.</strong> How fast the drive that holds a
+folder you choose can read and write: big files in one go (sequential),
+lots of small 4 KB pieces at once (like a busy system), and one small
+piece at a time (how snappy the PC feels). It works on its <strong>own
+temporary test file only</strong> - your files are never opened, changed
+or deleted.</p>
+<p><strong>What you see.</strong> Six rows - Sequential 1 MiB (Q8T1), 4K
+random (Q32T16; Q8T4 in the Light profile) and 4K random (Q1T1), each
+Read and Write - with <strong>Average</strong> (the whole test),
+<strong>Peak</strong> (the best quarter second) and
+<strong>IOPS</strong> (requests per second) for the 4K rows. Then the
+response time of single 4K reads and writes (mean, median, 95% and 99%
+under, slowest), the drive model and connection (NVMe, SATA, USB;
+<strong>never the serial number</strong>), the folder and file system,
+the test file size and I/O mode, and the drive temperature before and
+after (when the drive has a sensor). Q = requests in flight per thread,
+T = threads; Q x T requests are in flight at once.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Folder</td>
+<td>Any folder you can write to on the drive you want to test (default:
+your home folder)</td>
+</tr>
+<tr>
+<td>Test file</td>
+<td>256 MB, 1 GB (default), 4 GB, 16 GB</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>1-30 (default 5)</td>
+</tr>
+<tr>
+<td>Profile</td>
+<td>Standard (4K random Q32T16 = 16 threads) or Light (Q8T4 = at most 4
+threads)</td>
+</tr>
+<tr>
+<td>Allow USB drives</td>
+<td>Off by default</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety.</strong></p>
+<ul>
+<li>The test file is created new (it can never be one of your files) and
+is <strong>unlinked at once</strong>: it has no name while the test runs
+and its space is freed the moment the test ends - also after Stop, a
+crash or a forced kill. Nothing is ever left behind.</li>
+<li>Refused: folders in RAM (tmpfs - <code>/tmp</code> on many systems),
+network and FUSE file systems, read-only media, and anything with less
+than twice the test size free (+0.5 GB). USB drives only when you tick
+<strong>Allow USB drives</strong> (some USB enclosures drop off under
+heavy load). Hard disks get a warning.</li>
+<li>It asks before it starts, showing the drive, the folder and how much
+it writes.</li>
+<li>Writes count only once they are on the drive (<code>fdatasync</code>
+is inside the timing).</li>
+</ul>
+<p><strong>Healthy / typical values.</strong> Samsung 980 PRO 1 TB (PCIe
+4.0 x4 NVMe), btrfs, 64 MB file, 1 s per test, Light profile: sequential
+read about 6,500 MB/s, write about 3,200 MB/s; 4K Q8T4 read about 1,400
+MB/s (350,000 IOPS); 4K Q1T1 read about 51 MB/s (median 72 us), write
+about 150 MB/s. A SATA SSD tops out near 550 MB/s sequential; a hard
+disk manages about 150-250 MB/s sequential and around 1 MB/s (100-200
+IOPS) at 4K Q1T1.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>NVMe sequential read far below its rating: the drive sits in a
+slower M.2 slot or PCIe lanes are shared (see the PCI pages for the link
+speed and width), or it is hot and throttling (watch the temperature
+line).</li>
+<li>Write much lower on a longer test than a short one: the drive's fast
+SLC write cache filled up; that is normal for consumer SSDs.</li>
+<li>Small test files (256 MB) can fit in the drive's own cache and read
+very fast; use 1 GB or more for figures to compare.</li>
+<li>"buffered I/O" in the Test file line: the file system refused direct
+I/O; the page cache was dropped before each read test, but results can
+still be a little high.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: <code>O_DIRECT</code>
+I/O with Linux native asynchronous I/O (<code>io_submit</code>) for real
+queue depths, incompressible random data; the drive is found through
+<code>/proc/self/mountinfo</code> and <code>/sys/block</code>
+(device-mapper and RAID followed to the first member); the temperature
+from the drive's hwmon sensor. Drive health (SMART) is on the Storage
+page. Stored in <code>~/.cache/srs/bench-storage.txt</code>; each run is
+added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+<hr />
 <h2 id="sections-tools--srs-pi">SRS Pi</h2>
 <p><code>srs-pi</code> - Linux data</p>
 <p><strong>In plain words.</strong> SRS works out pi (3.14159...) to
@@ -26974,7 +27213,8 @@ too little voltage or bad memory.</p>
 <tr>
 <td>Digits</td>
 <td>How many decimal places were worked out (after "3."). 1 million =
-1,000,000.</td>
+1,000,000. With <strong>SuperPi sizes</strong> ticked, powers of two: 1M
+= 1,048,576, marked "(SuperPi size 1M)".</td>
 <td>Bigger takes longer and uses more memory.</td>
 </tr>
 <tr>
@@ -27042,8 +27282,13 @@ href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
 <p><strong>Background.</strong> SuperPi (1995) made "pi to 1 million
 digits" a famous overclocking test. SRS Pi is SRS's own program with its
 own name and timings; its times are <strong>not</strong> SuperPi times.
-Note that SuperPi's "1M" is 2^20 = 1,048,576 digits; SRS's 1 million is
-exactly 1,000,000.</p>
+SuperPi's "1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly
+1,000,000. Tick <strong>SuperPi sizes</strong> to work out the same
+digit counts SuperPi does (16K = 16,384 up to 32M = 33,554,432), so at
+least the amount of work matches; each of these sizes has its own
+built-in checksum too. 1M = 1,048,576 digits took 4.2 s on one thread on
+the 7800X3D (a little more than 5% over 1,000,000 digits, because the
+multiplications step up to the next power-of-two size).</p>
 <hr />
 <h2 id="sections-tools--crypto-benchmark">Crypto benchmark</h2>
 <p><code>crypto-bench</code> - Linux data</p>
@@ -29866,9 +30111,11 @@ sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|sw
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
-sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
 sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
@@ -29911,14 +30158,22 @@ Benchmarks and stress (load the CPU; run only when you ask):
         core-to-core (cache-line ping-pong) latency matrix
   latency [--max MB]
         memory latency by block size, up to MB (1..4096, default 256)
-  pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
-        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked
+  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
+        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
+        5 s per test); never touches existing files; asks first, --yes starts at once
+  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
+           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
+        Cache &amp; Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
+        ~20 s; asks first, --yes starts at once)
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
@@ -29929,7 +30184,7 @@ Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (549 lines), one per line:</p>
+<p>Lists every item SRS knows (551 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
@@ -30370,16 +30625,18 @@ href="#sections-tools--memory-latency">tools.md</a>.</p>
 <h3
 id="cli-reference--pi---srs-pi-pi-to-many-digits-every-digit-checked"><code>pi</code> -
 SRS Pi: pi to many digits, every digit checked</h3>
-<pre><code>sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]</code></pre>
+<pre><code>sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]</code></pre>
 <p><code>--digits</code> is the number of decimal places (default
 <code>1m</code> = 1,000,000; <code>k</code> = thousand, <code>m</code> =
-million; 100 to 32m). The listed sizes are checked digit for digit with
-built-in SHA-256 checksums; other sizes only have their first 100 digits
-checked. <code>--threads N</code> (default 1) splits the Chudnovsky
-series over N threads; <code>--method agm</code> uses Gauss-Legendre
-(always one thread). <code>--save-digits FILE</code> writes the digits
-(without "3.") to FILE. Exit code 0 when every checked digit is right, 1
-when a digit is wrong or memory ran out, 2 for a bad option. See <a
+million; <code>ki</code> = 1,024 and <code>mi</code> = 1,048,576 for the
+<strong>SuperPi sizes</strong> 16ki ... 32mi; 100 to 32mi). The listed
+sizes are checked digit for digit with built-in SHA-256 checksums; other
+sizes only have their first 100 digits checked. <code>--threads N</code>
+(default 1) splits the Chudnovsky series over N threads;
+<code>--method agm</code> uses Gauss-Legendre (always one thread).
+<code>--save-digits FILE</code> writes the digits (without "3.") to
+FILE. Exit code 0 when every checked digit is right, 1 when a digit is
+wrong or memory ran out, 2 for a bad option. See <a
 href="#sections-tools--srs-pi">tools.md</a>.</p>
 <h3 id="cli-reference--crypto---aes-128-and-sha-256-speed"><code>crypto</code> -
 AES-128 and SHA-256 speed</h3>
@@ -30396,8 +30653,79 @@ count the primes up to a limit</h3>
 1e11) on N threads (default all) and checks the count for the powers of
 ten 1e7 to 1e11. Exit code 1 when the count is wrong. See <a
 href="#sections-tools--prime-sieve">tools.md</a>.</p>
-<p>Every <code>pi</code>, <code>crypto</code> and <code>prime</code> run
-is added to <code>~/.cache/srs/bench-history.tsv</code>.</p>
+<h3 id="cli-reference--cachemem---cache--memory-benchmark"><code>cachemem</code> -
+Cache &amp; Memory benchmark</h3>
+<pre><code>sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
+                          [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]
+                          [--mem-write auto|clzero|stream] [--yes]</code></pre>
+<p>Read / Write / Copy (MB/s, caches in GB/s) and Latency (ns) of the
+RAM and the L1, L2 and L3 caches. It loads every CPU thread and the
+memory bus for about 20 seconds and <strong>asks first</strong>;
+<code>--yes</code> (<code>-y</code>) starts at once (scripts). Without a
+terminal and without <code>--yes</code> it does not start (exit code
+2).</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--threads N</code></td>
+<td>Threads for the bandwidth tests (default all logical CPUs)</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>Measuring time per value, 0.1-60 (default 1)</td>
+</tr>
+<tr>
+<td><code>--isa</code></td>
+<td>Force the vector code (default: the best the CPU has)</td>
+</tr>
+<tr>
+<td><code>--mem-mib M</code></td>
+<td>RAM block in MiB, all threads together (default 1024, at least 4 x
+L3)</td>
+</tr>
+<tr>
+<td><code>--only</code> / <code>--tests</code></td>
+<td>Run only some rows / columns, e.g.
+<code>--only l1 --tests read</code></td>
+</tr>
+<tr>
+<td><code>--mib</code></td>
+<td>Binary units (MiB/s, GiB/s)</td>
+</tr>
+<tr>
+<td><code>--mem-write</code></td>
+<td>RAM write method: <code>auto</code> (CLZERO on AMD CPUs that have
+it), <code>clzero</code>, <code>stream</code></td>
+</tr>
+</tbody>
+</table>
+<p>x86-64 only. Exit code 0 when it ran, 1 if memory could not be
+allocated, 2 for a bad option or no confirmation. See <a
+href="#sections-tools--cache--memory-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--storage---drive-read--write-speed"><code>storage</code> - drive
+read / write speed</h3>
+<pre><code>sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]</code></pre>
+<p>Tests the drive that holds FOLDER on a new temporary test file
+(<code>--size</code>, 16-65536 MB, default 1024) that is unlinked at
+once and gone when the test ends - existing files are never touched. Six
+tests of <code>--seconds S</code> each (0.5-60, default 5): sequential 1
+MiB Q8T1, 4K random Q32T16 (<code>--profile light</code>: Q8T4) and 4K
+random Q1T1, read and write; average, peak, IOPS and 4K Q1T1 response
+times. Refuses RAM (tmpfs), network and FUSE folders and too little free
+space; USB drives only with <code>--allow-usb</code>. <strong>Asks
+first</strong>; <code>--yes</code> starts at once. Exit code 0 when it
+ran, 1 when it was stopped or hit an I/O error, 2 when it did not start
+(the message says why). See <a
+href="#sections-tools--storage-benchmark">tools.md</a>.</p>
+<p>Every <code>cachemem</code>, <code>storage</code>, <code>pi</code>,
+<code>crypto</code> and <code>prime</code> run is added to
+<code>~/.cache/srs/bench-history.tsv</code>.</p>
 <hr />
 <h2 id="cli-reference--srs-gui-window-options"><code>srs-gui</code> window options</h2>
 <table>
@@ -30483,6 +30811,15 @@ in classic view</strong> is on.</td>
 <tr>
 <td><code>prime</code></td>
 <td>Prime Sieve</td>
+</tr>
+<tr>
+<td><code>cachemem</code></td>
+<td>Cache &amp; Memory</td>
+</tr>
+<tr>
+<td><code>storagebench</code></td>
+<td>Storage benchmark (<code>storage</code> alone is the Storage page's
+item)</td>
 </tr>
 <tr>
 <td><code>idlookup</code></td>
@@ -30696,6 +31033,10 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>Associativity (ways)</strong> - how many places in a cache a
 given piece of memory may be stored; more ways means fewer collisions.
 <em>See: <a href="#sections-processors">processors</a>.</em></li>
+<li><strong>Asynchronous I/O (AIO)</strong> - handing the kernel several
+read or write requests at once and collecting the answers later; how the
+storage benchmark keeps Q requests in flight. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>ATA</strong> - AT Attachment: the command set used by SATA
 (and older IDE/PATA) hard disks and SSDs. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -30836,6 +31177,10 @@ href="#sections-linux-os">linux-os</a>.</em></li>
 <li><strong>Cluster</strong> - The smallest unit of space a FAT, exFAT
 or NTFS filesystem hands out to a file. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>CLZERO</strong> - an AMD instruction that writes a whole
+zeroed 64-byte cache line straight to memory; the Cache &amp; Memory
+benchmark uses it to measure how fast the RAM itself can take writes.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>CMOS</strong> - the battery-backed clock chip and its small
 memory on the motherboard; the name comes from the chip technology.
 <em>See: <a href="#sections-machine">machine</a>.</em></li>
@@ -31364,6 +31709,9 @@ href="#sections-processors">processors</a>.</em></li>
 can isolate from each other. It matters for passing a device to a
 virtual machine. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
+<li><strong>IOPS</strong> - input/output operations per second: how many
+separate read or write requests a drive answers each second. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>IP block</strong> - A reusable hardware building block
 inside an AMD chip (graphics core, video engine, memory controller...),
 each with its own version. <em>See: <a
@@ -31683,6 +32031,10 @@ href="#sections-sensors">sensors</a>.</em></li>
 </ul>
 <h2 id="glossary--o">O</h2>
 <ul>
+<li><strong>O_DIRECT</strong> - opening a file so reads and writes go
+straight to the drive, past Linux's page cache in RAM; benchmarks use it
+so they measure the drive, not the RAM. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>OpenCL</strong> - An open standard for running general
 computing tasks on GPUs and other processors. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -31863,6 +32215,10 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>QST (Quiet System Technology)</strong> - Intel fan control
 built into the management engine of some 2007-2010 desktop boards.
 <em>See: <a href="#sections-sensors">sensors</a>.</em></li>
+<li><strong>Queue depth (Q), threads (T)</strong> - Q = how many
+requests one thread keeps waiting at the drive at once, T = how many
+threads do so; "Q32T16" keeps 512 requests in flight. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Quirk (USB)</strong> - a kernel workaround flag for a device
 that does not follow the USB standard exactly. <em>See: <a
 href="#sections-buses-2">buses-2</a>.</em></li>

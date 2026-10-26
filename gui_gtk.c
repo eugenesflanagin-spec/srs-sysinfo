@@ -1601,6 +1601,13 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) { g_free(dir); return; }
+        {   /* remember the folder for next time */
+            char *f = g_build_filename(g_get_home_dir(), ".cache", "srs", "storage-folder.txt", NULL), *d2 = g_path_get_dirname(f);
+            g_mkdir_with_parents(d2, 0755);
+            g_file_set_contents(f, dir, -1, NULL);
+            g_free(d2);
+            g_free(f);
+        }
         j = g_new0(benchjob, 1);
         j->dir = dir;
         j->size_mb = mb;
@@ -1766,7 +1773,13 @@ static void build_bench(swin *w, GtkWidget *vb)
         static const char *const sz[] = { "256 MB", "1 GB", "4 GB", "16 GB" };
         gtk_box_pack_start(GTK_BOX(row), lbl("Folder"), FALSE, FALSE, 0);
         w->st_dir = gtk_file_chooser_button_new("Choose a folder on the drive to test", GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER);
-        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(w->st_dir), g_get_home_dir());
+        {   /* the folder of the last run, else the home folder */
+            char *last = NULL, *f = g_build_filename(g_get_home_dir(), ".cache", "srs", "storage-folder.txt", NULL);
+            if (g_file_get_contents(f, &last, NULL, NULL)) g_strstrip(last);
+            gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(w->st_dir), last && *last && g_file_test(last, G_FILE_TEST_IS_DIR) ? last : g_get_home_dir());
+            g_free(last);
+            g_free(f);
+        }
         gtk_widget_set_tooltip_text(w->st_dir, "The test file goes into this folder, so the drive that holds it is tested. Existing files are never touched.");
         g_signal_connect(w->st_dir, "selection-changed", G_CALLBACK(on_storage_dir), w);
         gtk_box_pack_start(GTK_BOX(row), w->st_dir, FALSE, FALSE, 0);
