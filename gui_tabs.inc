@@ -1289,7 +1289,7 @@ static void tabs_options(GtkWidget *menu)
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_opt_showhidden);
     g_signal_connect(it, "toggled", G_CALLBACK(on_tabopt), GINT_TO_POINTER(1));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
-    it = gtk_check_menu_item_new_with_mnemonic("Check _daily which items have nothing to show");
+    it = gtk_check_menu_item_new_with_mnemonic("Check dail_y which items have nothing to show");
     gtk_widget_set_tooltip_text(it, "Off (the default): SRS checks only when you choose Check now. On: once a day, in the "
                                     "background, SRS reads every item to find the ones with nothing to show and hides them. "
                                     "The network items and Ping are never part of the check. Windows-only items and hardware "
