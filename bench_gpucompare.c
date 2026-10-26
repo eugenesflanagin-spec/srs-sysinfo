@@ -10,6 +10,7 @@
 #include "bench_gpucompare.h"
 #include "burner.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,20 @@ void gpucmp_cfg_default(gpucmp_cfg *c)
 
 #ifdef __linux__
 static const char *volatile g_stage = "";
-static char g_stage_buf[200];
+static char g_stage_buf[2][200];   /* two buffers: the GUI timer reads one while the next is written */
+static int g_stage_i;
+
+/* the stage text for the GUI timer, written into the buffer the reader is not on */
+static void set_stage_text(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void set_stage_text(const char *fmt, ...)
+{
+    va_list ap;
+    char *b = g_stage_buf[g_stage_i ^= 1];
+    va_start(ap, fmt);
+    vsnprintf(b, sizeof g_stage_buf[0], fmt, ap);
+    va_end(ap);
+    g_stage = b;
+}
 const char *gpucmp_stage(void) { return g_stage; }
 
 static double now_s(void)
@@ -318,8 +332,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
         double mem;
         if (!col->shown) continue;
         ops = gb_table[col->backend];
-        snprintf(g_stage_buf, sizeof g_stage_buf, "%s: opening", col->info.label);
-        g_stage = g_stage_buf;
+        set_stage_text("%s: opening", col->info.label);
         if (ops->open(&ctx, &col->info, x->c.software_only, w, sizeof w)) {
             snprintf(col->aborted, sizeof col->aborted, "%.190s", w);
             for (row = 0; row < GC_N; row++) col->state[row] = CS_FAILED;
@@ -330,8 +343,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
         for (row = 0; row < GC_N; row++) {
             int rc2;
             if (cancel && *cancel) { x->stopped = 1; break; }
-            snprintf(g_stage_buf, sizeof g_stage_buf, "%s: %s", col->info.label, gpucmp_row_name[row]);
-            g_stage = g_stage_buf;
+            set_stage_text("%s: %s", col->info.label, gpucmp_row_name[row]);
             rc2 = measure(x, ops, ctx, col, row);
             if (rc2) {   /* hung or lost: this GPU is not touched again */
                 snprintf(col->aborted, sizeof col->aborted, "%s", ops->error(ctx));

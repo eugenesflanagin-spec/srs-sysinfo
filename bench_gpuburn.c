@@ -11,6 +11,7 @@
 #include "bench_gpuburn.h"
 #include "burner.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +28,20 @@
 #define HANG_WAIT_S 15.0     /* after the end: how long a worker stuck in a driver call is waited for */
 
 static const char *volatile g_stage = "";
-static char g_stage_buf[160];
+static char g_stage_buf[2][160];   /* two buffers: the GUI timer reads one while the next is written */
+static int g_stage_i;
+
+/* the stage text for the GUI timer, written into the buffer the reader is not on */
+static void set_stage_text(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+static void set_stage_text(const char *fmt, ...)
+{
+    va_list ap;
+    char *b = g_stage_buf[g_stage_i ^= 1];
+    va_start(ap, fmt);
+    vsnprintf(b, sizeof g_stage_buf[0], fmt, ap);
+    va_end(ap);
+    g_stage = b;
+}
 const char *gpuburn_stage(void) { return g_stage; }
 
 static double now_s(void)
@@ -496,8 +510,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
             }
             if (!atomic_load(&k->done)) alldone = 0;
         }
-        snprintf(g_stage_buf, sizeof g_stage_buf, "GPU Burnin: %.0f s of %.0f s", s->elapsed, c.seconds);
-        g_stage = g_stage_buf;
+        set_stage_text("GPU Burnin: %.0f s of %.0f s", s->elapsed, c.seconds);
         if (c.cb) c.cb(s, c.ud);
         if (alldone) break;
         if (end_at && tnow - end_at > HANG_WAIT_S) {   /* a worker is stuck inside a GPU driver call: do not wait forever */

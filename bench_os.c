@@ -85,14 +85,16 @@ extern char **environ;
 #define HP_PER_REGION 32
 
 static const char *volatile g_os_stage = "";
-static char g_stage_buf[128];
+static char g_stage_buf[2][128];   /* two buffers: the GUI timer reads one while the next is written */
+static int g_stage_i;
 const char *os_stage(void) { return g_os_stage; }
 int os_available(void) { return 1; }
 
 static void set_stage(const char *g, const char *what)
 {
-    snprintf(g_stage_buf, sizeof g_stage_buf, "%s: %s", g, what);
-    g_os_stage = g_stage_buf;
+    char *b = g_stage_buf[g_stage_i ^= 1];
+    snprintf(b, sizeof g_stage_buf[0], "%s: %s", g, what);
+    g_os_stage = b;
 }
 
 static inline int64_t now_ns(void)
@@ -439,6 +441,10 @@ static void pingpong(octx *x, int procs, int cpu_echo, const char *key, const ch
             _exit(0);
         }
         ok = made = pid > 0;
+        if (made) {   /* the parent keeps only its own ends: if the child is killed, read() sees end of file instead of waiting for ever */
+            close(from[1]); from[1] = -1;
+            close(to[0]); to[0] = -1;
+        }
     } else ok = made = pthread_create(&t, NULL, echo_thread, &a) == 0;
     if (ok) {
         for (i = 0; i < 500 && ok; i++)   /* warm-up: thread start, pinning, clocks */
@@ -454,7 +460,9 @@ static void pingpong(octx *x, int procs, int cpu_echo, const char *key, const ch
     close(to[1]);
     if (made && procs) while (waitpid(pid, NULL, 0) < 0 && errno == EINTR) ;
     if (made && !procs) pthread_join(t, NULL);
-    close(to[0]); close(from[0]); close(from[1]);
+    if (to[0] >= 0) close(to[0]);
+    close(from[0]);
+    if (from[1] >= 0) close(from[1]);
     unpin(x);
     if (stopped(x)) return;
     if (!ok && !got) { skip_row(x, OS_G_SWITCH, key, name, procs ? "fork() failed" : "pthread_create() failed"); return; }
@@ -687,9 +695,9 @@ static void t_timer(octx *x)
         long n = scaled(x, k ? 40 : 10, k ? 10 : 20);
         set_stage(grp_name[OS_G_TIMER], nm[k]);
         for (i = 0, got = 0; i < n + 3 && !stopped(x); i++) {
-            struct timespec d = { 0, req[k] };
+            struct timespec d = { 0, req[k] }, rem;
             int64_t t0 = now_ns();
-            clock_nanosleep(CLOCK_MONOTONIC, 0, &d, NULL);
+            while (clock_nanosleep(CLOCK_MONOTONIC, 0, &d, &rem) == EINTR) d = rem;   /* a signal: sleep the rest */
             if (i >= 3) x->s[got++] = (double)(now_ns() - t0 - req[k]);
         }
         if (!stopped(x)) stat_row(x, OS_G_TIMER, key[k], nm[k], det, got);
@@ -885,7 +893,14 @@ static void t_files(octx *x)
     if ((dfd = open(dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)) < 0) { err = errno; why = "open the test folder"; goto out; }
     storage_probe(dir, w);
     snprintf(x->r->tmp_fs, sizeof x->r->tmp_fs, "%s", w->fstype);
-    snprintf(x->r->tmp_mount, sizeof x->r->tmp_mount, "%.*s", (int)sizeof x->r->tmp_mount - 1, w->mount);
+    {   /* a mount point inside the home folder (/home/<name> on its own disk) would put the user name into the result */
+        const char *home = getenv("HOME");
+        size_t hl = home ? strlen(home) : 0;
+        while (hl > 1 && home[hl - 1] == '/') hl--;
+        if (hl > 1 && !strncmp(w->mount, home, hl) && (w->mount[hl] == 0 || w->mount[hl] == '/'))
+            snprintf(x->r->tmp_mount, sizeof x->r->tmp_mount, "%s", w->mount[hl] ? "a folder in your home folder" : "your home folder");
+        else snprintf(x->r->tmp_mount, sizeof x->r->tmp_mount, "%.*s", (int)sizeof x->r->tmp_mount - 1, w->mount);
+    }
     /* names relative to the folder (openat / fstatat / unlinkat): one path step per call */
     /* create: openat(O_CREAT | O_EXCL) + 100-byte write + close */
     for (i = 0; i < n && !stopped(x); i++) {

@@ -15,7 +15,9 @@ MINGW32   := /usr/bin/i686-w64-mingw32-gcc
 WINDRES64 := /usr/bin/x86_64-w64-mingw32-windres
 WINDRES32 := /usr/bin/i686-w64-mingw32-windres
 
-WFLAGS    := -std=c11 -Wall -Wextra -Wno-format-truncation
+WFLAGS    := -std=c11 -Wall -Wextra -Wno-format-truncation -ffp-contract=off
+# -ffp-contract=off: no fused multiply-add the source did not ask for (gcc -std=gnu11 and clang fuse by default),
+# so the CPU Compute Mandelbrot check matches exactly with every compiler and CFLAGS
 CFLAGS    ?= -O2
 BASE      = $(WFLAGS) $(CFLAGS)
 CORE      := core.c cli.c

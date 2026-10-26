@@ -208,7 +208,7 @@ static void *lo_recv(void *arg)
 /* TCP with n streams, or UDP (one stream of 1472-byte packets) */
 static void lo_throughput(int n, int udp, double secs, volatile int *cancel, net_xfer *r, double *loss, long *sent)
 {
-    int cl[NET_MAX_STREAMS], sv[NET_MAX_STREAMS], i;
+    int cl[NET_MAX_STREAMS], sv[NET_MAX_STREAMS], rs[NET_MAX_STREAMS], ss[NET_MAX_STREAMS], i;
     lo_job snd[NET_MAX_STREAMS], rcv[NET_MAX_STREAMS];
     _Atomic uint64_t bytes = 0;
     _Atomic int stop = 0, alive = 0;
@@ -231,15 +231,21 @@ static void lo_throughput(int n, int udp, double secs, volatile int *cancel, net
     memset(snd, 0, sizeof snd);
     memset(rcv, 0, sizeof rcv);
     atomic_store(&alive, n);
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < n; i++) {   /* a thread that could not start is never joined; a stream without a receiver gets no sender */
         rcv[i].fd = sv[i]; rcv[i].udp = udp; rcv[i].bytes = &bytes; rcv[i].stop = &stop; rcv[i].alive = &alive;
         snd[i].fd = cl[i]; snd[i].udp = udp; snd[i].stop = &stop; snd[i].alive = &alive;
-        pthread_create(&rcv[i].t, NULL, lo_recv, &rcv[i]);
-        pthread_create(&snd[i].t, NULL, lo_send, &snd[i]);
+        rs[i] = !pthread_create(&rcv[i].t, NULL, lo_recv, &rcv[i]);
+        if (!rs[i]) atomic_fetch_sub(&alive, 1);
+        ss[i] = rs[i] && !pthread_create(&snd[i].t, NULL, lo_send, &snd[i]);
+        if (rs[i] && !ss[i] && !udp) shutdown(cl[i], SHUT_WR);   /* its receiver sees the end at once */
     }
     watch(&bytes, &alive, secs, 0, 2, cancel, r);
     atomic_store(&stop, 1);
-    for (i = 0; i < n; i++) { pthread_join(snd[i].t, NULL); pthread_join(rcv[i].t, NULL); close(cl[i]); close(sv[i]); }
+    for (i = 0; i < n; i++) {
+        if (ss[i]) pthread_join(snd[i].t, NULL);
+        if (rs[i]) pthread_join(rcv[i].t, NULL);
+        close(cl[i]); close(sv[i]);
+    }
     if (udp && snd[0].pkts > 0) {
         *loss = 100.0 * (double)(snd[0].pkts - rcv[0].pkts) / (double)snd[0].pkts;
         if (*loss < 0) *loss = 0;
@@ -271,6 +277,7 @@ static void lo_rtt(int udp, double secs, volatile int *cancel, net_lat *r)
     _Atomic int stop = 0;
     uint64_t seq = 0;
     memset(r, 0, sizeof *r);
+    memset(&e, 0, sizeof e);
     if (!v) return;
     if (udp) {
         struct sockaddr_in a, b;
@@ -286,7 +293,7 @@ static void lo_rtt(int udp, double secs, volatile int *cancel, net_lat *r)
         set_timeo(cfd, 1000);
     }
     e.fd = sfd; e.udp = udp; e.stop = &stop;
-    pthread_create(&e.t, NULL, lo_echo, &e);
+    if (pthread_create(&e.t, NULL, lo_echo, &e)) goto out;   /* no echo thread: nothing measured, nothing to join */
     t0 = now_s();
     while (n < cap && now_s() - t0 < secs && !stopped(cancel)) {
         unsigned char b[8], g[64];
@@ -401,18 +408,42 @@ static void iface_info(net_iface *ifc)
     }
 }
 
-/* host name of an https URL; 0 = not an https URL with a plain host name */
-static int url_host(const char *url, char *host, size_t hn)
+/* host name and port of an https URL ("https://host:8443/..." keeps 8443, else 443); 0 = not an https URL
+   with a plain host name */
+static int url_host(const char *url, char *host, size_t hn, int *port)
 {
     size_t i = 0;
     const char *s;
+    *port = 443;
     if (strncmp(url, "https://", 8)) return 0;
     for (s = url + 8; *s && *s != '/' && *s != ':' && *s != '?'; s++) {
         if (!((*s >= 'a' && *s <= 'z') || (*s >= 'A' && *s <= 'Z') || (*s >= '0' && *s <= '9') || *s == '.' || *s == '-')) return 0;
         if (i + 1 < hn) host[i++] = *s;
     }
     host[i] = 0;
+    if (*s == ':') {
+        long p = 0;
+        for (s++; *s >= '0' && *s <= '9' && p < 70000; s++) p = p * 10 + (*s - '0');
+        if (p <= 0 || p > 65535 || (*s && *s != '/' && *s != '?')) return 0;
+        *port = (int)p;
+    }
     return i > 0;
+}
+
+/* a host typed as a numeric address (only digits and dots): never written into a result */
+static int ip_literal(const char *h)
+{
+    if (!*h) return 0;
+    for (; *h; h++) if (!((*h >= '0' && *h <= '9') || *h == '.')) return 0;
+    return 1;
+}
+
+/* what the result shows for a host: the name, or "host N (a numeric address)" so a typed address never reaches the file */
+static const char *host_label(const char *h, int idx, char *b, size_t n)
+{
+    if (!ip_literal(h)) return h;
+    snprintf(b, n, "host %d (a numeric address)", idx + 1);
+    return b;
 }
 
 static void add_host(net_where *w, const char *h, int port)
@@ -514,14 +545,14 @@ int net_probe(const net_cfg *c, net_where *w)
 {
     static const char *const pv[] = { "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", NULL };
     const char *s = server_of(c);
-    int i;
+    int i, sport = 443;
     double secs = c->secs > 0 ? c->secs : 5, rtt = secs < 1 ? secs : 1, per;
     memset(w, 0, sizeof *w);
     snprintf(w->server, sizeof w->server, "%s", s);
     while (w->server[0] && w->server[strlen(w->server) - 1] == '/') w->server[strlen(w->server) - 1] = 0;
-    if (!url_host(w->server, w->server_host, sizeof w->server_host))
+    if (!url_host(w->server, w->server_host, sizeof w->server_host, &sport))
         snprintf(w->problem, sizeof w->problem, "the speed test server must be an https:// address with a plain host name");
-    else add_host(w, w->server_host, 443);
+    else add_host(w, w->server_host, sport);
     if (c->hosts && c->hosts[0]) {
         char list[2048], *t, *save = NULL;
         snprintf(list, sizeof list, "%s", c->hosts);
@@ -914,8 +945,8 @@ static void net_render(srs_out *o, void *c)
         so_par(o);
     }
     if (x->ran_net) {
-        char a[32], b[32], d[32];
-        snprintf(t, sizeof t, "Internet (speed test server: %s)", x->w.server_host);
+        char a[32], b[32], d[32], hl[64];
+        snprintf(t, sizeof t, "Internet (speed test server: %s)", host_label(x->w.server_host, 0, hl, sizeof hl));
         so_b(o, C_TEAL, t);
         so_par(o);
         so_tabs(o, tabs1, 1);
@@ -931,8 +962,8 @@ static void net_render(srs_out *o, void *c)
         so_tabs(o, tabs5, 4);
         so_row(o, 5, (const char *const[]){ "Connect time (TCP)", "Median", "Best", "99% under", "" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
         for (i = 0; i < x->w.nhosts; i++) {
-            if (x->w.ports[i] != 443) snprintf(name, sizeof name, "%.240s port %d", x->w.hosts[i], x->w.ports[i]);
-            else snprintf(name, sizeof name, "%s", x->w.hosts[i]);
+            if (x->w.ports[i] != 443) snprintf(name, sizeof name, "%.240s port %d", host_label(x->w.hosts[i], i, hl, sizeof hl), x->w.ports[i]);
+            else snprintf(name, sizeof name, "%s", host_label(x->w.hosts[i], i, hl, sizeof hl));
             lat_row(o, name, &r->conn[i]);
         }
         so_par(o);
@@ -979,8 +1010,10 @@ int bench_net(const net_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
     netctx *x;
     net_result *r = &g_res;
     time_t now = time(NULL);
-    char params[400], res[400], st_buf[64];
-    static char stage[64];
+    char params[400], res[400], st_buf[64], hl[64];
+    static char stage2[2][64];   /* two buffers: the GUI timer reads one while the next is written */
+    static int si;
+    char *stage;
     unsigned char *body = NULL;
     int rc;
     double rtt;
@@ -1009,7 +1042,8 @@ int bench_net(const net_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
         g_net_stage = "Loopback TCP, 1 stream";
         lo_throughput(1, 0, x->c.secs, cancel, &r->tcp1, NULL, NULL);
         if (!stopped(cancel)) {
-            snprintf(stage, sizeof stage, "Loopback TCP, %d streams", x->c.streams);
+            stage = stage2[si ^= 1];
+            snprintf(stage, sizeof stage2[0], "Loopback TCP, %d streams", x->c.streams);
             g_net_stage = stage;
             lo_throughput(x->c.streams, 0, x->c.secs, cancel, &r->tcpn, NULL, NULL);
         }
@@ -1040,13 +1074,15 @@ int bench_net(const net_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
                 for (k = 0; k < 4 && body && !stopped(cancel); k++) {
                     int n = t4[k].multi ? x->c.streams : 1;
                     char e3[200] = "";
-                    snprintf(stage, sizeof stage, "%s, %d stream%s", t4[k].what, n, n > 1 ? "s" : "");
+                    stage = stage2[si ^= 1];
+                    snprintf(stage, sizeof stage2[0], "%s, %d stream%s", t4[k].what, n, n > 1 ? "s" : "");
                     g_net_stage = stage;
                     if (t4[k].multi && n == 1) { *dst[k] = *dst[k - 1]; continue; }   /* streams = 1: same test */
                     xfer_test(&x->w, t4[k].up, n, x->c.secs, x->c.max_mb, x->c.ipv, body, cancel, dst[k], e3, sizeof e3);
                     if (e3[0] && !x->err[0]) snprintf(x->err, sizeof x->err, "%s", e3);
                 }
             }
+            if (!body && !stopped(cancel) && !x->err[0]) snprintf(x->err, sizeof x->err, "the download / upload tests were not run: no memory for the 1 MiB upload data");
             free(body);
         }
     }
@@ -1055,7 +1091,7 @@ int bench_net(const net_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
     strftime(x->when, sizeof x->when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     bench_save_render("net", net_render, x, o);
     snprintf(params, sizeof params, "%s%s streams=%d seconds=%.1f%s%s%s", x->ran_local ? "loopback" : "", x->ran_net ? (x->ran_local ? "+internet" : "internet") : "",
-             x->c.streams, x->c.secs, x->c.ipv ? (x->c.ipv == 4 ? " ipv4" : " ipv6") : "", x->ran_net ? " server=" : "", x->ran_net ? x->w.server_host : "");
+             x->c.streams, x->c.secs, x->c.ipv ? (x->c.ipv == 4 ? " ipv4" : " ipv6") : "", x->ran_net ? " server=" : "", x->ran_net ? host_label(x->w.server_host, 0, hl, sizeof hl) : "");
     res[0] = 0;
     if (x->ran_local)
         snprintf(res, sizeof res, "loopback TCP %.0f/%.0f Mbit/s (1/%d streams), UDP %.0f Mbit/s, RTT TCP %.3f UDP %.3f ms",

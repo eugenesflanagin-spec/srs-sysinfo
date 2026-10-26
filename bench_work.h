@@ -6,7 +6,8 @@
  *  - sorting: 64-bit integers (C library qsort vs SRS's own radix sort) and strings (qsort vs
  *    SRS's own multikey quicksort), million keys per second
  *  - hashing / checksums: CRC32 (byte table and slicing-by-8), CRC32C (table and the CPU's CRC32
- *    instruction: SSE4.2 on x86, the CRC extension on ARMv8), xxHash64 and FNV-1a, GB/s
+ *    instruction: SSE4.2, in the 64-bit x86 build only; the i686 and aarch64 builds skip that row),
+ *    xxHash64 and FNV-1a, GB/s
  *  - text processing: substring search (C library memmem vs SRS's own Boyer-Moore-Horspool),
  *    JSON tokenise + structure check, UTF-8 validation, GB/s
  *  - a tiny bytecode interpreter (branchy integer work), switch and threaded dispatch, Mops/s

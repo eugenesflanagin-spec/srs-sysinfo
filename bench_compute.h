@@ -3,8 +3,8 @@
  *  - peak multiply-add throughput, single and double precision, GFLOPS
  *  - FFT: 4096-point complex radix-2, single and double precision, GFLOPS (5 N log2 N per transform)
  *  - N-body gravity: 1,024 bodies, double precision, GFLOPS (20 operations per pair)
- *  - Mandelbrot set: 640 x 480, up to 256 steps per pixel, double precision, Mpixels/s
- *  - ray tracer: 320 x 240, spheres on a floor, shadows and one reflection, single precision, Mpixels/s
+ *  - Mandelbrot set: 640 x 480, up to 255 steps per pixel, double precision, Mpixels/s
+ *  - ray tracer: 320 x 240, spheres on a floor, shadows and up to two reflections, single precision, Mpixels/s
  * Matrix multiply, multiply-add, N-body and Mandelbrot have plain C, SSE2, AVX2 (+FMA) and AVX-512
  * code; the best one the CPU has is picked at run time, so a generic x86-64 package still uses
  * AVX-512. FFT and the ray tracer are plain C. Every measurement runs on 1 thread and on N threads

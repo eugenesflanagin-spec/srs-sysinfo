@@ -407,7 +407,8 @@ static void s_cstates(srs_out *o)
             rd_fmt(tm, sizeof tm, "%s/time", d);
             { double us = atof(tm); snprintf(tm, sizeof tm, "%.1fs", us / 1e6); }
             strcat(lat, "us"); strcat(res, "us");
-            snprintf(cpu, sizeof cpu, s ? "" : "CPU-%d", i);
+            if (s) cpu[0] = 0;
+            else snprintf(cpu, sizeof cpu, "CPU-%d", i);
             so_row(o, 7, (const char *const[]){ cpu, nm, desc, lat, res, use, tm },
                    (const int[]){ C_LABEL, C_VALUE, C_GRAY, C_TEAL, C_TEAL, C_BLACK, C_BLACK });
         }

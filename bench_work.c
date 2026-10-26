@@ -62,7 +62,8 @@ void wk_cfg_default(wk_cfg *c)
 #endif
 
 static const char *volatile g_stage = "";
-static char g_stage_buf[128];
+static char g_stage_buf[2][128];   /* two buffers: the GUI timer reads one while the next is written */
+static int g_stage_i;
 const char *wk_stage(void) { return g_stage; }
 int wk_available(void) { return 1; }
 
@@ -159,9 +160,11 @@ static uint32_t crc32c_hw(const uint8_t *p, size_t n)
     return ~(uint32_t)c;
 }
 static int have_crc32c_hw(void) { __builtin_cpu_init(); return __builtin_cpu_supports("sse4.2"); }
-#else
+#define CRC32C_HW_MISSING "the CPU has no CRC32C instruction (SSE4.2)"
+#else   /* the instruction path is built for x86-64 only; other images (i686, aarch64) skip the row */
 static uint32_t crc32c_hw(const uint8_t *p, size_t n) { return crc32c_table(p, n); }
 static int have_crc32c_hw(void) { return 0; }
+#define CRC32C_HW_MISSING "not built into this image (the CRC32C instruction path is in the 64-bit x86 build only)"
 #endif
 
 #define XP1 0x9E3779B185EBCA87ull
@@ -819,8 +822,9 @@ static int stopped(wctx *x)
 
 static void set_stage(const char *g, const char *what, int threads)
 {
-    snprintf(g_stage_buf, sizeof g_stage_buf, "%s: %s, %d thread%s", g, what, threads, threads == 1 ? "" : "s");
-    g_stage = g_stage_buf;
+    char *b = g_stage_buf[g_stage_i ^= 1];
+    snprintf(b, sizeof g_stage_buf[0], "%s: %s, %d thread%s", g, what, threads, threads == 1 ? "" : "s");
+    g_stage = b;
 }
 
 static long mem_avail_kib(void)
@@ -1197,6 +1201,7 @@ static void run_codec(wctx *x, int c)
     if (stopped(x)) return;
     snprintf(what, sizeof what, "%s decompress", wk_codec_name[c]);
     run_cell(x, &r->dec[c], JK_DEC, c, "Compression", what, 1e6);
+    for (k = 0; k < PART_N; k++) { free(x->cdata[c][k]); x->cdata[c][k] = NULL; }   /* only this codec's decompress test needs them */
 }
 
 /* ======================================================================
@@ -1508,7 +1513,7 @@ int bench_work(const wk_cfg *cfg, srs_out *o, volatile int *cancel)
                 if (wk_test_group(i) != g) continue;
                 if ((i == WT_CRC32C_HW && !have_crc32c_hw()) || (i == WT_VM_THREADED && !HAVE_THREADED)) {
                     r->t[i].state = WK_ST_SKIP;
-                    snprintf(r->t[i].note, sizeof r->t[i].note, i == WT_VM_THREADED ? "needs a GCC or Clang build" : "the CPU has no CRC32C instruction (SSE4.2)");
+                    snprintf(r->t[i].note, sizeof r->t[i].note, "%s", i == WT_VM_THREADED ? "needs a GCC or Clang build" : CRC32C_HW_MISSING);
                     continue;
                 }
                 run_cell(x, &r->t[i], JK_TEST, i, wk_group_name[g], wk_test_name[i], scale[g]);

@@ -61,7 +61,6 @@ const char *const cp_test_name[CP_NTEST] = {
     "N-body gravity, 1,024 bodies (double)", "Mandelbrot set, 640 x 480 (double)", "Ray tracer, 320 x 240 (single)" };
 const char *const cp_test_id[CP_NTEST] = { "sgemm", "dgemm", "fma-sp", "fma-dp", "fft-sp", "fft-dp", "nbody", "mandelbrot", "raytrace" };
 const char *const cp_unit[CP_NTEST] = { "GFLOPS", "GFLOPS", "GFLOPS", "GFLOPS", "GFLOPS", "GFLOPS", "GFLOPS", "Mpixels/s", "Mpixels/s" };
-static const double cp_scale[CP_NTEST] = { 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e6, 1e6 };
 
 const char *cp_isa_name(int isa)
 {
@@ -94,6 +93,7 @@ int cp_isa_best(void)
 }
 
 #ifdef __linux__
+static const double cp_scale[CP_NTEST] = { 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e9, 1e6, 1e6 };
 static int has_vector(int test) { return test != CP_FFT_SP && test != CP_FFT_DP && test != CP_RAY; }
 
 static int isa_for(int test, int want)
