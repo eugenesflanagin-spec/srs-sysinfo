@@ -8,7 +8,7 @@ Icon=srs
 Terminal=false
 Categories=System;Monitor;
 Keywords=SIV;system;information;hardware;sensors;PCI;USB;CPU;SMART;report;
-Actions=Sensors;Processors;Burnin;Stress;Benchmark;CacheMemory;Storage;OsLatency;Compute;Work;Network;GpuBench;GpuBurnin;Pi;Lookup;Find;Classic;
+Actions=Sensors;Processors;Burnin;Stress;Benchmark;CacheMemory;Storage;OsLatency;Compute;Work;Network;GpuBench;GpuBurnin;GpuCompare;Pi;Lookup;Find;Classic;
 
 [Desktop Action Sensors]
 Name=Sensors
@@ -61,6 +61,10 @@ Exec=srs-gui --gui-open=gpubench
 [Desktop Action GpuBurnin]
 Name=GPU Burnin
 Exec=srs-gui --gui-open=gpuburn
+
+[Desktop Action GpuCompare]
+Name=GPU compute comparison
+Exec=srs-gui --gui-open=gpucompare
 
 [Desktop Action Pi]
 Name=SRS Pi

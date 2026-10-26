@@ -304,6 +304,22 @@ if grep -q "^Vulkan:" <<<"$out" && ! grep '^  [0-9]' <<<"$out" | grep -vq llvmpi
 else
     bad "gpu-burn --list shows a device that is not llvmpipe - the command-line run is skipped: $out"
 fi
+
+"$BIN" gpu-compare --help | grep -q "usage: sysreport-search gpu-compare" && ok "gpu-compare --help" || bad "gpu-compare --help"
+"$BIN" gpu-compare --bogus >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: unknown option -> exit 2" || bad "gpu-compare --bogus"
+"$BIN" gpu-compare --backends vulkan,metal >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: unknown back end -> exit 2" || bad "gpu-compare --backends metal"
+"$BIN" gpu-compare --seconds 50 >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: --seconds 50 -> exit 2" || bad "gpu-compare --seconds 50"
+out=$(SRS_HIP_LIB=/nonexistent/libhip.so "$BIN" gpu-compare --backend hip --yes 2>&1); rc=$?
+[ $rc = 2 ] && grep -q "none of the chosen back ends is installed" <<<"$out" && ok "gpu-compare --backend hip with no HIP: not started" || bad "gpu-compare hip missing: $rc $out"
+out=$("$BIN" gpu-compare --backends vulkan --seconds 0.1 </dev/null 2>&1); rc=$?
+[ $rc = 2 ] && grep -q "not started" <<<"$out" && ok "gpu-compare: no terminal and no --yes -> not started, exit 2" || bad "gpu-compare no tty: $rc $out"
+if "$BIN" gpu --list 2>&1 | grep '^[0-9]' | grep -vq llvmpipe; then
+    bad "a Vulkan device that is not llvmpipe is visible - gpu-compare run skipped"
+else
+    out=$(nice "$BIN" gpu-compare --backends vulkan --seconds 0.1 --yes 2>&1); rc=$?; show "$out"
+    [ $rc = 0 ] && grep -q "FP32 matrix multiply, own kernel" <<<"$out" && ok "gpu-compare --yes on lavapipe: exit 0, table printed" || bad "gpu-compare --yes: $rc $(tail -4 <<<"$out")"
+    grep -q "not installed - not installed" <<<"$out" && bad "doubled 'not installed' wording"
+fi
 fi
 
 exit $fail

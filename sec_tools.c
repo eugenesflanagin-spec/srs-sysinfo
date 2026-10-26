@@ -149,6 +149,14 @@ static void s_gpuburn(srs_out *o)
             "srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--yes]");
 }
 
+static void s_gpucompare(srs_out *o)
+{
+    if (bench_show_last("gpucompare", o)) return;
+    so_siv_header(o, "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL");
+    not_run(o, "Benchmarks & stress > GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL, then Run (asks first)",
+            "srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]");
+}
+
 static void s_crypto(srs_out *o)
 {
     if (bench_show_last("crypto", o)) return;
@@ -174,7 +182,7 @@ static void s_bench_history(srs_out *o)
     snprintf(path, sizeof path, "%s/.cache/srs/bench-history.tsv", h ? h : "");
     if (rd_all(path, &txt) < 0) {
         so_kv(o, "Status", C_ORANGE, "No runs yet");
-        so_note(o, "Every run of Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
+        so_note(o, "Every run of Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
         return;
     }
     {
@@ -495,6 +503,7 @@ const srs_item sec_tools[] = {
     { "net-bench", "tools", "Network benchmark", B_LINUX, 0, "built-in (loopback TCP / UDP; optional internet test with libcurl, asks first)", s_net, 0, "tools" },
     { "gpu-bench", "tools", "GPU benchmark", B_LINUX, 0, "built-in, Vulkan loaded at run time (multiply-add FP32 / FP16 / FP64 / INT32, video memory, upload / download, dispatch latency; checked results, asks first)", s_gpu, 0, "tools" },
     { "gpu-burnin", "tools", "GPU Burnin", B_LINUX, 0, "built-in, Vulkan / ROCm-HIP / CUDA / OpenCL loaded at run time (repeated matrix multiplications, compute errors counted, temperature limit; asks first)", s_gpuburn, 0, "tools" },
+    { "gpu-compare", "tools", "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", B_LINUX, 0, "built-in, every installed back end loaded at run time (own kernel and vendor library side by side on the same GPU; checked results, asks first)", s_gpucompare, 0, "tools" },
     { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
     { "crypto-bench", "tools", "Crypto benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
     { "prime-sieve", "tools", "Prime sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },

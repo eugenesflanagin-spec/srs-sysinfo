@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -10,7 +10,7 @@ look-up and search tools (device ID lookup, report search, configuration search,
 items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows sit at
 the top of the Menu itself: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
 SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark..., OS
-Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU Burnin..., Device ID Lookup... and Find in
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU Burnin..., GPU Compute Comparison..., Device ID Lookup... and Find in
 Report.... The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
@@ -46,6 +46,7 @@ shows the last stored result.
 - [Network benchmark](#network-benchmark) `net-bench`
 - [GPU benchmark](#gpu-benchmark) `gpu-bench`
 - [GPU Burnin](#gpu-burnin) `gpu-burnin`
+- [GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL](#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl) `gpu-compare`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -1014,6 +1015,65 @@ only with your own earlier runs on the same driver.
 the card's hwmon folder in `/sys/bus/pci/devices/<address>/hwmon` (amdgpu: all of them; i915, xe
 and nouveau: what they offer). Stored in `~/.cache/srs/bench-gpuburn.txt`; each run is added to
 the [Benchmark history](#benchmark-history).
+
+---
+## GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL  
+`gpu-compare` - Linux data
+
+**In plain words.** The same pieces of GPU work, with the same sizes, run through every compute
+back end you have installed (Vulkan, ROCm / HIP, CUDA, OpenCL) on the **same** graphics card, and
+shown side by side. It answers "which way of programming this GPU is fastest here, and how much
+does the vendor's own library add?". Every result is checked; a wrong one is shown as an error,
+never as a speed.
+
+**What you see.** Rows = tests, columns = back ends. The fastest in each row has a `*`; every
+other column also shows its speed as a percentage of Vulkan (above 100% = faster than Vulkan; for
+the launch round trip, above 100% = quicker).
+
+| Row | What it measures | Unit |
+|---|---|---|
+| FP32 / FP16 / FP64 matrix multiply, own kernel | SRS's plain tiled matrix multiply, the same work on every back end | GFLOPS |
+| FP32 / FP16 / FP64 matrix multiply, vendor library | the maker's tuned library: hipBLAS (ROCm), cuBLAS (CUDA), CLBlast (OpenCL); Vulkan has none ("not available") | GFLOPS |
+| FP32 / FP64 multiply-add chain (peak) | long chains of multiply-adds: close to the card's peak | GFLOPS |
+| Video memory copy | copying inside the card's memory | GB/s |
+| Upload / Download | system memory to the card and back | GB/s |
+| Kernel launch round trip | how long an empty piece of work takes to start and finish (lower is better) | µs |
+
+Columns: "Vulkan", "ROCm / HIP", "CUDA" - or **"CUDA (ZLUDA)"** when the CUDA library is really
+ZLUDA translating CUDA calls to an AMD GPU - and one column per OpenCL driver, such as
+**"OpenCL (ROCm)"** and **"OpenCL (Rusticl)"** on the same card; CPU OpenCL drivers (PoCL) are
+marked CPU. A back end that is not installed shows "not installed" with a one-line hint. Below:
+each column's device and driver / runtime version, whether a vendor library was found, the sizes
+and the **Build** line.
+
+| Setting | Choices |
+|---|---|
+| GPU | the Vulkan device that names the card (Default = the first discrete GPU); the other back ends use the card at the same PCI address |
+| Back ends | Vulkan, ROCm / HIP, CUDA, OpenCL (only installed ones can be ticked) |
+| Seconds per test | 0.1-2 in the window (command line 0.1-10), default 1 |
+
+**Safety.** It asks first (the back ends, the GPU, the time, full GPU load, the overclock /
+undervolt warning). HIP, CUDA and OpenCL start their runtimes only after that Yes. Work is cut
+into short pieces, each with a watchdog; a GPU that fails ends that column cleanly. Stop works.
+SRS never changes clocks, voltages or fans.
+
+**Healthy / typical values.** Not measured by SRS on real hardware yet (only on the software
+renderer). In general the vendor libraries are much faster than a plain kernel for matrix
+multiply, and the own-kernel rows show how well each driver compiles the same simple code; a
+healthy result has every row filled in and no errors.
+
+**Unusual values and what they suggest.**
+- One back end far behind the others on the same card: an old or debug runtime, or a driver that
+  does not support that card well.
+- "not available" in the own-kernel rows of CUDA (ZLUDA): ZLUDA has no NVRTC compiler, so only the
+  library rows run.
+- FP16 library rows "not available" on OpenCL: the driver has no `cl_khr_fp16`.
+
+**Where Linux gets it.** Built in: all four back ends and the libraries are opened at run time
+with `dlopen` (see [GPU Burnin](#gpu-burnin)); ZLUDA is recognised by marker strings in the CUDA
+library file. Stored in `~/.cache/srs/bench-gpucompare.txt`; each run is added to the
+[Benchmark history](#benchmark-history). Compare results only between alike SRS builds and the
+same driver and runtime versions.
 
 ---
 ## SRS Pi  

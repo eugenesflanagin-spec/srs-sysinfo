@@ -196,6 +196,7 @@
 { "gpu-bios", "sections-graphics--gpu-vbios-status" },
 { "gpu-burnin", "sections-tools--gpu-burnin" },
 { "gpu-clocks", "sections-graphics--gpu-clock-speeds" },
+{ "gpu-compare", "sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl" },
 { "gpu-cuda", "sections-graphics--cuda-information" },
 { "gpu-d3d", "sections-graphics--gpu-d3d-status" },
 { "gpu-dump", "sections-graphics--gpu-register-dump" },

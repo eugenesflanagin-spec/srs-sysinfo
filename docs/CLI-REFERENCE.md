@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu` and `gpu-burn`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn` and `gpu-compare`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -53,6 +53,7 @@ sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,tex
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
 sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes]
+sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -70,7 +71,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -144,10 +145,14 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
         100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
         or fans (default 60 s); asks first, --yes starts at once
+  gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
+        library, multiply-add, copy, upload / download, launch time) through every installed back end
+        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -724,7 +729,39 @@ $ sysreport-search gpu-burn --backend hip --fp64 --seconds 120
 
 See [tools.md](SECTIONS/tools.md#gpu-burnin).
 
-Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `gpu-compare` - GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL
+
+```
+sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+```
+
+Runs the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and with the vendor
+library - hipBLAS, cuBLAS, CLBlast -, FP32 / FP64 multiply-add chain, video memory copy, upload,
+download, kernel launch round trip) through every chosen back end that is installed, on the same
+GPU, and prints one table: `*` = fastest in the row, (N%) = that column compared with Vulkan.
+CUDA that is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column; a
+back end that is not installed shows "not installed" and a hint. It **asks first**; `--yes`
+(`-y`) starts at once; without a terminal and without `--yes` it does not start (exit code 2).
+HIP, CUDA and OpenCL start their runtimes only after that. Ctrl+C stops it.
+
+| Option | Meaning |
+|---|---|
+| `--backends L` | Comma-separated: `vulkan`, `hip`, `cuda`, `opencl` (default: every installed one). `--backend B` is the same |
+| `--seconds S` | GPU time per test, 0.1-10 (default 1) |
+| `--device N` | The Vulkan device that fixes "the GPU" (numbers from `gpu --list`); the others use the card at the same PCI address (default: the first discrete GPU) |
+| `--yes` | Start without asking |
+
+Exit code 0 when it ran and every result was right, 1 when it was stopped, a result was wrong or
+a GPU failed, 2 when it did not start (bad option, not confirmed, none of the chosen back ends
+installed). Example:
+
+```
+$ sysreport-search gpu-compare --backends vulkan,hip --seconds 0.5
+```
+
+See [tools.md](SECTIONS/tools.md#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -761,6 +798,7 @@ or one of these tool names:
 | `netbench` | Network benchmark (`network` alone is the Network page's item) |
 | `gpubench` | GPU Benchmark |
 | `gpuburn` | GPU Burnin |
+| `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
@@ -772,7 +810,7 @@ The environment variable `SRS_OPEN=sensors,burnin` does the same.
 The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
 `burnin`, `stress`, `bench`, `cachemem`, `storagebench`, `oslatency`, `compute`, `work`,
-`netbench`, `gpubench`, `gpuburn`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
+`netbench`, `gpubench`, `gpuburn`, `gpucompare`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
 
 ---
 

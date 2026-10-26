@@ -207,3 +207,7 @@ or result files were used or looked at for them. Public sources are credited in 
   functions are declared in SRS from the vendors' public API documentation and opened with
   `dlopen`; the sensors are the kernel's documented hwmon files. HIP, CUDA and OpenCL work was not
   run by the author (only loading the libraries and finding their functions was tested).
+- **GPU Compute comparison** (`bench_gpucompare.c`): the same back ends and kernels; ZLUDA is
+  recognised by marker strings in the loaded CUDA library file; OpenCL platforms are named from
+  their own platform names; devices of different back ends are matched by PCI address
+  (`VK_EXT_pci_bus_info`, `hipDeviceGetPCIBusId`, `cuDeviceGetPCIBusId`, `cl_khr_pci_bus_info`).

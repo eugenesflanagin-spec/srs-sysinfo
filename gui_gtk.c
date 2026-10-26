@@ -24,6 +24,7 @@
 #include "bench_net.h"
 #include "bench_gpu.h"
 #include "bench_gpuburn.h"
+#include "bench_gpucompare.h"
 #include "power.h"
 #include "tblsort.h"
 #include "gui_startup.h"
@@ -66,7 +67,7 @@ static int g_classic_session;  /* this run started in the classic (SIV-style) ma
 static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortable Tables") */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_GPU, BK_GPUBURN, BK_LAST = BK_GPUBURN };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_GPU, BK_GPUBURN, BK_GPUCOMPARE, BK_LAST = BK_GPUCOMPARE };
 /* --gui-open / menu / launcher names of the 2.2 benchmark windows (the older ones are listed where they are used) */
 static int bench_tool_sub(const char *t)
 {
@@ -76,6 +77,7 @@ static int bench_tool_sub(const char *t)
     if (!strcmp(t, "netbench")) return BK_NET;
     if (!strcmp(t, "gpubench")) return BK_GPU;
     if (!strcmp(t, "gpuburn")) return BK_GPUBURN;
+    if (!strcmp(t, "gpucompare")) return BK_GPUCOMPARE;
     return -1;
 }
 
@@ -117,6 +119,7 @@ typedef struct swin {
     GtkWidget *nt_local, *nt_inet, *nt_ipv, *nt_info;
     GtkWidget *gp_dev, *gp_mem;   /* GPU windows: device list (filled when opened), GPU benchmark buffer size */
     GtkWidget *gb_back, *gb_prec, *gb_limit;   /* GPU Burnin: back end, precision, temperature limit */
+    GtkWidget *gc_back[GB_N];                  /* GPU Compute comparison: back ends to compare */
     int gp_filled;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
@@ -933,7 +936,7 @@ static void build_menu(GtkWidget *menu)
         { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "_OS Latency...", "oslatency" },
         { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
         { "N_etwork Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
-        { "GPU B_urnin...", "gpuburn" },
+        { "GPU B_urnin...", "gpuburn" }, { "GPU Compute Com_parison...", "gpucompare" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1943,19 +1946,20 @@ static const char *bk_result(int sub, int mode)
     case BK_NET: return "net";
     case BK_GPU: return "gpu";
     case BK_GPUBURN: return "gpuburn";
+    case BK_GPUCOMPARE: return "gpucompare";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
     static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory", "Storage Benchmark",
-                                       "OS Latency", "CPU Compute", "Everyday Work", "Network Benchmark", "GPU Benchmark", "GPU Burnin" };
+                                       "OS Latency", "CPU Compute", "Everyday Work", "Network Benchmark", "GPU Benchmark", "GPU Burnin", "GPU Compute Comparison" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
     static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory", "storage-bench",
-                                       "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin" };
+                                       "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "gpu-compare" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "benchmark";
 }
 
@@ -1980,7 +1984,7 @@ static gboolean bench_done(gpointer data)
                                           j->rc == 2 ? "FAIL - compute errors found (see the result)" :
                                           j->rc == -1 ? "Not started: " : "Ended early by a safety rule: ", j->rc < 0 ? j->why : "");
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
-        } else if (j->sub == BK_GPU) {
+        } else if (j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) {
             char b[400];
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == 2 ? "Finished - a result was WRONG (see the table)" :
@@ -2001,13 +2005,14 @@ static gboolean bench_done(gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
-        if ((j->sub == BK_GPU || j->sub == BK_GPUBURN) && j->rc == -1) {   /* not started: say why, then the last finished result */
+        if ((j->sub == BK_GPU || j->sub == BK_GPUBURN || j->sub == BK_GPUCOMPARE) && j->rc == -1) {   /* not started: say why, then the last finished result */
             char b[400];
             snprintf(b, sizeof b, "Not started: %s. The last finished result is below.", j->why);
             so_err(&o, b);
             so_par(&o);
             if (!bench_show_last(name, &o)) so_note(&o, "No finished run yet.");
-        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU || j->sub == BK_GPUBURN) {
+        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU || j->sub == BK_GPUBURN ||
+                   j->sub == BK_GPUCOMPARE) {
             if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
         } else if (j->rc == -4) {
             char b[400];
@@ -2108,6 +2113,14 @@ static gpointer bench_worker(gpointer data)
         g_gb_have = 0;
         g_mutex_unlock(&g_gb_mu);
         j->rc = bench_gpuburn(&c, NULL, &j->cancel, j->why, sizeof j->why);
+    } else if (j->sub == BK_GPUCOMPARE) {
+        gpucmp_cfg c;
+        gpucmp_cfg_default(&c);
+        c.backends = j->groups;
+        c.device = j->device;
+        c.seconds = j->secs;
+        c.software_only = g_gpu_software_only;
+        j->rc = bench_gpucompare(&c, NULL, NULL, &j->cancel, j->why, sizeof j->why);
     }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
@@ -2127,6 +2140,7 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_COMPUTE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cp_stage());
     else if (w->sub == BK_WORK) snprintf(b, sizeof b, "Running %.0f s: %s", el, wk_stage());
     else if (w->sub == BK_GPU) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpu_stage());
+    else if (w->sub == BK_GPUCOMPARE) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpucmp_stage());
     else if (w->sub == BK_GPUBURN) {
         gpuburn_snap sn;
         int have;
@@ -2296,6 +2310,47 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         j->secs = secs;
         j->size_mb = mem;
     } else
+    if (w->sub == BK_GPUCOMPARE) {
+        GtkWidget *d;
+        gpu_dev dv[GPU_MAXDEV];
+        char why[300], hint[300], list[200] = "", devname[300] = "the default GPU";
+        int ok, n, k, nb = 0, dev = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gp_dev)) - 1;
+        unsigned mask = 0;
+        double secs;
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+        secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        for (k = 0; k < GB_N; k++) {
+            if (!gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->gc_back[k]))) continue;
+            if (!gb_table[k]->available(hint, sizeof hint)) continue;   /* dlopen only */
+            mask |= 1u << k;
+            snprintf(list + strlen(list), sizeof list - strlen(list), "%s%s", nb ? ", " : "", gb_name[k]);
+            nb++;
+        }
+        if (!nb) { gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: tick at least one back end that is installed"); return; }
+        n = gpu_list(dv, GPU_MAXDEV, why, sizeof why);   /* the Vulkan list only: no HIP / CUDA / OpenCL runtime before Yes */
+        if (n > 0) {
+            if (dev >= n) dev = -1;
+            k = dev >= 0 ? dev : gpu_default_device(dv, n);
+            snprintf(devname, sizeof devname, "%.250s", dv[k].name);
+        }
+        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
+                                   "Start the GPU Compute comparison?");
+        gtk_window_set_title(GTK_WINDOW(d), "GPU Compute Comparison");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "It runs the same tests - matrix multiplication in FP32, FP16 and FP64 with SRS's own kernel and with the vendor's "
+            "library, multiply-add, memory copy, upload, download and the launch round trip - through %s on %s, "
+            "%.1f s of GPU time per test and back end: up to about %.0f seconds at full GPU load.\n\n"
+            "ROCm / HIP, CUDA and OpenCL start their own runtimes when it begins. An unstable GPU overclock or undervolt can "
+            "crash the PC or the display driver under this load. SRS never changes clocks, voltages or fans. Stop ends the run at once.",
+            list, devname, secs, GC_N * nb * secs * 1.5 + 3);
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+        if (!ok || w->running || g_bench_busy || burn_active()) return;
+        j = g_new0(benchjob, 1);
+        j->device = dev;
+        j->groups = mask;
+        j->secs = secs;
+    } else
     if (w->sub == BK_GPUBURN) {
         GtkWidget *d;
         char hint[300], devname[300], bk[80];
@@ -2462,7 +2517,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     } else if (w->sub == BK_LAT) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max)) * 1024 * 1024;
-    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN) {
+    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN || w->sub == BK_GPUCOMPARE) {
         /* filled in above */
     } else if (w->sub == BK_OSLAT) {
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max));
@@ -2498,7 +2553,8 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN ||
+                 w->sub == BK_GPUCOMPARE ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -2820,6 +2876,28 @@ static void build_bench(swin *w, GtkWidget *vb)
         else snprintf(b, sizeof b, "Vulkan: %s", hint);
         gtk_box_pack_start(GTK_BOX(r2), lbl(b), FALSE, FALSE, 0);
         w->wk_row = r2;
+    } else if (w->sub == BK_GPUCOMPARE) {
+        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        char hint[300];
+        int k;
+        gpu_device_combo(w, row);
+        for (k = 0; k < GB_N; k++) {   /* dlopen only: no runtime is started by opening the window */
+            int av = gb_table[k]->available(hint, sizeof hint);
+            w->gc_back[k] = gtk_check_button_new_with_label(gb_name[k]);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->gc_back[k]), av);
+            gtk_widget_set_sensitive(w->gc_back[k], av);
+            gtk_widget_set_tooltip_text(w->gc_back[k], av ? (k == GB_OPENCL ? "Installed. Every OpenCL driver on this GPU gets its own column."
+                                                                             : k == GB_CUDA ? "Installed. Labelled CUDA (ZLUDA) when the CUDA library is ZLUDA."
+                                                                             : "Installed.") : hint);
+            gtk_box_pack_start(GTK_BOX(row), w->gc_back[k], FALSE, FALSE, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
+        w->bm_secs = spin(0.1, 2, 0.1, 1);
+        gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), lbl("The GPU is chosen by its Vulkan device; the other back ends use the same card. "
+                                            "Back ends that are not installed are greyed (the tooltip says what to install)."), FALSE, FALSE, 0);
+        w->wk_row = r2;
     } else if (w->sub == BK_GPUBURN) {
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
         char hint[300], b[900];
@@ -2876,7 +2954,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
     if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET ||
-        w->sub == BK_GPU || w->sub == BK_GPUBURN) {
+        w->sub == BK_GPU || w->sub == BK_GPUBURN || w->sub == BK_GPUCOMPARE) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -2887,6 +2965,7 @@ static void build_bench(swin *w, GtkWidget *vb)
                        w->sub == BK_NET ? "Not run - press Run (asks first; the internet test asks separately)" :
                        w->sub == BK_GPU ? "Not run - press Run (asks first; the GPU works at full load for about 15 seconds)" :
                        w->sub == BK_GPUBURN ? "Not run - press Run (asks first; full GPU load, high power and heat)" :
+                       w->sub == BK_GPUCOMPARE ? "Not run - press Run (asks first; full GPU load, about 20 seconds per back end)" :
                        "Not run - press Run (the CPUs will be busy while it runs)");
     if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
@@ -3677,7 +3756,7 @@ enum { CAT_OVERVIEW, CAT_CPU, CAT_MEM, CAT_BOARD, CAT_GPU, CAT_STORAGE, CAT_NET,
 
 typedef struct {
     const char *name, *title, *icons, *blurb;
-    const char *tabs[16];       /* the sections shown as tabs; every other item of the category is under "All items" */
+    const char *tabs[24];       /* the sections shown as tabs; every other item of the category is under "All items" */
 } catdef;
 
 static const catdef g_cats[CAT_N] = {
@@ -3716,7 +3795,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "gpu-compare", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -4517,7 +4596,7 @@ static int cat_of_id(const char *id)
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
                                 !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") || !strcmp(base, "storage-bench") ||
                                 !strcmp(base, "os-latency") || !strcmp(base, "cpu-compute") || !strcmp(base, "everyday-work") ||
-                                !strcmp(base, "net-bench") || !strcmp(base, "gpu-bench") || !strcmp(base, "gpu-burnin") ||
+                                !strcmp(base, "net-bench") || !strcmp(base, "gpu-bench") || !strcmp(base, "gpu-burnin") || !strcmp(base, "gpu-compare") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -5112,6 +5191,11 @@ static GtkWidget *build_cat_page(int cat)
                 "Full GPU load, high power and heat, for as long as you choose (default 1 minute). Asks first; stops by itself at the "
                 "temperature limit (default 100 °C) or on a driver error. Never changes clocks, voltages or fans.",
                 "GPU B_urnin...", "gpuburn", "Open the GPU Burnin window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", "Runs the same GPU work through every compute back end "
+                "you have installed, on the same graphics card, side by side: SRS's own kernel and the vendor's library (hipBLAS, cuBLAS, "
+                "CLBlast), the fastest marked and each as a percentage of Vulkan.",
+                "Full GPU load for about 20 seconds per back end. Asks first. Back ends that are not installed say so.",
+                "GPU Compute Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));

@@ -143,6 +143,15 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   clocks, voltages or fans. Asks before it starts (No is the default in the window). Default 60 s,
   up to 24 hours. One GPU test at a time, and CPU Burnin / Stress refuses to start while a GPU
   test runs (and the other way round).
+- **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL** (`sysreport-search gpu-compare`, Benchmarks &
+  stress -> GPU Compute comparison, `--gui-open=gpucompare`): the same workloads with the same
+  sizes through every installed back end on the same GPU (matched by PCI address), in one table:
+  FP32 / FP16 / FP64 matrix multiply with SRS's own kernel and with the vendor library (hipBLAS,
+  cuBLAS, CLBlast), FP32 / FP64 multiply-add chain, video memory copy, upload, download and kernel
+  launch round trip; the fastest marked per row and every column as a percentage of Vulkan.
+  "CUDA (ZLUDA)" when the CUDA library is ZLUDA; one column per OpenCL driver (CPU drivers marked);
+  "not installed" with a hint for missing back ends. Every result checked. Asks before it starts;
+  HIP / CUDA / OpenCL runtimes start only after Yes; Stop works.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -228,7 +237,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   option, no terminal, `--yes`). GPU Burnin: PASS with 0 errors, live callback, FP64, Stop, a
   second run right after (lock released), CPU Burnin refused while a GPU test runs; HIP, CUDA and
   OpenCL only as far as loading the libraries and finding every function (`dlopen` + `dlsym`;
-  no HIP, CUDA or OpenCL work is run) and the "not installed" / "no OpenCL platform" paths.
+  no HIP, CUDA or OpenCL work is run) and the "not installed" / "no OpenCL platform" paths. GPU
+  Compute comparison: the Vulkan column with the own-kernel rows, "not available" library rows,
+  the fastest marker, three "not installed" columns, Stop, and the CLI.
 
 ### Changed
 

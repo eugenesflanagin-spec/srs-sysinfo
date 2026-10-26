@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -94,11 +94,15 @@ static const char *HELP =
     "        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default\n"
     "        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages\n"
     "        or fans (default 60 s); asks first, --yes starts at once\n"
+    "  gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]\n"
+    "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
+    "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
+    "        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -1042,6 +1046,80 @@ static int cmd_gpu_burn(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_gpucompare.h"
+
+/* gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes] */
+static int cmd_gpu_compare(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]\n"
+        "  --backends L  the back ends to compare (comma-separated; default: every installed one);\n"
+        "                --backend B is the same for one\n"
+        "  --seconds S   GPU time per test, 0.1..10 (default 1)\n"
+        "  --device N    the Vulkan device that names the GPU (see gpu --list); the other back ends\n"
+        "                use the same GPU, found by its PCI address (default: the first discrete GPU)\n"
+        "  --yes         start without asking";
+    srs_out o;
+    gpucmp_cfg c;
+    char why[300], what[1400], list[200] = "", hint[300], dev[300] = "the default GPU";
+    int i, yes = 0, rc, nb = 0;
+    gpucmp_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--backends") || !strcmp(a, "--backend") || !strcmp(a, "--seconds") || !strcmp(a, "--device");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (need && !v) { fprintf(stderr, "gpu-compare: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--device")) { if (!gpu_parse_device("gpu-compare", v, &c.device)) return 2; }
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--backends") || !strcmp(a, "--backend")) {
+            char buf[256], *t, *sp;
+            snprintf(buf, sizeof buf, "%s", v);
+            for (t = strtok_r(buf, ",", &sp); t; t = strtok_r(NULL, ",", &sp)) {
+                int k;
+                if (!strcmp(t, "auto") || !strcmp(t, "all")) { c.backends = 0; continue; }
+                for (k = 0; k < GB_N && strcmp(t, gb_id[k]); k++) ;
+                if (k == GB_N) { fprintf(stderr, "gpu-compare: unknown back end '%s' (valid: vulkan, hip, cuda, opencl)\n", t); return 2; }
+                c.backends |= 1u << k;
+            }
+        } else { fprintf(stderr, "gpu-compare: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 10) return usage_error("gpu-compare: --seconds must be 0.1..10");
+    gpu_quiet_layers();
+    if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    for (i = 0; i < GB_N; i++) {   /* dlopen only: which back ends are installed */
+        if (c.backends && !(c.backends >> i & 1)) continue;
+        if (!gb_table[i]->available(hint, sizeof hint)) continue;
+        snprintf(list + strlen(list), sizeof list - strlen(list), "%s%s", nb ? ", " : "", gb_name[i]);
+        nb++;
+    }
+    if (!nb) { fprintf(stderr, "gpu-compare: not started - none of the chosen back ends is installed\n"); return 2; }
+    {
+        gpu_dev d[GPU_MAXDEV];
+        int n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
+        if (n > 0) {
+            int k = c.device >= 0 && c.device < n ? c.device : gpu_default_device(d, n);
+            snprintf(dev, sizeof dev, "%.250s", d[k].name);
+        }
+    }
+    snprintf(what, sizeof what,
+             "GPU Compute comparison: runs the same tests (matrix multiply FP32 / FP16 / FP64 with the own kernel and the\n"
+             "vendor library, multiply-add, memory copy, upload, download, launch time) through %s on %s,\n"
+             "about %.1f s of GPU time per test and back end - up to about %.0f s in all, at full GPU load.\n"
+             "HIP, CUDA and OpenCL start their own runtimes. An unstable GPU overclock or undervolt can crash the PC under this load.",
+             list, dev, c.seconds, GC_N * nb * c.seconds * 1.5 + 3);
+    if (!yes && !ask_start("gpu-compare", what)) return 2;
+    signal(SIGINT, on_int_gpu);
+    g_gpu_cancel = 0;
+    why[0] = 0;
+    rc = bench_gpucompare(&c, NULL, &o, &g_gpu_cancel, why, sizeof why);
+    signal(SIGINT, SIG_DFL);
+    if (rc < 0 && why[0]) fprintf(stderr, "gpu-compare: %s%s\n", rc == -1 ? "not started - " : "", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -1162,6 +1240,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "net")) return cmd_net(argc, argv);
     if (!strcmp(cmd, "gpu")) return cmd_gpu(argc, argv);
     if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
+    if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

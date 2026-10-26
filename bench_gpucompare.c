@@ -221,7 +221,7 @@ static void cmp_render(srs_out *o, void *ctx)
     char buf[GPUCMP_MAXCOL][48];
     so_siv_header(o, "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL on the same GPU");
     for (c = 0; c < r->ncol; c++) if (r->col[c].shown && r->col[c].backend == GB_VULKAN) vk = c;
-    for (c = 0; c <= r->ncol; c++) tabs[c] = 330 + c * 150;
+    for (c = 0; c <= r->ncol; c++) tabs[c] = 360 + c * 150;   /* the longest row name with its unit is about 50 characters */
     so_tabs(o, tabs, r->ncol + 1);
     cells[0] = "Test";
     colors[0] = C_LABEL;
@@ -239,7 +239,7 @@ static void cmp_render(srs_out *o, void *ctx)
             const gpucmp_col *k = &r->col[c];
             char *b = buf[c];
             colors[c + 1] = C_GREEN;
-            if (!k->shown) { snprintf(b, 48, "not installed"); colors[c + 1] = C_GRAY; }
+            if (!k->shown) { snprintf(b, 48, "%s", strncmp(k->hint, "not installed", 13) ? "no device" : "not installed"); colors[c + 1] = C_GRAY; }
             else switch (k->state[row]) {
             case CS_OK: {
                 char v[24], pc[24] = "";
@@ -266,7 +266,7 @@ static void cmp_render(srs_out *o, void *ctx)
     if (x->failed) so_kvf(o, "Error", C_RED, "%s", x->fail);
     for (c = 0; c < r->ncol; c++) {
         const gpucmp_col *k = &r->col[c];
-        if (!k->shown) { so_kvf(o, k->info.label, C_GRAY, "not installed - %s", k->hint); continue; }
+        if (!k->shown) { so_kvf(o, k->info.label, C_GRAY, "%s", k->hint); continue; }   /* the hint says "not installed - ..." or why there is no device */
         so_kvf(o, k->info.label, C_VALUE, "%s (%s)", k->info.device, k->info.kind);
         so_kvf(o, "  software", C_GRAY, "%s%s", k->info.runtime, k->info.has_lib ? "" : "; no vendor GEMM library");
         if (k->aborted[0]) so_kv(o, "  ended early", C_RED, k->aborted);

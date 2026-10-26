@@ -1770,6 +1770,67 @@ The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
 one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on a software GPU only -
 see the note at the start of this chapter.
 
+### 9.19 GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL
+
+**In plain words:** the same GPU work, run through every way of programming your graphics card
+that you have installed (the four back ends explained in [9.18](#918-gpu-burnin)), on the same
+card, and shown side by side. It tells you which one is fastest on your PC, and how much faster
+the maker's own tuned library is than a plain program.
+Open: the **Benchmarks & stress** page -> **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL...**, or
+Menu -> Tools -> GPU Compute Comparison... in the classic view. Command line:
+`sysreport-search gpu-compare`.
+Controls: **GPU** (the card, picked by its Vulkan device; the other back ends find the same card
+by its PCI address), a tick box per back end (only installed ones can be ticked; the tooltip of a
+greyed one says what to install), **Seconds per test** (default 1), **Run** (asks first),
+**Stop**.
+
+**Reading the table.** Each row is a test, each column a back end:
+
+- **Own kernel** rows: SRS's own plain matrix multiplication - the same work on every back end,
+  so these rows compare the back ends fairly.
+- **Vendor library** rows: the maker's tuned library - hipBLAS for ROCm, cuBLAS for CUDA, CLBlast
+  for OpenCL. Vulkan has none, so it says "not available". These rows show what real programs
+  that use the libraries can get.
+- **Multiply-add chain**, **video memory copy**, **upload / download** and **kernel launch round
+  trip** (lower is better) work as in the [GPU Benchmark](#917-gpu-benchmark).
+- `*` marks the fastest in each row. **(85%)** after a number means that column reached 85% of
+  Vulkan's speed in that row (above 100% = faster than Vulkan).
+- **CUDA (ZLUDA)**: your CUDA library is really ZLUDA, which runs CUDA programs on an AMD card. It
+  has no NVRTC compiler, so its own-kernel rows say "not available" and only the library rows run.
+- Every **OpenCL driver** is its own column, for example "OpenCL (ROCm)" and "OpenCL (Rusticl)" on
+  the same card. Drivers that run on the CPU (PoCL) are marked CPU.
+- **not installed** means that back end is not on this PC; the line under the table says what to
+  install. The other columns still run.
+
+Compare results only between alike SRS builds and the same driver and runtime versions; the page
+lists each column's version.
+
+**Safety:** Run asks first, naming the back ends, the GPU and the time (about 20 seconds per back
+end at the defaults) and that the GPU works at full load; an unstable GPU overclock or undervolt
+can crash the PC under that load. ROCm / HIP, CUDA and OpenCL start only after your Yes. The work
+is cut into short pieces, a GPU that fails ends its column cleanly, Stop ends the run at once, and
+SRS never changes clocks, voltages or fans. The result is saved to
+`~/.cache/srs/bench-gpucompare.txt` and added to the [Benchmark history](#910-benchmark-history).
+HIP, CUDA and OpenCL were not run on real hardware by the author - see the note at the start of
+this chapter.
+
+**GPU words used in 9.17-9.19.**
+
+- **GPU** - graphics processing unit: the graphics card, or the graphics part of the processor.
+- **Back end** - the "language" a program uses to talk to the GPU: Vulkan, ROCm / HIP, CUDA or OpenCL.
+- **Kernel** - a small program that runs on the GPU, many copies at once.
+- **Matrix multiplication (GEMM)** - multiplying two big tables of numbers; the core of AI and
+  many science programs, and a hard, steady load for a GPU.
+- **FP32 / FP16 / FP64** - numbers with a decimal point stored in 32, 16 or 64 bits (single, half,
+  double precision). **INT32** - 32-bit whole numbers.
+- **GFLOPS** - billions of floating-point operations per second; a multiply-add counts as two.
+- **Hotspot / junction temperature** - the hottest point measured on the GPU chip, usually 10-20 °C
+  above the **edge** temperature.
+- **ZLUDA** - a layer that lets CUDA programs run on AMD graphics cards.
+- **Lavapipe** - Mesa's software Vulkan driver that runs on the CPU; used to test SRS without a
+  real GPU.
+- **Device lost** - the GPU stopped answering and the driver reset it.
+
 ## 10. Options
 
 **Menu -> Options** (in the main window's menu, the classic Menu and the tray's SRS Menu). All are
