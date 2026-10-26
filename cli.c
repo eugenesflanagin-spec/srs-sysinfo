@@ -102,7 +102,7 @@ static const char *HELP =
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
     "        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once\n"
-    "  prime [--limit 1e8|1e9|1e10|N] [--threads N] [--yes]\n"
+    "  prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads);\n"
     "        asks first, --yes starts at once\n"
 #endif
@@ -1235,7 +1235,8 @@ static int cmd_bench2(int argc, char **argv)
         int rc;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 100..1e11, e.g. 1g] [--threads N] [--yes]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]\n"
+                                                                    "  --limit N  count the primes up to N: any number from 100 to 1e11 (e.g. 5e9 or 1g; default 1e9)"); return 0; }
             if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("prime: option needs a value");
             if (!strcmp(a, "--limit")) lim = parse_count(v);

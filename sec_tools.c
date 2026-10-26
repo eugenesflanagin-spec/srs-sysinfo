@@ -41,7 +41,7 @@ static void s_bench_mode(srs_out *o, bench_mode m)
         }
     }
     snprintf(cli, sizeof cli, "srs-gui bench %s", bench_mode_id(m) + 10);
-    not_run(o, "Menu > Tools > Benchmark, then Run", cli);
+    not_run(o, "Benchmarks & stress > Benchmark, then Run", cli);
 }
 #define BM(fn, m) static void fn(srs_out *o) { s_bench_mode(o, m); }
 BM(s_b_ac, BM_AC) BM(s_b_as, BM_AS) BM(s_b_dd, BM_DD) BM(s_b_dw, BM_DW) BM(s_b_ec, BM_EC)
@@ -72,14 +72,14 @@ static void s_ipi(srs_out *o)
 {
     if (bench_show_last("ipi-delay", o)) return;
     so_siv_header(o, "CPU IPI Delay");
-    not_run(o, "Menu > Tools > IPI Delay, then Run", "srs-gui ipi [--cpus N] [--rounds R]");
+    not_run(o, "Benchmarks & stress > IPI Delay, then Run", "srs-gui ipi [--cpus N] [--rounds R]");
 }
 
 static void s_latency(srs_out *o)
 {
     if (bench_show_last("latency", o)) return;
     so_siv_header(o, "Memory Latency");
-    not_run(o, "Menu > Tools > Latency, then Run", "srs-gui latency [--max MB]");
+    not_run(o, "Benchmarks & stress > Latency, then Run", "srs-gui latency [--max MB]");
 }
 
 static void s_pi(srs_out *o)
@@ -470,7 +470,7 @@ static void s_burnin(srs_out *o)
     burn_sample_now(&s);
     so_siv_header(o, "CPU Burnin");
     so_tabs(o, tabs, 1);
-    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Menu > Tools > CPU Burnin)");
+    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Benchmarks & stress > CPU Burnin)");
     so_kvf(o, "Worker threads", C_BLACK, "%d CPUs available", burn_ncpu());
     so_kvf(o, "Hottest CPU sensor", C_BLACK, "%s %.1f°C", s.cpu_temp_name, s.cpu_temp);
     so_kvf(o, "Hottest SIO sensor", C_BLACK, "%s %.1f°C", s.sio_name, s.sio_temp);
