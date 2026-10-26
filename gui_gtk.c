@@ -96,6 +96,9 @@ typedef struct swin {
     int nblk, blk_line[TS_MAXBLK], blk_cols[TS_MAXBLK], sort_col[TS_MAXBLK], sort_dir[TS_MAXBLK];
     char *blk_head[TS_MAXBLK];   /* header cells, tab-separated (tooltips) */
     GtkWidget *reset_btn;
+    /* main-window tab (2.1): a temporary tab is not kept in the page's tab list */
+    int temp;
+    GtkWidget *tablbl, *tabtxt;
 } swin;
 
 static GPtrArray *g_wins;
@@ -114,6 +117,9 @@ static swin *open_section(const char *id);
 static void open_guide(swin *w);
 static void render(swin *w);
 static void open_tool(wkind k, int sub);
+static void tabs_options(GtkWidget *menu);   /* gui_tabs.inc */
+static void lineup_menu(GtkWidget *m);
+static int scan_empty_main(void);
 
 /* ======================================================================
  * GTK text backend for srs_out
@@ -2363,6 +2369,7 @@ static void build_options(GtkWidget *menu)
         { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC },
         { "Sortable ta_bles in the main window (click a column heading)", OPT_SORT }, { NULL, 0 } };
     int i, have = tray_available();
+    if (g_home_open) tabs_options(menu);   /* main window: tab bar, lineups, every item as a tab, hidden items */
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
         GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("T_heme");
@@ -2547,6 +2554,9 @@ static void load_css(void)
         ".srs-tabbar { padding: 4px 6px; border-bottom: 1px solid @borders; }"
         ".srs-tabbar button { padding: 2px 8px; }"
         "notebook.srs-nb > header { border-top: 1px solid @borders; }"
+        ".srs-strip { padding: 4px 6px; border-top: 1px solid @borders; border-bottom: 1px solid @borders; }"
+        ".srs-strip button { padding: 2px 10px; }"
+        "notebook.srs-nb > header.left tab { padding: 3px 10px; min-height: 0; }"
         ".srs-tool button { min-height: 0; }"
         ".srs-main #panel, .srs-main #panel text { font: 9pt Tahoma; }";
     GString *css = g_string_new(NULL);
@@ -2719,6 +2729,8 @@ typedef struct {
     GtkWidget *hb, *side, *stack, *search, *menubtn;
     GtkWidget *badge, *badge_icon, *badge_lbl, *badge_root;   /* privilege badge (2.1) */
     GtkWidget *nb[CAT_N];
+    GtkWidget *strip[CAT_N], *ctl[CAT_N], *alllbl[CAT_N], *pagebox[CAT_N];   /* tab lineups (2.1, gui_tabs.inc) */
+    GtkWidget *lineup_lbl;
     factsui facts[CAT_N];
     GtkWidget *ov_sub, *ov_icon, *ov_verdict, *ov_vsub;
     checkui ck[NCHECK];
@@ -3497,13 +3509,6 @@ static int cat_of_id(const char *id)
     return CAT_TOOLS;
 }
 
-static int is_curated(int cat, const char *id)
-{
-    int i;
-    for (i = 0; g_cats[cat].tabs[i]; i++) if (!strcmp(id, g_cats[cat].tabs[i])) return 1;
-    return 0;
-}
-
 /* ---- section tabs (an embedded panel: same swin, text view and render() as a classic panel) ---- */
 /* a tab comes on screen: draw it the first time (live items every time), start its refresh timer */
 static void on_tab_map(GtkWidget *v, gpointer d)
@@ -3545,7 +3550,6 @@ static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
     t->paused = !gtk_switch_get_active(GTK_SWITCH(sw));
     live_start(t);
 }
-static void on_tab_close(GtkButton *b, gpointer d) { (void)b; gtk_widget_destroy(GTK_WIDGET(d)); }
 
 static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const char *target, const char *tip)
 {
@@ -3560,17 +3564,35 @@ static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const c
     return b;
 }
 
-static swin *tab_add(int cat, const char *id, int select)
+static GtkWidget *tab_label_new(swin *t);
+static void tabs_changed(int cat);
+static int g_tabs_busy;   /* pages being (re)built: don't treat it as the user's edit */
+
+/* the page's tab for an item, or NULL */
+static swin *tab_find(int cat, const char *id, int *index)
+{
+    GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    int i, n = gtk_notebook_get_n_pages(nb);
+    for (i = 0; i < n; i++) {
+        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
+        if (x && !strcmp(x->id, id)) { if (index) *index = i; return x; }
+    }
+    return NULL;
+}
+
+/* temp: opened from the item list, search, Details or a lookup (not kept); pos -1 = at the end */
+static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
 {
     GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
     const srs_item *it = srs_section_find(id);
-    GtkWidget *page, *bar, *src, *tl, *lab;
+    GtkWidget *page, *bar, *src;
     swin *t;
-    char title[200], s[600];
-    int i, n = gtk_notebook_get_n_pages(nb), closable = !is_curated(cat, id);
-    for (i = 0; i < n; i++) {
-        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
-        if (x && !strcmp(x->id, id)) { if (select) gtk_notebook_set_current_page(nb, i); return x; }
+    char s[600];
+    int i;
+    if ((t = tab_find(cat, id, &i))) {
+        if (!temp && t->temp) { t->temp = 0; tab_label_new(t); tabs_changed(cat); }   /* kept from now on */
+        if (select) gtk_notebook_set_current_page(nb, i);
+        return t;
     }
     t = g_new0(swin, 1);
     t->kind = W_SECTION;
@@ -3638,28 +3660,16 @@ static swin *tab_add(int cat, const char *id, int select)
     g_signal_connect(page, "destroy", G_CALLBACK(on_tab_destroy), t);
     g_ptr_array_add(g_wins, t);
 
-    if (it && strchr(id, ':')) snprintf(title, sizeof title, "%s %s", it->title, strchr(id, ':') + 1);
-    else snprintf(title, sizeof title, "%s", it ? it->title : id);
-    tl = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-    lab = gtk_label_new(title);
-    gtk_box_pack_start(GTK_BOX(tl), lab, FALSE, FALSE, 0);
-    snprintf(s, sizeof s, "%s  [%s]", it ? it->title : id, id);
-    gtk_widget_set_tooltip_text(tl, s);
-    if (closable) {
-        GtkWidget *x = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
-        gtk_button_set_relief(GTK_BUTTON(x), GTK_RELIEF_NONE);
-        gtk_widget_set_focus_on_click(x, FALSE);
-        gtk_widget_set_tooltip_text(x, "Close this tab (Ctrl+W)");
-        g_signal_connect(x, "clicked", G_CALLBACK(on_tab_close), page);
-        gtk_box_pack_start(GTK_BOX(tl), x, FALSE, FALSE, 0);
-    }
-    gtk_widget_show_all(tl);
+    t->temp = temp;
     gtk_widget_show_all(page);
-    i = gtk_notebook_append_page(nb, page, tl);
+    i = gtk_notebook_insert_page(nb, page, NULL, pos);
+    tab_label_new(t);
     gtk_notebook_set_tab_reorderable(nb, page, TRUE);
     if (select) gtk_notebook_set_current_page(nb, i);
     return t;
 }
+
+static swin *tab_add(int cat, const char *id, int select) { return tab_add_at(cat, id, select, 1, -1); }
 
 /* ---- navigation ---- */
 static void facts_update(int cat);
@@ -3704,7 +3714,6 @@ static void open_item(const char *id)
 }
 
 static void on_go_cat(GtkButton *b, gpointer d) { (void)b; home_go(GPOINTER_TO_INT(d)); }
-static void on_more_item(GtkMenuItem *mi, gpointer d) { (void)mi; open_item(d); }
 
 static void on_launch(GtkButton *b, gpointer d)
 {
@@ -3997,72 +4006,12 @@ static gint item_title_cmp(gconstpointer a, gconstpointer b)
     return g_ascii_strcasecmp(x->title, y->title);
 }
 
-/* show a menu's items (not the menu: showing it outside a popup maps an empty window) */
-static void menu_show_items(GtkWidget *m);
-static void menu_show_one(GtkWidget *it, gpointer d)
-{
-    GtkWidget *sub = GTK_IS_MENU_ITEM(it) ? gtk_menu_item_get_submenu(GTK_MENU_ITEM(it)) : NULL;
-    (void)d;
-    gtk_widget_show(it);
-    if (sub) menu_show_items(sub);
-}
-static void menu_show_items(GtkWidget *m) { gtk_container_foreach(GTK_CONTAINER(m), menu_show_one, NULL); }
-
-/* "All items": every item of the category (expert ones included), alphabetical */
-static GtkWidget *more_menu(int cat, int *count)
-{
-    GtkWidget *m = gtk_menu_new();
-    GPtrArray *v = g_ptr_array_new();
-    int i, n = srs_section_count();
-    guint k;
-    for (i = 0; i < n; i++) {
-        const srs_item *s = srs_section_at(i);
-        if (s && s->id && cat_of_id(s->id) == cat) g_ptr_array_add(v, (gpointer)s);
-    }
-    g_ptr_array_sort(v, item_title_cmp);
-    if (cat == CAT_CPU) {   /* SIV's CPU-n / Cache-n buttons: one entry per logical CPU */
-        static const char *const what[] = { "processor", "cache" };
-        static const char *const lab[] = { "_Each CPU (Processor CPU-n)", "Cache levels of _each CPU (Cache-n)" };
-        int w2;
-        for (w2 = 0; w2 < 2; w2++) {
-            GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic(lab[w2]);
-            int c;
-            for (c = 0; c < burn_ncpu(); c++) {
-                char id[40], l[40];
-                GtkWidget *it;
-                snprintf(id, sizeof id, "%s:%d", what[w2], c);
-                snprintf(l, sizeof l, "CPU-%d", c);
-                it = gtk_menu_item_new_with_label(l);
-                g_signal_connect_data(it, "activate", G_CALLBACK(on_more_item), g_strdup(id), (GClosureNotify)(void (*)(void))g_free, 0);
-                gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
-            }
-            gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
-            gtk_menu_shell_append(GTK_MENU_SHELL(m), top);
-        }
-        gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
-    }
-    for (k = 0; k < v->len; k++) {
-        const srs_item *s = g_ptr_array_index(v, k);
-        char lab[240];
-        GtkWidget *it;
-        snprintf(lab, sizeof lab, "%s  [%s]%s", s->title, s->id,
-                 s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
-        it = gtk_menu_item_new_with_label(lab);
-        g_signal_connect(it, "activate", G_CALLBACK(on_more_item), (gpointer)s->id);
-        gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
-    }
-    *count = (int)v->len;
-    g_ptr_array_free(v, TRUE);
-    menu_show_items(m);
-    return m;
-}
+#include "gui_tabs.inc"
 
 static GtkWidget *build_cat_page(int cat)
 {
     const catdef *d = &g_cats[cat];
-    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb, *mb, *bx;
-    char s[200];
-    int i, cnt = 0;
+    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb;
     gtk_widget_set_margin_start(head, 20);
     gtk_widget_set_margin_end(head, 20);
     gtk_widget_set_margin_top(head, 16);
@@ -4118,24 +4067,8 @@ static GtkWidget *build_cat_page(int cat)
     }
     gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
 
-    nb = gtk_notebook_new();
-    g_home->nb[cat] = nb;
-    gtk_style_context_add_class(gtk_widget_get_style_context(nb), "srs-nb");
-    gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
-    gtk_notebook_set_show_border(GTK_NOTEBOOK(nb), FALSE);
-    bx = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-    mb = gtk_menu_button_new();
-    gtk_menu_button_set_popup(GTK_MENU_BUTTON(mb), more_menu(cat, &cnt));
-    snprintf(s, sizeof s, "All %d items", cnt);
-    gtk_box_pack_start(GTK_BOX(bx), gtk_label_new(s), FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bx), gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_BUTTON), FALSE, FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(mb), bx);
-    gtk_button_set_relief(GTK_BUTTON(mb), GTK_RELIEF_NONE);
-    snprintf(s, sizeof s, "Every SRS item in %s, the expert ones too (opens as a new tab)", d->title);
-    gtk_widget_set_tooltip_text(mb, s);
-    gtk_widget_show_all(mb);
-    gtk_notebook_set_action_widget(GTK_NOTEBOOK(nb), mb, GTK_PACK_END);
-    for (i = 0; d->tabs[i]; i++) tab_add(cat, d->tabs[i], 0);
+    nb = tabs_area(cat);
+    page_fill(cat);
     gtk_box_pack_start(GTK_BOX(vb), nb, TRUE, TRUE, 0);
     return vb;
 }
@@ -4312,6 +4245,10 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     gtk_widget_set_sensitive(hmenu_add(m, "_Copy This Tab", "copy", 0, 0), home_cur_tab() != NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     sub = gtk_menu_new();
+    lineup_menu(sub);
+    it = hmenu_add(m, "_Lineup (tabs on each page)", NULL, 0, 0);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
+    sub = gtk_menu_new();
     build_options(sub);
     it = hmenu_add(m, "_Options", NULL, 0, 0);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
@@ -4431,7 +4368,15 @@ static int home_key(swin *w, GdkEventKey *ev)
         case GDK_KEY_m: on_menu_btn(GTK_BUTTON(g_home->menubtn), NULL); return TRUE;
         case GDK_KEY_d: open_item("all-dev"); return TRUE;
         case GDK_KEY_h: toggle_highlight(); return TRUE;
-        case GDK_KEY_w: if (t && !is_curated(t->cat, t->id)) gtk_widget_destroy(t->page); return TRUE;
+        case GDK_KEY_w: if (t) gtk_widget_destroy(t->page); return TRUE;
+        case GDK_KEY_t: if (g_home->cur != CAT_OVERVIEW) picker_open(g_home->ctl[g_home->cur], g_home->cur, PK_ADD, NULL); return TRUE;
+        case GDK_KEY_Page_Up: case GDK_KEY_Page_Down:   /* every tab-bar layout, wherever the focus is */
+            if (g_home->cur != CAT_OVERVIEW && g_home->nb[g_home->cur]) {
+                GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[g_home->cur]);
+                int n = gtk_notebook_get_n_pages(nb), c = gtk_notebook_get_current_page(nb);
+                if (n) gtk_notebook_set_current_page(nb, (c + (k == GDK_KEY_Page_Up ? n - 1 : 1)) % n);
+            }
+            return TRUE;
         default: break;
         }
     }
@@ -4534,6 +4479,9 @@ static void home_open(int as_main)
     gtk_widget_set_tooltip_text(b, "The SIV-style main window and panels, with every button row (Menu > Classic view)");
     g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)"classic");
     gtk_box_pack_start(GTK_BOX(box), b, FALSE, FALSE, 0);
+    g_home->lineup_lbl = label_cls("", "dim-label srs-cap", 0.5);
+    gtk_label_set_ellipsize(GTK_LABEL(g_home->lineup_lbl), PANGO_ELLIPSIZE_END);
+    gtk_box_pack_start(GTK_BOX(box), g_home->lineup_lbl, FALSE, FALSE, 2);
     {
         char v[64];
         snprintf(v, sizeof v, "SRS %s", SRS_VERSION);
@@ -4543,6 +4491,8 @@ static void home_open(int as_main)
     gtk_widget_set_size_request(side, 230, -1);
     gtk_box_pack_start(GTK_BOX(paned), side, FALSE, FALSE, 0);
 
+    tabs_state_load();
+    empty_load();
     g_home->stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(g_home->stack), GTK_STACK_TRANSITION_TYPE_NONE);
     gtk_stack_add_named(GTK_STACK(g_home->stack), build_overview(), g_cats[CAT_OVERVIEW].name);
@@ -4554,6 +4504,9 @@ static void home_open(int as_main)
         g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
     }
     gtk_widget_show_all(w->win);
+    layout_apply();
+    lineup_label_update();
+    empty_scan(0);   /* in a child process, at most once a day: which items have nothing to show */
     home_go(CAT_OVERVIEW);
     badge_update();
     ov_update();
@@ -4568,6 +4521,7 @@ int main(int argc, char **argv)
     snprintf(g_image, sizeof g_image, "%s", base);
     g_free(base);
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
+    if (argc > 1 && !strcmp(argv[1], "--gui-scan-empty")) return scan_empty_main();   /* child of the main window */
     gethostname(g_host, sizeof g_host);
     /* GTK_THEME (e.g. adw-gtk3-dark) would override the in-app theme choice: remember it for
        "Follow desktop", then let the Theme option drive Adwaita light / dark for this process */

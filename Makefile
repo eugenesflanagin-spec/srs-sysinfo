@@ -82,7 +82,7 @@ GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0)
 GTKLIBS  := $(shell pkg-config --libs gtk+-3.0)
 # the GTK GUI's own extra sources (main window: sortable tables, tab lineups, startup manager)
 GUIX     := tblsort.c
-GUIXHDRS := tblsort.h
+GUIXHDRS := tblsort.h gui_tabs.inc
 $(DIST)/linux-x86_64/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
