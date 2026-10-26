@@ -153,7 +153,7 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
         library, multiply-add, copy, upload / download, launch time) through every installed back end
         on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
-  prime [--limit 1e8|1e9|1e10|N] [--threads N] [--yes]
+  prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
@@ -170,7 +170,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.0.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.2.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -239,7 +239,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.0.0 MYPC 2026-10-25 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.2.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -452,8 +452,9 @@ sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 
 `--cpus N` tests CPUs 0..N-1 (default all), `--rounds R` round trips per pair (default 20,000).
 Two CPU threads are busy at a time, for about a second at the defaults. **Asks first**; `--yes`
-starts at once. Prints a matrix of nanoseconds, one row and column per CPU. See
-[tools.md](SECTIONS/tools.md#cpu-ipi-delay).
+starts at once. Prints a matrix of nanoseconds, one row and column per CPU. With one CPU
+(`--cpus 1`, or a one-CPU system) there is no pair to measure: it says so, exits with 2 and keeps
+the last saved result. See [tools.md](SECTIONS/tools.md#cpu-ipi-delay).
 
 ### `latency` - memory latency by block size
 
@@ -502,7 +503,8 @@ if they fail, 2 for a bad option or when it was not started. See
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
 ```
 
-Counts the primes up to `--limit` (default 1e9; 100 to 1e11) on N threads (default all) and checks
+Counts the primes up to `--limit` (default 1e9; any number from 100 to 1e11, for example `5e9` or
+`1g`) on N threads (default all) and checks
 the count for the powers of ten 1e7 to 1e11. **Asks first** (from 1e10, or with all threads, it
 also warns about unstable overclocks); `--yes` starts at once. Exit code 1 when the count is wrong,
 2 for a bad option or when it was not started. See
@@ -675,8 +677,8 @@ internet part; `--local --internet` runs both.
 | `--samples N` | TCP connects per host for the connect-time test, 1-100 (default 10) |
 | `--max-mb MB` | Each transfer test stops after this many MB (default 250, 0 = no cap) |
 | `-4` / `-6` | IPv4 only / IPv6 only |
-| `--server URL` | Another speed test server with the same `/__down` and `/__up` paths (https only) |
-| `--hosts H,H` | Extra hosts for the connect-time test (`host` or `host:port`) |
+| `--server URL` | Another speed test server with the same `/__down` and `/__up` paths (https only; a port in the URL is used for its connect-time row too) |
+| `--hosts H,H` | Extra hosts for the connect-time test (`host` or `host:port`); one typed as a numeric address is printed and saved as "host N (a numeric address)" |
 | `--yes` | Start the loopback test without asking |
 | `--yes-internet` | Start the internet test without asking |
 
@@ -712,8 +714,8 @@ terminal and without `--yes` it does not start (exit code 2).
 | `--device N` | The Vulkan device to test, numbered as `--list` shows them (default: the first discrete GPU, else the first device) |
 | `--seconds S` | GPU time per test, 0.1-10 (default 1) |
 | `--only LIST` | Run only these tests (comma-separated): fp32, fp16, fp64, int32, read, write, copy, upload, download, latency |
-| `--mem-mib M` | Buffer size of the memory and transfer tests in MiB, 1-4096 (default: 256, less on small cards) |
-| `--list` | List the Vulkan devices (number, name, type, video memory, driver) and exit; nothing runs on a GPU |
+| `--mem-mib M` | Buffer size of the memory and transfer tests in MiB, 1-4096 (default: 256, less on small cards); a size above a quarter of the video memory or of the PC's memory is lowered to that, and the result says so |
+| `--list` | List the Vulkan devices (number, name, type, video memory, driver) and exit; nothing runs on a GPU (like `vulkaninfo`, this creates a Vulkan instance to name the devices) |
 | `--yes` | Start without asking |
 
 Exit code 0 when every test ran and was right, 1 when it was stopped, a result was wrong or the
@@ -739,15 +741,20 @@ from the first one (0 = PASS). On a terminal a live line shows the time, GFLOPS,
 edge and hotspot temperature, power and clock; the full result follows at the end. It **asks
 first** (the GPU, the back end, the time, high power and heat, the overclock / undervolt warning,
 the temperature limit); `--yes` (`-y`) starts at once; without a terminal and without `--yes` it
-does not start (exit code 2). Before you say yes it starts no HIP, CUDA or OpenCL runtime. It ends
-by itself at the temperature limit, on a driver error, when the GPU stops answering or when a piece
-of work takes more than 2 s; Ctrl+C stops it. **It never changes clocks, voltages or fans.**
+does not start (exit code 2). Before you say yes it starts no HIP, CUDA or OpenCL runtime; to name
+the GPU in the question it reads only Vulkan's device list (like `vulkaninfo`, no work is sent). It
+ends by itself at the temperature limit, on a driver error, when the GPU stops answering or when a
+piece of work takes more than 2 s; Ctrl+C stops it. A driver call that never comes back is waited
+for 15 s after the end, then the run ends ("the GPU driver did not come back"). A card that reports
+no temperature is shown with "no temperature sensor: limit not active". **It never changes clocks,
+voltages or fans.** It never burns a software renderer such as llvmpipe as a GPU: the default and
+`--device all` skip it, and with only a software renderer in Vulkan it does not start (exit 2).
 
 | Option | Meaning |
 |---|---|
 | `--seconds N` | How long, 1-86400 (default 60) |
 | `--backend B` | `vulkan`, `hip` (ROCm), `cuda`, `opencl` or `auto` (default: Vulkan when it has a GPU, else the first back end that has one) |
-| `--device N` | The device number in that back end's list (see `--list`), or `all` (default: the first) |
+| `--device N` | The device number in that back end's list (see `--list`), or `all` (default: the first GPU; CPU / software devices are skipped) |
 | `--fp32` / `--fp64` | Precision of the multiplications (default FP32) |
 | `--limit C` | Stop at this GPU temperature in °C, 50-120 (default 100; hotspot / junction when the card reports it, else edge). `--limit-c` is the same |
 | `--list` | List the devices of each installed back end (or only `--backend`'s) and exit. This starts each runtime but runs no work |
@@ -778,7 +785,9 @@ GPU, and prints one table: `*` = fastest in the row, (N%) = that column compared
 CUDA that is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column; a
 back end that is not installed shows "not installed" and a hint. It **asks first**; `--yes`
 (`-y`) starts at once; without a terminal and without `--yes` it does not start (exit code 2).
-HIP, CUDA and OpenCL start their runtimes only after that. Ctrl+C stops it.
+HIP, CUDA and OpenCL start their runtimes only after that. Ctrl+C stops it. When the GPU hangs or
+stops answering in one column, the run ends there: no later back end touches that GPU, and the
+tests that did not run say "not run".
 
 | Option | Meaning |
 |---|---|

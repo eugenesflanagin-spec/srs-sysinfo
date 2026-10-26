@@ -157,13 +157,14 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
 - **Prime Sieve**: counts the primes up to 10^8 ... 10^11 on N threads and checks the count.
   `sysreport-search prime [--limit 1e10] [--threads N]`.
-- **Benchmark history**: every SRS Pi, Crypto and Prime Sieve run adds a line to
+- **Benchmark history**: every run of Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work,
+  Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve adds a line to
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
 - Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
-  GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
-  (classic view); desktop-menu actions;
+  GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Benchmarks &
+  stress entries (classic view); desktop-menu actions;
   `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|pi|crypto|prime`.
   Every benchmark asks before it starts, saying what it does, for how long and how much load (see
   Changed). 558 items in all.
@@ -243,7 +244,11 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   OpenCL only as far as loading the libraries and finding every function (`dlopen` + `dlsym`;
   no HIP, CUDA or OpenCL work is run) and the "not installed" / "no OpenCL platform" paths. GPU
   Compute comparison: the Vulkan column with the own-kernel rows, "not available" library rows,
-  the fastest marker, three "not installed" columns, Stop, and the CLI.
+  the fastest marker, three "not installed" columns, Stop, and the CLI; outside the test mode a
+  software renderer is refused by GPU Burnin.
+- `tools/check-mnemonics.py` (`make check-mnemonics`): no two entries of a menu or window page share
+  an Alt+letter. `packaging/test.sh` (run in every distro container) checks the `--help` and the
+  not-started path of every benchmark command and `gpu --list` on a system without GPU libraries.
 
 ### Changed
 
@@ -253,7 +258,7 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   busy and (SRS Pi) how much memory it needs. Heavy runs - SRS Pi from 8 million digits, Prime
   Sieve from 10 billion, all-thread runs and the CPU Benchmark modes that load many threads at once
   (`ac`, `pc`, `lc`) - warn about unstable overclocks and undervolts and have **No** as the default
-  answer. On the command line `bench`, `ipi`, `latency`, `pi`, `crypto` and `prime` ask the same
+  answer, like GPU Burnin and the internet speed test. On the command line `bench`, `ipi`, `latency`, `pi`, `crypto` and `prime` ask the same
   question (`Start now? [y/N]` on stderr); `--yes` (`-y`) starts at once; without a terminal and
   without `--yes` they exit 2 and start nothing. `--help` prints the usage; an unknown option or a
   missing value exits 2 without starting (`bench`, `ipi` and `latency` used to ignore unknown
@@ -262,9 +267,14 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - Page keys: the Alt keys follow the sidebar order with Power & cost under Sensors, so USB & PCI
   devices moves to Alt+0, Operating system to Alt+-, Benchmarks & stress to Alt+= and Tools to
   Alt+Backspace (Overview ... Sensors keep Alt+1 ... Alt+8; Power & cost is Alt+9).
-- The first time 2.1 starts it asks which tab lineup you want (Basic, Enthusiast or Expert, the
-  default) and says where to change it later (menu button or Ctrl+M, then Lineup). If you used
-  SRS before, your tabs stay as they were (Enthusiast) unless you pick another lineup.
+- The first time the 2.2 main window opens it asks which tab lineup you want (Basic, Enthusiast or
+  Expert, the default) and says where to change it later (menu button or Ctrl+M, then Lineup). If
+  you used SRS before, your pages keep the standard tabs of 2.0 (Enthusiast) unless you pick another
+  lineup.
+- Classic view: the classic Menu keeps its benchmarks and stress tests in a **Benchmarks & stress**
+  submenu (it had more entries than there are letters, so Alt+letter could not reach them all).
+  Every menu and page now has one Alt+letter per entry; some letters changed (for example
+  Options -> S_ortable tables, Upd_ate interval, Chec_k daily, Hide to Tra_y).
 - `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
 - The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
   memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).
@@ -304,7 +314,7 @@ with your hardware and the report SRS made, and I'll fix it. Not tried on real h
   The 32-bit (i686) self-test passed; the aarch64 build ran its plain C self-test only.
 - Everyday Work: run with one Arch Linux system's compression libraries (zlib-ng in zlib mode,
   zstd 1.5, lz4 1.10, xz 5.8); its time estimate is rough. The CPU-instruction CRC32C row is
-  x86-64 only (ARM shows "not measured").
+  x86-64 only (the i686 and ARM builds show it as "not built into this image").
 - Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
   connections are untested. The internet speed test has been run once by the author on that wired
   connection, against Cloudflare, with sensible results (download several hundred Mbit/s, upload
@@ -312,12 +322,13 @@ with your hardware and the report SRS made, and I'll fix it. Not tried on real h
   test endpoints are not a documented API; if they change, the speed rows fail and DNS / connect
   times still work.
 
-GPU benchmarks (Vulkan, ROCm/HIP, CUDA, OpenCL) are new in 2.2; only Vulkan was run (on a software
-renderer) by the author, the other back ends and other vendors' GPUs are untested on real hardware -
-please report issues. A back end that is not installed shows as "not installed" with a one-line
-hint; CUDA that is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column
-(CPU drivers such as PoCL are marked CPU); speeds are only comparable between alike SRS builds and
-the same GPU driver / runtime versions.
+A GPU back end that is not installed shows as "not installed" with a one-line hint; CUDA that is
+really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column (CPU drivers such as
+PoCL are marked CPU); speeds are only comparable between alike SRS builds and the same GPU driver /
+runtime versions. Opening a GPU window's list of GPUs, or pressing Run, reads the GPU list through
+Vulkan the way `vulkaninfo` does (the GPUs are named, no work is sent until you answer Yes); ROCm /
+HIP, CUDA and OpenCL start only after Yes. A card that reports no temperature to SRS cannot be
+stopped at the temperature limit: GPU Burnin says so in the live readout and the result.
 
 ### Fixed
 

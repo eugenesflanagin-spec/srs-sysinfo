@@ -15,15 +15,32 @@ Files: data/power-zip-rates.tsv
 Copyright: National Renewable Energy Laboratory (NREL), U.S. Electric Utility Companies and Rates:
  Look-up by Zip Code (2024), from U.S. EIA Form EIA-861 data; reformatted by SRS
 License: CC-BY-4.0
- Creative Commons Attribution 4.0 International: https://creativecommons.org/licenses/by/4.0/
- Source: https://catalog.data.gov/dataset/u-s-electric-utility-companies-and-rates-look-up-by-zip-code-2024
+Comment: Source: https://catalog.data.gov/dataset/u-s-electric-utility-companies-and-rates-look-up-by-zip-code-2024
 
 Files: power_rates_data.inc
-Copyright: U.S. Energy Information Administration (public domain, U.S. government work);
- Eurostat (reuse authorised with acknowledgement); Ofgem (published price cap figures);
- Ember (CC BY 4.0) - average electricity prices and grid CO2 intensity, as published
+Copyright: U.S. Energy Information Administration (U.S. state average prices);
+ Eurostat (European household prices); Ofgem (Great Britain price cap figures);
+ Ember (grid CO2 intensity) - figures as published, with the code around them by Eugene Flanagin
+License: public-domain and Eurostat-reuse and Ofgem-published and CC-BY-4.0 and GPL-2+
+Comment: Each figure comes from one source: the U.S. prices from EIA (public domain), the European
+ prices from Eurostat, the GB price cap from Ofgem, the CO2 intensities from Ember (CC BY 4.0). The
+ sources and dates are listed at the top of the file, in CREDITS.md and in the user guide,
+ "Power & cost". The C code itself is GPL-2+.
+
+License: public-domain
+ Data of the U.S. Energy Information Administration are a work of the U.S. government and are in
+ the public domain. Source credited as EIA asks.
+
+License: Eurostat-reuse
+ Eurostat data: reuse is authorised provided the source is acknowledged
+ (https://ec.europa.eu/eurostat/web/main/help/copyright-notice). Eurostat is not responsible for
+ how SRS uses the data.
+
+License: Ofgem-published
+ Figures published by Ofgem (https://www.ofgem.gov.uk), reproduced and credited to Ofgem.
+
 License: CC-BY-4.0
- Sources and dates are listed at the top of the file and in the user guide, "Power & cost".
+ Creative Commons Attribution 4.0 International: https://creativecommons.org/licenses/by/4.0/
 
 License: GPL-2+
  This program is free software; you can redistribute it and/or modify

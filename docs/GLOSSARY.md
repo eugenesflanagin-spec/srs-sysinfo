@@ -6,6 +6,10 @@ Plain-English meanings of the technical words used in the SRS documents, A to Z.
 
 SRS is a Linux system information viewer inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software; it is an independent project, not affiliated with SIV or its author.
 
+## 0-9
+
+- **80 PLUS** - a certificate for power supply efficiency (Bronze, Gold, Platinum, Titanium ...); see PSU efficiency. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+
 ## A
 
 - **ABI (Application Binary Interface)** - the low-level rules a program and the kernel (or libraries) agree on so compiled code can work together. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -18,6 +22,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **AIO** - All-In-One liquid cooler: a sealed pump, radiator and fans in one unit. *See: [tools](SECTIONS/tools.md).*
 - **AIO (all-in-one) cooler** - A sealed liquid cooler with pump, radiator and fans in one kit. *See: [sensors](SECTIONS/sensors.md).*
 - **ALSA (Advanced Linux Sound Architecture)** - The kernel's sound driver layer. It talks to the sound chips and gives each card numbered devices such as `hw:1,0`. *See: [graphics](SECTIONS/graphics.md).*
+- **Alt+letter (underlined letter)** - in a menu or window, the underlined letter of an entry: press Alt and that letter to pick it. Every entry of a menu has its own. *See: [User Guide 6.6](USER-GUIDE.md#66-classic-view-the-siv-style-windows).*
 - **amd_pstate** - the Linux driver that controls clock speed on AMD Zen 2 and newer CPUs using CPPC; modes are active, guided and passive. *See: [processors](SECTIONS/processors.md).*
 - **AML** - ACPI Machine Language; the bytecode in the DSDT and SSDTs that the operating system runs to control devices. *See: [machine](SECTIONS/machine.md).*
 - **APIC** - Advanced Programmable Interrupt Controller; each CPU thread has one, and its APIC ID is the hardware's own number for that thread. *See: [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
@@ -62,6 +67,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## C
 
 - **Carbon intensity** - grams of CO2 released per kWh of electricity on a grid, on average over a year. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **CLBlast** - a free, tuned matrix-maths library for OpenCL; the "vendor library" SRS uses on OpenCL when it is installed. *See: [tools](SECTIONS/tools.md).*
 - **Compute error (GPU)** - a GPU result that differs from the right one. GPU Burnin counts them: any error means the card is not stable as set up (overclock, undervolt, heat, power) or faulty. *See: [tools](SECTIONS/tools.md).*
 - **C-state** - an idle power level of a CPU core; C0 is running, deeper states (C1, C2, C3) save more power but take longer to wake. *See: [processors](SECTIONS/processors.md).*
 - **Cache** - small fast memory on the CPU that keeps copies of recently used RAM; L1 is smallest and fastest, L3 largest and shared. *See: [processors](SECTIONS/processors.md).*
@@ -102,6 +108,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **CSMI** - Common Storage Management Interface: a Windows driver interface some RAID controllers offer for status queries. *See: [storage](SECTIONS/storage.md).*
 - **CSV (comma-separated values)** - A plain-text table format, one line per row, columns split by commas; opens in any spreadsheet. *See: [sensors](SECTIONS/sensors.md), [srs-items](SECTIONS/srs-items.md).*
 - **CTA-861** - An EDID extension block with TV and HDMI data: extra video modes, audio formats and HDR information. *See: [graphics](SECTIONS/graphics.md).*
+- **cuBLAS** - NVIDIA's tuned matrix-maths library for CUDA. *See: [tools](SECTIONS/tools.md).*
 - **CUDA** - NVIDIA's GPU computing platform, used by most AI programs; needs the NVIDIA driver. With ZLUDA, CUDA programs can run on AMD cards. *See: [tools](SECTIONS/tools.md).*
 - **Curve Optimizer** - an AMD Ryzen BIOS setting that lowers (or raises) the voltage curve of each core. Too negative a value makes a core unstable or slow. *See: [tools](SECTIONS/tools.md).*
 
@@ -234,6 +241,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **HID (Human Interface Device)** - The device class and protocol for keyboards, mice, game pads, RGB controllers and security keys. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **hidraw** - A Linux device node (`/dev/hidrawN`) that gives programs raw access to a HID device. *See: [buses-1](SECTIONS/buses-1.md).*
 - **HIP** - AMD's CUDA-like programming language for GPU computing, part of ROCm. *See: [graphics](SECTIONS/graphics.md).*
+- **hipBLAS** - AMD's tuned matrix-maths library for ROCm / HIP. *See: [tools](SECTIONS/tools.md).*
 - **Holder** - A Linux block device built on top of another one (for example an encrypted volume on a partition). *See: [storage](SECTIONS/storage.md).*
 - **Host bridge** - The PCI device that connects the CPU to the PCI bus (class 0600). *See: [buses-1](SECTIONS/buses-1.md).*
 - **Hotspot temperature** - the hottest point measured on a GPU chip; AMD calls it junction temperature. Usually 10-20 °C above the edge temperature. *See: [tools](SECTIONS/tools.md).*
@@ -303,9 +311,10 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **LDN (Logical Device Number)** - The number of one function block (serial port, hardware monitor ...) inside a Super I/O chip. *See: [sensors](SECTIONS/sensors.md).*
 - **Leaf (CPUID)** - the question number given to the CPUID instruction; some leaves have several sub-leaves. *See: [processors](SECTIONS/processors.md).*
 - **LFC (low framerate compensation)** - A VRR trick that shows frames twice when the frame rate falls below the monitor's VRR minimum. *See: [graphics](SECTIONS/graphics.md).*
+- **Lineup** - a saved arrangement of the main window's tabs: which items each page shows as tabs, in what order, and the tab bar shape. Basic, Enthusiast and Expert are built in; you can save your own. *See: [User Guide 6.7](USER-GUIDE.md#67-arranging-the-tabs-and-lineups).*
 - **Link width (PCIe)** - The number of lanes a PCIe link is using (x1, x4, x8, x16). *See: [buses-1](SECTIONS/buses-1.md).*
 - **Link-local address** - an address that only works on the local cable or Wi-Fi (fe80:: for IPv6, 169.254. for IPv4), made automatically. *See: [network](SECTIONS/network.md).*
-- **llvmpipe** - Mesa's software renderer. It draws on the CPU and is only a fallback. *See: [graphics](SECTIONS/graphics.md).*
+- **llvmpipe** - Mesa's software renderer. It draws on the CPU and is only a fallback; its Vulkan driver is lavapipe. GPU Burnin never burns it as if it were a GPU. *See: [graphics](SECTIONS/graphics.md), [tools](SECTIONS/tools.md).*
 - **lm-sensors** - The standard Linux sensor package; its config files (/etc/sensors3.conf, /etc/sensors.d) rename, scale or hide readings. *See: [sensors](SECTIONS/sensors.md).*
 - **Load average** - the average number of tasks running or waiting for a CPU over 1, 5 and 15 minutes. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Locale** - a bundle of language and regional rules: language, date and number format, sorting, currency. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
@@ -389,6 +398,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **OpenCL** - An open standard for running general computing tasks on GPUs and other processors. *See: [graphics](SECTIONS/graphics.md).*
 - **OpenGL** - The older cross-platform 3D graphics interface; still used by many programs and older games. *See: [graphics](SECTIONS/graphics.md).*
 - **Option ROM** - firmware stored on a PCI card (listed as the ROM BAR), for example a graphics card's video BIOS. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
+- **OS latency** - how long the operating system takes to answer a program: system calls, task switches, wake-ups, timers. Lower and steadier means a more responsive PC. *See: [tools](SECTIONS/tools.md).*
 - **OUI (Organizationally Unique Identifier)** - the first three bytes of a MAC address, identifying the maker. *See: [network](SECTIONS/network.md).*
 - **Overcommit** - the kernel promising programs more memory than it really has, betting they will not all use it at once. *See: [linux-os](SECTIONS/linux-os.md).*
 - **OverDrive** - AMD's name for user clock, voltage and power tuning. On Linux it appears as `pp_od_clk_voltage`. *See: [graphics](SECTIONS/graphics.md).*
@@ -446,6 +456,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## Q
 
+- **Q1T1, Q8T1, Q32T16** - storage test settings: Q = queue depth (how many requests wait at once: 1 is like most desktop programs, 32 like a busy server), T = threads. *See: [tools](SECTIONS/tools.md).*
 - **qdisc (queueing discipline)** - the kernel's waiting line for outgoing packets, such as fq or fq_codel. *See: [network](SECTIONS/network.md), [srs-items](SECTIONS/srs-items.md).*
 - **QST (Quiet System Technology)** - Intel fan control built into the management engine of some 2007-2010 desktop boards. *See: [sensors](SECTIONS/sensors.md).*
 - **Queue depth (Q), threads (T)** - Q = how many requests one thread keeps waiting at the drive at once, T = how many threads do so; "Q32T16" keeps 512 requests in flight. *See: [tools](SECTIONS/tools.md).*

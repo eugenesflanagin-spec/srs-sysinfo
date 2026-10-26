@@ -140,6 +140,8 @@ similar names):
 | `iw`, `bluez-utils` | Wi-Fi link and Bluetooth details |
 | `wireplumber`, `libpulse` | Audio graph details |
 | `inxi`, `lshw`, `hwinfo` | Extra sections in the full system report |
+| `zlib`, `zstd`, `lz4`, `xz` | The compression rows of Everyday Work ([9.15](#915-everyday-work)); almost every system has them, a missing one only skips its rows |
+| `curl` (libcurl) | The internet speed test of the Network benchmark ([9.16](#916-network)) |
 | `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
 | `rocm-hip-runtime` (and `hipblas`), `cuda` (or the NVIDIA driver), `opencl-icd-loader` with an OpenCL driver, `clblast` | The ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin ([9.18](#918-gpu-burnin)) and the GPU Compute comparison; only if you want them |
 
@@ -228,15 +230,19 @@ Open your application menu. SRS installs four entries (category System / Monitor
 
 | Menu entry | Opens |
 |---|---|
-| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Device ID Lookup, Find in System Report, Classic View. |
+| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU Burnin, GPU compute comparison, SRS Pi, Device ID Lookup, Find in System Report, Classic View (18 in all). |
 | **SRS CPU Burnin & Stress** | The CPU Burnin and CPU Stress windows (nothing starts until you press Start). |
 | **SRS Benchmark** | The Benchmark, IPI Delay and Latency windows (nothing runs until you press Run). |
 | **SRS Full System Report** | A terminal that writes a full text report folder (see [13.3](#133-full-system-report-srs-sysreport)). |
 
 Or type `srs-gui` in a terminal.
 
-**What you see first:** the main window. On the left is a list of pages; the first one,
-**Overview**, tells you whether the PC looks healthy and shows its key facts. (The SIV-style
+**What you see first:** the main window. The first time it opens, SRS asks which tabs you want on
+its pages - **Welcome to SRS** with Basic, Enthusiast or Expert (the default); if you used SRS 2.0,
+the question is **SRS 2.2: your tabs** with Enthusiast, the 2.0 tabs, already picked. Click OK (or
+close it: the preselected one is used); you can change it at any time ([6.7](#67-arranging-the-tabs-and-lineups)).
+On the left is a list of pages; the first one, **Overview**, tells you whether the PC looks healthy
+and shows its key facts. (The SIV-style
 window of SRS 1.1 is still there: see [Classic view](#66-classic-view-the-siv-style-windows).)
 
 ![SRS main window, Overview page](images/overview-light.png)
@@ -615,9 +621,11 @@ built-in ones stay as they are: use **Save as new lineup...**). **Export lineup.
 of yours already has it), **Remove this lineup...** removes one of your own, and **Reset to the
 default lineup** goes back to Expert.
 
-The first time SRS starts it asks which lineup you want (Basic, Enthusiast or Expert) and tells you
-where to change it later: the menu button (or **Ctrl+M**) -> **Lineup**. It asks only once. If you used SRS before 2.2, your pages stay as they were (the Enthusiast
-lineup, preselected as "your current tabs") unless you pick another one.
+The first time the main window opens it asks which lineup you want (Basic, Enthusiast or Expert)
+and tells you where to change it later: the menu button (or **Ctrl+M**) -> **Lineup**. It asks only
+once. (If you start in the classic view, the question waits until you first open the main window.)
+If you used SRS before 2.2, your pages keep the standard tabs of 2.0 (the Enthusiast lineup,
+preselected as "the standard tabs, kept") unless you pick another one.
 
 ### 6.8 Sortable tables
 
@@ -1054,9 +1062,12 @@ This is the classic view's Menu. Press **Menu** on the classic main window, pres
 classic window, right-click the text of any panel and choose **SRS Menu**, or use **Menu ->
 Classic Menu** in the main window. It has:
 
-1. **Tools:** CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
-   Device ID Lookup..., Find in Report..., and **Classic view** (from the main window) or
-   **Open the new main window** (when SRS started in the classic view).
+1. **Benchmarks & stress** (a submenu): CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
+   Latency..., SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage
+   Benchmark..., OS Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU
+   Benchmark..., GPU Burnin... and GPU Comparison...; then **Device ID Lookup...**, **Find in
+   Report...**, and **Classic view** (from the main window) or **Open the new main window** (when SRS
+   started in the classic view). Every entry has its own underlined letter (Alt + letter).
 2. **Every item, grouped** (the same groups as the Section Reference):
    - Processors
    - Machine / BIOS / Memory
@@ -1074,7 +1085,8 @@ Classic Menu** in the main window. It has:
 3. **Options** ([section 10](#10-options)).
 4. **Save Report...**, **Save All Items...** ([section 13](#13-reports-and-exports)).
 5. **Run as root (srs-root)...** ([section 5](#5-root-only-data-srs-root)).
-6. **Exit.**
+6. **User Guide...**
+7. **Exit.**
 
 ## 9. Tools
 
@@ -1092,20 +1104,14 @@ same question (`Start now? [y/N]`); `--yes` starts them without asking, for scri
 Radeon RX 9070 XT, on a wired connection), so anything that needs other hardware may have a bug or
 two I haven't met yet. If you find one, please open an issue on
 [GitHub](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware and the
-report SRS made, and I'll fix it. Not tried on real hardware so far:
+report SRS made, and I'll fix it. The release notes and the CHANGELOG (Known limits) say in detail
+what was tried; in short, not tried on real hardware so far:
 
 <!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
-- GPU benchmarks (GPU Benchmark, GPU Burnin, GPU Compute comparison): the Vulkan tests, GPU
-  Burnin and the GPU Compute comparison were run on lavapipe (the Mesa software renderer, which
-  runs on the CPU), with small sizes, so the logic, the error counting, Stop and the result pages
-  are checked; the Vulkan type layouts were checked against the official Khronos header for 64-bit
-  and 32-bit builds. ROCm/HIP, CUDA and OpenCL were tried only in part: I checked that the
-  libraries load and that every function SRS needs is found in them (including on my own ROCm, my
-  ZLUDA and my OpenCL loader), and that a missing library or an OpenCL loader with no driver is
-  handled cleanly, but I did not run any HIP, CUDA or OpenCL work on a GPU. Not run on real
-  hardware: Vulkan on a real GPU, GPU Burnin on a real GPU, CUDA on NVIDIA, ZLUDA, ROCm/HIP on AMD,
-  OpenCL on AMD (ROCm) and Mesa Rusticl, anything on Intel graphics, and the temperature, power,
-  clock and fan read-outs for NVIDIA and Intel.
+- GPU benchmarks: Vulkan only on lavapipe (the Mesa software renderer, which runs on the CPU), with
+  small sizes; ROCm/HIP, CUDA, ZLUDA and OpenCL only as far as loading their libraries and finding
+  every function SRS needs - no HIP, CUDA or OpenCL work was run on a GPU. Untested: every real GPU
+  (AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs for NVIDIA and Intel.
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
 - OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
   recognised from the kernel's settings but were not run here.
@@ -1113,18 +1119,14 @@ report SRS made, and I'll fix it. Not tried on real hardware so far:
   code was checked by forcing each one on that same CPU, not on older CPUs.
 - Everyday Work: run with the compression libraries of one Arch Linux system (zlib-ng in zlib
   mode, zstd 1.5, lz4 1.10, xz 5.8); other versions should work but give different speeds. The
-  CRC32C row that uses the CPU's own instruction is x86-64 only.
+  CRC32C row that uses the CPU's own instruction is in the 64-bit x86 build only.
 - Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
   connections are untested. The internet speed test was run once on that connection, against
   Cloudflare, with sensible results (download several hundred Mbit/s, upload about 60 Mbit/s; the
   report showed no IP address, host name or MAC address). It uses Cloudflare's public speed test
   server, which is not a documented API and may change.
 
-**GPU features and the hardware I can test them on.** I build and test SRS on a single machine: a
-Ryzen 7 7800X3D with a Radeon RX 9070 XT. I can't try what I don't own, so GPU features for other
-hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, or any ROCm/HIP and OpenCL setup other
-than mine, may have a bug or two I haven't met yet. If you find one, please open an issue on GitHub
-with your GPU and the report SRS made, and I'll fix it. Things to know:
+**Things to know about the GPU tests:**
 
 - A back end that is not installed shows as "not installed" with a one-line hint (for example
   "install ROCm"); the others still run.
@@ -1136,6 +1138,9 @@ with your GPU and the report SRS made, and I'll fix it. Things to know:
 - GPU Burnin ends by itself on a driver error, a GPU that stops answering, a piece of work that
   takes far too long, or a temperature at the limit (default 100 °C). It never changes clocks,
   voltages or fans. It asks before it starts.
+- Opening a GPU window's list of GPUs, or pressing Run, reads the list of GPUs through Vulkan, the
+  way `vulkaninfo` does: the GPUs are named, but no work is sent to them until you answer Yes.
+  ROCm / HIP, CUDA and OpenCL are started only after Yes.
 
 
 ### 9.1 CPU Burnin and CPU Stress
@@ -1146,9 +1151,9 @@ overclocks, undervolts (Curve Optimizer) or power limits.
 
 ![CPU Burnin window](images/cpu-burnin.png)
 
-Open: the **Benchmarks & stress** page -> **Burnin...** / **Stress...**, the menu entry
+Open: the **Benchmarks & stress** page -> **CPU Burnin...** / **CPU Stress...**, the menu entry
 "SRS CPU Burnin & Stress", or in the classic view Processors -> CPU Burnin / CPU Stress or
-Menu -> Tools.
+Menu -> Benchmarks & stress.
 
 The difference:
 
@@ -1220,7 +1225,7 @@ comparing very different CPUs.
 ![Benchmark window](images/benchmark.png)
 
 Open: the **Benchmarks & stress** page -> **Benchmark...**, the menu entry "SRS Benchmark", or in
-the classic view Processors -> Benchmark or Menu -> Tools. The page's **CPU Benchmarks** tab shows
+the classic view Processors -> Benchmark or Menu -> Benchmarks & stress. The page's **CPU Benchmarks** tab shows
 the last results.
 
 Controls: **Mode**, **Seconds per measurement** (0.1-60, default 1), **Run** (asks first: the
@@ -1321,7 +1326,7 @@ What the numbers show, step by step:
 
 ### 9.2.2 Reading the CPU IPI Delay table - a worked example
 
-**In plain words:** the IPI Delay tool (Menu > Tools > IPI Delay, section 9.3) times how long one
+**In plain words:** the IPI Delay tool (Benchmarks & stress > IPI Delay, section 9.3) times how long one
 CPU takes to hand a small piece of data to another CPU, for every pair of CPUs. When two threads of
 a program share data (a lock, a queue, a game engine's job list), this is the delay they pay each
 time. The result is a big grid of numbers. This page shows how to read it, using one real result.
@@ -1409,11 +1414,13 @@ the two dies. The exact numbers depend on the CPU, the memory and fabric clocks,
 for every pair of CPUs. Shows as a table in nanoseconds and a colour heat map (green = fast,
 red = slow). Cores that share a cache or a chip answer faster; cores on different chips
 (for example two CCDs on a Ryzen 9) answer slower.
-Open: the **Benchmarks & stress** page -> **IPI Delay...**, or Menu -> Tools -> IPI Delay... in
+Open: the **Benchmarks & stress** page -> **IPI Delay...**, or Menu -> Benchmarks & stress -> IPI Delay... in
 the classic view.
 Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run** (asks first;
-two CPU threads are busy at a time, for about a second at the defaults). Command line:
-`sysreport-search ipi` (asks first; `--yes` starts at once).
+two CPU threads are busy at a time, for about a second at the defaults). With **CPUs** at 1 there is
+no pair to measure: nothing runs, the window says "Not started" and the last result is kept.
+Command line: `sysreport-search ipi` (asks first; `--yes` starts at once; `--cpus 1` exits with 2
+and keeps the last result).
 For a step-by-step reading of one real result (partner threads, the L3, what a two-CCD CPU
 looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922-reading-the-cpu-ipi-delay-table---a-worked-example).
 
@@ -1422,7 +1429,7 @@ looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922
 **In plain words:** measures how long one memory read takes, for blocks from tiny to large. Small
 blocks fit in L1 and answer in about 1 ns; as the block grows past each cache, the time steps up:
 L2, L3, then RAM. The steps in the graph show you your cache sizes.
-Open: the **Benchmarks & stress** page -> **Latency...**, or Menu -> Tools -> Latency... in the
+Open: the **Benchmarks & stress** page -> **Latency...**, or Menu -> Benchmarks & stress -> Latency... in the
 classic view.
 Controls: **Largest block (MB)** (1-4096, default 256), **Run** (asks first; one CPU thread and
 that much memory, about 3 seconds at the default). Command line: `sysreport-search latency` (asks
@@ -1441,7 +1448,7 @@ Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests
 ![Device ID Lookup](images/device-id-lookup.png)
 
 Open: **Ctrl+L**, **Menu -> Device ID Lookup...**, the **Tools** page -> **Lookup...**, or
-double-click an ID on any tab or panel. In the classic view also Menu -> Tools and the Lookup
+double-click an ID on any tab or panel. In the classic view also the Lookup
 panel's ID Lookup button.
 
 Controls:
@@ -1468,7 +1475,7 @@ Output: each key tried (the matching one is marked `<`), then **Vendor**, **Subs
 
 Open: **Ctrl+Shift+F** or **Menu -> Find in System Report...** in the main window, the **Tools**
 page -> **Find...**, or the menu entry's "Find in System Report" action. In the classic view:
-**Ctrl+F** or Menu -> Tools -> Find in Report....
+**Ctrl+F** or Menu -> Find in Report....
 
 Controls:
 
@@ -1492,7 +1499,7 @@ If there is no report yet, Find tells you to run SRS Full System Report first.
 **In plain words:** SRS works out pi to many decimal places and checks every digit. The time shows
 how fast one core does heavy number work; a wrong digit means the PC made a mistake (often an
 unstable overclock or memory).
-Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Tools -> SRS Pi... in the
+Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Benchmarks & stress -> SRS Pi... in the
 classic view. On the command line: `sysreport-search pi --digits 1m`.
 Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
 author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
@@ -1540,7 +1547,7 @@ own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1
 
 **In plain words:** how fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long
 they take to answer. Use it after a BIOS, EXPO/XMP or memory-timing change.
-Open: the **Benchmarks & stress** page -> **Cache & Memory...**, or Menu -> Tools -> Cache &
+Open: the **Benchmarks & stress** page -> **Cache & Memory...**, or Menu -> Benchmarks & stress -> Cache &
 Memory... in the classic view. Command line: `sysreport-search cachemem`.
 Controls: **Threads** (default all; the bandwidth results need all of them), **Seconds per test**
 (default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
@@ -1559,7 +1566,7 @@ engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS.
 many small pieces at once, and one small piece at a time (how snappy it feels) - plus the response
 time of single reads and writes. It uses its **own temporary test file only**; your files are never
 touched, and nothing is left behind, even if SRS is stopped or crashes.
-Open: the **Benchmarks & stress** page -> **Storage...**, or Menu -> Tools -> Storage Benchmark...
+Open: the **Benchmarks & stress** page -> **Storage...**, or Menu -> Benchmarks & stress -> Storage Benchmark...
 in the classic view. Command line: `sysreport-search storage --dir FOLDER`.
 Controls: **Folder** (the line below it names the drive, its connection, the file system and the
 free space - never the serial number), **Test file** (256 MB, 1 GB, 4 GB, 16 GB), **Seconds per
@@ -1576,7 +1583,7 @@ to the kernel takes (a *system call*), how fast it switches between two programs
 switch*), how long it takes to start a thread or a program, how soon a sleeping program wakes up,
 how late a timer fires, and what a new page of memory or a small file costs. **Lower is better.**
 Steady numbers (95% and 99% close to the median) mean a smooth, responsive desktop.
-Open: the **Benchmarks & stress** page -> **OS Latency...**, or Menu -> Tools -> OS Latency... in
+Open: the **Benchmarks & stress** page -> **OS Latency...**, or Menu -> Benchmarks & stress -> OS Latency... in
 the classic view. Command line: `sysreport-search os-latency`.
 Controls: **Samples** (1,000-200,000, default 20,000; the slower tests use a tenth or less),
 **Tick test (s)** (1-30, default 3: how long a 1 ms timer is watched), **Run** (asks first),
@@ -1589,7 +1596,8 @@ time, **95%** and **99%** mean 19 in 20 and 99 in 100 tries were this fast or fa
 µs (millionths) and ms (thousandths). Below the table SRS names the **CPU scheduler** in use (for
 example scx_lavd under sched_ext, BORE or EEVDF), the preemption mode, the timer tick (CONFIG_HZ),
 the clock source, the timer slack, transparent huge pages, the CPUs used and the file system of
-the test folder. Typical values on a current desktop: a system call 35-70 ns, a switch between
+the test folder (with its mount point; a mount inside your home folder is shown as "your home
+folder", so your user name is not in the result). Typical values on a current desktop: a system call 35-70 ns, a switch between
 two programs 1-2 µs, starting a thread about 10 µs, starting a program about 150 µs, a wake-up
 about 2 µs. Sleeps and the 1 ms tick run about 50 µs late, which is Linux's default timer slack.
 Hundreds of µs or missed ticks point to deep power-saving states, heavy background work or a busy
@@ -1611,7 +1619,7 @@ single and DGEMM in double precision), **peak multiply-add** (the most sums the 
 reflections). Each runs on one thread and then on all threads at once. **Higher is better.**
 Every answer is checked against a known result: a wrong answer is shown as **WRONG** in red
 instead of a score, which points to an unstable overclock or undervolt.
-Open: the **Benchmarks & stress** page -> **CPU Compute...**, or Menu -> Tools -> CPU Compute...
+Open: the **Benchmarks & stress** page -> **CPU Compute...**, or Menu -> Benchmarks & stress -> CPU Compute...
 in the classic view. Command line: `sysreport-search compute`.
 Controls: **Threads** (default all), **Seconds per test** (default 0.5), **Code** (the best
 instruction set the CPU has - SSE2, AVX2 or AVX-512 - or a chosen one), **1 thread only** (skips
@@ -1642,7 +1650,7 @@ damaged files), **searching and checking text** (finding words, checking JSON an
 one thread and on all threads. **Higher is better.** Every result is checked (unpacked data must
 equal the original, sorted lists must be in order and complete, checksums must match known
 values), so a wrong answer is reported instead of a fast number.
-Open: the **Benchmarks & stress** page -> **Everyday Work...**, or Menu -> Tools -> Everyday
+Open: the **Benchmarks & stress** page -> **Everyday Work...**, or Menu -> Benchmarks & stress -> Everyday
 Work... in the classic view. Command line: `sysreport-search work`.
 Controls: **Threads** (default all), **Seconds per test** (default 0.5), **1 thread only**, the
 test groups (Compression, Sorting, Checksums and hashes, Text processing, Bytecode interpreter)
@@ -1654,12 +1662,16 @@ expected time - about half a minute at the defaults), **Stop**.
 record-like and random data; **Mkeys/s** for sorting (million items per second); **GB/s** for
 checksums and text (billion bytes per second); **Mops/s** for the interpreter (million
 instructions per second). A library that is not installed shows "not installed"; the rest still
-runs.
+runs. The CRC32C row that uses the CPU's own CRC32 instruction (SSE4.2) is built into the 64-bit
+x86 version only; the 32-bit (i686) and ARM (aarch64) versions show it as "not built into this
+image", and a CPU without SSE4.2 as "the CPU has no CRC32C instruction".
 
 **Safety:** the test data is generated by SRS from fixed seeds (every run and every PC does the
 same work); none of your files are read or written, only the result is saved. With all threads
 every CPU is 100% busy, and xz -6 and zstd -19 use about 100 MB of memory per thread (fewer
-threads are used, with a note, when memory is short). The result is saved to
+threads are used, with a note, when memory is short). **Stop** is checked between passes: with
+the largest part size (`--part-kib 16384`) one xz -6 pass can take 10-20 seconds, so "Stopping..."
+may show for that long (at the default size it is under a second). The result is saved to
 `~/.cache/srs/bench-work.txt`, and each test group adds a line to the
 [Benchmark history](#910-benchmark-history). Tested on one PC only - see the note at the start of
 this chapter.
@@ -1673,7 +1685,7 @@ computer, and the network card is not involved. **Internet speed test** (optiona
 real connection with Cloudflare's public speed test server (speed.cloudflare.com): how long a name
 lookup takes (DNS), how long it takes to connect, and your download and upload speed with one and
 with several connections at once.
-Open: the **Benchmarks & stress** page -> **Network...**, or Menu -> Tools -> Network Benchmark...
+Open: the **Benchmarks & stress** page -> **Network...**, or Menu -> Benchmarks & stress -> Network Benchmark...
 in the classic view. Command line: `sysreport-search net` (loopback) and `sysreport-search net
 --internet`.
 Controls: **On this computer (loopback)** (ticked), **Internet speed test (asks first)** (not
@@ -1699,7 +1711,10 @@ to the next, **lost** = UDP packets that never arrived. Internet results vary wi
 day, Wi-Fi, other traffic and the server.
 
 **Safety and privacy:** no IP address, MAC address, Wi-Fi network name or host name is shown or
-saved; only the IP version used. The result is saved to `~/.cache/srs/bench-net.txt` and added to
+saved; only the IP version used. Extra hosts for the connect-time test (`--hosts` on the command
+line) are shown by name; one typed as a numeric address is shown as "host N (a numeric address)",
+so it never lands in the saved result. A speed test server given with a port
+(`https://host:8443`) is timed on that port too. The result is saved to `~/.cache/srs/bench-net.txt` and added to
 the [Benchmark history](#910-benchmark-history). Tested on one PC on a wired connection only - see
 the note at the start of this chapter.
 
@@ -1710,11 +1725,13 @@ pieces of work on the GPU through **Vulkan** (the graphics and compute interface
 Linux GPU driver offers - the same one many games use) and checks every answer, so a wrong answer
 is reported instead of a fast number. **Higher is better**, except for the latency row, where
 lower is better.
-Open: the **Benchmarks & stress** page -> **GPU Benchmark...**, or Menu -> Tools -> GPU
-Benchmark... in the classic view. Command line: `sysreport-search gpu`.
+Open: the **Benchmarks & stress** page -> **GPU Benchmark...**, or Menu -> Benchmarks & stress ->
+GPU Benchmark... in the classic view. Command line: `sysreport-search gpu`.
 Controls: **GPU** (Default = the first discrete graphics card; open the list to pick another - SRS
-reads the list only when you open it), **Seconds per test** (default 1), **Memory test size**
-(0 = auto, 256 MiB on most cards), **Run** (asks first), **Stop**. The line under the controls
+reads the list only when you open it: like `vulkaninfo`, opening the list names your GPUs through
+Vulkan, and no work is sent to a GPU until you answer Yes), **Seconds per test** (default 1),
+**Memory test size** (0 = auto, 256 MiB on most cards; a bigger size is lowered to a quarter of the
+video memory and of the PC's memory, and the result says so), **Run** (asks first), **Stop**. The line under the controls
 says whether Vulkan is installed.
 
 **What it measures.**
@@ -1762,10 +1779,12 @@ long as you choose, and checks every single result. A healthy card gets the same
 time; a card that is pushed too far (overclocked, undervolted, too hot, short of power) sooner or
 later gets one wrong. **0 errors = PASS.** While it runs you see the temperatures, power, clock
 and fan speed live.
-Open: the **Benchmarks & stress** page -> **GPU Burnin...**, or Menu -> Tools -> GPU Burnin... in
-the classic view. Command line: `sysreport-search gpu-burn`.
+Open: the **Benchmarks & stress** page -> **GPU Burnin...**, or Menu -> Benchmarks & stress -> GPU
+Burnin... in the classic view. Command line: `sysreport-search gpu-burn`.
 Controls: **Back end** (see below; Auto = Vulkan), **GPU** (the first GPU, All GPUs, or one from
-the list), **Precision** (FP32, or FP64 for the double-precision units), **Seconds** (default 60;
+the list; the list always comes from Vulkan, like `vulkaninfo`: it names your GPUs and sends them no
+work. With ROCm / HIP, CUDA or OpenCL as the back end, SRS starts that runtime only after you
+answer Yes and then finds the GPU you picked in its own list by its PCI address), **Precision** (FP32, or FP64 for the double-precision units), **Seconds** (default 60;
 600-1800 s, 10-30 minutes, checks an overclock or undervolt properly), **Stop at °C** (default
 100), **Run** (asks first), **Stop**. The line under the controls says which back ends are
 installed.
@@ -1785,8 +1804,14 @@ can use four of them, and you choose which:
   (ROCm, Mesa Rusticl, NVIDIA, PoCL on the CPU ...) shows as its own choice.
 
 A back end that is not installed says "not installed" with a hint about what to install; the
-others still work. Testing through more than one back end tells you whether a problem is the
-card or one particular driver.
+others still work (the window checks which are installed in the background when it opens, since
+ROCm's libraries are large). Testing through more than one back end tells you whether a problem is
+the card or one particular driver. A software renderer such as **llvmpipe** (Mesa's Vulkan driver
+that runs on the CPU, installed on many desktops) is never burned as if it were a GPU: Auto, The
+first GPU and All GPUs skip it, and picking it says it is not a GPU. On the command line,
+`sysreport-search gpu-burn --list` lists the devices of every back end - that starts each runtime
+(ROCm / HIP, CUDA, OpenCL) but runs no work on a GPU; `--list --backend vulkan` reads only Vulkan's
+list.
 
 **Reading the result.** **PASS** = no wrong result in the whole run. **FAIL** = at least one
 wrong result: errors usually mean too much overclock or undervolt, too high a temperature, a weak
@@ -1796,7 +1821,9 @@ pressed Stop (no errors so far). The page also shows the highest edge, hotspot /
 memory temperatures, power, clock and fan speed, the average speed in GFLOPS, the number of
 multiplications, the matrix size, the back end and the driver version. "not available" means the
 card or driver does not report that sensor (for example NVIDIA's own driver gives Linux no
-temperature).
+temperature). When the card reports **no temperature at all**, the temperature limit cannot work:
+the live readout says "no temperature sensor: limit not active" and the result says the same, so
+watch the card yourself (or use a back end and driver that report it).
 
 **Safety - what stops it by itself.** Run asks first, and **No** is the default answer. The
 question says that the GPU will draw a lot of power and get hot, that a bad overclock or undervolt
@@ -1808,6 +1835,12 @@ PC shut down. GPU Burnin then ends by itself when:
 - the driver reports **any error**, or the GPU **stops answering** (device lost);
 - one piece of work takes **more than 2 seconds** (each should take about 20 ms);
 - you press **Stop**.
+
+If a GPU driver call never comes back at all (a hung driver), SRS waits 15 seconds after the end,
+then ends the run with "the GPU driver did not come back" and leaves the GPU alone; restart SRS
+(or the PC) before the next GPU test. With **All GPUs**, a card that cannot start (for example it
+cannot do FP64) is marked and the others go on; a bigger matrix that does not fit in a small card's
+memory just keeps the size that worked.
 
 **SRS never changes clocks, voltages or fans** - it only reads them. GPU Burnin does not start
 while CPU Burnin / Stress or another benchmark runs, and CPU Burnin waits until it has finished.
@@ -1822,8 +1855,8 @@ see the note at the start of this chapter.
 that you have installed (the four back ends explained in [9.18](#918-gpu-burnin)), on the same
 card, and shown side by side. It tells you which one is fastest on your PC, and how much faster
 the maker's own tuned library is than a plain program.
-Open: the **Benchmarks & stress** page -> **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL...**, or
-Menu -> Tools -> GPU Compute Comparison... in the classic view. Command line:
+Open: the **Benchmarks & stress** page -> **GPU Comparison...**, or Menu -> Benchmarks & stress ->
+GPU Comparison (Vulkan, HIP, CUDA, OpenCL)... in the classic view. Command line:
 `sysreport-search gpu-compare`.
 Controls: **GPU** (the card, picked by its Vulkan device; the other back ends find the same card
 by its PCI address), a tick box per back end (only installed ones can be ticked; the tooltip of a
@@ -1847,6 +1880,9 @@ greyed one says what to install), **Seconds per test** (default 1), **Run** (ask
   the same card. Drivers that run on the CPU (PoCL) are marked CPU.
 - **not installed** means that back end is not on this PC; the line under the table says what to
   install. The other columns still run.
+- **not run** means that test did not run because the GPU hung or stopped answering earlier in
+  the run: after that, SRS does not touch the GPU again through any back end (a GPU that is having
+  trouble should be left alone), and the line under the table says what happened.
 
 Compare results only between alike SRS builds and the same driver and runtime versions; the page
 lists each column's version.
@@ -1996,7 +2032,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V2.0.0 MYPC 2026-10-25 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.2.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 

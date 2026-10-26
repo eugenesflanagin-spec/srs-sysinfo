@@ -59,6 +59,10 @@
   <screenshots>
     <screenshot type="default">
       <caption>The main window with the Overview page</caption>
+      <image>https://raw.githubusercontent.com/eugenesflanagin-spec/srs-sysinfo/main/docs/images/overview-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The classic SIV-style main window</caption>
       <image>https://raw.githubusercontent.com/eugenesflanagin-spec/srs-sysinfo/main/docs/images/main-window.png</image>
     </screenshot>
     <screenshot>

@@ -2,16 +2,17 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
 look-up and search tools (device ID lookup, report search, configuration search, ping). Open the
-items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows sit at
-the top of the Menu itself: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
-SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark..., OS
-Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU Burnin..., GPU Compute Comparison..., Device ID Lookup... and Find in
-Report.... The Processors window also has CPU Stress, CPU Burnin and
+items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows are
+in **Menu -> Benchmarks & stress**: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
+Latency..., SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark...,
+OS Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU
+Burnin... and GPU Comparison (Vulkan, HIP, CUDA, OpenCL)...; Device ID Lookup... and Find in
+Report... are at the top of the Menu itself. The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
 normal user. Load tests and benchmarks never start by themselves, and every benchmark asks before
@@ -141,7 +142,7 @@ Whetstone at the same time. This is the "whole chip, fully loaded" score.
 | Total | Sum of the column. | The overall score for the mode. |
 | Footer | Board maker, model and BIOS version. | Ties the result to a BIOS version. |
 
-If a mode has never been run, the item instead shows `Status Not run yet`, `Run it` (Menu > Tools >
+If a mode has never been run, the item instead shows `Status Not run yet`, `Run it` (Benchmarks & stress >
 Benchmark, then Run), `Command line` (for example `srs-gui bench ac`) and the note "Benchmarks are
 never started by -save; this section shows the last result."
 
@@ -405,12 +406,14 @@ the cache. Every pair of CPUs is tested, and the result is a table in nanosecond
 | Footer | Board and BIOS. | |
 
 Each pair is measured once, so the table is a mirror: the CPU-3 -> CPU-5 cell always equals
-CPU-5 -> CPU-3. If it has never been run, the item shows `Status Not run yet`, `Run it` (Menu >
-Tools > IPI Delay, then Run) and `Command line srs-gui ipi [--cpus N] [--rounds R]`.
+CPU-5 -> CPU-3. If it has never been run, the item shows `Status Not run yet`, `Run it` (Benchmarks &
+stress > IPI Delay, then Run) and `Command line srs-gui ipi [--cpus N] [--rounds R]`.
 
-The GUI window (Menu -> IPI Delay...) has a CPUs box (test only the first N CPUs), a Rounds per pair
+The GUI window (Menu -> Benchmarks & stress -> IPI Delay...) has a CPUs box (test only the first N CPUs), a Rounds per pair
 box, a Run button (it asks first: two CPU threads busy at a time, about a second at the defaults;
-`sysreport-search ipi` asks the same, `--yes` starts at once), and a heat map under the text. The heat map is coloured from green (fastest) to
+`sysreport-search ipi` asks the same, `--yes` starts at once), and a heat map under the text. With
+CPUs = 1 (or a one-CPU system) there is no pair to measure: nothing runs, the window says "Not
+started" (`ipi --cpus 1` exits with 2) and the last result is kept. The heat map is coloured from green (fastest) to
 red (slowest), scaled to the largest value.
 
 **Healthy / typical values.** On the author's 7800X3D (one CCD, 8 cores, 50000 rounds):
@@ -495,7 +498,7 @@ with the smallest cache it fits in, and DRAM above the last level. Labels are in
 in the Latency column are the real boundaries (compare [Cache Levels](processors.md#cache-levels), `cache`). If never run, the item
 shows `Status Not run yet` and `Command line srs-gui latency [--max MB]`.
 
-The GUI window (Menu -> Latency...) has a "Largest block (MB)" box, a Run button (it asks first: one
+The GUI window (Menu -> Benchmarks & stress -> Latency...) has a "Largest block (MB)" box, a Run button (it asks first: one
 CPU thread and that much memory, about 3 seconds at 256 MB; `sysreport-search latency` asks the
 same, `--yes` starts at once) and a line graph of latency against block size.
 
@@ -648,7 +651,8 @@ measured. The groups are System calls, Context switches, Starting threads and pr
 latency, Timers, Memory mapping and page faults, and File metadata. Below the table: the CPU
 scheduler that is running (for example scx_lavd under sched_ext, BORE or EEVDF), the preemption
 mode, the timer tick (CONFIG_HZ), the clock source, the timer slack, transparent huge pages, the
-CPUs used and the file system of the test folder. Times are in ns, µs or ms.
+CPUs used and the file system of the test folder with its mount point (a mount inside your home
+folder is shown as "your home folder", so no user name lands in the result). Times are in ns, µs or ms.
 
 | Group (`--only` word) | Rows |
 |---|---|
@@ -771,7 +775,7 @@ library versions found, the self-test, the data size and the threads.
 |---|---|---|---|
 | Compression (`compress`) | zlib -1 / -6 / -9, zstd -1 / -3 / -19, lz4, xz -1 / -6; compress and decompress | MB/s of original data | full round trip: length and every byte equal the original |
 | Sorting (`sort`) | 64-bit integers: C library qsort, radix sort; strings: qsort, multikey quicksort | Mkeys/s | in order, and a sum / hash of the keys shows nothing was lost or doubled |
-| Checksums and hashes (`hash`) | CRC32 (byte table, slicing-by-8), CRC32C (table, CPU instruction on x86-64), xxHash64, FNV-1a | GB/s | known-answer self-test, then every pass equals a value from the simple version |
+| Checksums and hashes (`hash`) | CRC32 (byte table, slicing-by-8), CRC32C (table, and the CPU's SSE4.2 instruction in the 64-bit x86 build; the i686 and aarch64 builds show that row as "not built into this image"), xxHash64, FNV-1a | GB/s | known-answer self-test, then every pass equals a value from the simple version |
 | Text processing (`text`) | substring search (memmem, Boyer-Moore-Horspool), JSON check, UTF-8 check | GB/s | match count, JSON token count and code point count equal what the generator wrote |
 | Bytecode interpreter (`interp`) | switch dispatch, threaded dispatch | Mops/s | prime count and hash equal a plain C reference |
 
@@ -781,7 +785,7 @@ library versions found, the self-test, the data size and the threads.
 | Seconds per test | 0.1-10 in the window (command line 0.1-60), default 0.5 |
 | Test groups / libraries | tick boxes (command line `--only`, `--libs`) |
 | 1 thread only | skip the N-thread column |
-| Data size | 1024 KB of each kind per thread (command line `--part-kib`, 64-16384) |
+| Data size | 1024 KB of each kind per thread (command line `--part-kib`, 64-16384); Stop is checked between passes, so at 16384 one xz -6 pass can keep "Stopping..." for 10-20 s |
 
 **Libraries.** The compression libraries are the system's own - `libz.so.1`, `libzstd.so.1`,
 `liblz4.so.1`, `liblzma.so.5` - loaded when the test runs; SRS needs none of them to start. A
@@ -858,7 +862,9 @@ the IP version used, the libcurl version and whether a proxy variable is set (on
 - Nothing private is shown or saved: no IP address (local or public), MAC address, Wi-Fi network
   name (SSID), host name or proxy address. Interface names that contain a MAC address
   (`enx...`, `wlx...`) are shortened. Requests carry a plain `srs-sysinfo` user agent and no
-  cookies; https only, certificates checked.
+  cookies; https only, certificates checked. Extra connect-time hosts (`--hosts`) are shown by
+  name; one typed as a numeric address is shown as "host N (a numeric address)". A server URL with
+  a port (`https://host:8443`) has its connect time measured on that port.
 - Stop ends the current test within about 0.2 s (loopback) or at libcurl's next progress check
   (internet); a DNS lookup in progress finishes first (bounded by the system's resolver timeout).
 
@@ -913,9 +919,9 @@ second.
 
 | Setting | Choices |
 |---|---|
-| GPU | Default (the first discrete GPU, else the first device) or a device from the list; the list is read when you open it |
+| GPU | Default (the first discrete GPU, else the first device) or a device from the list; the list is read when you open it (through Vulkan, like `vulkaninfo`: the GPUs are named, no work is sent before Yes) |
 | Seconds per test | 0.1-2 in the window (command line 0.1-10), default 1 |
-| Memory test size | 0 = auto (256 MiB, less on small cards), up to 4096 MiB |
+| Memory test size | 0 = auto (256 MiB, less on small cards), up to 4096 MiB; a size above a quarter of the video memory or of the PC's memory is lowered to that, and the result says so |
 
 **Safety.** It asks before it starts, naming the GPU, the time (about 15 seconds at the defaults)
 and that the GPU works at full load; an unstable GPU overclock or undervolt can crash the PC or
@@ -984,7 +990,7 @@ precision.
 | Setting | Choices |
 |---|---|
 | Back end | Auto (Vulkan), Vulkan, ROCm / HIP, CUDA, OpenCL (those not installed say so) |
-| GPU | The first GPU, All GPUs, or one from the list (read when you open it; for HIP, CUDA and OpenCL this starts that runtime) |
+| GPU | The first GPU, All GPUs, or one from the list (read through Vulkan when you open it, like `vulkaninfo`; no runtime is started and no work is sent. For HIP, CUDA and OpenCL the runtime starts after Yes and finds the picked GPU by its PCI address) |
 | Precision | FP32 (default) or FP64 |
 | Seconds | 1 to 86,400 (24 hours), default 60 |
 | Stop at °C | 50-120, default 100 |
@@ -1000,6 +1006,13 @@ precision.
 - It **never changes clocks, voltages or fans**.
 - It does not start while CPU Burnin / Stress or another benchmark runs, and CPU Burnin does not
   start while it runs.
+- It never burns a software renderer (llvmpipe, PoCL on the CPU) as if it were a GPU: Auto, The
+  first GPU and All GPUs skip them, and picking one is refused.
+- A card that reports no temperature to SRS cannot be stopped at the limit: the live readout and
+  the result say "no temperature sensor: limit not active".
+- A driver call that never comes back (a hung driver) is waited for 15 s after the end; then the
+  run ends with "the GPU driver did not come back", the GPU is left alone, and SRS must be restarted
+  before the next GPU test. With All GPUs, a GPU that cannot start is marked and the others go on.
 
 **Healthy / typical values.** 0 errors, always. Temperatures: most graphics cards slow down by
 themselves before their limit (AMD hotspot about 100-110 °C, NVIDIA about 83-90 °C edge); a
@@ -1060,8 +1073,9 @@ and the **Build** line.
 
 **Safety.** It asks first (the back ends, the GPU, the time, full GPU load, the overclock /
 undervolt warning). HIP, CUDA and OpenCL start their runtimes only after that Yes. Work is cut
-into short pieces, each with a watchdog; a GPU that fails ends that column cleanly. Stop works.
-SRS never changes clocks, voltages or fans.
+into short pieces, each with a watchdog. A GPU that hangs or stops answering ends the run: no later
+back end touches that GPU again, and the tests that did not run say **not run** (the line under the
+table says why). Stop works. SRS never changes clocks, voltages or fans.
 
 **Healthy / typical values.** Not measured by SRS on real hardware yet (only on the software
 renderer). In general the vendor libraries are much faster than a plain kernel for matrix
@@ -1236,7 +1250,7 @@ srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.0.0.
+`/usr/bin/sysreport-search`, V2.2.0.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /
@@ -1264,7 +1278,7 @@ whether they came back and how fast. In SIV this is a Windows ping. SRS uses the
   `ping not available` when the tool is missing.
 
 **Healthy / typical values.** On the author's wired PC, pinging a home router (for example
-192.168.1.1): 3 sent, 3 received, 0% loss, average about 0.3 ms. Wired links to a router are usually
+192.0.2.1): 3 sent, 3 received, 0% loss, average about 0.3 ms. Wired links to a router are usually
 below 1 ms. Wi-Fi is usually 1-10 ms.
 
 **Unusual values and what they suggest.**
@@ -1423,7 +1437,7 @@ starts a run.
 
 | Field | Meaning |
 |---|---|
-| State | `Running`, or `Idle (start it from Menu > Tools > CPU Burnin)`. |
+| State | `Running`, or `Idle (start it from Benchmarks & stress > CPU Burnin)`. |
 | Worker threads | How many CPUs can get a worker thread ("16 CPUs available"). |
 | Hottest CPU sensor | The hottest CPU temperature right now, with chip and label (k10temp, coretemp or zenpower). |
 | Hottest SIO sensor | The hottest motherboard Super I/O sensor right now. |
@@ -1431,7 +1445,7 @@ starts a run.
 | Command line | `srs-gui burn [--threads N \| --cpus 0,2] [--seconds S] [--mode same\|swap] [--limit C]`. |
 | Safety note | Never auto-starts; stops at the temperature limit (default 90 C) and the time cap. |
 
-**What you see in the CPU Burnin window** (Menu -> CPU Burnin...).
+**What you see in the CPU Burnin window** (Menu -> Benchmarks & stress -> CPU Burnin...).
 - Settings: Burn Time (0-750, in minutes, or in hours if "Hours" is ticked; default 15 minutes),
   Cool Time (0-900 seconds idle between burns, default 60), Cycles (1-99 burn/cool rounds, default 1),
   Temperature limit °C (50-100, default 90), **Same CPU (Whetstone)** or **Swap CPU (affinity
@@ -1518,7 +1532,7 @@ stay 100 % busy until you press Stop (or a safety limit hits). Use it to watch t
 for as long as you like.
 
 **What you see.** In a report: exactly the same lines as [CPU Burnin](#cpu-burnin) (State, Worker
-threads, sensors, GPU, Command line, Safety note). In the CPU Stress window (Menu -> CPU Stress...):
+threads, sensors, GPU, Command line, Safety note). In the CPU Stress window (Menu -> Benchmarks & stress -> CPU Stress...):
 the same sensor table, thread table, graph and controls as CPU Burnin, but without Burn Time, Cool
 Time and Cycles.
 

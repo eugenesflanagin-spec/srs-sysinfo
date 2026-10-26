@@ -549,7 +549,7 @@ The last line gives the totals: "N block, N network, N virtual mount points".
 **Healthy / typical values.** The author's PC has 17 block, 2 network and 33 virtual mount points.
 The btrfs root partition appears seven times (`/`, `/home`, `/var/log`...), one per subvolume. A
 second mount of the NTFS data disk at `/srv/newdl-ro` uses `ro` (read-only). Network shares include an
-NFS v4 export and a CIFS share from a router at `//192.168.1.x/...`.
+NFS v4 export and a CIFS share from a router at `//192.0.2.x/...`.
 
 **Unusual values and what they suggest.**
 - A disk filesystem mounted `ro` that should be writable: the kernel may have switched it to read-only

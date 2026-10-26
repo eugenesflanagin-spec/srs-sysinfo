@@ -16,8 +16,9 @@ is the graphical front end of SRS, a Linux system information viewer inspired by
 SIV64X (System Information Viewer by Ray Hinchliffe, RH Software) and built to improve on it.
 SRS is an independent project, not affiliated with SIV or its author. It shows CPU,
 memory, sensor, storage, bus, GPU, network and operating-system information,
-and includes a CPU burn-in / stress tester and benchmarks (Dhrystone / Whetstone, Cache & Memory,
-Storage, SRS Pi, Crypto, Prime Sieve, IPI delay, memory latency). Nothing runs until you press
+and includes a CPU burn-in / stress tester and benchmarks (Dhrystone / Whetstone, IPI delay, memory
+latency, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve). Nothing runs until you press
 Run or Start, and every benchmark asks before it starts.
 SRS is not affiliated with or endorsed by RH Software.
 .PP
@@ -105,6 +106,7 @@ use another Power & cost history database or settings file (for tests).
 .TP
 .B SRS_DATA_DIR
 directory holding power-zip-rates.tsv (default: next to the program, then /usr/share/srs-sysinfo).
+.TP
 .B SRS_STARTUP_DRY_RUN
 when set to 1, the Startup manager shows the systemctl / pkexec command it would run instead of
 running it (autostart files are still written).
@@ -136,7 +138,10 @@ Check daily, which is off by default; the network items and Ping are never check
 the summary of each finished CPU Burnin / CPU Stress run.
 .TP
 .I ~/.cache/srs/bench\-history.tsv
-one line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build).
+one line per finished benchmark run: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work,
+Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve (time, test,
+settings, result, build).
+.TP
 .I ~/.local/share/srs/power.db
 Power & cost history (SQLite, one row per minute, mode 0600), with power.db.lock beside it.
 .TP

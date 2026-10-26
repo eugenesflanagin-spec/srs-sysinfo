@@ -897,10 +897,10 @@ the last memory latency test you ran. It never runs the test by itself.
 **What you see.**
 - **NUMA nodes** - count; with one node it adds "(uniform memory access - every CPU sees the same
   latency)".
-- **Last Latency run** - the saved result of Menu > Tools > Latency: a table of **Block** size,
+- **Last Latency run** - the saved result of Benchmarks & stress > Latency: a table of **Block** size,
   **Latency** in nanoseconds and the cache **Level** that block size fits in, plus a note that the levels
   are indicative.
-- If no test has been run yet: **Memory latency** "Not measured yet - Menu > Tools > Latency, then Run".
+- If no test has been run yet: **Memory latency** "Not measured yet - Benchmarks & stress > Latency, then Run".
 
 **Healthy / typical values.** On the author's 7800X3D: 1 node. Latency about 1-4 ns up to 32KB (L1),
 about 3 ns up to 1MB (L2), and about 8.6-11 ns from 2MB to 64MB (the 96MB L3).
@@ -1131,7 +1131,7 @@ data. Desktop and AMD CPUs do not.
 | Shared by | How many CPUs share it | 2 = shared by the two threads of one core; all = whole chip. |
 | CPUs | Which CPUs share it | |
 
-A note points to Menu > Tools > Latency for measured speeds.
+A note points to Benchmarks & stress > Latency for measured speeds.
 
 **Healthy / typical values.** On the author's Ryzen 7 7800X3D, CPU-0: L1 Data 32K and L1 Code 32K (8-way,
 shared by CPUs 0,8), L2 1024K (8-way), L3 98304K (96MB, 16-way, 98304 sets), shared by 16 CPUs (0-15).

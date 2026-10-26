@@ -42,7 +42,7 @@ The summary of each run is saved to \fI~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
 Dhrystone / Whetstone in a SIV benchmark mode (0.1..60 s per measurement); asks first unless \fB\-\-yes\fR.
 .TP
 \fBipi\fR [\fB\-\-cpus\fR \fIN\fR] [\fB\-\-rounds\fR \fIR\fR] [\fB\-\-yes\fR]
-core-to-core (cache-line ping-pong) latency matrix (two CPUs busy at a time); asks first unless \fB\-\-yes\fR.
+core-to-core (cache-line ping-pong) latency matrix (two CPUs busy at a time); asks first unless \fB\-\-yes\fR. With one CPU there is no pair: it exits with 2 and keeps the last result.
 .TP
 \fBlatency\fR [\fB\-\-max\fR \fIMB\fR] [\fB\-\-yes\fR]
 memory latency by block size, up to \fIMB\fR (1..4096, default 256; one CPU); asks first unless \fB\-\-yes\fR.
@@ -53,10 +53,10 @@ SRS Pi: pi to \fIN\fR decimal places (128k..32m, or SuperPi sizes 16ki..32mi; de
 \fBcrypto\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-yes\fR]
 AES\-128 and SHA\-256 speed in MB/s, with AES\-NI / SHA\-NI and in plain C; asks first unless \fB\-\-yes\fR.
 .TP
-\fBprime\fR [\fB\-\-limit\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-yes\fR]
-count the primes up to \fIN\fR (default 1e9, all threads), checked against the known count; asks first unless \fB\-\-yes\fR.
+\fBprime\fR [\fB\-\-limit\fR \fB1e8\fR|\fB1e9\fR|\fB1e10\fR|\fB1e11\fR|\fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-yes\fR]
+count the primes up to the limit (any number from 100 to 1e11, e.g. 5e9 or 1g; default 1e9, all threads), checked against the known count; asks first unless \fB\-\-yes\fR.
 .TP
-\fBcachemem\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fIlevels\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-mib\fR] [\fB\-\-mem\-write\fR \fImode\fR] [\fB\-\-yes\fR]
+\fBcachemem\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-isa\fR \fBavx512\fR|\fBavx2\fR|\fBsse2\fR] [\fB\-\-mem\-mib\fR \fIM\fR] [\fB\-\-only\fR \fIlevels\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-mib\fR] [\fB\-\-mem\-write\fR \fImode\fR] [\fB\-\-yes\fR]
 Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1\-L3 (all threads, about 20 s; asks first unless \fB\-\-yes\fR).
 .TP
 \fBstorage\fR \fB\-\-dir\fR \fIFOLDER\fR [\fB\-\-size\fR \fIMB\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-profile\fR \fBstandard\fR|\fBlight\fR] [\fB\-\-allow\-usb\fR] [\fB\-\-yes\fR]
@@ -78,7 +78,7 @@ Network benchmark. Without options: loopback TCP / UDP throughput, loss and roun
 GPU benchmark through Vulkan: FP32, FP16, FP64 and INT32 multiply\-add (GFLOPS / GIOPS), video memory read, write and copy, upload and download (GB/s) and dispatch latency (µs), every result checked. The Vulkan loader is opened at run time (optional). \fB\-\-list\fR lists the Vulkan devices and runs nothing. Asks first unless \fB\-\-yes\fR; exit code 2 when it did not start. \fItests\fR: fp32, fp16, fp64, int32, read, write, copy, upload, download, latency.
 .TP
 \fBgpu\-burn\fR [\fB\-\-seconds\fR \fIN\fR] [\fB\-\-backend\fR \fBvulkan\fR|\fBhip\fR|\fBcuda\fR|\fBopencl\fR|\fBauto\fR] [\fB\-\-device\fR \fIN\fR|\fBall\fR] [\fB\-\-fp32\fR|\fB\-\-fp64\fR] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
-GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Ends by itself at the temperature limit (default 100 C), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans. Default 60 s. Asks first unless \fB\-\-yes\fR. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
+GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Ends by itself at the temperature limit (default 100 C), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans, and never burns a software renderer (llvmpipe) as a GPU. Default 60 s. Asks first unless \fB\-\-yes\fR; before that only Vulkan's device list is read. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
 .TP
 \fBgpu\-compare\fR [\fB\-\-backends\fR \fIvulkan,hip,cuda,opencl\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-device\fR \fIN\fR] [\fB\-\-yes\fR]
 GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and the vendor library, multiply\-add, copy, upload, download, launch round trip) through every installed back end on the same GPU, side by side; fastest marked, percent of Vulkan; "CUDA (ZLUDA)" and one column per OpenCL driver. Asks first unless \fB\-\-yes\fR.

@@ -54,7 +54,9 @@ profiles. The port tables also show more process names under root.
 - [WLAN profiles](#wlan-profiles) `wlan`
 
 A note on the examples: real addresses from the author's PC have been replaced. The home network
-is shown as 192.168.1.x (router 192.168.1.1, wired card 192.168.1.20, Wi-Fi 192.168.1.21).
+is shown with the documentation addresses 192.0.2.x, which are set aside for examples and are never
+used on a real network (router 192.0.2.1, wired card 192.0.2.20, Wi-Fi 192.0.2.21). A real home
+network usually uses 192.168.x.x, 10.x.x.x or 172.16-31.x.x.
 MAC addresses, link-local IPv6 addresses and Wi-Fi names are shown as `XX:XX:...`, `fe80::XXXX`
 and "HomeWiFi".
 
@@ -86,7 +88,7 @@ three rows:
 | Adapter / Description | Row 1: interface name. Row 2: driver. Under the block: full description (PCI name, USB product, or "Bridge (virtual, driver bridge)"). | Tells you which chip and driver handle the port. |
 | Type (Index) | Row 1: Ethernet, Wi-Fi, Bridge, TUN, TAP, veth, Loopback, PPP, etc., plus the kernel's interface index. Row 2: MAC address. | The index is a stable number tools use instead of the name. |
 | Speed | Row 1: link speed (only when up). Row 2: MTU. Row 3: state (up, down, unknown, dormant). | Wrong speed or "down" is the first thing to check when the network is slow or dead. |
-| Adapter Address | Each IPv4 and IPv6 address with its prefix length (for example 192.168.1.20/24). | The address other machines use to reach this adapter. |
+| Adapter Address | Each IPv4 and IPv6 address with its prefix length (for example 192.0.2.20/24). | The address other machines use to reach this adapter. |
 | Prefix Origin | Where the network part came from: DHCP (Dynamic Host Configuration Protocol: the router hands out the address), Manual, RouterAdv (IPv6 router advertisement), WellKnown (loopback, link-local). | Shows if an address was handed out or typed in. |
 | Suffix Origin | Where the host part came from: DHCP, Manual, Link (built from the MAC), Random (privacy address), WellKnown. | "Random" means IPv6 privacy addresses are on. |
 | DAD State | Duplicate Address Detection: Preferred (fine), Tentative (still checking), Duplicate (another device has it), Deprecated (being phased out). | "Duplicate" is a real address conflict. |
@@ -96,9 +98,9 @@ three rows:
 You can open one adapter on its own with `adapters:<name>`, for example `adapters:em1`.
 
 **Healthy / typical values.** On the author's PC the 2.5 GbE wired port `em1` (Realtek RTL8126,
-driver r8169) shows `Ethernet (3)`, `2.5 Gbps`, `MTU 1500`, `up`, a DHCP address 192.168.1.20/24
-in state Preferred, a link-local `fe80::XXXX/64` (WellKnown / Link), `DNS 192.168.1.1` and
-`GW 192.168.1.1`. Virtual adapters (VMware vmnet1/vmnet8, libvirt virbr0, Docker docker0, a veth
+driver r8169) shows `Ethernet (3)`, `2.5 Gbps`, `MTU 1500`, `up`, a DHCP address 192.0.2.20/24
+in state Preferred, a link-local `fe80::XXXX/64` (WellKnown / Link), `DNS 192.0.2.1` and
+`GW 192.0.2.1`. Virtual adapters (VMware vmnet1/vmnet8, libvirt virbr0, Docker docker0, a veth
 pair, a TAP device) have Manual addresses and no gateway. Docker bridges and veth report a fake
 10.0 Gbps. `lo` is `Loopback (1)` with 127.0.0.1/8 and ::1/128, MTU 65536.
 
@@ -114,7 +116,7 @@ pair, a TAP device) have Manual addresses and no gateway. Docker bridges and vet
 and `/proc/net/igmp6`.
 
 **Background.** A *prefix length* (the "/24") says how many leading bits are the network part.
-/24 means the first three numbers (192.168.1) are the network and the last number picks the
+/24 means the first three numbers (192.0.2) are the network and the last number picks the
 host. *Multicast* is one-to-many traffic: a device joins a group address and receives anything
 sent to it, which is how printers and media players announce themselves.
 
@@ -148,7 +150,7 @@ mDNS / DNS-SD services (read from avahi's cache; SRS sends no new queries):
 | 4 | Service type, such as "Internet Printer", "AirPlay Remote Video", `_kdeconnect._udp`, `_adb._tcp`. |
 | 5 | Domain, normally `local`. |
 
-**Healthy / typical values.** On the author's PC the router 192.168.1.1 appears as Dynamic on both
+**Healthy / typical values.** On the author's PC the router 192.0.2.1 appears as Dynamic on both
 `em1` and `wlan0`, plus a few other home devices. IPv6 entries show STALE (seen a while ago, still
 usable) and the odd FAILED. The mDNS list shows a smart TV ("AirPlay Remote Video"), a Lexmark
 printer and scanner (Internet Printer, `_uscan._tcp`), KDE Connect and a phone with ADB enabled.
@@ -164,7 +166,7 @@ The same service usually appears once per interface.
 (cache only).
 
 **Background.** IP addresses are for routing; on the local cable the hardware needs a MAC address.
-ARP (IPv4) and NDP (IPv6) ask "who has 192.168.1.1?" and remember the answer for a short time.
+ARP (IPv4) and NDP (IPv6) ask "who has 192.0.2.1?" and remember the answer for a short time.
 mDNS (multicast DNS) lets devices announce names and services on the LAN (local area network) without a DNS server.
 
 ---
@@ -573,7 +575,7 @@ as `/proc/net/dev` and `ip -s link`).
 
 Open one adapter with `ip-address:<name>`.
 
-**Healthy / typical values.** On the author's PC `em1` has 192.168.1.20 /24 global
+**Healthy / typical values.** On the author's PC `em1` has 192.0.2.20 /24 global
 `dynamic noprefixroute` with about 37,900 seconds left (a 12-hour DHCP lease), and a link-local
 `fe80::XXXX /64` lasting forever. VM bridges have static addresses lasting forever.
 
@@ -724,8 +726,8 @@ routable addresses.
 - **Public (WAN) address** - "not looked up - srs makes no internet requests". Your router's status page or any "what is my IP" site shows it. WAN (wide area network) means the internet side of your router.
 - **Global-scope addresses** - every global address per adapter, with prefix and flags.
 
-**Healthy / typical values.** On the author's PC: outgoing source 192.168.1.20 (the wired port),
-gateway `192.168.1.1 dev em1`, and global addresses on em1, wlan0 and the VM/Docker bridges.
+**Healthy / typical values.** On the author's PC: outgoing source 192.0.2.20 (the wired port),
+gateway `192.0.2.1 dev em1`, and global addresses on em1, wlan0 and the VM/Docker bridges.
 
 **Unusual values and what they suggest.** Outgoing source is the Wi-Fi address while a cable is
 plugged in: the Wi-Fi route has the better metric, so traffic goes over the slower link. Outgoing
@@ -822,7 +824,7 @@ The last line names the motherboard maker, model, BIOS version and BIOS date (fo
 "ASUSTeK COMPUTER INC. TUF GAMING X870-PRO WIFI7 W NEO BIOS 1805").
 
 **Healthy / typical values.** On the author's PC: host MYPC, "11 (3 physical, 8 virtual), 7 up",
-gateway `192.168.1.1 dev em1`, no IPv6 default route, DNS 127.0.0.1 (a local dnsmasq), IPv4
+gateway `192.0.2.1 dev em1`, no IPv6 default route, DNS 127.0.0.1 (a local dnsmasq), IPv4
 forwarding on (needed by Docker and VMs), TCP congestion control `bbr3`, default qdisc `fq`.
 
 **Unusual values and what they suggest.**
@@ -955,7 +957,7 @@ Then the IPv4 table:
 Then **IPv6 routes**: each line of `ip -6 route show table all` as text. Normal routes are coloured;
 `local` and `multicast` housekeeping routes are greyed.
 
-**Healthy / typical values.** On the author's PC: two default routes via 192.168.1.1, one on em1
+**Healthy / typical values.** On the author's PC: two default routes via 192.0.2.1, one on em1
 with metric 100 and one on wlan0 with metric 600, so the wired port wins. On-link routes for the
 home subnet and each VM/Docker bridge. IPv6 shows only link-local `fe80::/64` routes (no IPv6
 internet).
@@ -1052,7 +1054,7 @@ first waits in Time Wait so late packets are not mistaken for a new connection.
 **In plain words.** The same as [TCP V4 ports](#tcp-v4-ports) but for IPv6 TCP sockets.
 
 **What you see.** The same columns and states as TCP V4 ports, with IPv6 addresses. `::` means "all
-addresses", `::1` is this PC only. Addresses like `::ffff:192.168.1.20` are IPv4 connections
+addresses", `::1` is this PC only. Addresses like `::ffff:192.0.2.20` are IPv4 connections
 accepted by an IPv6 socket (IPv4-mapped addresses).
 
 **Healthy / typical values.** On the author's PC 30 sockets: 23 listening, 7 other. For example

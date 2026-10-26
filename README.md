@@ -30,6 +30,8 @@ Every one of SIV64X 5.87's **538 report items** has a counterpart in SRS
 as "not present" on a typical PC (Itanium, Xeon PIRs, RAID cards, IPMI, ...) and **38**
 Windows-only items, most of which show their Linux equivalent instead (services -> systemd,
 drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> coredumpctl, ...).
+SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and Stress, Find, ID Lookup and a few more), so
+`sysreport-search --list` shows **558** in all.
 
 | Program | What |
 |---|---|
@@ -142,7 +144,8 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
-    10^8 ... 10^11, checked against the known counts. Every run of these three is kept in a
+    10^8 ... 10^11, checked against the known counts. Every run of the benchmarks above (all but the
+    classic Benchmark, IPI Delay and Latency, which keep their own last result) is kept in a
     **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
   - Every benchmark asks before it starts (the command line too; `--yes` skips the question). **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
     wired network): parts that need other hardware may have a bug or two - please report them on
@@ -278,7 +281,11 @@ AppImage). The boot-time refresh (**Refresh root data at boot**) needs the distr
 
 Dependencies: gtk3, sqlite (srs-gui only: the Power & cost history), glibc, hwdata, systemd (hwdb). Optional: libayatana-appindicator (tray icon), dmidecode, i2c-tools (decode-dimms),
 smartmontools, nvme-cli, pciutils, polkit (srs-root), vulkan-tools, clinfo, mesa-utils, iw,
-bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
+bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors. Loaded at run time when present (a missing one only
+skips its rows): zlib, zstd, lz4, xz (Everyday Work), libcurl (the internet speed test), the Vulkan loader
+(vulkan-icd-loader) and a Vulkan driver (GPU benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA, an
+OpenCL loader and driver, and CLBlast (the other GPU back ends). `make check-mnemonics` checks that no menu or
+window page has two entries with the same Alt+letter.
 
 ## Source map
 

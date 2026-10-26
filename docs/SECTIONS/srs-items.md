@@ -101,7 +101,7 @@ which name-database files it uses.
 |---|---|---|
 | Title line | `srs-gui - System Report Search V<version> <host>::<user>` | Quick check of version and machine. |
 | Program | One image works as the GUI (no arguments) and the CLI (with arguments). | Explains why reports name `sysreport-search`. |
-| Version | Program version, e.g. `V2.0.0`. | Quote this in bug reports. |
+| Version | Program version, e.g. `V2.2.0`. | Quote this in bug reports. |
 | Program Build | File format, compiler and C runtime the program was built with. | Tells a self-built copy from a packaged one. |
 | Built | Date and time the program was compiled. | Shows how old your copy is. |
 | Image | Full path and size of the running program file. | Shows which copy ran, if you have several. |
@@ -115,7 +115,7 @@ which name-database files it uses.
 | Created by / Licensed under / Home page | The author (Eugene Flanagin), the licence (GPL-2.0-or-later) and the GitHub page. | Who made it and where to get it. |
 | Why SRS / Credit / Disclaimer | Origin, credit to SIV's author and use-at-your-own-risk note. | Credit information. |
 
-**Healthy / typical values.** On the author's PC: `V2.0.0`, built with gcc 16.2.1 and glibc,
+**Healthy / typical values.** On the author's PC: `V2.2.0`, built with gcc 16.2.1 and glibc,
 image `/usr/bin/sysreport-search (1.38MB)`, Linux 7.3.0 x86_64 on an ASUS TUF GAMING X870-PRO
 WIFI7 W NEO (BIOS 1805), AMD Ryzen 7 7800X3D. pci.ids version 2026.10.01, usb.ids 2026.06.26.
 pnp.ids has no version header, so only its file date is shown.
@@ -420,7 +420,7 @@ where the real SPD data comes from.
 - On exit - what happens at close (save settings in GUI mode, free tables, close panels).
 
 **Healthy / typical values.** On the author's PC, during a full `[all]` save: Elapsed 3.140 s,
-CPU time 0.160 s, 545 items. Elapsed is much larger than CPU time because most of the time is
+CPU time 0.160 s, 558 items. Elapsed is much larger than CPU time because most of the time is
 spent waiting on files and helper tools, not computing.
 
 **Unusual values and what they suggest.** In a full save, Elapsed far above 10-20 s means some
@@ -743,7 +743,7 @@ nothing to time; it shows the same three lines as [Mapping cache](#mapping-cache
 - `(stub)` after an item - the item has no data function yet.
 
 **Healthy / typical values.** On the author's PC the `[tuning]` category alone has 48 items, and
-the whole program has 545.
+the whole program has 558.
 
 **Where Linux gets it.** The program's own item list (same as `srs-gui --list`).
 
@@ -1118,7 +1118,7 @@ result), srs_info (an Info lookup), srs_findres and srs_hit (Find results), srs_
 and the C types `void *`, `long`, `size_t`. Then Items (how many registered) and Page size.
 
 **Healthy / typical values.** On a 64-bit PC: pointer, long and size_t are 8 bytes; page size
-4096. The author's build: srs_item 64 bytes, 545 items.
+4096. The author's build: srs_item 64 bytes, 558 items.
 
 **Unusual values and what they suggest.** Page size 16384 or 65536: normal on some ARM systems.
 
@@ -1151,7 +1151,7 @@ settings were last saved.
 **What you see.** Columns Version, Image Date (program file date) and Settings Last Written
 (SRSDEF.ini date, `-` if none). A note: SRS keeps no usage counter.
 
-**Healthy / typical values.** On the author's PC: `V2.0.0`, image 2026-10-26, settings 2026-10-25.
+**Healthy / typical values.** On the author's PC: `V2.2.0`, image 2026-10-26, settings 2026-10-26.
 
 **Where Linux gets it.** File modification times of the program and SRSDEF.ini.
 
