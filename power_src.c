@@ -13,6 +13,7 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -366,7 +367,7 @@ static void count_disks(int *nvme, int *hdd, int *ssd)
     }
     if ((d = opendir("/sys/block"))) {
         while ((e = readdir(d))) {
-            char p[400], real[1024];
+            char p[400], real[PATH_MAX];   /* realpath() needs PATH_MAX (FORTIFY_SOURCE aborts otherwise) */
             double rem = 0, rot = 0;
             if (strncmp(e->d_name, "sd", 2)) continue;
             snprintf(p, sizeof p, "/sys/block/%s/removable", e->d_name);
