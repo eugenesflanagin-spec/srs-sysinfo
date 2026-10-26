@@ -37,6 +37,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## B
 
+- **Back end (GPU)** - the way a program talks to the GPU for computing: Vulkan, ROCm / HIP, CUDA or OpenCL. GPU Burnin and the GPU Compute comparison can use each one. *See: [tools](SECTIONS/tools.md).*
 - **BAR (Base Address Register)** - a register in a PCI device that asks for a window of memory or I/O address space; the firmware or kernel assigns its start address at boot. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md).*
 - **BBR** - a TCP congestion-control algorithm that measures bandwidth and delay instead of waiting for packet loss. *See: [network](SECTIONS/network.md).*
 - **bcdDevice / bcdUSB** - fields in a USB device descriptor: the device's own release number, and the USB version it claims to follow. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -61,6 +62,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## C
 
 - **Carbon intensity** - grams of CO2 released per kWh of electricity on a grid, on average over a year. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Compute error (GPU)** - a GPU result that differs from the right one. GPU Burnin counts them: any error means the card is not stable as set up (overclock, undervolt, heat, power) or faulty. *See: [tools](SECTIONS/tools.md).*
 - **C-state** - an idle power level of a CPU core; C0 is running, deeper states (C1, C2, C3) save more power but take longer to wake. *See: [processors](SECTIONS/processors.md).*
 - **Cache** - small fast memory on the CPU that keeps copies of recently used RAM; L1 is smallest and fastest, L3 largest and shared. *See: [processors](SECTIONS/processors.md).*
 - **Cache level (L1, L2, L3)** - small, fast memories between the core and RAM. L1 is the smallest and fastest; L3 is the largest and is shared by many cores. *See: [tools](SECTIONS/tools.md).*
@@ -100,11 +102,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **CSMI** - Common Storage Management Interface: a Windows driver interface some RAID controllers offer for status queries. *See: [storage](SECTIONS/storage.md).*
 - **CSV (comma-separated values)** - A plain-text table format, one line per row, columns split by commas; opens in any spreadsheet. *See: [sensors](SECTIONS/sensors.md), [srs-items](SECTIONS/srs-items.md).*
 - **CTA-861** - An EDID extension block with TV and HDMI data: extra video modes, audio formats and HDR information. *See: [graphics](SECTIONS/graphics.md).*
+- **CUDA** - NVIDIA's GPU computing platform, used by most AI programs; needs the NVIDIA driver. With ZLUDA, CUDA programs can run on AMD cards. *See: [tools](SECTIONS/tools.md).*
 - **Curve Optimizer** - an AMD Ryzen BIOS setting that lowers (or raises) the voltage curve of each core. Too negative a value makes a core unstable or slow. *See: [tools](SECTIONS/tools.md).*
 
 ## D
 
 - **DC power (inside the PC)** - the power after the power supply, used by the parts; always less than the power at the wall. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Device lost** - the GPU stopped answering and its driver reset it; SRS ends a GPU test cleanly when it happens. *See: [tools](SECTIONS/tools.md).*
 - **D-states** - device power states: D0 fully on, D3hot off but powered, D3cold power removed. *See: [machine](SECTIONS/machine.md).*
 - **D0 / D3hot / D3cold** - PCI power states. D0 is fully on; D3hot and D3cold are sleep states (D3cold removes power completely). *See: [graphics](SECTIONS/graphics.md).*
 - **DAD (Duplicate Address Detection)** - a check that no other device already uses an address before the PC starts using it. *See: [network](SECTIONS/network.md).*
@@ -190,6 +194,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Fixture** - a saved data dump used to test a program without the real hardware. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Floating input** - A sensor pin with nothing connected. Its voltage drifts with leakage and noise, so the reading is meaningless. *See: [sensors](SECTIONS/sensors.md).*
 - **fontconfig** - the Linux library that finds fonts and picks one for each character. *See: [linux-os](SECTIONS/linux-os.md).*
+- **FP16 / FP32 / FP64** - numbers with a decimal point stored in 16, 32 or 64 bits: half, single and double precision. Games mostly use FP32; most gaming GPUs are much slower at FP64. *See: [tools](SECTIONS/tools.md).*
 - **FPDT** - Firmware Performance Data Table; records how long the firmware took to boot. *See: [machine](SECTIONS/machine.md).*
 - **FPGA (Field-Programmable Gate Array)** - a chip whose logic circuits are loaded from a configuration file, so its function can be changed after manufacture. *See: [buses-2](SECTIONS/buses-2.md).*
 - **FQDN (fully qualified domain name)** - a host name plus its domain, such as pc.example.lan. *See: [network](SECTIONS/network.md).*
@@ -204,7 +209,9 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Gateway** - the router that forwards your packets to other networks, usually your home router. *See: [network](SECTIONS/network.md).*
 - **GBM (Generic Buffer Management)** - A library compositors use to get GPU memory buffers for the screen. *See: [graphics](SECTIONS/graphics.md).*
 - **GC (graphics core)** - The 3D and compute engine of an AMD GPU. Its version gives the `gfx` target name (GC 12.0.1 = `gfx1201`). *See: [graphics](SECTIONS/graphics.md).*
+- **GEMM (matrix multiplication)** - multiplying two big tables of numbers (general matrix multiply); the core of AI and many science programs, and a hard, steady load for a GPU. *See: [tools](SECTIONS/tools.md).*
 - **GFLOPS** - billions of floating-point (decimal-point) operations per second. *See: [tools](SECTIONS/tools.md).*
+- **GIOPS** - billions of whole-number (integer) operations per second. *See: [tools](SECTIONS/tools.md).*
 - **GLVND** - The vendor-neutral OpenGL dispatch library that lets several OpenGL drivers be installed side by side. *See: [graphics](SECTIONS/graphics.md).*
 - **Governor (CPU)** - the cpufreq policy that decides which speed to ask for (performance, powersave, schedutil). *See: [linux-os](SECTIONS/linux-os.md), [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md).*
 - **GPE (General Purpose Event)** - General Purpose Event; an ACPI event bit used for wake-up and hot-plug signals. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
@@ -229,6 +236,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **HIP** - AMD's CUDA-like programming language for GPU computing, part of ROCm. *See: [graphics](SECTIONS/graphics.md).*
 - **Holder** - A Linux block device built on top of another one (for example an encrypted volume on a partition). *See: [storage](SECTIONS/storage.md).*
 - **Host bridge** - The PCI device that connects the CPU to the PCI bus (class 0600). *See: [buses-1](SECTIONS/buses-1.md).*
+- **Hotspot temperature** - the hottest point measured on a GPU chip; AMD calls it junction temperature. Usually 10-20 °C above the edge temperature. *See: [tools](SECTIONS/tools.md).*
 - **HPA** - Host Protected Area: a part of an ATA disk hidden from the operating system, which makes the disk look smaller. *See: [storage](SECTIONS/storage.md).*
 - **HPET (High Precision Event Timer)** - High Precision Event Timer; a hardware timer described by its own ACPI table. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
 - **Hub (USB)** - a device that turns one USB port into several. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -276,6 +284,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## K
 
 - **k10temp** - the Linux driver that reads AMD CPU temperature sensors (Tctl, Tccd). *See: [processors](SECTIONS/processors.md).*
+- **Kernel (GPU)** - a small program that runs on the GPU, many copies at once (not the Linux kernel). *See: [tools](SECTIONS/tools.md).*
 - **Kernel module** - a loadable piece of the kernel, usually a driver; the Linux counterpart of a Windows driver. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
 - **KMS (kernel mode setting)** - The part of DRM that sets screen resolutions and refresh rates. *See: [graphics](SECTIONS/graphics.md).*
 - **KSM (Kernel Same-page Merging)** - the kernel finds identical memory pages and keeps only one copy. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -289,6 +298,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **LAN (local area network)** - the devices in your home or office connected to the same router or switch. *See: [network](SECTIONS/network.md).*
 - **Lane (PCIe)** - One pair of signal wires in each direction. A link has 1, 2, 4, 8 or 16 lanes. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Latency** - waiting time: how long it takes for a request (a memory load, a ping) to be answered. *See: [tools](SECTIONS/tools.md).*
+- **Lavapipe** - Mesa's software Vulkan driver, which runs on the CPU; SRS's GPU tests use it so that they never touch a real graphics card. *See: [tools](SECTIONS/tools.md).*
 - **LBA** - Logical Block Addressing: numbering a disk's blocks from 0 upwards, the way all modern drives are addressed. *See: [storage](SECTIONS/storage.md).*
 - **LDN (Logical Device Number)** - The number of one function block (serial port, hardware monitor ...) inside a Super I/O chip. *See: [sensors](SECTIONS/sensors.md).*
 - **Leaf (CPUID)** - the question number given to the CPUID instruction; some leaves have several sub-leaves. *See: [processors](SECTIONS/processors.md).*
@@ -505,6 +515,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SPD (Serial Presence Detect)** - Serial Presence Detect; the data on each memory stick describing its size, speeds, timings and profiles. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **spd5118** - the SPD hub chip on DDR5 sticks, and its Linux driver; it also provides a temperature sensor. *See: [machine](SECTIONS/machine.md).*
 - **Speculative execution** - the CPU guessing ahead to run faster; flaws in it (Spectre, Meltdown) can leak data and are closed by mitigations. *See: [processors](SECTIONS/processors.md).*
+- **SPIR-V** - the compiled form of a Vulkan compute or graphics program (shader); SRS ships its GPU shaders pre-compiled as SPIR-V. *See: [tools](SECTIONS/tools.md).*
 - **SQLite** - a small database kept in one file; SRS keeps the Power & cost history in one. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **srs-root** - the SRS root helper, started from Menu > Run as root; it saves root-only data (such as real resource addresses) for SRS to read. *See: [buses-2](SECTIONS/buses-2.md), [srs-items](SECTIONS/srs-items.md).*
 - **SSD** - Solid-state drive: storage on flash memory, with no moving parts. *See: [storage](SECTIONS/storage.md).*
@@ -585,6 +596,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Vcore** - the main supply voltage of the CPU cores, measured by the motherboard's sensor chip. *See: [processors](SECTIONS/processors.md).*
 - **vDSO** - a small piece of kernel code mapped into every program so that reading the clock does not need a real system call. *See: [tools](SECTIONS/tools.md).*
 - **Vendor ID** - The 16-bit number that names a chip maker, e.g. 1022 AMD, 1002 AMD/ATI, 10EC Realtek. *See: [buses-1](SECTIONS/buses-1.md).*
+- **Vendor library (GPU)** - the GPU maker's own tuned maths library: hipBLAS (AMD ROCm), cuBLAS (NVIDIA CUDA) or CLBlast (OpenCL). *See: [tools](SECTIONS/tools.md).*
 - **VID** - Voltage Identification; the voltage the CPU requests from the regulator. *See: [processors](SECTIONS/processors.md).*
 - **VID / PID (Vendor ID / Product ID)** - the two 16-bit numbers that identify a USB device's maker and model, written VVVV:PPPP. *See: [buses-2](SECTIONS/buses-2.md).*
 - **VID:PID** - USB vendor ID and product ID, which identify a USB chip or device model. *See: [storage](SECTIONS/storage.md).*

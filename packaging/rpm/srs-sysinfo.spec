@@ -80,8 +80,9 @@ Information Viewer by Ray Hinchliffe (RH Software), built to improve on it and
 free for the Linux and open-source community. It is an independent project,
 not affiliated with SIV or its author, and contains no SIV code or data.
 
-It provides a GTK 3 GUI (srs-gui) with 555 report items, a CPU burn-in /
-stress tester, Dhrystone/Whetstone and memory-latency benchmarks, a
+It provides a GTK 3 GUI (srs-gui) with 558 report items, a CPU burn-in /
+stress tester, a GPU burn-in, Dhrystone/Whetstone, memory-latency, CPU,
+GPU and other benchmarks, a
 command-line report search (sysreport-search), a full text system report
 (srs-sysreport) and an optional root-only data collector (srs-root, run
 through pkexec or the srs-root@.service boot unit).

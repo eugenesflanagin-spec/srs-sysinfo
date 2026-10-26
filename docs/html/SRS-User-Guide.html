@@ -61,7 +61,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 555 items, field by
+<strong>Section Reference</strong>: every one of the 558 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -128,7 +128,7 @@ size (shows your cache levels).</li>
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (555 in total with SRS's own extras):</p>
+5.87's report items (558 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -232,6 +232,21 @@ other distributions use similar names):</p>
 <tr>
 <td><code>inxi</code>, <code>lshw</code>, <code>hwinfo</code></td>
 <td>Extra sections in the full system report</td>
+</tr>
+<tr>
+<td><code>vulkan-icd-loader</code> and your GPU's Vulkan driver
+(<code>vulkan-radeon</code>, <code>vulkan-intel</code>,
+<code>nvidia-utils</code>)</td>
+<td>The GPU benchmarks (<a href="#user-guide--917-gpu-benchmark">9.17</a>); almost
+every desktop has them</td>
+</tr>
+<tr>
+<td><code>rocm-hip-runtime</code> (and <code>hipblas</code>),
+<code>cuda</code> (or the NVIDIA driver), <code>opencl-icd-loader</code>
+with an OpenCL driver, <code>clblast</code></td>
+<td>The ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin (<a
+href="#user-guide--918-gpu-burnin">9.18</a>) and the GPU Compute comparison; only if
+you want them</td>
 </tr>
 </tbody>
 </table>
@@ -529,7 +544,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 555 of them.</p>
+<strong>SMART drives</strong>; there are 558 of them.</p>
 <table>
 <thead>
 <tr>
@@ -606,10 +621,11 @@ Installed software, Environment, Users</td>
 </tr>
 <tr>
 <td><strong>Benchmarks &amp; stress</strong></td>
-<td>Measure or load the CPU and memory</td>
+<td>Measure or load the CPU, memory, drives, network and GPU</td>
 <td>CPU Benchmarks, Cache &amp; Memory, Storage, OS Latency, CPU
-Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, CPU IPI
-Delay, Memory Latency, Benchmark history (the last results)</td>
+Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute
+comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency,
+Benchmark history (the last results)</td>
 </tr>
 <tr>
 <td><strong>Tools</strong></td>
@@ -855,13 +871,13 @@ Keep, Replace with..., Move and Close (<a
 href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; stress</strong> page has buttons that
 open the CPU Benchmark, IPI Delay, Memory Latency, Cache &amp; Memory,
-Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi,
-Crypto, Prime Sieve, CPU Burnin and CPU Stress windows (<a
-href="#user-guide--9-tools">9</a>); nothing runs until you press
-<strong>Run</strong> or <strong>Start</strong> there. Its tabs show the
-last results. The <strong>Tools</strong> page opens Device ID Lookup,
-Find in a system report, Save Report, Run as root and the Classic
-view.</p>
+Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU
+Burnin and CPU Stress windows (<a href="#user-guide--9-tools">9</a>); nothing runs
+until you press <strong>Run</strong> or <strong>Start</strong> there.
+Its tabs show the last results. The <strong>Tools</strong> page opens
+Device ID Lookup, Find in a system report, Save Report, Run as root and
+the Classic view.</p>
 <h3 id="user-guide--64-search">6.4 Search</h3>
 <p>The search box in the title bar (<strong>Ctrl+F</strong>):</p>
 <ul>
@@ -2028,11 +2044,11 @@ href="#user-guide--5-root-only-data-srs-root">section 5</a>).</p></li>
 <p>Nothing in this section ever starts by itself: not at launch, not
 from the menu, and not from a saved report. You always press Start or
 Run. The CPU Burnin / Stress windows and the Cache &amp; Memory,
-Storage, OS Latency, CPU Compute, Everyday Work and Network benchmarks
-also ask before they start, saying what they do, for how long and how
-much of the PC they keep busy; the shorter Benchmark, IPI Delay,
-Latency, SRS Pi, Crypto and Prime Sieve windows start when you press
-Run.</p>
+Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+GPU Burnin and GPU Compute comparison benchmarks also ask before they
+start, saying what they do, for how long and how much of the PC they
+keep busy; the shorter Benchmark, IPI Delay, Latency, SRS Pi, Crypto and
+Prime Sieve windows start when you press Run.</p>
 <p><strong>What has and has not been tested.</strong> I build and test
 SRS on one PC (a Ryzen 7 7800X3D with a Radeon RX 9070 XT, on a wired
 connection), so anything that needs other hardware may have a bug or two
@@ -2043,6 +2059,21 @@ on real hardware so far:</p>
 <!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
 
 <ul>
+<li>GPU benchmarks (GPU Benchmark, GPU Burnin, GPU Compute comparison):
+the Vulkan tests, GPU Burnin and the GPU Compute comparison were run on
+lavapipe (the Mesa software renderer, which runs on the CPU), with small
+sizes, so the logic, the error counting, Stop and the result pages are
+checked; the Vulkan type layouts were checked against the official
+Khronos header for 64-bit and 32-bit builds. ROCm/HIP, CUDA and OpenCL
+were tried only in part: I checked that the libraries load and that
+every function SRS needs is found in them (including on my own ROCm, my
+ZLUDA and my OpenCL loader), and that a missing library or an OpenCL
+loader with no driver is handled cleanly, but I did not run any HIP,
+CUDA or OpenCL work on a GPU. Not run on real hardware: Vulkan on a real
+GPU, GPU Burnin on a real GPU, CUDA on NVIDIA, ZLUDA, ROCm/HIP on AMD,
+OpenCL on AMD (ROCm) and Mesa Rusticl, anything on Intel graphics, and
+the temperature, power, clock and fan read-outs for NVIDIA and
+Intel.</li>
 <li>ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where
 noted, self-tested, not used day to day.</li>
 <li>OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other
@@ -2056,9 +2087,34 @@ system (zlib-ng in zlib mode, zstd 1.5, lz4 1.10, xz 5.8); other
 versions should work but give different speeds. The CRC32C row that uses
 the CPU's own instruction is x86-64 only.</li>
 <li>Network: run on one wired Ethernet connection only; Wi-Fi, VPN and
-metered or mobile connections are untested. The internet speed test uses
-Cloudflare's public speed test server, which is not a documented API and
-may change.</li>
+metered or mobile connections are untested. The internet speed test was
+run once on that connection, against Cloudflare, with sensible results
+(download several hundred Mbit/s, upload about 60 Mbit/s; the report
+showed no IP address, host name or MAC address). It uses Cloudflare's
+public speed test server, which is not a documented API and may
+change.</li>
+</ul>
+<p><strong>GPU features and the hardware I can test them on.</strong> I
+build and test SRS on a single machine: a Ryzen 7 7800X3D with a Radeon
+RX 9070 XT. I can't try what I don't own, so GPU features for other
+hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, or any
+ROCm/HIP and OpenCL setup other than mine, may have a bug or two I
+haven't met yet. If you find one, please open an issue on GitHub with
+your GPU and the report SRS made, and I'll fix it. Things to know:</p>
+<ul>
+<li>A back end that is not installed shows as "not installed" with a
+one-line hint (for example "install ROCm"); the others still run.</li>
+<li>If your CUDA library is really ZLUDA (CUDA calls translated to an
+AMD GPU), the column is labelled "CUDA (ZLUDA)".</li>
+<li>Every OpenCL driver is its own column, for example "OpenCL (ROCm)"
+and "OpenCL (Rusticl)" on the same GPU; CPU drivers (PoCL) are marked
+CPU.</li>
+<li>Speeds are only comparable between alike SRS builds and the same GPU
+driver / runtime versions.</li>
+<li>GPU Burnin ends by itself on a driver error, a GPU that stops
+answering, a piece of work that takes far too long, or a temperature at
+the limit (default 100 °C). It never changes clocks, voltages or fans.
+It asks before it starts.</li>
 </ul>
 <h3 id="user-guide--91-cpu-burnin-and-cpu-stress">9.1 CPU Burnin and CPU Stress</h3>
 <p><strong>In plain words:</strong> they make your CPU work at 100% so
@@ -2536,9 +2592,9 @@ in ns, level) and a curve.</p>
 <p>For the <strong>bandwidth</strong> of the RAM and the caches, see <a
 href="#user-guide--911-cache--memory">9.11 Cache &amp; Memory</a>. The newer
 benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache
-&amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work and
-Network - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
-href="#user-guide--916-network">9.16</a>.</p>
+&amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network
+and the three GPU tests - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
+href="#user-guide--919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">9.19</a>.</p>
 <h3 id="user-guide--95-device-id-lookup">9.5 Device ID Lookup</h3>
 <p><strong>In plain words:</strong> every PCI and USB device has a
 number pair: <strong>vendor ID : device ID</strong> (for example
@@ -2687,7 +2743,8 @@ Sieve...</strong>. Command line:
 all), <strong>Run</strong>, <strong>Stop</strong>.</p>
 <h3 id="user-guide--910-benchmark-history">9.10 Benchmark history</h3>
 <p>Every SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory, Storage, OS
-Latency, CPU Compute, Everyday Work and Network run adds a line to
+Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin
+and GPU Compute comparison run adds a line to
 <code>~/.cache/srs/bench-history.tsv</code> (time, test, settings,
 result, build). The <strong>Benchmark history</strong> tab on the
 Benchmarks &amp; stress page shows it, newest first. Compare only lines
@@ -2911,6 +2968,233 @@ used. The result is saved to <code>~/.cache/srs/bench-net.txt</code> and
 added to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>.
 Tested on one PC on a wired connection only - see the note at the start
 of this chapter.</p>
+<h3 id="user-guide--917-gpu-benchmark">9.17 GPU Benchmark</h3>
+<p><strong>In plain words:</strong> how fast your graphics card (GPU)
+does sums and moves data. It runs short pieces of work on the GPU
+through <strong>Vulkan</strong> (the graphics and compute interface that
+every modern Linux GPU driver offers - the same one many games use) and
+checks every answer, so a wrong answer is reported instead of a fast
+number. <strong>Higher is better</strong>, except for the latency row,
+where lower is better. Open: the <strong>Benchmarks &amp;
+stress</strong> page -&gt; <strong>GPU Benchmark...</strong>, or Menu
+-&gt; Tools -&gt; GPU Benchmark... in the classic view. Command line:
+<code>sysreport-search gpu</code>. Controls: <strong>GPU</strong>
+(Default = the first discrete graphics card; open the list to pick
+another - SRS reads the list only when you open it), <strong>Seconds per
+test</strong> (default 1), <strong>Memory test size</strong> (0 = auto,
+256 MiB on most cards), <strong>Run</strong> (asks first),
+<strong>Stop</strong>. The line under the controls says whether Vulkan
+is installed.</p>
+<p><strong>What it measures.</strong></p>
+<ul>
+<li><strong>FP32, FP16, FP64 multiply-add</strong> - floating-point
+maths (numbers with a decimal point) at three precisions: FP32 (single
+precision) is what games and most GPU programs use, FP16 (half
+precision) is used by AI and some effects, FP64 (double precision) by
+science programs. In <strong>GFLOPS</strong> - billions of operations
+per second. Most gaming cards do FP64 at only a small fraction of their
+FP32 speed; that is normal. A card or driver without FP16 or FP64 says
+"not supported".</li>
+<li><strong>INT32 multiply-add</strong> - whole-number maths, in
+<strong>GIOPS</strong> (billions per second).</li>
+<li><strong>Video memory read, write and copy</strong> - how fast the
+GPU uses its own memory, in <strong>GB/s</strong> (1 GB = 1,000,000,000
+bytes).</li>
+<li><strong>Upload and Download</strong> - how fast data moves between
+the system memory and the graphics card, over the PCIe slot, in
+GB/s.</li>
+<li><strong>Dispatch latency</strong> - how long the GPU takes to answer
+an empty piece of work, in <strong>µs</strong> (millionths of a second);
+lower is better.</li>
+</ul>
+<p>On a GPU built into the processor (integrated graphics) the memory
+rows measure the system RAM it shares, and the page says so.</p>
+<p><strong>Reading the result.</strong> Compare runs on the same PC,
+with alike SRS builds and the same graphics driver version: a driver
+update alone can change the numbers, and the page says which driver ran.
+Much lower numbers than last time usually mean heat, a power-saving
+setting or another program using the GPU. Upload / download well below
+what the slot should give can mean the card sits in a slot with fewer
+lanes or its link has dropped to a slower speed. A <strong>WRONG
+RESULT</strong> means the GPU computed something wrong - usually too
+much overclock or undervolt, too much heat, or a faulty card; run <a
+href="#user-guide--918-gpu-burnin">GPU Burnin</a> to check.</p>
+<p><strong>Safety:</strong> Run <strong>asks first</strong>, naming the
+GPU and the time (about 15 seconds at the defaults), and says that the
+GPU works at full load and that an unstable GPU overclock or undervolt
+can crash the PC or the display driver under that load. The work is cut
+into pieces of about 25 ms, one at a time, so the desktop stays usable;
+a GPU that stops answering ends the run cleanly with the results so far;
+Stop ends it at once. SRS never changes clocks, voltages or fans, and
+keeps Vulkan overlays such as MangoHud out of the run. Vulkan is loaded
+when needed: without it the window says "not available" and the rest of
+SRS works as before. The result is saved to
+<code>~/.cache/srs/bench-gpu.txt</code> and added to the <a
+href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on a
+software GPU only - see the note at the start of this chapter.</p>
+<h3 id="user-guide--918-gpu-burnin">9.18 GPU Burnin</h3>
+<p><strong>In plain words:</strong> a stress test for the graphics card,
+like CPU Burnin is for the processor. It keeps the GPU as busy as it can
+be with large matrix multiplications (big blocks of sums) for as long as
+you choose, and checks every single result. A healthy card gets the same
+answer every time; a card that is pushed too far (overclocked,
+undervolted, too hot, short of power) sooner or later gets one wrong.
+<strong>0 errors = PASS.</strong> While it runs you see the
+temperatures, power, clock and fan speed live. Open: the
+<strong>Benchmarks &amp; stress</strong> page -&gt; <strong>GPU
+Burnin...</strong>, or Menu -&gt; Tools -&gt; GPU Burnin... in the
+classic view. Command line: <code>sysreport-search gpu-burn</code>.
+Controls: <strong>Back end</strong> (see below; Auto = Vulkan),
+<strong>GPU</strong> (the first GPU, All GPUs, or one from the list),
+<strong>Precision</strong> (FP32, or FP64 for the double-precision
+units), <strong>Seconds</strong> (default 60; 600-1800 s, 10-30 minutes,
+checks an overclock or undervolt properly), <strong>Stop at °C</strong>
+(default 100), <strong>Run</strong> (asks first), <strong>Stop</strong>.
+The line under the controls says which back ends are installed.</p>
+<p><strong>The four back ends, in plain words.</strong> A program can
+talk to a GPU in several "languages". SRS can use four of them, and you
+choose which:</p>
+<ul>
+<li><strong>Vulkan</strong> - the modern graphics and compute interface
+that every current GPU driver on Linux speaks (AMD, Intel and NVIDIA).
+Nothing extra to install. The default, and the right choice for most
+people.</li>
+<li><strong>ROCm / HIP</strong> - AMD's own compute platform, used by AI
+and science programs on AMD cards. Only there if you installed
+ROCm.</li>
+<li><strong>CUDA</strong> - NVIDIA's compute platform, used by most AI
+programs. Needs the NVIDIA driver. If your "CUDA" is really
+<strong>ZLUDA</strong> (a translation layer that runs CUDA programs on
+an AMD card), SRS notices and calls it <strong>CUDA
+(ZLUDA)</strong>.</li>
+<li><strong>OpenCL</strong> - the older compute interface that works
+across makers. Every OpenCL driver you have (ROCm, Mesa Rusticl, NVIDIA,
+PoCL on the CPU ...) shows as its own choice.</li>
+</ul>
+<p>A back end that is not installed says "not installed" with a hint
+about what to install; the others still work. Testing through more than
+one back end tells you whether a problem is the card or one particular
+driver.</p>
+<p><strong>Reading the result.</strong> <strong>PASS</strong> = no wrong
+result in the whole run. <strong>FAIL</strong> = at least one wrong
+result: errors usually mean too much overclock or undervolt, too high a
+temperature, a weak power supply, or a faulty card or video memory -
+undo the overclock or undervolt and run it again. <strong>Ended
+early</strong> = a safety rule stopped it (see below); the page says
+which. <strong>Stopped</strong> = you pressed Stop (no errors so far).
+The page also shows the highest edge, hotspot / junction and memory
+temperatures, power, clock and fan speed, the average speed in GFLOPS,
+the number of multiplications, the matrix size, the back end and the
+driver version. "not available" means the card or driver does not report
+that sensor (for example NVIDIA's own driver gives Linux no
+temperature).</p>
+<p><strong>Safety - what stops it by itself.</strong> Run asks first,
+and <strong>No</strong> is the default answer. The question says that
+the GPU will draw a lot of power and get hot, that a bad overclock or
+undervolt can crash the PC or the display driver, and that a weak power
+supply or poor cooling can make the PC shut down. GPU Burnin then ends
+by itself when:</p>
+<ul>
+<li>the GPU reaches the <strong>temperature limit</strong> (default 100
+°C; the hotspot / junction temperature when the card reports one, else
+the edge temperature);</li>
+<li>the driver reports <strong>any error</strong>, or the GPU
+<strong>stops answering</strong> (device lost);</li>
+<li>one piece of work takes <strong>more than 2 seconds</strong> (each
+should take about 20 ms);</li>
+<li>you press <strong>Stop</strong>.</li>
+</ul>
+<p><strong>SRS never changes clocks, voltages or fans</strong> - it only
+reads them. GPU Burnin does not start while CPU Burnin / Stress or
+another benchmark runs, and CPU Burnin waits until it has finished. The
+result is saved to <code>~/.cache/srs/bench-gpuburn.txt</code> and added
+to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>. The idea
+of comparing every result with the first one comes from gpu-burn by
+Ville Timonen; the code is SRS's own. Tested on a software GPU only -
+see the note at the start of this chapter.</p>
+<h3 id="user-guide--919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">9.19 GPU
+Compute: Vulkan vs HIP vs CUDA vs OpenCL</h3>
+<p><strong>In plain words:</strong> the same GPU work, run through every
+way of programming your graphics card that you have installed (the four
+back ends explained in <a href="#user-guide--918-gpu-burnin">9.18</a>), on the same
+card, and shown side by side. It tells you which one is fastest on your
+PC, and how much faster the maker's own tuned library is than a plain
+program. Open: the <strong>Benchmarks &amp; stress</strong> page -&gt;
+<strong>GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL...</strong>, or
+Menu -&gt; Tools -&gt; GPU Compute Comparison... in the classic view.
+Command line: <code>sysreport-search gpu-compare</code>. Controls:
+<strong>GPU</strong> (the card, picked by its Vulkan device; the other
+back ends find the same card by its PCI address), a tick box per back
+end (only installed ones can be ticked; the tooltip of a greyed one says
+what to install), <strong>Seconds per test</strong> (default 1),
+<strong>Run</strong> (asks first), <strong>Stop</strong>.</p>
+<p><strong>Reading the table.</strong> Each row is a test, each column a
+back end:</p>
+<ul>
+<li><strong>Own kernel</strong> rows: SRS's own plain matrix
+multiplication - the same work on every back end, so these rows compare
+the back ends fairly.</li>
+<li><strong>Vendor library</strong> rows: the maker's tuned library -
+hipBLAS for ROCm, cuBLAS for CUDA, CLBlast for OpenCL. Vulkan has none,
+so it says "not available". These rows show what real programs that use
+the libraries can get.</li>
+<li><strong>Multiply-add chain</strong>, <strong>video memory
+copy</strong>, <strong>upload / download</strong> and <strong>kernel
+launch round trip</strong> (lower is better) work as in the <a
+href="#user-guide--917-gpu-benchmark">GPU Benchmark</a>.</li>
+<li><code>*</code> marks the fastest in each row. <strong>(85%)</strong>
+after a number means that column reached 85% of Vulkan's speed in that
+row (above 100% = faster than Vulkan).</li>
+<li><strong>CUDA (ZLUDA)</strong>: your CUDA library is really ZLUDA,
+which runs CUDA programs on an AMD card. It has no NVRTC compiler, so
+its own-kernel rows say "not available" and only the library rows
+run.</li>
+<li>Every <strong>OpenCL driver</strong> is its own column, for example
+"OpenCL (ROCm)" and "OpenCL (Rusticl)" on the same card. Drivers that
+run on the CPU (PoCL) are marked CPU.</li>
+<li><strong>not installed</strong> means that back end is not on this
+PC; the line under the table says what to install. The other columns
+still run.</li>
+</ul>
+<p>Compare results only between alike SRS builds and the same driver and
+runtime versions; the page lists each column's version.</p>
+<p><strong>Safety:</strong> Run asks first, naming the back ends, the
+GPU and the time (about 20 seconds per back end at the defaults) and
+that the GPU works at full load; an unstable GPU overclock or undervolt
+can crash the PC under that load. ROCm / HIP, CUDA and OpenCL start only
+after your Yes. The work is cut into short pieces, a GPU that fails ends
+its column cleanly, Stop ends the run at once, and SRS never changes
+clocks, voltages or fans. The result is saved to
+<code>~/.cache/srs/bench-gpucompare.txt</code> and added to the <a
+href="#user-guide--910-benchmark-history">Benchmark history</a>. HIP, CUDA and
+OpenCL were not run on real hardware by the author - see the note at the
+start of this chapter.</p>
+<p><strong>GPU words used in 9.17-9.19.</strong></p>
+<ul>
+<li><strong>GPU</strong> - graphics processing unit: the graphics card,
+or the graphics part of the processor.</li>
+<li><strong>Back end</strong> - the "language" a program uses to talk to
+the GPU: Vulkan, ROCm / HIP, CUDA or OpenCL.</li>
+<li><strong>Kernel</strong> - a small program that runs on the GPU, many
+copies at once.</li>
+<li><strong>Matrix multiplication (GEMM)</strong> - multiplying two big
+tables of numbers; the core of AI and many science programs, and a hard,
+steady load for a GPU.</li>
+<li><strong>FP32 / FP16 / FP64</strong> - numbers with a decimal point
+stored in 32, 16 or 64 bits (single, half, double precision).
+<strong>INT32</strong> - 32-bit whole numbers.</li>
+<li><strong>GFLOPS</strong> - billions of floating-point operations per
+second; a multiply-add counts as two.</li>
+<li><strong>Hotspot / junction temperature</strong> - the hottest point
+measured on the GPU chip, usually 10-20 °C above the
+<strong>edge</strong> temperature.</li>
+<li><strong>ZLUDA</strong> - a layer that lets CUDA programs run on AMD
+graphics cards.</li>
+<li><strong>Lavapipe</strong> - Mesa's software Vulkan driver that runs
+on the CPU; used to test SRS without a real GPU.</li>
+<li><strong>Device lost</strong> - the GPU stopped answering and the
+driver reset it.</li>
+</ul>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -3267,7 +3551,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-555 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+558 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -3394,15 +3678,19 @@ run).</td>
 <code>bench-crypto.txt</code>, <code>bench-prime.txt</code>,
 <code>bench-cachemem.txt</code>, <code>bench-storage.txt</code>,
 <code>bench-os-latency.txt</code>, <code>bench-compute.txt</code>,
-<code>bench-work.txt</code>, <code>bench-net.txt</code></td>
+<code>bench-work.txt</code>, <code>bench-net.txt</code>,
+<code>bench-gpu.txt</code>, <code>bench-gpuburn.txt</code>,
+<code>bench-gpucompare.txt</code></td>
 <td>The last result of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory,
-Storage, OS Latency, CPU Compute, Everyday Work and Network.</td>
+Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+GPU Burnin and GPU Compute comparison.</td>
 </tr>
 <tr>
 <td><code>~/.cache/srs/bench-history.tsv</code></td>
 <td>One line per run of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory,
-Storage, OS Latency, CPU Compute and Network, and one per test group of
-Everyday Work (time, test, settings, result, build).</td>
+Storage, OS Latency, CPU Compute, Network, GPU Benchmark, GPU Burnin and
+GPU Compute comparison, and one per test group of Everyday Work (time,
+test, settings, result, build).</td>
 </tr>
 <tr>
 <td><code>~/sysreports/sysreport-*/</code></td>
@@ -3642,7 +3930,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 555 items with the same text. The classic
+classic view show the same 558 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -3943,7 +4231,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 555 of them - one by one. For each item it says, in this order:</p>
+all 558 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -6691,6 +6979,22 @@ benchmark</a></td>
 <tr>
 <td><a href="#sections-tools--network-benchmark">Network benchmark</a></td>
 <td><code>net-bench</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--gpu-benchmark">GPU benchmark</a></td>
+<td><code>gpu-bench</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--gpu-burnin">GPU Burnin</a></td>
+<td><code>gpu-burnin</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU
+Compute: Vulkan vs HIP vs CUDA vs OpenCL</a></td>
+<td><code>gpu-compare</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
@@ -27517,17 +27821,18 @@ href="#glossary">Glossary</a></p>
 <p><strong>Where to find these items (SRS 2.0).</strong> In the main
 window they are on two pages. <strong>Benchmarks &amp; stress</strong>
 (Alt+=) has buttons that open the CPU Benchmark, Cache &amp; Memory,
-Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi,
-Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU
-Stress windows, and tabs with the last results and the benchmark
-history. <strong>Tools</strong> (Alt+Backspace) has buttons for Device
-ID Lookup, Find in a system report, Save Report, Run as root and the
-Classic view; its <strong>All N items</strong> lists the other items of
-this group. In the main window <strong>Ctrl+F</strong> is the search box
-and <strong>Ctrl+Shift+F</strong> opens Find. You can also type an
-item's name or id into the search box (Ctrl+F). The rest of this
-introduction describes the classic view (Menu -&gt; Classic View), with
-its Menu and panel buttons.</p>
+Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI
+Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with
+the last results and the benchmark history. <strong>Tools</strong>
+(Alt+Backspace) has buttons for Device ID Lookup, Find in a system
+report, Save Report, Run as root and the Classic view; its <strong>All N
+items</strong> lists the other items of this group. In the main window
+<strong>Ctrl+F</strong> is the search box and
+<strong>Ctrl+Shift+F</strong> opens Find. You can also type an item's
+name or id into the search box (Ctrl+F). The rest of this introduction
+describes the classic view (Menu -&gt; Classic View), with its Menu and
+panel buttons.</p>
 <p>This group holds the things you <em>do</em> with SRS rather than the
 things it simply reads: CPU benchmarks, the CPU Burnin and CPU Stress
 load tests, a core-to-core delay test, a memory latency test, and the
@@ -27537,14 +27842,15 @@ item</strong> (each entry shows as "Title [id]"). The live tool windows
 sit at the top of the Menu itself: CPU Burnin..., CPU Stress...,
 Benchmark..., IPI Delay..., Latency..., SRS Pi..., Crypto Benchmark...,
 Prime Sieve..., Cache &amp; Memory..., Storage Benchmark..., OS
-Latency..., CPU Compute..., Everyday Work..., Network Benchmark...,
-Device ID Lookup... and Find in Report.... The Processors window also
-has CPU Stress, CPU Burnin and Benchmark buttons, and the keys Ctrl+F
-(Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices) work in every
-window. None of these items needs root data (srs-root): everything here
-works as a normal user. Load tests and benchmarks never start by
-themselves. Saving a report (<code>-save</code>) only shows the last
-stored result.</p>
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU
+Benchmark..., GPU Burnin..., GPU Compute Comparison..., Device ID
+Lookup... and Find in Report.... The Processors window also has CPU
+Stress, CPU Burnin and Benchmark buttons, and the keys Ctrl+F (Find),
+Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices) work in every window.
+None of these items needs root data (srs-root): everything here works as
+a normal user. Load tests and benchmarks never start by themselves.
+Saving a report (<code>-save</code>) only shows the last stored
+result.</p>
 <h2 id="sections-tools--contents">Contents</h2>
 <ul>
 <li><a href="#sections-tools--cpu-benchmarks">CPU Benchmarks</a>
@@ -27594,6 +27900,11 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <code>everyday-work</code></li>
 <li><a href="#sections-tools--network-benchmark">Network benchmark</a>
 <code>net-bench</code></li>
+<li><a href="#sections-tools--gpu-benchmark">GPU benchmark</a>
+<code>gpu-bench</code></li>
+<li><a href="#sections-tools--gpu-burnin">GPU Burnin</a> <code>gpu-burnin</code></li>
+<li><a href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute:
+Vulkan vs HIP vs CUDA vs OpenCL</a> <code>gpu-compare</code></li>
 <li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
 <li><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a>
 <code>crypto-bench</code></li>
@@ -28987,6 +29298,396 @@ VPNs) are reported as "no network connection". Stored in
 <code>~/.cache/srs/bench-net.txt</code>; each run is added to the <a
 href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
 at a time in SRS.</p>
+<hr />
+<h2 id="sections-tools--gpu-benchmark">GPU benchmark</h2>
+<p><code>gpu-bench</code> - Linux data</p>
+<p><strong>In plain words.</strong> How fast the graphics card (GPU)
+computes and moves data, measured through Vulkan, the graphics and
+compute interface every modern Linux GPU driver offers. It runs short
+pieces of work on the GPU and checks every answer: a wrong answer is
+shown as WRONG, never as a speed. <strong>Higher is better</strong>,
+except for the latency row.</p>
+<p><strong>What you see.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>What it measures</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP32 multiply-add</td>
+<td>single-precision (32-bit) floating-point maths, the kind games and
+most GPU programs use</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>FP16 multiply-add</td>
+<td>half precision (16-bit), used by AI and some game effects; "not
+supported" when the GPU or driver lacks it</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>FP64 multiply-add</td>
+<td>double precision (64-bit), used by science programs; most gaming
+GPUs do it at a small fraction of FP32 speed</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>INT32 multiply-add</td>
+<td>32-bit whole-number maths</td>
+<td>GIOPS</td>
+</tr>
+<tr>
+<td>Video memory read / write / copy</td>
+<td>how fast the GPU reads and writes its own memory (copy counts the
+bytes read plus the bytes written)</td>
+<td>GB/s</td>
+</tr>
+<tr>
+<td>Upload / Download</td>
+<td>data moving from system memory to the GPU and back, over PCIe on a
+graphics card</td>
+<td>GB/s</td>
+</tr>
+<tr>
+<td>Dispatch latency</td>
+<td>the round trip of an empty piece of GPU work: how quickly the GPU
+answers</td>
+<td>µs (median, best, 95% under)</td>
+</tr>
+</tbody>
+</table>
+<p>Below: the device and its type (discrete GPU, integrated GPU,
+software renderer), the driver and its version, the Vulkan version, the
+device memory, the subgroup (wave / warp) size, the buffer size of the
+memory tests, how it was timed (GPU timestamps, else the host clock) and
+the <strong>Build</strong> line. GFLOPS = billions of floating-point
+operations per second (a fused multiply-add counts as 2); GIOPS the same
+for whole numbers; 1 GB = 1,000,000,000 bytes; µs = millionths of a
+second.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU</td>
+<td>Default (the first discrete GPU, else the first device) or a device
+from the list; the list is read when you open it</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>0.1-2 in the window (command line 0.1-10), default 1</td>
+</tr>
+<tr>
+<td>Memory test size</td>
+<td>0 = auto (256 MiB, less on small cards), up to 4096 MiB</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety.</strong> It asks before it starts, naming the GPU,
+the time (about 15 seconds at the defaults) and that the GPU works at
+full load; an unstable GPU overclock or undervolt can crash the PC or
+the display driver under that load. The work is cut into pieces of about
+25 ms of GPU time, one at a time, each waited for with a 5 s watchdog,
+so the desktop stays usable. A lost or stuck GPU ends the run cleanly
+with the results so far. Stop ends it at once. SRS never changes clocks,
+voltages or fans. Vulkan overlay layers (such as MangoHud) are kept out
+of the run.</p>
+<p><strong>Healthy / typical values.</strong> Not measured by SRS on a
+real GPU yet (only on the software renderer); as a rough guide from the
+makers' published figures, a current graphics card: FP32 in the tens of
+thousands of GFLOPS, video memory several hundred GB/s, upload and
+download 10-25 GB/s on PCIe 4.0 x16 (about half on PCIe 3.0), dispatch
+latency 5-30 µs. An integrated GPU: FP32 a few hundred to a few thousand
+GFLOPS, and the memory rows measure the system RAM it shares. The
+software renderer (lavapipe, which runs on the CPU) is far slower; it is
+there for testing.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>FP64 at 1/16 to 1/64 of FP32: normal for gaming GPUs; workstation
+and data-centre cards are faster.</li>
+<li>Upload / download far below the card's link: the card is in a slot
+with fewer PCIe lanes or a lower PCIe generation, or the link has
+dropped to a slower speed (see the PCI items).</li>
+<li>Much lower numbers than last time: heat (the GPU slows down when
+hot), a power-saving profile, another program using the GPU, or a driver
+change. Compare only results from alike SRS builds and the same driver
+version.</li>
+<li>WRONG RESULT: the GPU computed something wrong - usually too much
+overclock or undervolt, too much heat or a faulty card. Run GPU Burnin
+to check.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: the Vulkan loader
+(<code>libvulkan.so.1</code>) is opened at run time with
+<code>dlopen</code>, so SRS does not need Vulkan to build or start;
+without it, or without a Vulkan driver, the window says "not available".
+The compute programs (shaders) are pre-compiled into SRS. Stored in
+<code>~/.cache/srs/bench-gpu.txt</code>; each run is added to the <a
+href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+at a time in SRS, and none runs while CPU Burnin / Stress runs.</p>
+<hr />
+<h2 id="sections-tools--gpu-burnin">GPU Burnin</h2>
+<p><code>gpu-burnin</code> - Linux data</p>
+<p><strong>In plain words.</strong> A stress test for the graphics card,
+the GPU counterpart of CPU Burnin. It keeps the GPU fully busy with
+large matrix multiplications for as long as you choose and checks every
+result: the first multiplication is the reference and every later one
+must match it exactly. <strong>0 errors = PASS.</strong> Use it to check
+a GPU overclock or undervolt, the cooling and the power supply. Inspired
+by gpu-burn (Ville Timonen); the code is SRS's own.</p>
+<p><strong>Back ends.</strong> The same test can run through four ways
+of talking to the GPU:</p>
+<table>
+<thead>
+<tr>
+<th>Back end</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulkan</td>
+<td>the graphics and compute interface every modern GPU driver on Linux
+offers (AMD, Intel, NVIDIA); the default</td>
+</tr>
+<tr>
+<td>ROCm / HIP</td>
+<td>AMD's compute platform (needs ROCm installed)</td>
+</tr>
+<tr>
+<td>CUDA</td>
+<td>NVIDIA's compute platform (needs the NVIDIA driver); "CUDA (ZLUDA)"
+when the CUDA library is really ZLUDA running on an AMD GPU</td>
+</tr>
+<tr>
+<td>OpenCL</td>
+<td>the older cross-vendor compute interface; each installed OpenCL
+driver (ROCm, Mesa Rusticl, NVIDIA, PoCL ...) is its own entry</td>
+</tr>
+<tr>
+<td>Auto</td>
+<td>Vulkan when it has a GPU, else the first back end that has one</td>
+</tr>
+</tbody>
+</table>
+<p>All four are loaded at run time: a back end that is not installed
+says "not installed" with a one-line hint, and the others still work.
+HIP, CUDA and OpenCL use SRS's own kernel when their compiler is there
+(hipRTC, NVRTC, the OpenCL driver), else the vendor's matrix library
+(hipBLAS, cuBLAS, CLBlast).</p>
+<p><strong>What you see.</strong> While it runs, per GPU: the time, the
+<strong>errors</strong> (green 0, red otherwise), GFLOPS now and on
+average, multiplications per second and the matrix size, the
+<strong>edge</strong>, <strong>hotspot / junction</strong> and
+<strong>memory temperatures</strong>, <strong>power</strong>,
+<strong>GPU clock</strong> and <strong>fan speed</strong> with the
+highest values ("not available" when the card or driver does not report
+one). At the end: PASS / FAIL / Stopped / Ended early, errors found,
+multiplications, average speed, the highest temperatures, power, clock
+and fan, the back end, driver / runtime, matrix size and precision.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Back end</td>
+<td>Auto (Vulkan), Vulkan, ROCm / HIP, CUDA, OpenCL (those not installed
+say so)</td>
+</tr>
+<tr>
+<td>GPU</td>
+<td>The first GPU, All GPUs, or one from the list (read when you open
+it; for HIP, CUDA and OpenCL this starts that runtime)</td>
+</tr>
+<tr>
+<td>Precision</td>
+<td>FP32 (default) or FP64</td>
+</tr>
+<tr>
+<td>Seconds</td>
+<td>1 to 86,400 (24 hours), default 60</td>
+</tr>
+<tr>
+<td>Stop at °C</td>
+<td>50-120, default 100</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety.</strong></p>
+<ul>
+<li>It asks before it starts (No is the default answer), saying that the
+GPU draws a lot of power and gets hot, that a bad overclock or undervolt
+can crash the PC or the display driver, and that a weak power supply or
+poor cooling can make the PC shut down.</li>
+<li>It <strong>ends by itself</strong> when the GPU reaches the
+temperature limit (hotspot / junction when the card reports one, else
+edge), on any driver error, when the GPU stops answering ("device
+lost"), or when one piece of work takes more than 2 s (each piece should
+take about 20 ms). Stop works at any time. The work is cut into small
+pieces so the desktop stays usable.</li>
+<li>It <strong>never changes clocks, voltages or fans</strong>.</li>
+<li>It does not start while CPU Burnin / Stress or another benchmark
+runs, and CPU Burnin does not start while it runs.</li>
+</ul>
+<p><strong>Healthy / typical values.</strong> 0 errors, always.
+Temperatures: most graphics cards slow down by themselves before their
+limit (AMD hotspot about 100-110 °C, NVIDIA about 83-90 °C edge); a card
+that sits at its limit needs better cooling or airflow. Speeds depend on
+the card; compare only with your own earlier runs on the same
+driver.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>Any errors: too much overclock or undervolt, too high a temperature,
+a weak or overloaded power supply, or a faulty card or video memory.
+Undo the overclock / undervolt and run again.</li>
+<li>Ended early on a driver error or "device lost": the GPU crashed or
+was reset by the driver - usually an unstable overclock or undervolt, or
+the power supply.</li>
+<li>GFLOPS that fall over a run while the temperature rises: the card
+slows down when hot.</li>
+<li>"not available" sensors: the driver does not report them (NVIDIA's
+own driver reports no temperature to Linux's hwmon, for example), or a
+software renderer.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: Vulkan
+(<code>libvulkan.so.1</code>), ROCm / HIP (<code>libamdhip64</code>,
+<code>libhiprtc</code>, <code>libhipblas</code>), CUDA
+(<code>libcuda.so.1</code>, <code>libnvrtc</code>,
+<code>libcublas</code>) and OpenCL (<code>libOpenCL.so.1</code>,
+<code>libclblast</code>) are opened at run time with
+<code>dlopen</code>. The sensors come from the card's hwmon folder in
+<code>/sys/bus/pci/devices/&lt;address&gt;/hwmon</code> (amdgpu: all of
+them; i915, xe and nouveau: what they offer). Stored in
+<code>~/.cache/srs/bench-gpuburn.txt</code>; each run is added to the <a
+href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+<hr />
+<h2 id="sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute: Vulkan
+vs HIP vs CUDA vs OpenCL</h2>
+<p><code>gpu-compare</code> - Linux data</p>
+<p><strong>In plain words.</strong> The same pieces of GPU work, with
+the same sizes, run through every compute back end you have installed
+(Vulkan, ROCm / HIP, CUDA, OpenCL) on the <strong>same</strong> graphics
+card, and shown side by side. It answers "which way of programming this
+GPU is fastest here, and how much does the vendor's own library add?".
+Every result is checked; a wrong one is shown as an error, never as a
+speed.</p>
+<p><strong>What you see.</strong> Rows = tests, columns = back ends. The
+fastest in each row has a <code>*</code>; every other column also shows
+its speed as a percentage of Vulkan (above 100% = faster than Vulkan;
+for the launch round trip, above 100% = quicker).</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>What it measures</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FP32 / FP16 / FP64 matrix multiply, own kernel</td>
+<td>SRS's plain tiled matrix multiply, the same work on every back
+end</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>FP32 / FP16 / FP64 matrix multiply, vendor library</td>
+<td>the maker's tuned library: hipBLAS (ROCm), cuBLAS (CUDA), CLBlast
+(OpenCL); Vulkan has none ("not available")</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>FP32 / FP64 multiply-add chain (peak)</td>
+<td>long chains of multiply-adds: close to the card's peak</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td>Video memory copy</td>
+<td>copying inside the card's memory</td>
+<td>GB/s</td>
+</tr>
+<tr>
+<td>Upload / Download</td>
+<td>system memory to the card and back</td>
+<td>GB/s</td>
+</tr>
+<tr>
+<td>Kernel launch round trip</td>
+<td>how long an empty piece of work takes to start and finish (lower is
+better)</td>
+<td>µs</td>
+</tr>
+</tbody>
+</table>
+<p>Columns: "Vulkan", "ROCm / HIP", "CUDA" - or <strong>"CUDA
+(ZLUDA)"</strong> when the CUDA library is really ZLUDA translating CUDA
+calls to an AMD GPU - and one column per OpenCL driver, such as
+<strong>"OpenCL (ROCm)"</strong> and <strong>"OpenCL (Rusticl)"</strong>
+on the same card; CPU OpenCL drivers (PoCL) are marked CPU. A back end
+that is not installed shows "not installed" with a one-line hint. Below:
+each column's device and driver / runtime version, whether a vendor
+library was found, the sizes and the <strong>Build</strong> line.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU</td>
+<td>the Vulkan device that names the card (Default = the first discrete
+GPU); the other back ends use the card at the same PCI address</td>
+</tr>
+<tr>
+<td>Back ends</td>
+<td>Vulkan, ROCm / HIP, CUDA, OpenCL (only installed ones can be
+ticked)</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>0.1-2 in the window (command line 0.1-10), default 1</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety.</strong> It asks first (the back ends, the GPU, the
+time, full GPU load, the overclock / undervolt warning). HIP, CUDA and
+OpenCL start their runtimes only after that Yes. Work is cut into short
+pieces, each with a watchdog; a GPU that fails ends that column cleanly.
+Stop works. SRS never changes clocks, voltages or fans.</p>
+<p><strong>Healthy / typical values.</strong> Not measured by SRS on
+real hardware yet (only on the software renderer). In general the vendor
+libraries are much faster than a plain kernel for matrix multiply, and
+the own-kernel rows show how well each driver compiles the same simple
+code; a healthy result has every row filled in and no errors.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>One back end far behind the others on the same card: an old or debug
+runtime, or a driver that does not support that card well.</li>
+<li>"not available" in the own-kernel rows of CUDA (ZLUDA): ZLUDA has no
+NVRTC compiler, so only the library rows run.</li>
+<li>FP16 library rows "not available" on OpenCL: the driver has no
+<code>cl_khr_fp16</code>.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: all four back ends
+and the libraries are opened at run time with <code>dlopen</code> (see
+<a href="#sections-tools--gpu-burnin">GPU Burnin</a>); ZLUDA is recognised by marker
+strings in the CUDA library file. Stored in
+<code>~/.cache/srs/bench-gpucompare.txt</code>; each run is added to the
+<a href="#sections-tools--benchmark-history">Benchmark history</a>. Compare results only
+between alike SRS builds and the same driver and runtime versions.</p>
 <hr />
 <h2 id="sections-tools--srs-pi">SRS Pi</h2>
 <p><code>srs-pi</code> - Linux data</p>
@@ -31886,8 +32587,9 @@ every command, including <code>-save</code>, <code>--list</code>,
 <code>burn</code>, <code>bench</code>, <code>ipi</code>,
 <code>latency</code>, <code>pi</code>, <code>crypto</code>,
 <code>prime</code>, <code>cachemem</code>, <code>storage</code>,
-<code>os-latency</code>, <code>compute</code>, <code>work</code> and
-<code>net</code>.</p>
+<code>os-latency</code>, <code>compute</code>, <code>work</code>,
+<code>net</code>, <code>gpu</code>, <code>gpu-burn</code> and
+<code>gpu-compare</code>.</p>
 </blockquote>
 <blockquote>
 <p><strong>zsh users:</strong> quote anything with square brackets:
@@ -31917,6 +32619,9 @@ sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,swi
 sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
+sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes]
+sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -31929,7 +32634,7 @@ read-only)</h2>
 <p>Prints the usage text: every command, <code>-save</code>,
 <code>--list</code>, <code>guide</code>, the load commands and the
 <code>srs-gui</code> start options. Exit code 0.</p>
-<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...
+<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -31951,7 +32656,7 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
         open the user guide at ITEM&#39;s section (PDF viewer, else the HTML guide);
         --print only shows the section and the command that would run
 
-Benchmarks and stress (load the CPU; run only when you ask):
+Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):
   burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
   bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]
@@ -31992,10 +32697,25 @@ Benchmarks and stress (load the CPU; run only when you ask):
         --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com
         (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test
         asks separately and only --yes-internet skips that question
+  gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
+      [--mem-mib M] [--list] [--yes]
+        GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory
+        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
+        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
+  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]
+           [--limit C] [--list] [--yes]
+        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted
+        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
+        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
+        or fans (default 60 s); asks first, --yes starts at once
+  gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
+        library, multiply-add, copy, upload / download, launch time) through every installed back end
+        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power &amp; cost page; --power-recorder record its history with no window
@@ -32010,7 +32730,7 @@ Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (555 lines), one per line:</p>
+<p>Lists every item SRS knows (558 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
@@ -32791,9 +33511,189 @@ confirmed, no network connection for the internet test). Examples:</p>
 <pre><code>$ sysreport-search net --yes                      # loopback only
 $ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most about 200 MB</code></pre>
 <p>See <a href="#sections-tools--network-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--gpu---gpu-benchmark-vulkan"><code>gpu</code> - GPU benchmark
+(Vulkan)</h3>
+<pre><code>sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
+                     [--mem-mib M] [--list] [--yes]</code></pre>
+<p>Measures the graphics card through Vulkan: FP32, FP16, FP64 and INT32
+multiply-add (GFLOPS / GIOPS), video memory read, write and copy, upload
+and download (GB/s, 1 GB = 10^9 bytes) and the round trip of an empty
+dispatch (µs). Every result is checked; a wrong one is printed as WRONG
+RESULT. The Vulkan loader is opened at run time: without it, or without
+a Vulkan driver, the command says so and exits with 2. It <strong>asks
+first</strong> (the GPU, the time, full GPU load, and that an unstable
+overclock or undervolt can crash the PC); <code>--yes</code>
+(<code>-y</code>) starts at once. Without a terminal and without
+<code>--yes</code> it does not start (exit code 2).</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--device N</code></td>
+<td>The Vulkan device to test, numbered as <code>--list</code> shows
+them (default: the first discrete GPU, else the first device)</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>GPU time per test, 0.1-10 (default 1)</td>
+</tr>
+<tr>
+<td><code>--only LIST</code></td>
+<td>Run only these tests (comma-separated): fp32, fp16, fp64, int32,
+read, write, copy, upload, download, latency</td>
+</tr>
+<tr>
+<td><code>--mem-mib M</code></td>
+<td>Buffer size of the memory and transfer tests in MiB, 1-4096
+(default: 256, less on small cards)</td>
+</tr>
+<tr>
+<td><code>--list</code></td>
+<td>List the Vulkan devices (number, name, type, video memory, driver)
+and exit; nothing runs on a GPU</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>Start without asking</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0 when every test ran and was right, 1 when it was stopped,
+a result was wrong or the GPU failed during the run, 2 when it did not
+start (bad option, not confirmed, no Vulkan, no such device, CPU Burnin
+running). Examples:</p>
+<pre><code>$ sysreport-search gpu --list
+$ sysreport-search gpu --only fp32,read,upload --seconds 0.5</code></pre>
+<p>See <a href="#sections-tools--gpu-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--gpu-burn---gpu-burnin"><code>gpu-burn</code> - GPU Burnin</h3>
+<pre><code>sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]
+                          [--fp32|--fp64] [--limit C] [--list] [--yes]</code></pre>
+<p>Keeps the GPU fully busy with large matrix multiplications and counts
+every result that differs from the first one (0 = PASS). On a terminal a
+live line shows the time, GFLOPS, the error count, edge and hotspot
+temperature, power and clock; the full result follows at the end. It
+<strong>asks first</strong> (the GPU, the back end, the time, high power
+and heat, the overclock / undervolt warning, the temperature limit);
+<code>--yes</code> (<code>-y</code>) starts at once; without a terminal
+and without <code>--yes</code> it does not start (exit code 2). Before
+you say yes it starts no HIP, CUDA or OpenCL runtime. It ends by itself
+at the temperature limit, on a driver error, when the GPU stops
+answering or when a piece of work takes more than 2 s; Ctrl+C stops it.
+<strong>It never changes clocks, voltages or fans.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--seconds N</code></td>
+<td>How long, 1-86400 (default 60)</td>
+</tr>
+<tr>
+<td><code>--backend B</code></td>
+<td><code>vulkan</code>, <code>hip</code> (ROCm), <code>cuda</code>,
+<code>opencl</code> or <code>auto</code> (default: Vulkan when it has a
+GPU, else the first back end that has one)</td>
+</tr>
+<tr>
+<td><code>--device N</code></td>
+<td>The device number in that back end's list (see <code>--list</code>),
+or <code>all</code> (default: the first)</td>
+</tr>
+<tr>
+<td><code>--fp32</code> / <code>--fp64</code></td>
+<td>Precision of the multiplications (default FP32)</td>
+</tr>
+<tr>
+<td><code>--limit C</code></td>
+<td>Stop at this GPU temperature in °C, 50-120 (default 100; hotspot /
+junction when the card reports it, else edge). <code>--limit-c</code> is
+the same</td>
+</tr>
+<tr>
+<td><code>--list</code></td>
+<td>List the devices of each installed back end (or only
+<code>--backend</code>'s) and exit. This starts each runtime but runs no
+work</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>Start without asking</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early
+by a safety rule, 2 = not started (bad option, not confirmed, back end
+not installed, no device, CPU Burnin running). Examples:</p>
+<pre><code>$ sysreport-search gpu-burn --list
+$ sysreport-search gpu-burn --seconds 600 --limit 95
+$ sysreport-search gpu-burn --backend hip --fp64 --seconds 120</code></pre>
+<p>See <a href="#sections-tools--gpu-burnin">tools.md</a>.</p>
+<h3
+id="cli-reference--gpu-compare---gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl"><code>gpu-compare</code>
+- GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL</h3>
+<pre><code>sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]</code></pre>
+<p>Runs the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's
+own kernel and with the vendor library - hipBLAS, cuBLAS, CLBlast -,
+FP32 / FP64 multiply-add chain, video memory copy, upload, download,
+kernel launch round trip) through every chosen back end that is
+installed, on the same GPU, and prints one table: <code>*</code> =
+fastest in the row, (N%) = that column compared with Vulkan. CUDA that
+is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its
+own column; a back end that is not installed shows "not installed" and a
+hint. It <strong>asks first</strong>; <code>--yes</code>
+(<code>-y</code>) starts at once; without a terminal and without
+<code>--yes</code> it does not start (exit code 2). HIP, CUDA and OpenCL
+start their runtimes only after that. Ctrl+C stops it.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--backends L</code></td>
+<td>Comma-separated: <code>vulkan</code>, <code>hip</code>,
+<code>cuda</code>, <code>opencl</code> (default: every installed one).
+<code>--backend B</code> is the same</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>GPU time per test, 0.1-10 (default 1)</td>
+</tr>
+<tr>
+<td><code>--device N</code></td>
+<td>The Vulkan device that fixes "the GPU" (numbers from
+<code>gpu --list</code>); the others use the card at the same PCI
+address (default: the first discrete GPU)</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>Start without asking</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0 when it ran and every result was right, 1 when it was
+stopped, a result was wrong or a GPU failed, 2 when it did not start
+(bad option, not confirmed, none of the chosen back ends installed).
+Example:</p>
+<pre><code>$ sysreport-search gpu-compare --backends vulkan,hip --seconds 0.5</code></pre>
+<p>See <a
+href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">tools.md</a>.</p>
 <p>Every <code>cachemem</code>, <code>storage</code>,
 <code>os-latency</code>, <code>compute</code>, <code>work</code>,
-<code>net</code>, <code>pi</code>, <code>crypto</code> and
+<code>net</code>, <code>gpu</code>, <code>gpu-burn</code>,
+<code>gpu-compare</code>, <code>pi</code>, <code>crypto</code> and
 <code>prime</code> run is added to
 <code>~/.cache/srs/bench-history.tsv</code>.</p>
 <hr />
@@ -32918,6 +33818,18 @@ item)</td>
 item)</td>
 </tr>
 <tr>
+<td><code>gpubench</code></td>
+<td>GPU Benchmark</td>
+</tr>
+<tr>
+<td><code>gpuburn</code></td>
+<td>GPU Burnin</td>
+</tr>
+<tr>
+<td><code>gpucompare</code></td>
+<td>GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL</td>
+</tr>
+<tr>
 <td><code>idlookup</code></td>
 <td>Device ID Lookup</td>
 </tr>
@@ -32945,7 +33857,8 @@ Benchmark), and the jump-list actions <code>sensors</code>,
 <code>processors</code>, <code>burnin</code>, <code>stress</code>,
 <code>bench</code>, <code>cachemem</code>, <code>storagebench</code>,
 <code>oslatency</code>, <code>compute</code>, <code>work</code>,
-<code>netbench</code>, <code>pi</code>, <code>idlookup</code>,
+<code>netbench</code>, <code>gpubench</code>, <code>gpuburn</code>,
+<code>gpucompare</code>, <code>pi</code>, <code>idlookup</code>,
 <code>find</code>, and <strong>Classic View</strong>
 (<code>--gui-classic</code>).</p>
 <hr />
@@ -33054,6 +33967,24 @@ ZIP price lookup (default: next to the program, then
 <td>Folder holding <code>SRS-User-Guide.pdf</code> / <code>html/</code>
 for <code>guide</code>, F1 and the Guide button (default
 <code>/usr/share/doc/srs-sysinfo</code>)</td>
+</tr>
+<tr>
+<td><code>SRS_VULKAN_LIB</code></td>
+<td>GPU benchmarks: open this file instead of
+<code>libvulkan.so.1</code> (a name that does not exist = "not
+installed"; for tests)</td>
+</tr>
+<tr>
+<td><code>SRS_HIP_LIB</code>, <code>SRS_CUDA_LIB</code>,
+<code>SRS_OPENCL_LIB</code></td>
+<td>GPU Burnin and the GPU Compute comparison: open this file instead of
+the ROCm / HIP, CUDA or OpenCL library (a name that does not exist =
+"not installed"; for tests)</td>
+</tr>
+<tr>
+<td><code>SRS_GPU_SOFTWARE_ONLY=1</code></td>
+<td>GPU benchmarks: refuse every Vulkan device that is not a software
+renderer such as lavapipe (for tests)</td>
 </tr>
 <tr>
 <td><code>SUDO_USER</code>, <code>PKEXEC_UID</code></td>
@@ -33183,6 +34114,10 @@ href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--b">B</h2>
 <ul>
+<li><strong>Back end (GPU)</strong> - the way a program talks to the GPU
+for computing: Vulkan, ROCm / HIP, CUDA or OpenCL. GPU Burnin and the
+GPU Compute comparison can use each one. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>BAR (Base Address Register)</strong> - a register in a PCI
 device that asks for a window of memory or I/O address space; the
 firmware or kernel assigns its start address at boot. <em>See: <a
@@ -33260,6 +34195,10 @@ href="#sections-buses-2">buses-2</a>.</em></li>
 <li><strong>Carbon intensity</strong> - grams of CO2 released per kWh of
 electricity on a grid, on average over a year. <em>See: <a
 href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
+<li><strong>Compute error (GPU)</strong> - a GPU result that differs
+from the right one. GPU Burnin counts them: any error means the card is
+not stable as set up (overclock, undervolt, heat, power) or faulty.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>C-state</strong> - an idle power level of a CPU core; C0 is
 running, deeper states (C1, C2, C3) save more power but take longer to
 wake. <em>See: <a
@@ -33396,6 +34335,10 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>CTA-861</strong> - An EDID extension block with TV and HDMI
 data: extra video modes, audio formats and HDR information. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>CUDA</strong> - NVIDIA's GPU computing platform, used by
+most AI programs; needs the NVIDIA driver. With ZLUDA, CUDA programs can
+run on AMD cards. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Curve Optimizer</strong> - an AMD Ryzen BIOS setting that
 lowers (or raises) the voltage curve of each core. Too negative a value
 makes a core unstable or slow. <em>See: <a
@@ -33407,6 +34350,9 @@ href="#sections-tools">tools</a>.</em></li>
 power supply, used by the parts; always less than the power at the wall.
 <em>See: <a href="#user-guide--611-power--cost">User Guide
 6.11</a>.</em></li>
+<li><strong>Device lost</strong> - the GPU stopped answering and its
+driver reset it; SRS ends a GPU test cleanly when it happens. <em>See:
+<a href="#sections-tools">tools</a>.</em></li>
 <li><strong>D-states</strong> - device power states: D0 fully on, D3hot
 off but powered, D3cold power removed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -33674,6 +34620,10 @@ href="#sections-sensors">sensors</a>.</em></li>
 <li><strong>fontconfig</strong> - the Linux library that finds fonts and
 picks one for each character. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
+<li><strong>FP16 / FP32 / FP64</strong> - numbers with a decimal point
+stored in 16, 32 or 64 bits: half, single and double precision. Games
+mostly use FP32; most gaming GPUs are much slower at FP64. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>FPDT</strong> - Firmware Performance Data Table; records how
 long the firmware took to boot. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -33713,7 +34663,14 @@ href="#sections-graphics">graphics</a>.</em></li>
 an AMD GPU. Its version gives the <code>gfx</code> target name (GC
 12.0.1 = <code>gfx1201</code>). <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>GEMM (matrix multiplication)</strong> - multiplying two big
+tables of numbers (general matrix multiply); the core of AI and many
+science programs, and a hard, steady load for a GPU. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>GFLOPS</strong> - billions of floating-point (decimal-point)
+operations per second. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
+<li><strong>GIOPS</strong> - billions of whole-number (integer)
 operations per second. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
 <li><strong>GLVND</strong> - The vendor-neutral OpenGL dispatch library
@@ -33793,6 +34750,10 @@ another one (for example an encrypted volume on a partition). <em>See:
 <li><strong>Host bridge</strong> - The PCI device that connects the CPU
 to the PCI bus (class 0600). <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
+<li><strong>Hotspot temperature</strong> - the hottest point measured on
+a GPU chip; AMD calls it junction temperature. Usually 10-20 °C above
+the edge temperature. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>HPA</strong> - Host Protected Area: a part of an ATA disk
 hidden from the operating system, which makes the disk look smaller.
 <em>See: <a href="#sections-storage">storage</a>.</em></li>
@@ -33937,6 +34898,9 @@ on a graphics chip, usually higher than its "edge" temperature. <em>See:
 <li><strong>k10temp</strong> - the Linux driver that reads AMD CPU
 temperature sensors (Tctl, Tccd). <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
+<li><strong>Kernel (GPU)</strong> - a small program that runs on the
+GPU, many copies at once (not the Linux kernel). <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Kernel module</strong> - a loadable piece of the kernel,
 usually a driver; the Linux counterpart of a Windows driver. <em>See: <a
 href="#sections-linux-os">linux-os</a>, <a
@@ -33970,6 +34934,9 @@ href="#sections-buses-1">buses-1</a>.</em></li>
 <li><strong>Latency</strong> - waiting time: how long it takes for a
 request (a memory load, a ping) to be answered. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
+<li><strong>Lavapipe</strong> - Mesa's software Vulkan driver, which
+runs on the CPU; SRS's GPU tests use it so that they never touch a real
+graphics card. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>LBA</strong> - Logical Block Addressing: numbering a disk's
 blocks from 0 upwards, the way all modern drives are addressed. <em>See:
 <a href="#sections-storage">storage</a>.</em></li>
@@ -34643,6 +35610,9 @@ href="#sections-machine">machine</a>.</em></li>
 run faster; flaws in it (Spectre, Meltdown) can leak data and are closed
 by mitigations. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
+<li><strong>SPIR-V</strong> - the compiled form of a Vulkan compute or
+graphics program (shader); SRS ships its GPU shaders pre-compiled as
+SPIR-V. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>SQLite</strong> - a small database kept in one file; SRS
 keeps the Power &amp; cost history in one. <em>See: <a
 href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
@@ -34893,6 +35863,9 @@ call. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Vendor ID</strong> - The 16-bit number that names a chip
 maker, e.g. 1022 AMD, 1002 AMD/ATI, 10EC Realtek. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
+<li><strong>Vendor library (GPU)</strong> - the GPU maker's own tuned
+maths library: hipBLAS (AMD ROCm), cuBLAS (NVIDIA CUDA) or CLBlast
+(OpenCL). <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>VID</strong> - Voltage Identification; the voltage the CPU
 requests from the regulator. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>

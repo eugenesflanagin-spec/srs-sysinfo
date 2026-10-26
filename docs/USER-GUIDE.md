@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 555 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 558 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -73,7 +73,7 @@ It also has tools:
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (555 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (558 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -330,7 +330,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 555 of them.
+as **Sensor status** or **SMART drives**; there are 558 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -345,7 +345,7 @@ as **Sensor status** or **SMART drives**; there are 555 of them.
 | **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
-| **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
+| **Benchmarks & stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
 The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
@@ -457,8 +457,8 @@ heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab fo
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
 The **Benchmarks & stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
-Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime
-Sieve, CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
+Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU
+Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
 **Start** there. Its tabs show the last results. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
 
@@ -1080,7 +1080,8 @@ Classic Menu** in the main window. It has:
 
 Nothing in this section ever starts by itself: not at launch, not from the menu, and not from a
 saved report. You always press Start or Run. The CPU Burnin / Stress windows and the Cache &
-Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network benchmarks also ask before they
+Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU
+Compute comparison benchmarks also ask before they
 start, saying what they do, for how long and how much of the PC they keep busy; the shorter
 Benchmark, IPI Delay, Latency, SRS Pi, Crypto and Prime Sieve windows start when you press Run.
 
@@ -1091,6 +1092,17 @@ two I haven't met yet. If you find one, please open an issue on
 report SRS made, and I'll fix it. Not tried on real hardware so far:
 
 <!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
+- GPU benchmarks (GPU Benchmark, GPU Burnin, GPU Compute comparison): the Vulkan tests, GPU
+  Burnin and the GPU Compute comparison were run on lavapipe (the Mesa software renderer, which
+  runs on the CPU), with small sizes, so the logic, the error counting, Stop and the result pages
+  are checked; the Vulkan type layouts were checked against the official Khronos header for 64-bit
+  and 32-bit builds. ROCm/HIP, CUDA and OpenCL were tried only in part: I checked that the
+  libraries load and that every function SRS needs is found in them (including on my own ROCm, my
+  ZLUDA and my OpenCL loader), and that a missing library or an OpenCL loader with no driver is
+  handled cleanly, but I did not run any HIP, CUDA or OpenCL work on a GPU. Not run on real
+  hardware: Vulkan on a real GPU, GPU Burnin on a real GPU, CUDA on NVIDIA, ZLUDA, ROCm/HIP on AMD,
+  OpenCL on AMD (ROCm) and Mesa Rusticl, anything on Intel graphics, and the temperature, power,
+  clock and fan read-outs for NVIDIA and Intel.
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
 - OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
   recognised from the kernel's settings but were not run here.
@@ -1100,8 +1112,27 @@ report SRS made, and I'll fix it. Not tried on real hardware so far:
   mode, zstd 1.5, lz4 1.10, xz 5.8); other versions should work but give different speeds. The
   CRC32C row that uses the CPU's own instruction is x86-64 only.
 - Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
-  connections are untested. The internet speed test uses Cloudflare's public speed test server,
-  which is not a documented API and may change.
+  connections are untested. The internet speed test was run once on that connection, against
+  Cloudflare, with sensible results (download several hundred Mbit/s, upload about 60 Mbit/s; the
+  report showed no IP address, host name or MAC address). It uses Cloudflare's public speed test
+  server, which is not a documented API and may change.
+
+**GPU features and the hardware I can test them on.** I build and test SRS on a single machine: a
+Ryzen 7 7800X3D with a Radeon RX 9070 XT. I can't try what I don't own, so GPU features for other
+hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, or any ROCm/HIP and OpenCL setup other
+than mine, may have a bug or two I haven't met yet. If you find one, please open an issue on GitHub
+with your GPU and the report SRS made, and I'll fix it. Things to know:
+
+- A back end that is not installed shows as "not installed" with a one-line hint (for example
+  "install ROCm"); the others still run.
+- If your CUDA library is really ZLUDA (CUDA calls translated to an AMD GPU), the column is
+  labelled "CUDA (ZLUDA)".
+- Every OpenCL driver is its own column, for example "OpenCL (ROCm)" and "OpenCL (Rusticl)" on the
+  same GPU; CPU drivers (PoCL) are marked CPU.
+- Speeds are only comparable between alike SRS builds and the same GPU driver / runtime versions.
+- GPU Burnin ends by itself on a driver error, a GPU that stops answering, a piece of work that
+  takes far too long, or a temperature at the limit (default 100 °C). It never changes clocks,
+  voltages or fans. It asks before it starts.
 
 
 ### 9.1 CPU Burnin and CPU Stress
@@ -1390,8 +1421,8 @@ time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
 The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
-Storage, OS Latency, CPU Compute, Everyday Work and Network - are in [9.7](#97-srs-pi) to
-[9.16](#916-network).
+Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests - are in
+[9.7](#97-srs-pi) to [9.19](#919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl).
 
 ### 9.5 Device ID Lookup
 
@@ -1483,7 +1514,7 @@ Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
 
 ### 9.10 Benchmark history
 
-Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network run adds a line to
+Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU Compute comparison run adds a line to
 `~/.cache/srs/bench-history.tsv`
 (time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
@@ -1933,7 +1964,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 555 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 558 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -2004,8 +2035,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt`, `bench-compute.txt`, `bench-work.txt`, `bench-net.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network. |
-| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute and Network, and one per test group of Everyday Work (time, test, settings, result, build). |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt`, `bench-compute.txt`, `bench-work.txt`, `bench-net.txt`, `bench-gpu.txt`, `bench-gpuburn.txt`, `bench-gpucompare.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU Compute comparison. |
+| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Network, GPU Benchmark, GPU Burnin and GPU Compute comparison, and one per test group of Everyday Work (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
@@ -2082,7 +2113,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 555 items with the
+- **Two views, same data.** The main window and the classic view show the same 558 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.

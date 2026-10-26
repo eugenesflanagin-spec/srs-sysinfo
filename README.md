@@ -144,10 +144,20 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
     10^8 ... 10^11, checked against the known counts. Every run of these three is kept in a
     **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
-  - Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network ask before they start. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
+  - Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests ask before they start. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
     wired network): parts that need other hardware may have a bug or two - please report them on
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
+  - **GPU features and the hardware I can test them on.** I build and test SRS on a single machine:
+    a Ryzen 7 7800X3D with a Radeon RX 9070 XT. I can't try what I don't own, so GPU features for
+    other hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, or any ROCm/HIP and OpenCL
+    setup other than mine, may have a bug or two I haven't met yet. If you find one, please open an
+    issue on GitHub with your GPU and the report SRS made, and I'll fix it. So far the Vulkan tests,
+    GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) only;
+    for ROCm/HIP, CUDA and OpenCL I checked that the libraries load and that every function SRS
+    needs is found, but did not run HIP, CUDA or OpenCL work on a GPU. GPU Burnin ends by itself on a
+    driver error, a GPU that stops answering, a piece of work that takes far too long, or a
+    temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
     and **Find** (regex over a `srs-sysreport` folder, with highlighting and F3 navigation).
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.

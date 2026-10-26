@@ -161,11 +161,13 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
-- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto and Prime Sieve
-  buttons and tabs; Menu -> Tools entries (classic view); desktop-menu actions;
-  `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|pi|crypto|prime`. Cache & Memory, Storage, OS
-  Latency, CPU Compute, Everyday Work and Network ask before they start, saying what they do, for
-  how long and how much load.
+- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
+  GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
+  (classic view); desktop-menu actions;
+  `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|pi|crypto|prime`.
+  Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin
+  and GPU Compute comparison ask before they start, saying what they do, for how long and how much
+  load. 558 items in all.
 
 **Main window**
 
@@ -262,12 +264,23 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 **Tested on one PC.** I build and test SRS on a single machine: a Ryzen 7 7800X3D with a Radeon
 RX 9070 XT, on a wired connection. I've done everything I can for the rest (checks that don't need
 the hardware, careful reading of the docs, test builds), but I can't try what I don't own. So
-anything that needs other hardware, such as NVIDIA CUDA, Intel graphics, Wi-Fi or VPN network
-tests, or ARM and 32-bit builds, may have a bug or two I haven't met yet. If you find one, please
+anything that needs other hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, any ROCm/HIP or
+OpenCL setup other than mine, Wi-Fi or VPN network tests, or ARM and 32-bit builds, may have a bug or two I haven't met yet. If you find one, please
 tell me: open an issue on GitHub (https://github.com/eugenesflanagin-spec/srs-sysinfo/issues)
 with your hardware and the report SRS made, and I'll fix it. Not tried on real hardware so far:
 
 <!-- untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
+- GPU benchmarks (GPU Benchmark, GPU Burnin, GPU Compute comparison): the Vulkan tests, GPU
+  Burnin and the GPU Compute comparison were run on lavapipe (the Mesa software renderer, which
+  runs on the CPU), with small sizes, so the logic, the error counting, Stop and the result pages
+  are checked; the Vulkan type layouts were checked against the official Khronos header for 64-bit
+  and 32-bit builds. ROCm/HIP, CUDA and OpenCL were tried only in part: I checked that the
+  libraries load and that every function SRS needs is found in them (including on my own ROCm, my
+  ZLUDA and my OpenCL loader), and that a missing library or an OpenCL loader with no driver is
+  handled cleanly, but I did not run any HIP, CUDA or OpenCL work on a GPU. Not run on real
+  hardware: Vulkan on a real GPU, GPU Burnin on a real GPU, CUDA on NVIDIA, ZLUDA, ROCm/HIP on AMD,
+  OpenCL on AMD (ROCm) and Mesa Rusticl, anything on Intel graphics, and the temperature, power,
+  clock and fan read-outs for NVIDIA and Intel.
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked only (plus self-tests where a benchmark
   says so), not used day to day.
 - OS Latency: run only on Linux 7.x with the scx_lavd scheduler; BORE, EEVDF and CFS are recognised
@@ -279,8 +292,18 @@ with your hardware and the report SRS made, and I'll fix it. Not tried on real h
   zstd 1.5, lz4 1.10, xz 5.8); its time estimate is rough. The CPU-instruction CRC32C row is
   x86-64 only (ARM shows "not measured").
 - Network: run on one wired Ethernet connection only; Wi-Fi, VPN and metered or mobile
-  connections are untested. Cloudflare's speed test endpoints are not a documented API; if they
-  change, the speed rows fail and DNS / connect times still work.
+  connections are untested. The internet speed test has been run once by the author on that wired
+  connection, against Cloudflare, with sensible results (download several hundred Mbit/s, upload
+  about 60 Mbit/s; the report showed no IP address, host name or MAC address). Cloudflare's speed
+  test endpoints are not a documented API; if they change, the speed rows fail and DNS / connect
+  times still work.
+
+GPU benchmarks (Vulkan, ROCm/HIP, CUDA, OpenCL) are new in 2.2; only Vulkan was run (on a software
+renderer) by the author, the other back ends and other vendors' GPUs are untested on real hardware -
+please report issues. A back end that is not installed shows as "not installed" with a one-line
+hint; CUDA that is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column
+(CPU drivers such as PoCL are marked CPU); speeds are only comparable between alike SRS builds and
+the same GPU driver / runtime versions.
 
 ### Fixed
 
