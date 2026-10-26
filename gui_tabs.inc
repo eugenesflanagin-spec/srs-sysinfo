@@ -2,7 +2,7 @@
  *
  * Each page shows a list of items as tabs. The list, its order, "every item as a tab" and the tab-bar
  * layout make up the current state, kept in SRSDEF.ini [Tabs] across restarts. A lineup is a named
- * copy of such a state: Basic, Enthusiast (the 2.0 tabs, the default) and Expert are built in, users
+ * copy of such a state: Basic, Enthusiast (the 2.0 tabs) and Expert (the default) are built in, users
  * save their own (~/.config/srs/lineups/NAME.srslineup, the same file format as Export / Import).
  * Changes made on the fly (add, close, replace, drag, keep) change the current state only, until
  * "Save to this lineup" or "Save as new lineup".
@@ -18,13 +18,15 @@
 enum { LAY_ROW, LAY_WRAP, LAY_SIDE, LAY_N };
 static const char *const g_lay_key[LAY_N] = { "row", "wrap", "side" };
 enum { LU_BASIC = 1, LU_ENTHUSIAST, LU_EXPERT };
+#define LU_DEFAULT LU_EXPERT
 static const char *const g_lu_builtin[] = { NULL, "Basic", "Enthusiast", "Expert" };
 
 typedef struct { GPtrArray *tabs; int every; } pagestate;
 typedef struct { char name[128]; int layout; pagestate pg[CAT_N]; } lineup;
 
 static lineup g_cur;                       /* what the main window shows */
-static char g_lineup[128] = "Enthusiast";  /* the lineup it came from */
+static char g_lineup[128] = "Expert";  /* the lineup it came from */
+static int g_lu_ask;                    /* no lineup chosen yet: ask on the first start */
 static int g_opt_alltabs, g_opt_showhidden;
 static GHashTable *g_empty;                /* item id -> "1": nothing to show on this PC */
 static int g_scan_running;
@@ -263,10 +265,12 @@ static void tabs_state_load(void)
 {
     GKeyFile *kf = g_key_file_new();
     lineup base = { "", 0, { { 0 } } };
-    lu_builtin(&base, LU_ENTHUSIAST);
+    lu_builtin(&base, LU_DEFAULT);
     lu_copy(&g_cur, &base);
+    g_lu_ask = 1;
     if (g_key_file_load_from_file(kf, g_ini, G_KEY_FILE_NONE, NULL)) {
         char *n = g_key_file_get_string(kf, "Tabs", "Lineup", NULL);
+        if (n && *n) g_lu_ask = 0;
         lineup from = { "", 0, { { 0 } } };
         if (n && *n) {
             snprintf(g_lineup, sizeof g_lineup, "%s", n);
@@ -1167,18 +1171,18 @@ static void on_lum(GtkMenuItem *mi, gpointer d)
     } else if (!strcmp(act, "remove")) {
         GtkWidget *q = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION,
                                               GTK_BUTTONS_YES_NO, "Remove the lineup \"%s\"? The tabs on screen stay as they are; "
-                                              "the lineup switches to Enthusiast.", g_lineup);
+                                              "the lineup switches to %s.", g_lineup, g_lu_builtin[LU_DEFAULT]);
         if (gtk_dialog_run(GTK_DIALOG(q)) == GTK_RESPONSE_YES) {
             char *p = lu_path(g_lineup);
             g_unlink(p);
             g_free(p);
-            snprintf(g_lineup, sizeof g_lineup, "Enthusiast");
+            snprintf(g_lineup, sizeof g_lineup, "%s", g_lu_builtin[LU_DEFAULT]);
             tabs_state_save();
             lineup_label_update();
         }
         gtk_widget_destroy(q);
     } else if (!strcmp(act, "default")) {
-        lineup_switch("Enthusiast");
+        lineup_switch(g_lu_builtin[LU_DEFAULT]);
     }
 }
 
@@ -1221,7 +1225,7 @@ static void lineup_menu(GtkWidget *m)
     lum_add(m, "_Export lineup...", "export", TRUE);
     lum_add(m, "_Import lineup...", "import", TRUE);
     lum_add(m, "_Remove this lineup...", "remove", custom);
-    lum_add(m, "Reset to the _default lineup (Enthusiast)", "default", TRUE);
+    lum_add(m, "Reset to the _default lineup (Expert)", "default", TRUE);
     g_ptr_array_free(u, TRUE);
 }
 
@@ -1522,4 +1526,47 @@ static GtkWidget *tabs_area(int cat)
     g_signal_connect(nb, "switch-page", G_CALLBACK(on_nb_switch), GINT_TO_POINTER(cat));
     g_home->pagebox[cat] = vb;
     return vb;
+}
+
+/* first start (no lineup saved yet): let the user pick one, and say where to change it later */
+static gboolean lineup_first_ask(gpointer d)
+{
+    static const char *const what[] = { NULL,
+        "A few friendly tabs on each page. Good for a quick look.",
+        "The standard tabs (as in SRS 2.0).",
+        "Every item of every page as a tab, in a side list." };
+    GtkWidget *dlg, *box, *r[LU_EXPERT + 1] = { 0 }, *l;
+    int i, pick = LU_DEFAULT;
+    (void)d;
+    if (!g_lu_ask || !g_main) return G_SOURCE_REMOVE;
+    dlg = gtk_dialog_new_with_buttons("Welcome to SRS", GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                      "_OK", GTK_RESPONSE_OK, NULL);
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 14);
+    l = gtk_label_new("Which tabs would you like on SRS's pages?");
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);
+    for (i = LU_BASIC; i <= LU_EXPERT; i++) {
+        char *t = g_strdup_printf("%s%s - %s", g_lu_builtin[i], i == LU_DEFAULT ? " (default)" : "", what[i]);
+        r[i] = gtk_radio_button_new_with_label_from_widget(i > LU_BASIC ? GTK_RADIO_BUTTON(r[LU_BASIC]) : NULL, t);
+        g_free(t);
+        gtk_box_pack_start(GTK_BOX(box), r[i], FALSE, FALSE, 0);
+    }
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(r[LU_DEFAULT]), TRUE);
+    l = gtk_label_new("You can change this at any time: menu button (or Ctrl+M) -> Lineup. "
+                      "The sidebar shows the lineup in use. The user guide explains lineups in 6.7.");
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 60);
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(l), "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 6);
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))), box, TRUE, TRUE, 0);
+    gtk_widget_show_all(dlg);
+    gtk_dialog_run(GTK_DIALOG(dlg));   /* closed without OK: the default */
+    for (i = LU_BASIC; i <= LU_EXPERT; i++)
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(r[i]))) pick = i;
+    gtk_widget_destroy(dlg);
+    g_lu_ask = 0;
+    lineup_switch(g_lu_builtin[pick]);   /* saves it, so this is asked only once */
+    return G_SOURCE_REMOVE;
 }

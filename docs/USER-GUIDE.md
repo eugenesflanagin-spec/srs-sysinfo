@@ -346,7 +346,7 @@ as **Sensor status** or **SMART drives**; there are 551 of them.
 | **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, CPU IPI Delay, Memory Latency (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
-The tabs above are the standard ones (the **Enthusiast** lineup, SRS's default). You can change
+The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
 them on any page at any time ([6.7](#67-arranging-the-tabs-and-lineups)).
 
 **All N items** at the right end of the tab row lists **every** item of the page, the expert ones
@@ -601,16 +601,19 @@ the tab bar can take three shapes (**Options -> Tab bar**):
 | Lineup | Tabs |
 |---|---|
 | **Basic** | A few friendly tabs per page (for example Processor: CPU Summary, CPU Clocks, Cache Levels) |
-| **Enthusiast** | The standard tabs of [6.1](#61-the-pages-and-the-items-on-them). The default. |
-| **Expert** | Every item of every page as a tab, in a side list |
+| **Enthusiast** | The standard tabs of [6.1](#61-the-pages-and-the-items-on-them) (the tabs of SRS 2.0). |
+| **Expert** | Every item of every page as a tab, in a side list. The default. |
 | *Your own* | **Save as new lineup...** keeps the current tabs under a name you choose |
 
 Changes on the fly are allowed at any time without saving: the sidebar then says
-"Lineup: Enthusiast (changed)". **Save to this lineup** stores them in your own lineup (the three
+"Lineup: Expert (changed)". **Save to this lineup** stores them in your own lineup (the three
 built-in ones stay as they are: use **Save as new lineup...**). **Export lineup...** writes a
 `.srslineup` file you can share or keep, **Import lineup...** reads one (it gets a new name if one
 of yours already has it), **Remove this lineup...** removes one of your own, and **Reset to the
-default lineup** goes back to Enthusiast.
+default lineup** goes back to Expert.
+
+The first time SRS starts it asks which lineup you want (Basic, Enthusiast or Expert) and tells you
+where to change it later: the menu button (or **Ctrl+M**) -> **Lineup**. It asks only once.
 
 ### 6.8 Sortable tables
 
@@ -1512,7 +1515,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Start in classic view** | Start SRS in the SIV-style main window instead of the window with the sidebar ([6.6](#66-classic-view-the-siv-style-windows)). | off |
 | **Sortable tables in the main window** | Click a column heading to sort a table ([6.8](#68-sortable-tables)). Off: tables are plain text as in 2.0. | on |
 | **Tab bar** | **One row that scrolls**, **Wrapped rows** or **Side list** ([6.7](#67-arranging-the-tabs-and-lineups)). Main window only, like the next five. | One row |
-| **Lineup** | Basic, Enthusiast, Expert or your own; save, export, import ([6.7](#67-arranging-the-tabs-and-lineups)). | Enthusiast |
+| **Lineup** | Basic, Enthusiast, Expert or your own; save, export, import ([6.7](#67-arranging-the-tabs-and-lineups)). | Expert |
 | **Tabs on each page...** | Per page: the standard tabs, the ticked ones, or every item. | standard |
 | **Show every item as a tab (all pages)** | Every item that can show something here gets a tab on its page. | off |
 | **Show hidden items** | List the items that cannot show anything on this PC (Windows-only, not present, empty), greyed, in All N items, and do not hide their tabs. | off |

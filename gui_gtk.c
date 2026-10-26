@@ -4898,6 +4898,7 @@ static void home_open(int as_main)
     home_go(CAT_OVERVIEW);
     badge_update();
     ov_update();
+    if (as_main) g_idle_add(lineup_first_ask, NULL);
     gtk_widget_grab_focus(lb);
     g_home->tick = g_timeout_add(3000, home_tick, NULL);
 }

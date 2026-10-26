@@ -105,7 +105,7 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - **Tab bar layouts** (Options -> Tab bar): one row that scrolls, wrapped rows (every tab visible),
   or a side list. Ctrl+PageUp / Ctrl+PageDown step through the tabs in every layout.
 - **Lineups**: saved arrangements of every page's tabs, their order and the tab bar. Built in:
-  **Basic** (a few friendly tabs), **Enthusiast** (the standard tabs, the default) and **Expert**
+  **Basic** (a few friendly tabs), **Enthusiast** (the standard tabs, as in 2.0) and **Expert** (the default)
   (every item as a tab, side list). Save your own, save changes to it, export and import
   `.srslineup` files, reset to the default. Menu -> Lineup, Options -> Lineup, or a tab's
   right-click menu; the sidebar shows the lineup in use and "(changed)".
@@ -149,6 +149,8 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - Page keys: the Alt keys follow the sidebar order with Power & cost under Sensors, so USB & PCI
   devices moves to Alt+0, Operating system to Alt+-, Benchmarks & stress to Alt+= and Tools to
   Alt+Backspace (Overview ... Sensors keep Alt+1 ... Alt+8; Power & cost is Alt+9).
+- The first time 2.1 starts it asks which tab lineup you want (Basic, Enthusiast or Expert, the
+  default) and says where to change it later (menu button or Ctrl+M, then Lineup).
 - `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
 - The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
   memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).

@@ -58,7 +58,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     drag and keep tabs; SRS remembers each page's tabs and their order. Per page in Options: the
     standard tabs, the ones you tick, or every item; or every item as a tab on all pages. Tab bar:
     one scrolling row, wrapped rows or a side list. **Lineups** save a whole arrangement: Basic,
-    Enthusiast (default), Expert, and your own (save, export, import). Windows-only items and
+    Enthusiast, Expert (default), and your own (save, export, import). Windows-only items and
     hardware this PC does not have are hidden; **Options -> Check now** (or the opt-in **Check
     daily**) also hides items that come out empty here, never running the network items;
     **Show hidden items** lists them.
