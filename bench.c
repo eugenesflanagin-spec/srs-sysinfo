@@ -416,7 +416,7 @@ int bench_ask_text(const bench_ask *a, char *title, size_t tn, char *body, size_
         unsigned char is_e[BURN_MAXCPU];
         int i, n = 0, cores = 0, smt = 0, conc = m == BM_AC || m == BM_PC || m == BM_LC || m == BM_EC;
         double s;
-        if (m >= BM_COUNT) return -1;
+        if (a->mode < 0 || m >= BM_COUNT) return -1;   /* also nothing chosen (-1 from a combo box) */
         bench_ecores(is_e, ncpu);
         for (i = 0; i < ncpu; i++) {
             int sib = sibling_of(i), primary = sib < 0 || i < sib;
@@ -587,6 +587,10 @@ int bench_ipi(int max_cpus, int rounds, srs_out *o)
     ictx c;
     cpu_set_t saved;
     if (max_cpus > 0 && max_cpus < n) n = max_cpus;
+    if (n < 2) {   /* no pair to measure: nothing runs and the last result stays as it is */
+        if (o) so_err(o, "IPI Delay needs at least two CPU threads (one pair); nothing was measured, the last result is kept");
+        return -1;
+    }
     if (rounds <= 0) rounds = 20000;
     c.n = n; c.rounds = rounds;
     c.m = calloc((size_t)(n * n), sizeof(double));

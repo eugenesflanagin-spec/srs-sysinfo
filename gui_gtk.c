@@ -118,9 +118,12 @@ typedef struct swin {
     GtkWidget *wk_grp[WK_NGROUP], *wk_lib[WK_NLIB], *wk_row;
     GtkWidget *nt_local, *nt_inet, *nt_ipv, *nt_info;
     GtkWidget *gp_dev, *gp_mem;   /* GPU windows: device list (filled when opened), GPU benchmark buffer size */
-    GtkWidget *gb_back, *gb_prec, *gb_limit;   /* GPU Burnin: back end, precision, temperature limit */
+    GtkWidget *gb_back, *gb_prec, *gb_limit, *gb_info;   /* GPU Burnin: back end, precision, temperature limit, what is installed */
     GtkWidget *gc_back[GB_N];                  /* GPU Compute comparison: back ends to compare */
     int gp_filled;
+    struct swin **avw;    /* the same for the "which GPU back ends are installed" check of the GPU windows */
+    struct swin **jobw;   /* the running worker job's pointer to this window: cleared when the window closes, so a job
+                             that ends later never touches a new window that got the same memory */
     char gp_pci[GPU_MAXDEV][16];   /* GPU Burnin: PCI address of each listed (Vulkan) device, "" when the driver does not say */
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
@@ -662,14 +665,14 @@ static void tbl_reset(swin *w)
 
 static gboolean on_view_motion(GtkWidget *v, GdkEventMotion *ev, gpointer d)
 {
+    static GdkCursor *cur[2];   /* made once (one display), not on every mouse move */
     swin *w = d;
-    int col, hit = tbl_hit(w, (int)ev->x, (int)ev->y, &col) >= 0;
+    int col, hit;
     GdkWindow *win = gtk_text_view_get_window(GTK_TEXT_VIEW(v), GTK_TEXT_WINDOW_TEXT);
-    GdkCursor *c;
     if (!w->embedded || !win) return FALSE;
-    c = gdk_cursor_new_from_name(gtk_widget_get_display(v), hit ? "pointer" : "text");
-    gdk_window_set_cursor(win, c);
-    if (c) g_object_unref(c);
+    hit = tbl_hit(w, (int)ev->x, (int)ev->y, &col) >= 0;
+    if (!cur[hit]) cur[hit] = gdk_cursor_new_from_name(gtk_widget_get_display(v), hit ? "pointer" : "text");
+    if (gdk_window_get_cursor(win) != cur[hit]) gdk_window_set_cursor(win, cur[hit]);
     return FALSE;
 }
 
@@ -856,6 +859,8 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     if (w->scratch) g_object_unref(w->scratch);
     if (w->kind == W_BURN && burn_active()) { burn_stop(); burn_tick(&w->st); burn_saved(w); }
     if (w->kind == W_BENCH && w->running && w->cancelp) *w->cancelp = 1;   /* closing the window stops the run */
+    if (w->jobw) *w->jobw = NULL;
+    if (w->avw) *w->avw = NULL;   /* a run still going (Benchmark, IPI, Latency, Crypto, Find) ends without a window */
     if (w->have_fr) srs_find_free(&w->fr);
     if (w->marks) g_ptr_array_free(w->marks, TRUE);
     if (w->rec) g_array_free(w->rec, TRUE);
@@ -925,28 +930,40 @@ static GtkWidget *menu_add(GtkWidget *menu, const char *label)
     return it;
 }
 
+/* The classic Menu has more entries than there are letters, so the benchmarks and stress tests are in their own
+   submenu (like the main window's Benchmarks & stress page). Every entry of a menu has its own Alt+letter:
+   tools/check-mnemonics.py checks the MNEMONIC-MENU regions. */
 static void build_menu(GtkWidget *menu)
 {
+    /* MNEMONIC-MENU: classic-benchmarks */
+    static const struct { const char *label, *tool; } bench[] = {
+        { "CPU B_urnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
+        { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "Prime Sie_ve...", "prime" },
+        { "_Cache & Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "OS La_tency...", "oslatency" },
+        { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
+        { "Net_work Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
+        { "GPU Bur_nin...", "gpuburn" }, { "GPU Comp_arison (Vulkan, HIP, CUDA, OpenCL)...", "gpucompare" }, { NULL, NULL } };
+    /* MNEMONIC-END */
+    /* MNEMONIC-MENU: classic-menu */
     static const struct { const char *group, *label; } groups[] = {
         { "cpu", "_Processors" }, { "machine", "_Machine / BIOS / Memory" }, { "sensors", "_Sensors / Cooling / Power" },
         { "storage", "_Volumes / Drives" }, { "network", "_Network" }, { "os", "_Linux (SIV Windows items)" },
         { "gpu", "_Graphics / Monitors / Audio" }, { "bus", "_Buses / Devices" }, { "tools", "_Tools" }, { "siv", "S_RS (SIV items)" },
         { NULL, NULL } };
     static const struct { const char *label, *tool; } tools[] = {
-        { "CPU _Burnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
-        { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "P_rime Sieve...", "prime" },
-        { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "_OS Latency...", "oslatency" },
-        { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
-        { "N_etwork Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
-        { "GPU B_urnin...", "gpuburn" }, { "GPU Compute Com_parison...", "gpucompare" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
+    {
+        GtkWidget *sub = gtk_menu_new();
+        for (i = 0; bench[i].label; i++) g_signal_connect(menu_add(sub, bench[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)bench[i].tool);
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_add(menu, "Ben_chmarks & stress")), sub);
+    }
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
     if (g_classic_session && (!g_main || g_main->kind != W_HOME))   /* classic start: the new window one click away */
-        g_signal_connect(menu_add(menu, "Open the _new main window (sidebar, overview)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"home");
+        g_signal_connect(menu_add(menu, "Open t_he new main window (sidebar, overview)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"home");
     else
-        g_signal_connect(menu_add(menu, "Classic _view (SIV-style main window)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"classic");
+        g_signal_connect(menu_add(menu, "Classic vie_w (SIV-style main window)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"classic");
     for (g = 0; groups[g].group; g++) {
         GtkWidget *sub = gtk_menu_new(), *top = menu_add(menu, groups[g].label);
         int cnt = 0;
@@ -971,12 +988,13 @@ static void build_menu(GtkWidget *menu)
         build_options(opt);
         gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_add(menu, "_Options")), opt);
     }
-    g_signal_connect(menu_add(menu, "Save _Report..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"save");
+    g_signal_connect(menu_add(menu, "Sav_e Report..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"save");
     g_signal_connect(menu_add(menu, "Save _All Items..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"saveall");
-    g_signal_connect(menu_add(menu, "Run as _root (srs-root)..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"root");
-    g_signal_connect(menu_add(menu, "User _Guide..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"guide");
+    g_signal_connect(menu_add(menu, "R_un as root (srs-root)..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"root");
+    g_signal_connect(menu_add(menu, "User Gui_de..."), "activate", G_CALLBACK(on_menu_tool), (gpointer)"guide");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
     g_signal_connect(menu_add(menu, "E_xit"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"exit");
+    /* MNEMONIC-END */
 }
 
 static void popup_menu(GtkWidget *anchor)
@@ -1478,7 +1496,8 @@ static gboolean find_done(gpointer data)
 {
     findjob *j = data;
     swin *w = j->w;
-    if (g_ptr_array_find(g_wins, w, NULL)) {
+    if (w && g_ptr_array_find(g_wins, w, NULL)) {
+        w->jobw = NULL;
         if (w->have_fr) srs_find_free(&w->fr);
         w->fr = j->fr;
         w->fr_rc = j->rc;
@@ -1507,6 +1526,7 @@ static void start_find(swin *w)
     if (w->busy) return;
     j = g_new0(findjob, 1);
     j->w = w;
+    w->jobw = &j->w;
     gtk_spin_button_update(GTK_SPIN_BUTTON(w->f_max));
     snprintf(j->pattern, sizeof j->pattern, "%s", gtk_entry_get_text(GTK_ENTRY(w->f_pat)));
     snprintf(j->report, sizeof j->report, "%s", gtk_entry_get_text(GTK_ENTRY(w->f_report)));
@@ -1517,7 +1537,7 @@ static void start_find(swin *w)
     w->busy = 1;
     render_find(w);
     th = g_thread_try_new("srs-find", find_worker, j, NULL);
-    if (!th) { w->busy = 0; w->fr_rc = 2; w->have_fr = 1; snprintf(w->fr_err, sizeof w->fr_err, "Failed to Create Worker Thread"); g_free(j); render_find(w); return; }
+    if (!th) { w->jobw = NULL; w->busy = 0; w->fr_rc = 2; w->have_fr = 1; snprintf(w->fr_err, sizeof w->fr_err, "Failed to Create Worker Thread"); g_free(j); render_find(w); return; }
     g_thread_unref(th);
 }
 
@@ -1972,7 +1992,8 @@ static gboolean bench_done(gpointer data)
     benchjob *j = data;
     swin *w = j->w;
     g_bench_busy = 0;
-    if (g_ptr_array_find(g_wins, w, NULL)) {
+    if (w && g_ptr_array_find(g_wins, w, NULL)) {
+        w->jobw = NULL;
         srs_out o;
         gctx g;
         const char *name = bk_result(j->sub, j->mode);
@@ -2040,7 +2061,12 @@ static gboolean bench_done(gpointer data)
 static gpointer bench_worker(gpointer data)
 {
     benchjob *j = data;
-    if (j->sub == BK_IPI) bench_ipi(j->cpus, j->rounds, NULL);
+    if (j->sub == BK_IPI) {
+        if ((j->rc = bench_ipi(j->cpus, j->rounds, NULL)) < 0) {   /* not started: the last result stays */
+            j->rc = -4;
+            snprintf(j->why, sizeof j->why, "%s", j->cpus == 1 || burn_ncpu() < 2 ? "IPI Delay needs at least two CPU threads (one pair)" : "out of memory");
+        }
+    }
     else if (j->sub == BK_LAT) bench_latency(j->max, NULL);
     else if (j->sub == BK_PI) j->rc = bench_pi(j->digits, j->threads, j->algo, NULL, &j->cancel, NULL);
     else if (j->sub == BK_CRYPTO) j->rc = bench_crypto(j->threads, j->secs, NULL);
@@ -2634,9 +2660,11 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     gtk_label_set_text(GTK_LABEL(w->bm_status), "Running...");
     if (w->sub >= BK_PI && !w->timer) w->timer = g_timeout_add(500, bench_tick, w);
     g_bench_busy = 1;
+    w->jobw = &j->w;
     th = g_thread_try_new("srs-bench", bench_worker, j, NULL);
     if (th) g_thread_unref(th);
     else {
+        w->jobw = NULL;
         g_bench_busy = 0;
         w->running = 0;
         w->cancelp = NULL;
@@ -2727,6 +2755,63 @@ static void gpu_device_defaults(swin *w)
     w->gp_filled = 0;
 }
 /* GPU Burnin: another back end has its own device list */
+/* GPU Burnin / GPU Compute comparison windows: which back ends are installed. available() only dlopens the libraries
+   (no runtime starts), but ROCm's are over 100 MB, so it runs on a worker thread and the window fills in afterwards */
+typedef struct { swin *w; int av[GB_N]; char hint[GB_N][300]; } gpu_avjob;
+static void on_gpu_back(GtkWidget *x, gpointer data);
+static gboolean gpu_av_done(gpointer data)
+{
+    gpu_avjob *a = data;
+    swin *w = a->w;
+    int k;
+    if (w && g_ptr_array_find(g_wins, w, NULL)) {
+        w->avw = NULL;
+        if (w->sub == BK_GPUCOMPARE)
+            for (k = 0; k < GB_N; k++) {
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->gc_back[k]), a->av[k]);
+                gtk_widget_set_sensitive(w->gc_back[k], a->av[k]);
+                gtk_widget_set_tooltip_text(w->gc_back[k], a->av[k] ? (k == GB_OPENCL ? "Installed. Every OpenCL driver on this GPU gets its own column."
+                                                                       : k == GB_CUDA ? "Installed. Labelled CUDA (ZLUDA) when the CUDA library is ZLUDA."
+                                                                       : "Installed.") : a->hint[k]);
+            }
+        else if (w->sub == BK_GPUBURN) {
+            char b[900] = "";
+            int act = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back));
+            g_signal_handlers_block_by_func(w->gb_back, G_CALLBACK(on_gpu_back), w);
+            gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->gb_back));
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), "Auto (Vulkan)");
+            for (k = 0; k < GB_N; k++) {
+                char e[120];
+                snprintf(e, sizeof e, "%s%s", gb_name[k], a->av[k] ? "" : " (not installed)");
+                gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), e);
+                snprintf(b + strlen(b), sizeof b - strlen(b), "%s%s: %s", k ? ";  " : "", gb_name[k], a->av[k] ? "installed" : a->hint[k]);
+            }
+            gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_back), act < 0 ? 0 : act);
+            g_signal_handlers_unblock_by_func(w->gb_back, G_CALLBACK(on_gpu_back), w);
+            gtk_label_set_text(GTK_LABEL(w->gb_info), b);
+        }
+    }
+    g_free(a);
+    return G_SOURCE_REMOVE;
+}
+static gpointer gpu_av_thread(gpointer data)
+{
+    gpu_avjob *a = data;
+    int k;
+    for (k = 0; k < GB_N; k++) a->av[k] = gb_table[k]->available(a->hint[k], sizeof a->hint[k]);
+    g_idle_add(gpu_av_done, a);
+    return NULL;
+}
+static void gpu_av_start(swin *w)
+{
+    gpu_avjob *a = g_new0(gpu_avjob, 1);
+    GThread *th;
+    a->w = w;
+    w->avw = &a->w;
+    if ((th = g_thread_try_new("srs-gpu-av", gpu_av_thread, a, NULL))) g_thread_unref(th);
+    else gpu_av_thread(a);   /* no thread: check here */
+}
+
 static void on_gpu_back(GtkWidget *x, gpointer data)
 {
     (void)x;
@@ -2943,16 +3028,13 @@ static void build_bench(swin *w, GtkWidget *vb)
         char hint[300];
         int k;
         gpu_device_combo(w, row);
-        for (k = 0; k < GB_N; k++) {   /* dlopen only: no runtime is started by opening the window */
-            int av = gb_table[k]->available(hint, sizeof hint);
+        for (k = 0; k < GB_N; k++) {   /* filled by gpu_av_start: dlopen only, no runtime is started by opening the window */
             w->gc_back[k] = gtk_check_button_new_with_label(gb_name[k]);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->gc_back[k]), av);
-            gtk_widget_set_sensitive(w->gc_back[k], av);
-            gtk_widget_set_tooltip_text(w->gc_back[k], av ? (k == GB_OPENCL ? "Installed. Every OpenCL driver on this GPU gets its own column."
-                                                                             : k == GB_CUDA ? "Installed. Labelled CUDA (ZLUDA) when the CUDA library is ZLUDA."
-                                                                             : "Installed.") : hint);
+            gtk_widget_set_sensitive(w->gc_back[k], FALSE);
+            gtk_widget_set_tooltip_text(w->gc_back[k], "Checking whether it is installed...");
             gtk_box_pack_start(GTK_BOX(row), w->gc_back[k], FALSE, FALSE, 0);
         }
+        (void)hint;
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
         w->bm_secs = spin(0.1, 2, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
@@ -2960,6 +3042,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_box_pack_start(GTK_BOX(r2), lbl("The GPU is chosen by its Vulkan device; the other back ends use the same card. "
                                             "Back ends that are not installed are greyed (the tooltip says what to install)."), FALSE, FALSE, 0);
         w->wk_row = r2;
+        gpu_av_start(w);
     } else if (w->sub == BK_GPUBURN) {
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
         char hint[300], b[900];
@@ -2967,14 +3050,9 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_box_pack_start(GTK_BOX(row), lbl("Back end"), FALSE, FALSE, 0);
         w->gb_back = gtk_combo_box_text_new();
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), "Auto (Vulkan)");
-        b[0] = 0;
-        for (k = 0; k < GB_N; k++) {   /* dlopen only: no runtime is started by opening the window */
-            char e[120];
-            int av = gb_table[k]->available(hint, sizeof hint);
-            snprintf(e, sizeof e, "%s%s", gb_name[k], av ? "" : " (not installed)");
-            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), e);
-            snprintf(b + strlen(b), sizeof b - strlen(b), "%s%s: %s", k ? ";  " : "", gb_name[k], av ? "installed" : hint);
-        }
+        snprintf(b, sizeof b, "Checking which GPU back ends are installed...");
+        for (k = 0; k < GB_N; k++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), gb_name[k]);   /* gpu_av_start marks the missing ones */
+        (void)hint;
         gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_back), 0);
         gtk_widget_set_tooltip_text(w->gb_back, "Vulkan works with every modern GPU driver. ROCm / HIP is AMD's compute platform, CUDA NVIDIA's "
                                                 "(or ZLUDA on AMD), OpenCL the older cross-vendor one. Auto = Vulkan when it has a GPU.");
@@ -2996,8 +3074,10 @@ static void build_bench(swin *w, GtkWidget *vb)
         w->gb_limit = spin(50, 120, 1, 100);
         gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge).");
         gtk_box_pack_start(GTK_BOX(row), w->gb_limit, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(r2), lbl(b), FALSE, FALSE, 0);
+        w->gb_info = lbl(b);
+        gtk_box_pack_start(GTK_BOX(r2), w->gb_info, FALSE, FALSE, 0);
         w->wk_row = r2;
+        gpu_av_start(w);
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -3487,9 +3567,11 @@ static void on_theme(GtkCheckMenuItem *mi, gpointer d)
     tray_apply();   /* rebuild the tray menu so its radio marks follow */
 }
 
+/* MNEMONIC-MENU: update-interval */
 static const struct { const char *label; int ms; } g_intervals[] = {
     { "_Default (each panel's own rate)", 0 }, { "0.5 seconds", 500 }, { "_1 second", 1000 }, { "_2 seconds", 2000 },
     { "_3 seconds", 3000 }, { "_5 seconds", 5000 }, { "1_0 seconds", 10000 }, { "_Paused (refresh by hand)", -1 }, { NULL, 0 } };
+/* MNEMONIC-END */
 
 static void on_interval(GtkCheckMenuItem *mi, gpointer d)
 {
@@ -3506,6 +3588,7 @@ static void on_interval(GtkCheckMenuItem *mi, gpointer d)
 
 static void build_options(GtkWidget *menu)
 {
+    /* MNEMONIC-MENU: options (tabs_options in gui_tabs.inc adds to the same menu) */
     static const struct { const char *label; int id; } opts[] = {
         { "System _tray icon", OPT_TRAY }, { "_Close button hides to tray", OPT_CLOSE },
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
@@ -3513,11 +3596,15 @@ static void build_options(GtkWidget *menu)
         { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT },
         { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT },
         { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC },
-        { "Sortable ta_bles in the main window (click a column heading)", OPT_SORT }, { NULL, 0 } };
+        { "S_ortable tables in the main window (click a column heading)", OPT_SORT }, { NULL, 0 } };
     int i, have = tray_available();
     if (g_home_open) tabs_options(menu);   /* main window: tab bar, lineups, every item as a tab, hidden items */
     {
+        /* MNEMONIC-END */
+        /* MNEMONIC-MENU: theme */
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
+        /* MNEMONIC-END */
+        /* MNEMONIC-MENU: options */
         GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("T_heme");
         GSList *grp = NULL;
         for (i = 0; i < 3; i++) {
@@ -3531,7 +3618,7 @@ static void build_options(GtkWidget *menu)
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), top);
     }
     {
-        GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("_Update interval");
+        GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("Upd_ate interval");
         GSList *grp = NULL;
         for (i = 0; g_intervals[i].label; i++) {
             GtkWidget *it = gtk_radio_menu_item_new_with_mnemonic(grp, g_intervals[i].label);
@@ -3568,11 +3655,12 @@ static void build_options(GtkWidget *menu)
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
     {
-        GtkWidget *it = gtk_menu_item_new_with_mnemonic("_Hide to Tray");
+        GtkWidget *it = gtk_menu_item_new_with_mnemonic("Hide to Tra_y");
         g_signal_connect(it, "activate", G_CALLBACK(on_tray_toggle), NULL);
         gtk_widget_set_sensitive(it, tray_active());
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
+    /* MNEMONIC-END */
 }
 
 /* main window: close / minimise go to the tray when those options are on */
@@ -4789,6 +4877,8 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     gtk_widget_set_tooltip_text(src, s);
     gtk_box_pack_start(GTK_BOX(bar), src, TRUE, TRUE, 4);
     tb = bar;   /* the buttons follow on the same row; their texts shorten in a narrow window (tool_btn) */
+    /* MNEMONIC-MENU: benchmarks-page, tools-page, item-tab (the tab bar shares the window with the launchers; Reset view has
+       no Alt+letter: there are not enough letters, and sorting is done with the mouse) */
     if (it && it->needs_root && !so_root_file("collected.txt"))
         tb_add(tb, tool_btn(t, "dialog-password-symbolic", "Needs root data...", "!root",
                            "Parts of this item can only be read as root. Collect them once with one password prompt (read-only)."));
@@ -4809,21 +4899,24 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
             tb_add(tb, lv);
         }
     }
-    if (!strcmp(id, "sensors")) {
+    /* MNEMONIC-END */
+    if (!strcmp(id, "sensors")) {   /* MNEMONIC-MENU: item-tab (the Sensors tab only) */
         tb_add(tb, tool_btn(t, NULL, "_Zero", "!zero", "Start the minimum and maximum columns again from now"));
         tb_add(tb, tool_btn(t, NULL, "_Hide unused", "!hide", "Hide or show sensors that read nothing (press again to show them)"));
-    }
-    t->reset_btn = tool_btn(t, "view-sort-ascending-symbolic", "Reset _view", "!resetview",
+    }   /* MNEMONIC-END */
+    /* MNEMONIC-MENU: benchmarks-page, tools-page, item-tab */
+    t->reset_btn = tool_btn(t, "view-sort-ascending-symbolic", "Reset view", "!resetview",
                             "Put the tables back in the item's own order. Click a column heading to sort by it: "
                             "first click smallest or A first (\u25B2), second click largest or Z first (\u25BC).");
     gtk_widget_set_no_show_all(t->reset_btn, TRUE);
     tb_add(tb, t->reset_btn);
-    tb_add(tb, tool_btn(t, "view-refresh-symbolic", "_Refresh", "!refresh", "Read this item again now (F5)"));
+    tb_add(tb, tool_btn(t, "view-refresh-symbolic", "Re_fresh", "!refresh", "Read this item again now (F5)"));
     tb_add(tb, tool_btn(t, "edit-copy-symbolic", "_Copy", "!copy",
                        "Copy all of this text. With Options > Redact on, serials, UUIDs, MACs and the computer name are masked."));
     tb_add(tb, tool_btn(t, "help-browser-symbolic", "_Guide", "!guide", "Open the user guide at this item: what each value means (F1)"));
     tb_add(tb, tool_btn(t, "view-dual-symbolic", "Open in _window", "!pop",
                        "Open this item as a classic SRS panel with its SIV-style button row"));
+    /* MNEMONIC-END */
     gtk_box_pack_start(GTK_BOX(page), bar, FALSE, FALSE, 0);
     {
         GtkWidget *sw = make_view(t);
@@ -5239,19 +5332,19 @@ static GtkWidget *build_cat_page(int cat)
         gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), 32);
         gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(fb), 0);
         gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
-        if (cat == CAT_BENCH) {
+        if (cat == CAT_BENCH) {   /* MNEMONIC-MENU: benchmarks-page (one Alt+letter each, also unlike the tab bar's) */
             grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
                 "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("CPU IPI Delay", "How long the cores take to hand data to each other (core-to-core latency), as a table and heat map.",
-                "Busy for a few seconds while it measures.", "_IPI Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run and confirm."));
+                "Busy for a few seconds while it measures.", "IPI _Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
-                "Busy for a few seconds while it measures.", "_Latency...", "lat", "Open the Latency window. Nothing runs until you press Run and confirm."));
+                "Busy for a few seconds while it measures.", "Late_ncy...", "lat", "Open the Latency window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
-                "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "Cache & _Memory...", "cachemem",
+                "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "C_ache & Memory...", "cachemem",
                 "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Storage", "How fast the drive that holds a folder you choose reads and writes: sequential, 4K random and response time.",
                 "Works on its own temporary test file only; never touches your files. USB drives only when you allow them. Asks before it starts.",
-                "St_orage...", "storagebench", "Open the Storage benchmark window. Nothing runs until you press Run and confirm."));
+                "S_torage...", "storagebench", "Open the Storage benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("OS Latency", "How quickly the operating system answers a program: system calls, task switches, "
                 "starting threads and programs, wake-ups, timer lateness (with the CPU scheduler in use), page faults and small-file operations.",
                 "Busy on one or two CPUs for about 6 seconds. Asks before it starts.", "_OS Latency...", "oslatency",
@@ -5267,12 +5360,12 @@ static GtkWidget *build_cat_page(int cat)
             grid_add3(fb, launcher("Network", "On this computer: how fast Linux moves network data between two programs (loopback). "
                 "Optional internet speed test: DNS, connect time, download and upload speed against Cloudflare's public speed test.",
                 "Loopback: a few CPUs for about 20 seconds, nothing leaves the PC. The internet test asks separately and says how much data it uses.",
-                "N_etwork...", "netbench", "Open the Network benchmark window. Nothing runs until you press Run and confirm."));
+                "Networ_k...", "netbench", "Open the Network benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("GPU Benchmark", "How fast the graphics card computes (FP32, FP16, FP64 and whole-number multiply-add), "
                 "how fast its video memory reads, writes and copies, how fast data moves to and from it, and how quickly it answers. "
                 "Uses Vulkan; every result is checked.",
                 "The GPU works at full load for about 15 seconds. Asks before it starts. Needs a Vulkan driver.",
-                "_GPU Benchmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
+                "GPU Benc_hmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("GPU Burnin", "Keeps the graphics card fully busy with large matrix multiplications and counts every wrong "
                 "result - the way to check a GPU overclock or undervolt, the cooling and the power supply. Live temperature, power, clock and fan. "
                 "Vulkan, ROCm / HIP, CUDA or OpenCL.",
@@ -5283,32 +5376,34 @@ static GtkWidget *build_cat_page(int cat)
                 "you have installed, on the same graphics card, side by side: SRS's own kernel and the vendor's library (hipBLAS, cuBLAS, "
                 "CLBlast), the fastest marked and each as a percentage of Vulkan.",
                 "Full GPU load for about 20 seconds per back end. Asks first. Back ends that are not installed say so.",
-                "GPU Compute Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
+                "GPU Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Crypto", "How fast the CPU encrypts (AES-128) and hashes (SHA-256), with and without its built-in crypto instructions.",
-                "Busy for about 8 seconds.", "C_rypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
+                "Busy for about 8 seconds.", "Cr_ypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Prime Sieve", "Counts the prime numbers up to 10 billion and checks the count. Simple integer and cache work that scales with threads.",
-                "Busy for about a second on all threads.", "P_rime Sieve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
+                "Busy for about a second on all threads.", "Prime Sie_ve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("CPU Burnin", "Burn and cool cycles with a Pass or Fail at the end: tests cooling and stability.",
                 "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit (90 °C by default).",
-                "B_urnin...", "burn", "Open the CPU Burnin window. Nothing starts until you press Start and confirm."));
+                "CPU Burn_in...", "burn", "Open the CPU Burnin window. Nothing starts until you press Start and confirm."));
             grid_add3(fb, launcher("CPU Stress", "Keeps the chosen CPUs busy until you press Stop, while showing clocks and temperatures.",
                 "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit.",
-                "_Stress...", "stress", "Open the CPU Stress window. Nothing starts until you press Start and confirm."));
-        } else {
+                "CPU _Stress...", "stress", "Open the CPU Stress window. Nothing starts until you press Start and confirm."));
+            /* MNEMONIC-END */
+        } else {   /* MNEMONIC-MENU: tools-page */
             grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
-                "Ctrl+L. Also: double-click a device line on any page.", "_Lookup...", "idlookup", "Open the Device ID Lookup window"));
+                "Ctrl+L. Also: double-click a device line on any page.", "Loo_kup...", "idlookup", "Open the Device ID Lookup window"));
             grid_add3(fb, launcher("Find in a system report", "Search every section of a full text report made by SRS Full System Report (srs-sysreport).",
-                "Ctrl+Shift+F", "_Find...", "find", "Open the Find window"));
+                "Ctrl+Shift+F", "F_ind...", "find", "Open the Find window"));
             grid_add3(fb, launcher("Save a report", "Write this PC's details to a text file, in SIV's report format.",
                 "Options > Redact hides serial numbers, UUIDs, MACs and the computer name in saved reports.", "_Save...", "save",
                 "Save SRS's default set of items (Ctrl+S). Menu > Save All Items saves every item."));
             grid_add3(fb, launcher("Collect root data", "Memory stick details, drive health and serial numbers need administrator rights.",
-                "One password prompt. Read-only; the results are cached in ~/.cache/srs/root.", "Run as r_oot...", "root", "Run srs-root with pkexec"));
+                "One password prompt. Read-only; the results are cached in ~/.cache/srs/root.", "_Run as root...", "root", "Run srs-root with pkexec"));
             grid_add3(fb, launcher("Classic view", "The SIV-style main window with its button rows, every item in its own window.",
-                "Menu > Options > Start in classic view makes it the default.", "O_pen...", "classic", "Open the classic main window"));
+                "Menu > Options > Start in classic view makes it the default.", "_Open...", "classic", "Open the classic main window"));
+            /* MNEMONIC-END */
         }
         {   /* the launchers scroll (Benchmarks has 16), so they never set a big minimum window size */
             GtkWidget *sc = gtk_scrolled_window_new(NULL, NULL);
@@ -5494,6 +5589,7 @@ static void on_menu_btn(GtkButton *b, gpointer d)
 {
     GtkWidget *m = gtk_menu_new(), *sub, *it;
     (void)d;
+    /* MNEMONIC-MENU: header-menu */
     hmenu_add(m, "Save _Report...", "save", GDK_KEY_s, GDK_CONTROL_MASK);
     hmenu_add(m, "Save _All Items...", "saveall", 0, 0);
     gtk_widget_set_sensitive(hmenu_add(m, "_Copy This Tab", "copy", 0, 0), home_cur_tab() != NULL);
@@ -5506,7 +5602,7 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     build_options(sub);
     it = hmenu_add(m, "_Options", NULL, 0, 0);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
-    hmenu_add(m, "Run as r_oot (srs-root)...", "root", 0, 0);
+    hmenu_add(m, "Run as roo_t (srs-root)...", "root", 0, 0);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     hmenu_add(m, "_Find in System Report...", "find", GDK_KEY_f, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
     hmenu_add(m, "Device _ID Lookup...", "idlookup", GDK_KEY_l, GDK_CONTROL_MASK);
@@ -5518,9 +5614,10 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     hmenu_add(m, "User _Guide", "guide", GDK_KEY_F1, 0);
-    hmenu_add(m, "_About SRS", "about", 0, 0);
+    hmenu_add(m, "A_bout SRS", "about", 0, 0);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     hmenu_add(m, "_Quit", "quit", GDK_KEY_q, GDK_CONTROL_MASK);
+    /* MNEMONIC-END */
     gtk_widget_show_all(m);
     gtk_menu_popup_at_widget(GTK_MENU(m), GTK_WIDGET(b), GDK_GRAVITY_SOUTH_EAST, GDK_GRAVITY_NORTH_EAST, NULL);
 }

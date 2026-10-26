@@ -184,6 +184,10 @@ guide:
 check-guide:
 	python3 docs/gen_guide_map.py --check
 
+# every menu and window page of the GUI: no two entries with the same Alt+letter
+check-mnemonics:
+	python3 tools/check-mnemonics.py
+
 headers: win64 win32
 	x86_64-w64-mingw32-objdump -p $(DIST)/win/SRS64X.exe | grep -E "^(Magic|ImageBase|Major|Minor|Subsystem|DllChar|SizeOfStack)|DLL Name"
 	i686-w64-mingw32-objdump -p $(DIST)/win/SRS32X.exe | grep -E "^(Magic|ImageBase|Major|Minor|Subsystem|DllChar|SizeOfStack)|DLL Name"
@@ -191,4 +195,4 @@ headers: win64 win32
 clean:
 	rm -rf $(DIST)
 
-.PHONY: test-power test-bench gpu-shaders guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
+.PHONY: test-power test-bench gpu-shaders guide check-guide check-mnemonics native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean

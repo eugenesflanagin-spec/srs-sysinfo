@@ -16,6 +16,22 @@ run_cmd "srs-gui --version" srs-gui --version
 ls -lL /usr/share/hwdata/pci.ids /usr/share/hwdata/usb.ids 2>&1
 [ -s /usr/share/srs-sysinfo/power-zip-rates.tsv ] && echo "OK power-zip-rates.tsv" || fail "missing /usr/share/srs-sysinfo/power-zip-rates.tsv"
 
+echo "--- benchmark commands (help only, and the not-started path; nothing is measured)"
+for c in bench ipi latency pi crypto prime cachemem storage os-latency compute work net gpu gpu-burn gpu-compare; do
+  sysreport-search $c --help >/dev/null 2>&1 && echo "OK $c --help" || fail "$c --help"
+done
+# no terminal and no --yes: every benchmark must refuse to start (exit 2), on any distro
+for c in "compute" "work" "net" "gpu" "gpu-burn" "gpu-compare"; do
+  out=$(sysreport-search $c </dev/null 2>&1); rc=$?
+  [ $rc -eq 2 ] && echo "OK $c without a terminal: not started (${out%%$'\n'*})" || fail "$c without a terminal: exit $rc"
+done
+# the optional libraries are loaded at run time: missing ones (libvulkan, zlib, libcurl ...) must give a plain
+# message, never a crash. gpu --list exits 0 with devices or 2 with the reason
+out=$(sysreport-search gpu --list 2>&1); rc=$?
+{ [ $rc -eq 0 ] || [ $rc -eq 2 ]; } && echo "OK gpu --list (exit $rc): ${out%%$'\n'*}" || fail "gpu --list exit $rc"
+out=$(sysreport-search gpu-burn --list --backend vulkan 2>&1); rc=$?
+[ $rc -eq 0 ] && echo "OK gpu-burn --list --backend vulkan: ${out%%$'\n'*}" || fail "gpu-burn --list --backend vulkan exit $rc"
+
 echo "--- user guide"
 D=/usr/share/doc/srs-sysinfo
 pdf=$D/SRS-User-Guide.pdf html=$D/html/SRS-User-Guide.html

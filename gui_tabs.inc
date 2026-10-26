@@ -1036,6 +1036,7 @@ static void tab_menu(swin *t, GdkEvent *ev)
     GtkWidget *m = gtk_menu_new(), *sub, *it;
     GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[t->cat]);
     int at = gtk_notebook_page_num(nb, t->page), n = gtk_notebook_get_n_pages(nb);
+    /* MNEMONIC-MENU: tab-menu */
     tabm_add(m, t->temp ? "_Keep this tab" : "_Keep this tab (it is kept)", "keep", t, t->temp);
     tabm_add(m, "_Replace with...", "replace", t, TRUE);
     tabm_add(m, "Move _left", "left", t, at > 0);
@@ -1045,6 +1046,7 @@ static void tab_menu(swin *t, GdkEvent *ev)
     tabm_add(m, "_Add a tab...", "add", t, TRUE);
     tabm_add(m, "_Tabs on this page...", "page", t, TRUE);
     tabm_add(m, "Reset this page's tabs to the line_up", "reset", t, TRUE);
+    /* MNEMONIC-END */
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     sub = gtk_menu_new();
     lineup_menu(sub);
@@ -1229,12 +1231,14 @@ static void lineup_menu(GtkWidget *m)
         if (i == LU_EXPERT && u->len) gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     }
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    /* MNEMONIC-MENU: lineup-menu */
     lum_add(m, custom ? "_Save to this lineup" : "_Save to this lineup (built-in: use Save as new)", "save", custom && changed);
     lum_add(m, "Save as _new lineup...", "saveas", TRUE);
     lum_add(m, "_Export lineup...", "export", TRUE);
     lum_add(m, "_Import lineup...", "import", TRUE);
     lum_add(m, "_Remove this lineup...", "remove", custom);
     lum_add(m, "Reset to the _default lineup (Expert)", "default", TRUE);
+    /* MNEMONIC-END */
     g_ptr_array_free(u, TRUE);
 }
 
@@ -1272,7 +1276,10 @@ static void on_autoscan(GtkCheckMenuItem *mi, gpointer d)
 
 static void tabs_options(GtkWidget *menu)
 {
+    /* MNEMONIC-MENU: tab-bar-layout */
     static const char *const ll[LAY_N] = { "_One row that scrolls", "_Wrapped rows (every tab visible)", "_Side list (tabs on the left)" };
+    /* MNEMONIC-END */
+    /* MNEMONIC-MENU: options (with build_options in gui_gtk.c) */
     GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("Tab _bar"), *it;
     GSList *grp = NULL;
     int i;
@@ -1302,7 +1309,7 @@ static void tabs_options(GtkWidget *menu)
     gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), g_opt_showhidden);
     g_signal_connect(it, "toggled", G_CALLBACK(on_tabopt), GINT_TO_POINTER(1));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
-    it = gtk_check_menu_item_new_with_mnemonic("Check dail_y which items have nothing to show");
+    it = gtk_check_menu_item_new_with_mnemonic("Chec_k daily which items have nothing to show");
     gtk_widget_set_tooltip_text(it, "Off (the default): SRS checks only when you choose Check now. On: once a day, in the "
                                     "background, SRS reads every item to find the ones with nothing to show and hides them. "
                                     "The network items and Ping are never part of the check. Windows-only items and hardware "
@@ -1317,6 +1324,7 @@ static void tabs_options(GtkWidget *menu)
     g_signal_connect(it, "activate", G_CALLBACK(on_rescan), NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+    /* MNEMONIC-END */
 }
 
 /* ---- "Tabs on each page": standard tabs / standard plus the ticked ones / every item ---- */
@@ -1552,12 +1560,12 @@ static gboolean lineup_first_ask(gpointer d)
                                       "_OK", GTK_RESPONSE_OK, NULL);
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_container_set_border_width(GTK_CONTAINER(box), 14);
-    l = gtk_label_new(g_lu_returning ? "SRS 2.2 can arrange its pages in lineups.\nYour pages stay as you know them (the Enthusiast lineup) unless you pick another:"
+    l = gtk_label_new(g_lu_returning ? "SRS 2.2 can arrange its pages in lineups.\nThe pages keep the standard tabs of SRS 2.0 (the Enthusiast lineup) unless you pick another:"
                                      : "Which tabs would you like on SRS's pages?");
     gtk_label_set_xalign(GTK_LABEL(l), 0);
     gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);
     for (i = LU_BASIC; i <= LU_EXPERT; i++) {
-        char *t = g_strdup_printf("%s%s - %s", g_lu_builtin[i], i == (g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT) ? (g_lu_returning ? " (your current tabs)" : " (default)") : "", what[i]);
+        char *t = g_strdup_printf("%s%s - %s", g_lu_builtin[i], i == (g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT) ? (g_lu_returning ? " (the standard tabs, kept)" : " (default)") : "", what[i]);
         r[i] = gtk_radio_button_new_with_label_from_widget(i > LU_BASIC ? GTK_RADIO_BUTTON(r[LU_BASIC]) : NULL, t);
         g_free(t);
         gtk_box_pack_start(GTK_BOX(box), r[i], FALSE, FALSE, 0);
@@ -1572,7 +1580,14 @@ static gboolean lineup_first_ask(gpointer d)
     gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 6);
     gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))), box, TRUE, TRUE, 0);
     gtk_widget_show_all(dlg);
-    gtk_dialog_run(GTK_DIALOG(dlg));   /* closed without OK: the default */
+    g_object_add_weak_pointer(G_OBJECT(dlg), (gpointer *)&dlg);
+    /* closed without OK: the default. The main window can go away while the question is up (Quit from the tray menu):
+       the dialog and its buttons are then destroyed with it; nothing is read and it is asked again next time */
+    if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_NONE || !dlg || !g_main) {
+        if (dlg) { g_object_remove_weak_pointer(G_OBJECT(dlg), (gpointer *)&dlg); gtk_widget_destroy(dlg); }
+        return G_SOURCE_REMOVE;
+    }
+    g_object_remove_weak_pointer(G_OBJECT(dlg), (gpointer *)&dlg);
     for (i = LU_BASIC; i <= LU_EXPERT; i++)
         if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(r[i]))) pick = i;
     gtk_widget_destroy(dlg);

@@ -452,7 +452,8 @@ static int cmd_bench(int argc, char **argv)
     if (!strcmp(cmd, "ipi")) {
         q.kind = BA_IPI; q.cpus = cpus; q.rounds = rounds;
         if (!yes && !ask_bench("ipi", &q)) return 2;
-        return bench_ipi(cpus, rounds, &o) ? 1 : 0;
+        i = bench_ipi(cpus, rounds, &o);
+        return i < 0 ? 2 : i ? 1 : 0;   /* -1: not started (one CPU: no pair) */
     }
     if (mb < 1 || mb > 4096) return usage_error("--max must be 1..4096 MB");
     q.kind = BA_LAT; q.max_mb = (double)mb;
@@ -1066,9 +1067,15 @@ static int cmd_gpu_burn(int argc, char **argv)
     if (c.backend == GB_VULKAN || c.backend == GPUBURN_AUTO) {
         gpu_dev d[GPU_MAXDEV];
         int n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
+        int k, gpu = -1;
+        for (k = 0; k < n; k++) if (d[k].dtype != GPU_CPU) { gpu = k; break; }   /* the default skips software renderers */
         if (n > 0 && c.device >= 0 && c.device < n) snprintf(dev, sizeof dev, "%.250s", d[c.device].name);
-        else if (n > 0 && c.device == -1) snprintf(dev, sizeof dev, "%.250s", d[0].name);
-        else if (n <= 0 && c.backend == GB_VULKAN) {
+        else if (n > 0 && c.device == -1 && (gpu >= 0 || c.software_only)) snprintf(dev, sizeof dev, "%.250s", d[gpu >= 0 ? gpu : 0].name);
+        if (n > 0 && gpu < 0 && !c.software_only && c.backend == GB_VULKAN) {
+            fprintf(stderr, "gpu-burn: not started - Vulkan lists no GPU, only %s (a software renderer, which GPU Burnin does not burn)\n", d[0].name);
+            return 2;
+        }
+        if (n <= 0 && c.backend == GB_VULKAN) {
             fprintf(stderr, "gpu-burn: not started - no Vulkan device: %s\n", why[0] ? why : "none found");
             return 2;
         }

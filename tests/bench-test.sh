@@ -53,6 +53,10 @@ out=$("$BIN" bench pp --seconds 0.1 --yes); rc=$?
 [ "$rc" = 0 ] && grep -q "MWIPS" <<<"$out" && [ -s "$HOME/.cache/srs/bench-benchmark-pp.txt" ] && ok "bench pp: $(grep '^Total' <<<"$out" | sed 's/  */ /g')" || bad "bench pp --yes: exit $rc"
 out=$("$BIN" ipi --cpus 2 --rounds 2000 --yes); rc=$?
 [ "$rc" = 0 ] && grep -q "CPU-1" <<<"$out" && [ -s "$HOME/.cache/srs/bench-ipi-delay.txt" ] && ok "ipi 2 CPUs ran" || bad "ipi --yes: exit $rc"
+cp "$HOME/.cache/srs/bench-ipi-delay.txt" "$TMP/ipi-before.txt" 2>/dev/null
+out=$("$BIN" ipi --cpus 1 --yes 2>&1); rc=$?
+[ "$rc" = 2 ] && grep -q "at least two CPU threads" <<<"$out" && cmp -s "$TMP/ipi-before.txt" "$HOME/.cache/srs/bench-ipi-delay.txt" \
+    && ok "ipi with one CPU: not started (exit 2), the last result is kept" || bad "ipi --cpus 1: exit $rc, result file changed or no reason"
 out=$("$BIN" latency --max 4 --yes); rc=$?
 [ "$rc" = 0 ] && grep -q " ns" <<<"$out" && [ -s "$HOME/.cache/srs/bench-latency.txt" ] && ok "latency up to 4 MB ran" || bad "latency --yes: exit $rc"
 
