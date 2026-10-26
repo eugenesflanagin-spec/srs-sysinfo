@@ -464,6 +464,7 @@ static void rows_free(GArray *rows)
 static int row_is_head(const trow *r) { return !r->nl && r->ncell >= 2 && r->nonempty >= 2 && r->alllabel; }
 
 /* Replay w->rec into the tab's view with each table in its chosen order. */
+
 static void tbl_replay(swin *w)
 {
     GArray *rows;
@@ -3691,6 +3692,8 @@ static void load_css(void)
         ".srs-card { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 8px; padding: 14px 16px; }"
         ".srs-fact { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 6px; padding: 7px 12px; }"
         ".srs-health { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 8px; padding: 6px 16px 10px 16px; }"
+        ".srs-launch { border-bottom: 1px solid alpha(@borders, 0.6); }"
+        ".srs-health flowboxchild { padding: 0; }"
         ".srs-dot { font-size: 16px; }"
         ".srs-ok { color: @success_color; }"
         ".srs-warn { color: @warning_color; }"
@@ -4710,13 +4713,23 @@ static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
     live_start(t);
 }
 
+/* one entry of a tab's button row */
+static void tb_add(GtkWidget *tb, GtkWidget *w)
+{
+    gtk_box_pack_start(GTK_BOX(tb), w, FALSE, FALSE, 0);
+}
+
+/* a tab-bar button: icon and text; the text shortens ("Ref...") in a narrow window instead of widening it, the
+   tooltip still says what it does */
 static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const char *target, const char *tip)
 {
-    GtkWidget *b = gtk_button_new_with_mnemonic(label);
-    if (icon) {
-        gtk_button_set_image(GTK_BUTTON(b), gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_BUTTON));
-        gtk_button_set_always_show_image(GTK_BUTTON(b), TRUE);
-    }
+    GtkWidget *b = gtk_button_new(), *hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4), *l = gtk_label_new_with_mnemonic(label);
+    if (icon) gtk_box_pack_start(GTK_BOX(hb), gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_BUTTON), FALSE, FALSE, 0);
+    gtk_label_set_ellipsize(GTK_LABEL(l), PANGO_ELLIPSIZE_END);
+    gtk_label_set_mnemonic_widget(GTK_LABEL(l), b);
+    gtk_box_pack_start(GTK_BOX(hb), l, TRUE, TRUE, 0);
+    gtk_widget_set_halign(hb, GTK_ALIGN_CENTER);
+    gtk_container_add(GTK_CONTAINER(b), hb);
     gtk_widget_set_tooltip_text(b, tip);
     g_object_set_data(G_OBJECT(b), "target", (gpointer)target);
     g_signal_connect(b, "clicked", G_CALLBACK(on_tab_btn), t);
@@ -4744,7 +4757,7 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
 {
     GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
     const srs_item *it = srs_section_find(id);
-    GtkWidget *page, *bar, *src;
+    GtkWidget *page, *bar, *src, *tb;
     swin *t;
     char s[600];
     int i;
@@ -4775,9 +4788,10 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
              it && it->needs_root ? ". Some of it needs root data (Run as root)." : "");
     gtk_widget_set_tooltip_text(src, s);
     gtk_box_pack_start(GTK_BOX(bar), src, TRUE, TRUE, 4);
+    tb = bar;   /* the buttons follow on the same row; their texts shorten in a narrow window (tool_btn) */
     if (it && it->needs_root && !so_root_file("collected.txt"))
-        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "dialog-password-symbolic", "Needs root data...", "!root",
-                           "Parts of this item can only be read as root. Collect them once with one password prompt (read-only)."), FALSE, FALSE, 0);
+        tb_add(tb, tool_btn(t, "dialog-password-symbolic", "Needs root data...", "!root",
+                           "Parts of this item can only be read as root. Collect them once with one password prompt (read-only)."));
     if (t->own_ms > 0) {
         GtkWidget *sw = gtk_switch_new(), *ll = gtk_label_new_with_mnemonic("_Live");
         snprintf(s, sizeof s, "Refresh this view every %.1f s while it is shown. Menu > Options > Update interval changes the rate for all views.",
@@ -4788,37 +4802,42 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
         gtk_widget_set_tooltip_text(sw, s);
         gtk_widget_set_tooltip_text(ll, s);
         g_signal_connect(sw, "notify::active", G_CALLBACK(on_tab_live), t);
-        gtk_box_pack_start(GTK_BOX(bar), ll, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), sw, FALSE, FALSE, 4);
+        {
+            GtkWidget *lv = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);   /* the label and its switch stay together */
+            gtk_box_pack_start(GTK_BOX(lv), ll, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(lv), sw, FALSE, FALSE, 4);
+            tb_add(tb, lv);
+        }
     }
     if (!strcmp(id, "sensors")) {
-        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Zero", "!zero", "Start the minimum and maximum columns again from now"), FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Hide unused", "!hide", "Hide or show sensors that read nothing (press again to show them)"), FALSE, FALSE, 0);
+        tb_add(tb, tool_btn(t, NULL, "_Zero", "!zero", "Start the minimum and maximum columns again from now"));
+        tb_add(tb, tool_btn(t, NULL, "_Hide unused", "!hide", "Hide or show sensors that read nothing (press again to show them)"));
     }
     t->reset_btn = tool_btn(t, "view-sort-ascending-symbolic", "Reset _view", "!resetview",
                             "Put the tables back in the item's own order. Click a column heading to sort by it: "
                             "first click smallest or A first (\u25B2), second click largest or Z first (\u25BC).");
     gtk_widget_set_no_show_all(t->reset_btn, TRUE);
-    gtk_box_pack_start(GTK_BOX(bar), t->reset_btn, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "view-refresh-symbolic", "_Refresh", "!refresh", "Read this item again now (F5)"), FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "edit-copy-symbolic", "_Copy", "!copy",
-                       "Copy all of this text. With Options > Redact on, serials, UUIDs, MACs and the computer name are masked."), FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "help-browser-symbolic", "_Guide", "!guide", "Open the user guide at this item: what each value means (F1)"), FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "view-dual-symbolic", "Open in _window", "!pop",
-                       "Open this item as a classic SRS panel with its SIV-style button row"), FALSE, FALSE, 0);
+    tb_add(tb, t->reset_btn);
+    tb_add(tb, tool_btn(t, "view-refresh-symbolic", "_Refresh", "!refresh", "Read this item again now (F5)"));
+    tb_add(tb, tool_btn(t, "edit-copy-symbolic", "_Copy", "!copy",
+                       "Copy all of this text. With Options > Redact on, serials, UUIDs, MACs and the computer name are masked."));
+    tb_add(tb, tool_btn(t, "help-browser-symbolic", "_Guide", "!guide", "Open the user guide at this item: what each value means (F1)"));
+    tb_add(tb, tool_btn(t, "view-dual-symbolic", "Open in _window", "!pop",
+                       "Open this item as a classic SRS panel with its SIV-style button row"));
     gtk_box_pack_start(GTK_BOX(page), bar, FALSE, FALSE, 0);
     {
         GtkWidget *sw = make_view(t);
         gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
         if (!strcmp(id, "startup")) {   /* Startup: the report (read-only, shown first) and the manager (switches, Undo, Add) */
             GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
+            gtk_stack_set_homogeneous(GTK_STACK(st), FALSE);
             gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");   /* the first child: the tab opens on it */
             gtk_stack_add_titled(GTK_STACK(st), startup_manager_new(), "manage", "Manage");
             gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
             gtk_widget_set_tooltip_text(ss, "Report (where the tab opens): the Startup programs item as text, read-only (what Copy and "
                                             "Save Report give). Manage: turn startup items off and on, add one.");
             gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
-            gtk_box_reorder_child(GTK_BOX(bar), ss, 1);
+            gtk_box_reorder_child(GTK_BOX(bar), ss, 1);   /* first, right after the source line */
             gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
         } else gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
     }
@@ -5146,13 +5165,18 @@ static GtkWidget *launcher(const char *title, const char *text, const char *note
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16), *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2), *l, *b;
     gtk_widget_set_margin_top(row, 8);
     gtk_widget_set_margin_bottom(row, 8);
-    gtk_box_pack_start(GTK_BOX(v), label_cls(title, "srs-val", 0), FALSE, FALSE, 0);
+    l = label_cls(title, "srs-val", 0);
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);   /* a long title wraps instead of widening the whole window */
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 26);
+    gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
     l = label_cls(text, NULL, 0);
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 26);   /* two launchers side by side in a normal window, one in a narrow one */
     gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
     if (note) {
         l = label_cls(note, "dim-label srs-cap", 0);
         gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+        gtk_label_set_max_width_chars(GTK_LABEL(l), 30);
         gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
     }
     gtk_box_pack_start(GTK_BOX(row), v, TRUE, TRUE, 0);
@@ -5165,14 +5189,13 @@ static GtkWidget *launcher(const char *title, const char *text, const char *note
     return row;
 }
 
-/* launcher rows, two columns, separated by lines */
-static void grid_add3(GtkWidget *grid, GtkWidget *w)
+/* launcher rows: two columns, one in a narrow window (a flow box, so the page never sets a big minimum width) */
+static void grid_add3(GtkWidget *fb, GtkWidget *w)
 {
-    int n = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(grid), "n"));
     gtk_widget_set_hexpand(w, TRUE);
-    if (n >= 2) gtk_grid_attach(GTK_GRID(grid), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), n % 2, (n / 2) * 2 - 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), w, n % 2, (n / 2) * 2, 1, 1);
-    g_object_set_data(G_OBJECT(grid), "n", GINT_TO_POINTER(n + 1));
+    gtk_style_context_add_class(gtk_widget_get_style_context(w), "srs-launch");
+    gtk_container_add(GTK_CONTAINER(fb), w);
+    gtk_widget_set_can_focus(gtk_widget_get_parent(w), FALSE);   /* the button takes the focus, not its slot */
 }
 
 static gint item_title_cmp(gconstpointer a, gconstpointer b)
@@ -5208,9 +5231,13 @@ static GtkWidget *build_cat_page(int cat)
         u->box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         gtk_box_pack_start(GTK_BOX(head), u->box, FALSE, FALSE, 0);
     } else {
-        GtkWidget *fb = gtk_grid_new();   /* launcher rows in a framed box */
-        gtk_grid_set_column_homogeneous(GTK_GRID(fb), TRUE);
-        gtk_grid_set_column_spacing(GTK_GRID(fb), 32);
+        GtkWidget *fb = gtk_flow_box_new();   /* launcher rows in a framed box */
+        gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(fb), GTK_SELECTION_NONE);
+        gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(fb), FALSE);   /* each row as tall as its own launchers */
+        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(fb), 1);
+        gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(fb), 2);
+        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), 32);
+        gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(fb), 0);
         gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
         if (cat == CAT_BENCH) {
             grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
@@ -5283,9 +5310,16 @@ static GtkWidget *build_cat_page(int cat)
             grid_add3(fb, launcher("Classic view", "The SIV-style main window with its button rows, every item in its own window.",
                 "Menu > Options > Start in classic view makes it the default.", "O_pen...", "classic", "Open the classic main window"));
         }
-        gtk_box_pack_start(GTK_BOX(head), fb, FALSE, FALSE, 0);
+        {   /* the launchers scroll (Benchmarks has 16), so they never set a big minimum window size */
+            GtkWidget *sc = gtk_scrolled_window_new(NULL, NULL);
+            gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+            gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sc), TRUE);
+            gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(sc), 160);
+            gtk_container_add(GTK_CONTAINER(sc), fb);
+            gtk_box_pack_start(GTK_BOX(head), sc, TRUE, TRUE, 0);
+        }
     }
-    gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), head, cat == CAT_BENCH || cat == CAT_TOOLS, TRUE, 0);
 
     nb = tabs_area(cat);
     page_fill(cat);
@@ -5716,6 +5750,7 @@ static void home_open(int as_main)
     tabs_state_load();
     empty_load();
     g_home->stack = gtk_stack_new();
+    gtk_stack_set_homogeneous(GTK_STACK(g_home->stack), FALSE);   /* each page its own size: the biggest page does not set the window's minimum */
     gtk_stack_set_transition_type(GTK_STACK(g_home->stack), GTK_STACK_TRANSITION_TYPE_NONE);
     gtk_stack_add_named(GTK_STACK(g_home->stack), build_overview(), g_cats[CAT_OVERVIEW].name);
     for (c = 1; c < CAT_N; c++)

@@ -929,9 +929,16 @@ static GtkWidget *frame(const char *title, GtkWidget *child)
 static GtkWidget *scrolled(GtkWidget *child)
 {
     GtkWidget *sw = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    /* both ways: a page never makes the main window bigger than a small screen (scroll bars appear only when it is narrower) */
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(sw), child);
     return sw;
+}
+
+/* a notebook page: scrolled unless it scrolls itself already */
+static GtkWidget *page_scrolled(GtkWidget *page)
+{
+    return GTK_IS_SCROLLED_WINDOW(page) ? page : scrolled(page);
 }
 
 static const char *price_kind(void)
@@ -2932,13 +2939,13 @@ GtkWidget *power_page_new(void (*open_item)(const char *id))
     gtk_style_context_add_class(gtk_widget_get_style_context(G.nb), "srs-nb");
     gtk_notebook_set_show_border(GTK_NOTEBOOK(G.nb), FALSE);
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(G.nb), TRUE);
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_now(), gtk_label_new("Now"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_history(), gtk_label_new("History"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_sessions(), gtk_label_new("Sessions"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_price(), gtk_label_new("Price"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_setup(), gtk_label_new("Setup"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_alarms(), gtk_label_new("Alarms"));
-    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), build_sources(), gtk_label_new("Sources"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_now()), gtk_label_new("Now"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_history()), gtk_label_new("History"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_sessions()), gtk_label_new("Sessions"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_price()), gtk_label_new("Price"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_setup()), gtk_label_new("Setup"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_alarms()), gtk_label_new("Alarms"));
+    gtk_notebook_append_page(GTK_NOTEBOOK(G.nb), page_scrolled(build_sources()), gtk_label_new("Sources"));
     g_signal_connect(G.nb, "switch-page", G_CALLBACK(on_tab_switch), NULL);
     gtk_box_pack_start(GTK_BOX(vb), G.nb, TRUE, TRUE, 0);
     G.page = vb;
