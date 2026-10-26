@@ -232,8 +232,9 @@ static void s_about(srs_out *o)
     so_kv(o, "Licensed under", C_GREEN, "GNU General Public License v2.0 or later (GPL-2.0-or-later)");
     so_kv(o, "Home page", C_TEAL, "https://github.com/eugenesflanagin-spec/srs-sysinfo");
     so_par(o);
-    so_kv(o, "Why SRS", C_GREEN, "I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it.");
+    so_kv(o, "Why SRS", C_GREEN, "I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way.");
     so_kv(o, "", C_GREEN, "SRS is free and open source for the Linux and open-source community.");
+    so_kv(o, "", C_GREEN, "(SRS is an independent project, not affiliated with SIV or its author.)");
     so_kv(o, "Credit", C_GREEN, "SIV is by Ray Hinchliffe, RH Software - https://rh-software.com - with thanks for the original.");
     so_kv(o, "", C_GRAY, "Layout and item names modelled on SIV64X's observable output (-save dump, panels, strings).");
     so_kv(o, "", C_GRAY, "No SIV code, binaries or data files are used, included or disassembled.");
