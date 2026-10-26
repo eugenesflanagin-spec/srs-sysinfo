@@ -1427,7 +1427,7 @@ static void build_burn(swin *w, GtkWidget *vb)
  * ====================================================================== */
 typedef struct {
     swin *w;
-    int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb;
+    int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb, stopped;
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -1479,7 +1479,8 @@ static gboolean bench_done(gpointer data)
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == -1 ? "Not started: " : "Finished with an error: ", j->rc < 0 ? j->why : "");
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
-        } else
+        } else if (j->stopped) gtk_label_set_text(GTK_LABEL(w->bm_status), "Stopped - the empty cells were not measured");
+        else
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
@@ -1512,7 +1513,7 @@ static gpointer bench_worker(gpointer data)
         c.threads = j->threads;
         c.seconds = j->secs;
         j->rc = bench_cachemem(&c, NULL, &j->cancel);
-        if (j->rc == 1) j->rc = 0;   /* stopped: the partial result is shown, marked as stopped */
+        if (j->rc == 1) { j->rc = 0; j->stopped = 1; }   /* stopped: the partial result is shown, marked as stopped */
     } else if (j->sub == BK_STORAGE) {
         storage_cfg c;
         memset(&c, 0, sizeof c);

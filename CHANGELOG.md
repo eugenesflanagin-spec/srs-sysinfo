@@ -48,6 +48,10 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   (classic view); `--gui-open=pi|crypto|prime`.
 - `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
 
+### Changed
+- The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
+  memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).
+
 ### Fixed
 - Only one benchmark runs at a time across all windows (before, two benchmark windows could run at
   once and spoil each other's results), and CPU Burnin / Stress will not start while a benchmark

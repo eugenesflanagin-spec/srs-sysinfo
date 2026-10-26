@@ -86,7 +86,10 @@ if [ -d /dev/shm ] && [ "$(stat -f -c %T /dev/shm)" = tmpfs ]; then
     out=$("$BIN" storage --dir /dev/shm --yes 2>&1); rc=$?
     [ "$rc" = 2 ] && grep -q "in RAM" <<<"$out" && ok "a RAM folder (/dev/shm) is refused" || bad "storage on tmpfs: exit $rc: $out"
 fi
-"$BIN" storage --dir "$HOME" </dev/null >/dev/null 2>&1; [ $? = 2 ] && ok "storage asks first (no --yes, no terminal: not started)" || bad "storage started without --yes"
+if [ -n "${SRS_TEST_STORAGE_DIR:-}" ]; then   # a drive folder, so the run gets past the RAM check to the question
+    out=$("$BIN" storage --dir "$SRS_TEST_STORAGE_DIR" </dev/null 2>&1); rc=$?
+    [ "$rc" = 2 ] && grep -q "pass --yes" <<<"$out" && ok "storage asks first (no --yes, no terminal: not started)" || bad "storage without --yes: exit $rc: $out"
+fi
 "$BIN" storage --dir /nonexistent-srs-test --yes >/dev/null 2>&1; [ $? = 2 ] && ok "a missing folder is refused" || bad "missing folder accepted"
 # a real (small) run only on request: SRS_TEST_STORAGE_DIR=folder on a drive (64 MB, 1 s per test, Light profile)
 if [ -n "${SRS_TEST_STORAGE_DIR:-}" ]; then
