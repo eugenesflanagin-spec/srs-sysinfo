@@ -4,6 +4,63 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.1.0 - 2026-10-26
+
+The main window becomes yours to arrange: tabs you can add, swap and keep, saved as lineups;
+tables you can sort; and a Startup manager.
+
+### Added
+- **Tabs you can arrange.** On every page: **+** (or Ctrl+T) adds a tab that stays; right-click a
+  tab for **Keep this tab**, **Replace with...**, **Move left / right**, **Close tab**, **Tabs on
+  this page...** and **Reset this page's tabs to the lineup**; drag to move; close with its x,
+  Ctrl+W or a middle-click. SRS remembers each page's tabs and their order. Items opened from the
+  item list, the search, Details or a device lookup are temporary (in italics) until you keep them.
+- **All N items is a searchable jump list**: type to filter, Enter or a click goes to the item's
+  tab or opens it.
+- **Which tabs a page opens with** (Options -> Tabs on each page...): the standard tabs, the ones
+  you tick, or every item; **Show every item as a tab** does it for all pages at once.
+- **Tab bar layouts** (Options -> Tab bar): one row that scrolls, wrapped rows (every tab visible),
+  or a side list. Ctrl+PageUp / Ctrl+PageDown step through the tabs in every layout.
+- **Lineups**: saved arrangements of every page's tabs, their order and the tab bar. Built in:
+  **Basic** (a few friendly tabs), **Enthusiast** (the standard tabs, the default) and **Expert**
+  (every item as a tab, side list). Save your own, save changes to it, export and import
+  `.srslineup` files, reset to the default. Menu -> Lineup, Options -> Lineup, or a tab's
+  right-click menu; the sidebar shows the lineup in use and "(changed)".
+- **Items that cannot show anything here are hidden**: SIV's Windows-only items, hardware that is
+  not present, and items that come out empty on this PC (checked in the background at most once a
+  day, in a separate process). **Options -> Show hidden items** lists them greyed with the reason.
+- **Sortable tables**: click a column heading in a tab's table to sort it, first click ascending
+  (▲), second descending (▼). Numbers sort by value with their units (KB / MB / GB, MHz / GHz,
+  °C, RPM, %, V, W, times), dates by date, process numbers by number, names naturally. **Reset
+  view** (only on tabs with tables) puts the item's own order back. Copy and Save Report keep the
+  item's own order. Options -> Sortable tables turns it off.
+- **Startup manager** on Operating system -> Startup programs (**Manage**; **Report** is the item
+  as before): every autostart entry, systemd user unit and, if you tick it, system service with a
+  switch. Nothing is deleted: a system autostart entry is turned off with a copy in your autostart
+  folder that says Hidden=true, your own entries get Hidden=, and files SRS moves aside or changes
+  are kept in `~/.config/srs/startup-backup`. **Undo**, **Restore default** (systemd: the
+  distribution's preset) and **Add to startup...** for an installed program or a command, with an
+  optional delay. Desktop essentials (Plasma, KWin, KWallet, PipeWire, portals, polkit agent ...)
+  ask before they are turned off; system services ask and use pkexec. `SRS_STARTUP_DRY_RUN=1`
+  shows the systemctl / pkexec commands instead of running them.
+- **Privilege badge** in the title bar: **Full access** when SRS runs as root or srs-root's data is
+  there (the tooltip says when it was collected), else **Limited (user)** with a **Run as root...**
+  button and a tooltip listing what root unlocks.
+- **CPU Clocks: stock and in effect now.** A second table: the base clock measured (TSC x 100 /
+  CPPC nominal frequency, once per run), core base, boost and the fastest core now, each at stock
+  (100 MHz reference) and in effect, with the difference; FCLK, UCLK and MCLK from the SMU's PM
+  table (ryzen_smu, Zen 4 desktop layout, values checked) shown without a difference, because
+  software cannot measure them. Also in Save Report and the command line.
+
+### Changed
+- Every tab can be closed now, the standard ones too (All N items and Reset bring them back); the
+  close button shows on the tab in view and on temporary tabs.
+- The Startup programs item reads `$XDG_CONFIG_HOME/autostart` when that is set (before: always
+  `~/.config/autostart`).
+
+### Fixed
+- A live tab's refreshed line could take the colour of the text next to it.
+
 ## 2.0.0 - 2026-10-26
 
 This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per

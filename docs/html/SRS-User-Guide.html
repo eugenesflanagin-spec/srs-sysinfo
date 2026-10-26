@@ -142,7 +142,11 @@ kernel modules, registry -&gt; <code>/etc</code> and
 </ul>
 <p><strong>SRS is read-only.</strong> It never changes a setting, never
 writes to hardware or firmware, and makes no network traffic except one
-<code>ping</code> to your router when you open the Ping item.</p>
+<code>ping</code> to your router when you open the Ping item. The one
+place that changes something is the Startup manager (<a
+href="#user-guide--69-the-startup-manager">6.9</a>), and only when you click its
+switches or buttons: it turns startup items off and on, and never
+deletes anything.</p>
 <h2 id="user-guide--2-who-it-is-for">2. Who it is for</h2>
 <ul>
 <li><strong>Beginners</strong> who want to know what hardware they have
@@ -490,10 +494,14 @@ away (<a href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</p>
 <tr>
 <td><strong>Title bar</strong></td>
 <td><strong>Refresh</strong> (left; also <strong>F5</strong>) reads the
-page again. The <strong>search box</strong> finds any item or text (<a
+page again. Next to it the <strong>badge</strong> says whether SRS can
+read everything: <strong>Full access</strong> or <strong>Limited
+(user)</strong> with a <strong>Run as root...</strong> button (<a
+href="#user-guide--610-full-access-or-limited-the-badge">6.10</a>). The
+<strong>search box</strong> finds any item or text (<a
 href="#user-guide--64-search">6.4</a>). The <strong>menu button</strong> (three
-lines; also <strong>Ctrl+M</strong>) has Save Report, Options, Run as
-root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
+lines; also <strong>Ctrl+M</strong>) has Save Report, Lineup, Options,
+Run as root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
 </tr>
 <tr>
 <td><strong>Sidebar</strong> (left)</td>
@@ -502,7 +510,10 @@ Graphics &amp; audio, Storage, Network, Sensors, USB &amp; PCI devices,
 Operating system, Benchmarks &amp; stress, Tools. <strong>Alt+1</strong>
 ... <strong>Alt+9</strong>, <strong>Alt+0</strong>,
 <strong>Alt+-</strong> and <strong>Alt+=</strong> jump straight to them.
-Below the list: <strong>Classic view</strong> and the SRS version.</td>
+Below the list: <strong>Classic view</strong>, the tab
+<strong>lineup</strong> in use (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>) and the SRS
+version.</td>
 </tr>
 <tr>
 <td><strong>Page</strong> (right)</td>
@@ -599,14 +610,27 @@ results)</td>
 </tr>
 </tbody>
 </table>
-<p>The tabs are the items most people need. <strong>All N items</strong>
-at the right end of the tab row lists <strong>every</strong> item of the
-page, the expert ones included, in alphabetical order; "(not present)"
-and "(Windows-only)" mark the ones SIV has but this PC or Linux does
-not. Picking one opens it as an extra tab with a close button (x, or
-<strong>Ctrl+W</strong>). On the Processor page the list also has
-<strong>Each CPU</strong> and <strong>Cache levels of each CPU</strong>
-(SIV's CPU-n and Cache-n buttons).</p>
+<p>The tabs above are the standard ones (the <strong>Enthusiast</strong>
+lineup, SRS's default). You can change them on any page at any time (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
+<p><strong>All N items</strong> at the right end of the tab row lists
+<strong>every</strong> item of the page, the expert ones included, in
+alphabetical order. It is a jump list: type a few letters to filter it
+(every word must match), then pick an item or press
+<strong>Enter</strong> for the first one. If the item already has a tab,
+SRS goes to it ("open" at the right of the row); otherwise it opens as a
+<strong>temporary tab</strong> (its name in <em>italics</em>), which is
+gone the next time SRS starts unless you keep it (right-click it &gt;
+<strong>Keep this tab</strong>). On the Processor page the list ends
+with <strong>Processor CPU-n</strong> and <strong>Cache levels
+CPU-n</strong> for each CPU (SIV's CPU-n and Cache-n buttons).</p>
+<p>Items that cannot show anything on this PC are left out of the list
+and the tabs: SIV's Windows-only items, hardware SIV checks for that
+this PC does not have (for example RAID controllers), and items that
+came out empty here. The list says how many are hidden; <strong>Options
+-&gt; Show hidden items</strong> lists them greyed, with the reason
+("Windows-only", "not present", "nothing to show on this PC"), and you
+can still open them.</p>
 <h3 id="user-guide--62-overview-is-my-pc-ok">6.2 Overview: "Is my PC OK?"</h3>
 <p>The Overview starts with a line about the PC (board, Linux
 distribution, time since start-up), then <strong>Is my PC OK?</strong>:
@@ -737,8 +761,9 @@ opens its page.</p>
 <p>Each page has three parts:</p>
 <p><img src="../images/processor-page.png" alt="Processor page" /></p>
 <p><em>The Processor page: the heading, the key facts as tiles, then the
-tabs. <strong>All 43 items</strong> at the right end of the tab row
-lists every processor item.</em></p>
+tabs. <strong>+</strong> adds a tab, and <strong>All 36 items</strong>
+at the right end of the tab row lists every processor item that can show
+something on this PC.</em></p>
 <ol type="1">
 <li><strong>The heading:</strong> the topic and one sentence about what
 it is.</li>
@@ -783,9 +808,16 @@ read nothing.</td>
 <td>Read the item again (<strong>F5</strong>).</td>
 </tr>
 <tr>
+<td><strong>Reset view</strong></td>
+<td>Only on tabs with tables: puts the tables back in the item's own
+order (<a href="#user-guide--68-sortable-tables">6.8</a>). Greyed until you
+sort.</td>
+</tr>
+<tr>
 <td><strong>Copy</strong></td>
-<td>Copy all the text. With <strong>Options -&gt; Redact</strong> on,
-serials, UUIDs, MACs and the computer name are masked in the copy (<a
+<td>Copy all the text, in the item's own order even when a table is
+sorted. With <strong>Options -&gt; Redact</strong> on, serials, UUIDs,
+MACs and the computer name are masked in the copy (<a
 href="#user-guide--17-privacy-before-you-share-a-report">17</a>).</td>
 </tr>
 <tr>
@@ -805,7 +837,10 @@ the same text and colours as the classic Sensors panel, plus the Live
 switch and the Zero and Hide unused buttons.</em></p>
 <p>Double-click a line with a PCI or USB ID to look it up (it opens as a
 tab on the Tools page). Right-click the text for Copy, Select All, the
-guide link and the Classic Menu.</p>
+guide link and the Classic Menu. Click a column heading in a table to
+sort it (<a href="#user-guide--68-sortable-tables">6.8</a>); right-click a tab for
+Keep, Replace with..., Move and Close (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; stress</strong> page has buttons that
 open the CPU Benchmark, IPI Delay, Memory Latency, CPU Burnin and CPU
 Stress windows (<a href="#user-guide--9-tools">9</a>); nothing runs until you press
@@ -854,6 +889,11 @@ href="#user-guide--131-save-report-and-save-all-items-siv-format-text">13.1</a>)
 <tr>
 <td><strong>Copy This Tab</strong></td>
 <td>Same as the tab's Copy button.</td>
+</tr>
+<tr>
+<td><strong>Lineup</strong></td>
+<td>Switch between tab lineups, save, export or import one (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</td>
 </tr>
 <tr>
 <td><strong>Options</strong></td>
@@ -1051,6 +1091,282 @@ hides to tray" is on, see <a href="#user-guide--11-system-tray">11</a>.)</td>
 </table>
 <p>Every button label has an underlined letter: press <strong>Alt + that
 letter</strong> to click it.</p>
+<h3 id="user-guide--67-arranging-the-tabs-and-lineups">6.7 Arranging the tabs and
+lineups</h3>
+<p>Each page's tabs are yours to arrange. Nothing you do here changes
+what SRS reads or shows inside a tab; it only decides which items have a
+tab and in what order.</p>
+<p><strong>On the fly:</strong></p>
+<table>
+<thead>
+<tr>
+<th>To</th>
+<th>Do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Add a tab that stays</td>
+<td><strong>+</strong> at the right end of the tab row (or
+<strong>Ctrl+T</strong>), then pick the item</td>
+</tr>
+<tr>
+<td>Look at an item once</td>
+<td><strong>All N items</strong>: it opens as a temporary tab
+(<em>italic</em>), not kept</td>
+</tr>
+<tr>
+<td>Keep a temporary tab</td>
+<td>Right-click it &gt; <strong>Keep this tab</strong></td>
+</tr>
+<tr>
+<td>Swap a tab for another item</td>
+<td>Right-click it &gt; <strong>Replace with...</strong> (same place in
+the row)</td>
+</tr>
+<tr>
+<td>Move a tab</td>
+<td>Drag it, or right-click &gt; <strong>Move left</strong> /
+<strong>Move right</strong></td>
+</tr>
+<tr>
+<td>Close a tab</td>
+<td>Its <strong>x</strong> (shown on the tab in view and on temporary
+tabs), <strong>Ctrl+W</strong>, a middle-click, or right-click &gt;
+<strong>Close tab</strong>. The item stays in All N items.</td>
+</tr>
+<tr>
+<td>Go back to the lineup's tabs for this page</td>
+<td>Right-click a tab &gt; <strong>Reset this page's tabs to the
+lineup</strong></td>
+</tr>
+</tbody>
+</table>
+<p>SRS remembers each page's tabs and their order when it closes.
+Temporary tabs are not remembered.</p>
+<p><strong>Which tabs a page opens with:</strong> <strong>Options -&gt;
+Tabs on each page...</strong> (also right-click a tab &gt; <strong>Tabs
+on this page...</strong>). Pick the page, then one of:</p>
+<ul>
+<li><strong>The standard tabs only</strong> - the tabs listed in <a
+href="#user-guide--61-the-pages-and-the-items-on-them">6.1</a>;</li>
+<li><strong>The tabs ticked below</strong> - tick any items of the page
+(the filter box finds them); new ones go at the end;</li>
+<li><strong>Every item of the page</strong> - one tab per item that can
+show something here.</li>
+</ul>
+<p><strong>Options -&gt; Show every item as a tab (all pages)</strong>
+does the last one for every page at once, whatever each page is set to.
+With many tabs the <strong>All N items</strong> jump list is still
+there, and the tab bar can take three shapes (<strong>Options -&gt; Tab
+bar</strong>):</p>
+<table>
+<thead>
+<tr>
+<th>Tab bar</th>
+<th>Looks like</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>One row that scrolls</strong></td>
+<td>The default: one row with arrows when the tabs do not fit
+(<strong>Ctrl+PageUp / Ctrl+PageDown</strong> step through them)</td>
+</tr>
+<tr>
+<td><strong>Wrapped rows</strong></td>
+<td>Every tab visible, on as many rows as needed</td>
+</tr>
+<tr>
+<td><strong>Side list</strong></td>
+<td>The tabs in a column on the left of the page, with a scroll bar when
+needed</td>
+</tr>
+</tbody>
+</table>
+<p><img src="../images/tabs-wrapped.png" alt="Wrapped tab rows" /></p>
+<p><em>The Processor page with wrapped tab rows: every tab visible, +
+and All N items at the end.</em></p>
+<p><strong>Lineups</strong> are saved arrangements: which tabs each page
+has, their order and the tab bar. <strong>Menu -&gt; Lineup</strong>
+(also in Options and a tab's right-click menu):</p>
+<table>
+<thead>
+<tr>
+<th>Lineup</th>
+<th>Tabs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Basic</strong></td>
+<td>A few friendly tabs per page (for example Processor: CPU Summary,
+CPU Clocks, Cache Levels)</td>
+</tr>
+<tr>
+<td><strong>Enthusiast</strong></td>
+<td>The standard tabs of <a
+href="#user-guide--61-the-pages-and-the-items-on-them">6.1</a>. The default.</td>
+</tr>
+<tr>
+<td><strong>Expert</strong></td>
+<td>Every item of every page as a tab, in a side list</td>
+</tr>
+<tr>
+<td><em>Your own</em></td>
+<td><strong>Save as new lineup...</strong> keeps the current tabs under
+a name you choose</td>
+</tr>
+</tbody>
+</table>
+<p>Changes on the fly are allowed at any time without saving: the
+sidebar then says "Lineup: Enthusiast (changed)". <strong>Save to this
+lineup</strong> stores them in your own lineup (the three built-in ones
+stay as they are: use <strong>Save as new lineup...</strong>).
+<strong>Export lineup...</strong> writes a <code>.srslineup</code> file
+you can share or keep, <strong>Import lineup...</strong> reads one (it
+gets a new name if one of yours already has it), <strong>Remove this
+lineup...</strong> removes one of your own, and <strong>Reset to the
+default lineup</strong> goes back to Enthusiast.</p>
+<h3 id="user-guide--68-sortable-tables">6.8 Sortable tables</h3>
+<p>Tabs that show a table (a row of blue headings over rows of values,
+such as Processes, CPU Clocks, Drivers or Installed software) can be
+sorted: <strong>click a heading</strong>. The first click sorts by that
+column smallest or A first (<strong>▲</strong> after the heading), the
+second click largest or Z first (<strong>▼</strong>). The headings are
+underlined and the mouse pointer becomes a hand over them; hover for a
+hint.</p>
+<ul>
+<li>Numbers sort by value with their units: 512MB comes before 1.5GB,
+900 MHz before 4.41GHz, 9 °C before 45 °C, and RPM, %, V, W and times
+the same way. Dates sort by date (2026-10-26, 09/18/2026),
+<code>[1234]</code> process numbers by number, and names with numbers in
+them naturally (CPU-2 before CPU-10).</li>
+<li>Empty cells and <code>-</code> always go last.</li>
+<li>Tabs that update by themselves keep the order while they
+refresh.</li>
+<li><strong>Reset view</strong> (above the text) puts the item's own
+order back.</li>
+<li><strong>Copy</strong> and <strong>Save Report</strong> always give
+the item's own order, so reports look the same as before; only what you
+see on screen is sorted.</li>
+<li><strong>Options -&gt; Sortable tables</strong> turns sorting off
+(the tables are then plain text, as in 2.0). The classic panels never
+sort.</li>
+</ul>
+<h3 id="user-guide--69-the-startup-manager">6.9 The Startup manager</h3>
+<p><strong>Operating system -&gt; Startup programs</strong> opens on
+<strong>Manage</strong>: everything that starts when you log in or when
+the PC boots, with a switch per item. <strong>Report</strong> next to it
+shows the Startup programs item as text (what Copy and Save Report
+give).</p>
+<p><img src="../images/startup-manager.png" alt="Startup manager" /></p>
+<p><em>The Startup manager: autostart entries with their switches, Undo,
+Restore default and Add to startup.</em></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>On</strong></td>
+<td>Ticked = it starts. Click to turn it off or on. Greyed = it cannot
+be switched here (see Note).</td>
+</tr>
+<tr>
+<td><strong>Name</strong></td>
+<td>The program's name. Hover for the file or unit and its command.</td>
+</tr>
+<tr>
+<td><strong>Kind</strong></td>
+<td><strong>Autostart (system)</strong> -
+<code>/etc/xdg/autostart</code>, for every user; <strong>Autostart
+(yours)</strong> - <code>~/.config/autostart</code>; <strong>Service
+(user)</strong> - a systemd user unit; <strong>Service (system)</strong>
+- a system service (only with <strong>Show system services</strong>
+ticked).</td>
+</tr>
+<tr>
+<td><strong>State</strong></td>
+<td>on / off, or the unit's state (enabled, disabled, static, masked
+...).</td>
+</tr>
+<tr>
+<td><strong>Note</strong></td>
+<td>Why it is off or greyed (for example "only for other desktops"),
+"turned off by SRS (your copy)", "added by SRS", "desktop essential:
+...", a unit's default (preset).</td>
+</tr>
+</tbody>
+</table>
+<p>Click a column heading to sort; the filter box and the list next to
+it narrow the list down.</p>
+<p><strong>Nothing is ever deleted:</strong></p>
+<ul>
+<li>A <strong>system autostart entry</strong> is turned off with a copy
+of it in your <code>~/.config/autostart</code> that says
+<code>Hidden=true</code> (the desktop uses your copy instead of the
+system one). Turning it back on moves that copy into
+<code>~/.config/srs/startup-backup</code>.</li>
+<li><strong>Your own autostart entries</strong> get
+<code>Hidden=true</code> or <code>Hidden=false</code>. The first time
+SRS changes one, the original is kept in the backup folder.</li>
+<li><strong>Services:</strong> <code>systemctl --user enable</code> /
+<code>disable</code> for user units. System services ask first, then use
+<code>pkexec systemctl enable</code> / <code>disable</code> (the
+administrator password); the change applies from the next boot.</li>
+<li><strong>Undo</strong> puts back the last change made in this session
+(repeat it for earlier ones).</li>
+<li><strong>Restore default</strong> puts the selected item back to its
+default: a system entry loses your copy (moved to the backup folder),
+your own entry gets its original file back, an entry SRS added is taken
+out of the list (moved to the backup folder), and a service gets the
+distribution's default (<code>systemctl preset</code>).</li>
+<li><strong>Add to startup...</strong> starts an installed program (pick
+it from the list) or any command (run by <code>sh</code>) at every
+login, with an optional delay in seconds. It writes
+<code>~/.config/autostart/srs-NAME.desktop</code>; turn it off or take
+it out again in this list.</li>
+</ul>
+<p>Parts of the desktop ask before they are turned off: Plasma, KWin,
+KWallet and other password storage, PipeWire and WirePlumber (sound),
+the desktop portals (file dialogs, screen sharing), the polkit agent
+(admin password prompts), D-Bus, accessibility and the login screen. You
+can still turn them off; SRS just says what may stop working. Changes
+take effect at the next login (system services at the next boot).</p>
+<h3 id="user-guide--610-full-access-or-limited-the-badge">6.10 Full access or
+Limited: the badge</h3>
+<p>The badge left of the title says what SRS can read right now:</p>
+<table>
+<thead>
+<tr>
+<th>Badge</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Full access</strong> (green shield)</td>
+<td>SRS runs as root, or the root-only data has been collected by
+srs-root (<a href="#user-guide--5-root-only-data-srs-root">5</a>). Hover for when it
+was collected.</td>
+</tr>
+<tr>
+<td><strong>Limited (user)</strong> (grey shield) and a <strong>Run as
+root...</strong> button</td>
+<td>SRS runs as you, without root data. Drive health (SMART), memory
+stick details (SPD), serial numbers and BIOS tables, ACPI tables, CPU
+registers (MSRs) and the kernel log need it; the tooltip lists them.
+<strong>Run as root...</strong> collects them once with one password
+prompt (read-only).</td>
+</tr>
+</tbody>
+</table>
+<p>With <strong>Options -&gt; Refresh root data at boot</strong> the
+badge says Full access from the start.</p>
 <h2 id="user-guide--7-the-panels-and-their-buttons">7. The panels and their
 buttons</h2>
 <p>In the classic view (<a
@@ -1902,6 +2218,50 @@ href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</td>
 <td>off</td>
 </tr>
 <tr>
+<td><strong>Sortable tables in the main window</strong></td>
+<td>Click a column heading to sort a table (<a
+href="#user-guide--68-sortable-tables">6.8</a>). Off: tables are plain text as in
+2.0.</td>
+<td>on</td>
+</tr>
+<tr>
+<td><strong>Tab bar</strong></td>
+<td><strong>One row that scrolls</strong>, <strong>Wrapped rows</strong>
+or <strong>Side list</strong> (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>). Main window only,
+like the next five.</td>
+<td>One row</td>
+</tr>
+<tr>
+<td><strong>Lineup</strong></td>
+<td>Basic, Enthusiast, Expert or your own; save, export, import (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</td>
+<td>Enthusiast</td>
+</tr>
+<tr>
+<td><strong>Tabs on each page...</strong></td>
+<td>Per page: the standard tabs, the ticked ones, or every item.</td>
+<td>standard</td>
+</tr>
+<tr>
+<td><strong>Show every item as a tab (all pages)</strong></td>
+<td>Every item that can show something here gets a tab on its page.</td>
+<td>off</td>
+</tr>
+<tr>
+<td><strong>Show hidden items</strong></td>
+<td>List the items that cannot show anything on this PC (Windows-only,
+not present, empty), greyed, in All N items, and do not hide their
+tabs.</td>
+<td>off</td>
+</tr>
+<tr>
+<td><strong>Check again which items have nothing to show</strong></td>
+<td>SRS checks this in the background at most once a day; this checks
+now.</td>
+<td></td>
+</tr>
+<tr>
 <td><strong>Hide to Tray</strong></td>
 <td>Hide all SRS windows now.</td>
 <td></td>
@@ -1986,12 +2346,24 @@ it cannot get lost.</li>
 <td>Open the menu</td>
 </tr>
 <tr>
+<td><strong>Ctrl+T</strong></td>
+<td>Add a tab to this page (the <strong>+</strong> button)</td>
+</tr>
+<tr>
 <td><strong>Ctrl+W</strong></td>
-<td>Close an extra tab</td>
+<td>Close the tab in view (also a middle-click on a tab)</td>
 </tr>
 <tr>
 <td><strong>Ctrl+PageUp / Ctrl+PageDown</strong></td>
-<td>Previous / next tab (when the tab row has the focus)</td>
+<td>Previous / next tab, in every tab-bar layout</td>
+</tr>
+<tr>
+<td><strong>Right-click a tab</strong></td>
+<td>Keep, Replace with..., Move, Close, Tabs on this page, Lineup</td>
+</tr>
+<tr>
+<td><strong>Click a table heading</strong></td>
+<td>Sort by that column (again: the other way)</td>
 </tr>
 <tr>
 <td><strong>F5</strong></td>
@@ -2173,6 +2545,31 @@ href="#cli-reference">CLI-REFERENCE.md</a>.</p>
 <td>Only if "Start with the desktop" is on.</td>
 </tr>
 <tr>
+<td><code>~/.config/autostart/srs-*.desktop</code></td>
+<td>Programs you added with <strong>Add to startup</strong> (<a
+href="#user-guide--69-the-startup-manager">6.9</a>); also the turned-off copies of
+system entries (same name as the system file).</td>
+</tr>
+<tr>
+<td><code>~/.config/srs/startup-backup/</code></td>
+<td>Everything the Startup manager moved out of the way or changed:
+<code>NAME.desktop.YYYYMMDD-HHMMSS</code> and
+<code>NAME.desktop.orig</code>. Nothing there is used; copy a file back
+to <code>~/.config/autostart</code> to use it again.</td>
+</tr>
+<tr>
+<td><code>~/.config/srs/lineups/*.srslineup</code></td>
+<td>Your own tab lineups (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>), the same format as
+Export lineup.</td>
+</tr>
+<tr>
+<td><code>~/.cache/srs/empty-items.txt</code></td>
+<td>The items that had nothing to show on this PC at the last check
+(hidden from the tabs and lists). Delete it, or use Options -&gt; Check
+again, to check now.</td>
+</tr>
+<tr>
 <td><code>~/.cache/srs/root/</code></td>
 <td>Root-only data from <code>srs-root</code>
 (<code>dmidecode.txt</code>, <code>spd.txt</code>,
@@ -2299,12 +2696,36 @@ text</td>
 <td>Options -&gt; Start in classic view</td>
 </tr>
 <tr>
+<td><code>Sortable Tables</code></td>
+<td><code>1</code> / <code>0</code></td>
+<td>Options -&gt; Sortable tables in the main window</td>
+</tr>
+<tr>
+<td><code>All Items As Tabs</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td>Options -&gt; Show every item as a tab</td>
+</tr>
+<tr>
+<td><code>Show Hidden Items</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td>Options -&gt; Show hidden items</td>
+</tr>
+<tr>
 <td><code>SIO Sensors</code></td>
 <td>e.g. <code>nct6799:AUXTIN1</code></td>
 <td>Super-I/O inputs the burner should treat as connected</td>
 </tr>
 </tbody>
 </table>
+<p>Section <code>[Tabs]</code> holds the main window's tabs as they are
+now: <code>Lineup</code> (the lineup they came from),
+<code>Layout</code> (<code>row</code>, <code>wrap</code> or
+<code>side</code>), and per page <code>&lt;page&gt;=id;id;...</code> and
+<code>&lt;page&gt; Every=true</code> when the page shows every item.
+Page names: <code>processor</code>, <code>memory</code>,
+<code>board</code>, <code>graphics</code>, <code>storage</code>,
+<code>network</code>, <code>sensors</code>, <code>devices</code>,
+<code>os</code>, <code>bench</code>, <code>tools</code>.</p>
 <p>Environment variables:</p>
 <table>
 <thead>
@@ -2339,6 +2760,18 @@ start).</td>
 <td><code>GTK_THEME</code></td>
 <td>Remembered for "Follow desktop"; the Theme option drives SRS's own
 look.</td>
+</tr>
+<tr>
+<td><code>SRS_STARTUP_DRY_RUN=1</code></td>
+<td>The Startup manager never runs <code>systemctl</code> or
+<code>pkexec</code>: it only shows the command it would run (autostart
+files are still written). For trying it out safely.</td>
+</tr>
+<tr>
+<td><code>SRS_RSMU_DIR=folder</code></td>
+<td>Read the ryzen_smu files (<code>pm_table</code>,
+<code>codename</code>, <code>pm_table_version</code>) from this folder
+instead of <code>/sys/kernel/ryzen_smu_drv</code> (tests).</td>
 </tr>
 </tbody>
 </table>
@@ -2639,7 +3072,9 @@ save root-only data for you.</p>
 <p><strong>Can it harm my PC?</strong> The viewer is read-only. The
 burn-in and benchmarks load the CPU like any stress tool; they ask
 first, stop at a temperature limit (default 90 C) and stop when you
-close the window.</p>
+close the window. The Startup manager changes what starts with the PC
+only when you click it, asks before touching parts of the desktop, keeps
+every old file, and has Undo and Restore default.</p>
 <p><strong>Why are there items that say "not present"?</strong> They are
 SIV items for hardware most PCs do not have (Itanium, IPMI, RAID
 cards...). SRS keeps them so the item list matches SIV's.</p>
@@ -6381,12 +6816,69 @@ found issues get added.</p>
 <p><strong>In plain words.</strong> The current, average and allowed
 clock speed of every CPU. Same page as <a href="#sections-processors--cpu-speeds">CPU
 Speeds</a>; it refreshes every second in the window.</p>
-<p><strong>What you see.</strong> Exactly the same layout as <a
+<p><strong>What you see.</strong> The same layout as <a
 href="#sections-processors--cpu-speeds">CPU Speeds</a>: the driver/boost line and the per-CPU
 table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor,
-EPP).</p>
+EPP). Below it, since 2.1, <strong>Stock and in effect now</strong>:
+each clock at stock next to what it is now.</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>Stock</th>
+<th>In effect now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base clock</td>
+<td>100 MHz, the standard reference clock</td>
+<td>Measured: the TSC rate x 100 / the CPU's nominal frequency from ACPI
+CPPC (once per run, 50 ms)</td>
+</tr>
+<tr>
+<td>Core base</td>
+<td>The CPU's nominal frequency (CPPC)</td>
+<td>Nominal x base clock / 100</td>
+</tr>
+<tr>
+<td>Core boost (max)</td>
+<td>cpufreq's maximum (the kernel works it out at 100 MHz)</td>
+<td>Maximum x base clock / 100</td>
+</tr>
+<tr>
+<td>Core now (fastest)</td>
+<td>The same multiplier at 100 MHz</td>
+<td>cpufreq's current clock of the fastest core (already real)</td>
+</tr>
+<tr>
+<td>FCLK, UCLK, MCLK</td>
+<td>What the SMU reports</td>
+<td>The same: these are shown, not measured</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Difference</strong> gives MHz and percent where SRS measured.
+FCLK (Infinity Fabric), UCLK (memory controller) and MCLK (memory clock)
+come from the SMU's PM table through the ryzen_smu driver (read-only),
+for the Zen 4 desktop layout (Ryzen 7000, ryzen_smu codename 20) and
+only when the values make sense; elsewhere the row says why it is
+missing. Software cannot measure these clocks, so SRS does not claim a
+difference: on AM5 an eCLK drives the cores, and whether anything else
+follows it depends on the board's eCLK mode. The <strong>Memory</strong>
+line adds the DDR data rate (2 x MCLK), the UCLK:MCLK ratio (1:1 or 1:2)
+and FCLK.</p>
+<p><strong>Healthy / typical values.</strong> With the normal 100 MHz
+base clock every difference is about 0. The author's PC runs a 105 MHz
+eCLK: base clock 105.0 MHz (+5 %), core base 4201 -&gt; 4410 MHz, boost
+5053 -&gt; 5305 MHz, FCLK 2133 MHz, UCLK 1500 MHz, MCLK 3000 MHz
+(DDR5-6000 at 1:2).</p>
 <p><strong>Where Linux gets it.</strong> cpufreq files in
-<code>/sys/devices/system/cpu/cpuN/cpufreq/</code>.</p>
+<code>/sys/devices/system/cpu/cpuN/cpufreq/</code>, the TSC (timed
+against the system clock),
+<code>/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq</code>, and
+<code>/sys/kernel/ryzen_smu_drv/pm_table</code> (floats 70, 74 and 78 of
+the Zen 4 desktop table).</p>
 <hr />
 <h2 id="sections-processors--cpu-export">CPU Export</h2>
 <p><code>cpu-export</code> - Linux data</p>
@@ -18711,8 +19203,14 @@ you do not recognise: check its command. Malware and adware often hide
 in <code>~/.config/autostart</code>. Two entries starting the same tray
 app: you get two icons. Slow logins: look for
 <code>sleep N &amp;&amp;</code> commands and heavy apps here.</p>
+<p><strong>Turning items off and on (2.1).</strong> In the main window
+the Startup programs tab opens on <strong>Manage</strong>: every entry
+with a switch, Undo, Restore default and Add to startup. Nothing is
+deleted. See the user guide, section 6.9. <strong>Report</strong> shows
+this item as text, as above.</p>
 <p><strong>Where Linux gets it.</strong>
-<code>~/.config/autostart/*.desktop</code>,
+<code>~/.config/autostart/*.desktop</code> (or
+<code>$XDG_CONFIG_HOME/autostart</code>),
 <code>/etc/xdg/autostart/*.desktop</code>,
 <code>~/.config/plasma-workspace/env</code>,
 <code>systemctl list-unit-files --state=enabled</code> (and

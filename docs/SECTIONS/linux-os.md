@@ -1254,7 +1254,11 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 
 **Unusual values and what they suggest.** A ticked entry you do not recognise: check its command. Malware and adware often hide in `~/.config/autostart`. Two entries starting the same tray app: you get two icons. Slow logins: look for `sleep N &&` commands and heavy apps here.
 
-**Where Linux gets it.** `~/.config/autostart/*.desktop`, `/etc/xdg/autostart/*.desktop`, `~/.config/plasma-workspace/env`, `systemctl list-unit-files --state=enabled` (and `--user`).
+**Turning items off and on (2.1).** In the main window the Startup programs tab opens on **Manage**:
+every entry with a switch, Undo, Restore default and Add to startup. Nothing is deleted. See
+the user guide, section 6.9. **Report** shows this item as text, as above.
+
+**Where Linux gets it.** `~/.config/autostart/*.desktop` (or `$XDG_CONFIG_HOME/autostart`), `/etc/xdg/autostart/*.desktop`, `~/.config/plasma-workspace/env`, `systemctl list-unit-files --state=enabled` (and `--user`).
 
 ---
 ## System  

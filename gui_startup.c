@@ -286,7 +286,8 @@ static void sd_scan(GPtrArray *v, int user, char **err)
     char *argv_s[] = { "systemctl", "list-unit-files", "--type=service", "--type=timer", "--no-legend", "--no-pager", NULL };
     int st = -1;
     if (!g_spawn_sync(NULL, user ? argv_u : argv_s, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, &out, &e, &st, NULL) || !g_spawn_check_wait_status(st, NULL)) {
-        if (err) *err = g_strdup_printf("%s: %s", user ? "systemctl --user" : "systemctl", e && *e ? g_strstrip(e) : "not available");
+        if (err) *err = g_strdup_printf("%s could not be listed (%s).", user ? "User services" : "System services",
+                                        user ? "no systemd user session" : "systemctl is not available");
         g_free(out); g_free(e);
         return;
     }

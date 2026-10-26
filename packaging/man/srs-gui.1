@@ -1,4 +1,4 @@
-.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.0.0" "User Commands"
+.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.1.0" "User Commands"
 .SH NAME
 srs-gui \- SRS system information viewer (GTK 3)
 .SH SYNOPSIS
@@ -21,8 +21,20 @@ Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devic
 Operating system, Benchmarks & stress and Tools. The Overview answers "Is my PC OK?" with a
 status light per check (temperatures against each sensor's own limit, drive health, hardware
 errors, free disk space, memory in use, sensor alarms) and cards with the key facts. Each other
-page shows key facts and the items as tabs; "All N items" lists every item of the page. The
-search box (\fBCtrl+F\fR) finds any item by name or id.
+page shows key facts and the items as tabs; "All N items" is a searchable list of every item of
+the page. The search box (\fBCtrl+F\fR) finds any item by name or id.
+.PP
+Since 2.1 the tabs can be arranged: add (\fB+\fR, \fBCtrl+T\fR), close (\fBCtrl+W\fR), replace,
+move and keep them; each page's tabs and their order are remembered. Options set, per page, the
+standard tabs, chosen ones or every item, and the tab bar (one scrolling row, wrapped rows or a
+side list). Lineups save a whole arrangement: Basic, Enthusiast (the default), Expert and your
+own, with export and import. Items that cannot show anything on the PC are hidden unless
+"Show hidden items" is on. Click a table's column heading to sort it (numbers by value with their
+units, dates by date); Reset view, Copy and Save Report keep the item's own order. CPU Clocks
+shows each clock at stock next to what is in effect (measured base clock, FCLK / UCLK / MCLK from
+the SMU). The Startup programs tab manages autostart entries and services without deleting
+anything (Undo, Restore default, Add to startup). A badge in the title bar says "Full access"
+or "Limited (user)".
 .PP
 The classic view is the SIV-style interface of SRS 1.1: a main window with SIV's button row and
 every item in its own panel. Open it with Menu \(-> Classic View, or start in it with
@@ -63,6 +75,13 @@ panels to open at start, as for \fB\-\-gui\-open\fR.
 .TP
 .B SRS_DOC_DIR
 directory holding the user guide (default /usr/share/doc/srs-sysinfo).
+.TP
+.B SRS_STARTUP_DRY_RUN
+when set to 1, the Startup manager shows the systemctl / pkexec command it would run instead of
+running it (autostart files are still written).
+.TP
+.B SRS_RSMU_DIR
+read the ryzen_smu files from this directory instead of /sys/kernel/ryzen_smu_drv (tests).
 .SH FILES
 .TP
 .I /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf, /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
@@ -73,6 +92,15 @@ settings (theme, update interval, tray, "Classic View=1" for Start in classic vi
 .TP
 .I ~/.cache/srs/root/
 root-only data collected by srs-root.
+.TP
+.I ~/.config/srs/lineups/*.srslineup
+your own tab lineups (the same format as Export lineup).
+.TP
+.I ~/.config/srs/startup-backup/
+autostart files the Startup manager moved aside or changed (nothing is deleted).
+.TP
+.I ~/.cache/srs/empty-items.txt
+items that had nothing to show on this PC at the last check.
 .TP
 .I ~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
 the summary of each finished CPU Burnin / CPU Stress run.
