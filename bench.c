@@ -3,6 +3,7 @@
 #include "bench.h"
 #include "burner.h"
 
+#include <math.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdatomic.h>
@@ -381,6 +382,133 @@ int bench_run(bench_mode m, double secs, srs_out *o)
     c.m = m; c.r = r; c.n = n; c.secs = secs; c.note = NULL;
     bench_save_render(mode_ids[m], bench_fn, &c, o);
     return 0;
+}
+
+/* ======================================================================
+ * the question asked before a benchmark starts
+ * ====================================================================== */
+static void ask_time(double s, char *b, size_t n)
+{
+    if (s < 1) snprintf(b, n, "under a second");
+    else if (s < 1.5) snprintf(b, n, "about a second");
+    else if (s < 90) snprintf(b, n, "about %.0f seconds", s);
+    else if (s < 5400) snprintf(b, n, "about %.0f minutes", s / 60);
+    else snprintf(b, n, "about %.1f hours", s / 3600);
+}
+
+static void ask_count(double v, char *b, size_t n)   /* 1e9 -> "1 billion" */
+{
+    if (v >= 1e9 && v == (double)(long long)(v / 1e9) * 1e9) snprintf(b, n, "%.0f billion", v / 1e9);
+    else if (v >= 1e6 && v == (double)(long long)(v / 1e6) * 1e6) snprintf(b, n, "%.0f million", v / 1e6);
+    else snprintf(b, n, "%.0f", v);
+}
+
+static const char *const ask_oc = "An unstable overclock or undervolt can crash the PC under this load. ";
+
+int bench_ask_text(const bench_ask *a, char *title, size_t tn, char *body, size_t bn)
+{
+    int ncpu = burn_ncpu(), heavy = 0;
+    char t[64];
+    if (ncpu > BURN_MAXCPU) ncpu = BURN_MAXCPU;
+    if (ncpu < 1) ncpu = 1;
+    if (a->kind == BA_BENCH) {
+        bench_mode m = (bench_mode)a->mode;
+        unsigned char is_e[BURN_MAXCPU];
+        int i, n = 0, cores = 0, smt = 0, conc = m == BM_AC || m == BM_PC || m == BM_LC || m == BM_EC;
+        double s;
+        if (m >= BM_COUNT) return -1;
+        bench_ecores(is_e, ncpu);
+        for (i = 0; i < ncpu; i++) {
+            int sib = sibling_of(i), primary = sib < 0 || i < sib;
+            if (sib >= 0) smt = 1;
+            if (primary) cores++;
+            if ((m == BM_PC || m == BM_PP) && (!primary || is_e[i])) continue;
+            if ((m == BM_LC || m == BM_LP) && primary) continue;
+            if ((m == BM_EC || m == BM_EP) && !is_e[i]) continue;
+            n++;
+        }
+        if (n == 0) return -1;   /* e.g. no efficiency cores: the run only says so */
+        s = conc ? 2 * a->secs + 0.5 : m == BM_DD || m == BM_DW ? cores * 2 * a->secs + 0.5 : n * 2 * a->secs + 0.5;
+        heavy = conc && n * 2 >= ncpu && n > 1;
+        ask_time(s, t, sizeof t);
+        snprintf(title, tn, "Start the CPU Benchmark (mode %s)?", mode_ids[m] + 10);
+        snprintf(body, bn, "It runs Dhrystone (whole-number work) and then Whetstone (floating-point work) in mode %s - %s - "
+                 "on %d CPU thread%s, %.1f s per measurement: %s. %s\n\n%sClose other programs for accurate results.",
+                 mode_ids[m] + 10, mode_desc[m], n, n == 1 ? "" : "s", a->secs, t,
+                 conc ? (n == 1 ? "One CPU thread is busy." : "These CPU threads are 100% busy at the same time.") :
+                 (m == BM_DD || m == BM_DW) && smt ? "Two CPU threads (the two halves of one core) are busy at a time." :
+                 "Only one CPU thread is busy at a time (light load).", heavy ? ask_oc : "");
+        return heavy;
+    }
+    if (a->kind == BA_IPI) {
+        int n = a->cpus > 0 && a->cpus < ncpu ? a->cpus : ncpu, rounds = a->rounds > 0 ? a->rounds : 20000;
+        double pairs = n * (n - 1) / 2.0;
+        ask_time(pairs * (rounds * 3 * 80e-9 + 5e-4) + 0.2, t, sizeof t);
+        snprintf(title, tn, "Start the CPU IPI Delay test?");
+        snprintf(body, bn, "It measures how long two CPU threads take to pass a small piece of memory back and forth, for every "
+                 "pair of the first %d CPU threads (%.0f pairs, %d round trips each): %s. Two CPU threads are busy at a time "
+                 "(light load).\n\nClose other programs for steadier numbers.", n, pairs, rounds, t);
+        return 0;
+    }
+    if (a->kind == BA_LAT) {
+        ask_time(0.5 + a->max_mb / 100, t, sizeof t);
+        snprintf(title, tn, "Start the Memory Latency test?");
+        snprintf(body, bn, "It times random memory reads over blocks from 4 KB up to %.0f MB: %s on one CPU thread (light load). "
+                 "It uses %.0f MB of memory while it runs.\n\nClose other programs for steadier numbers.", a->max_mb, t, a->max_mb);
+        return 0;
+    }
+    if (a->kind == BA_PI) {
+        int th = a->algo == PI_AGM ? 1 : a->threads < 1 ? 1 : a->threads > ncpu ? ncpu : a->threads;
+        double one = 3.0 * pow(a->digits / 1e6, 1.2) * (a->algo == PI_AGM ? 4.3 : 1), mb = a->digits * 48 / 1e6 + 4;
+        char d[64], g[64], mem[64], load[80];
+        size_t l, i, k = 0;
+        heavy = a->digits >= 8e6 || (th >= ncpu && ncpu > 1);
+        ask_time(one, t, sizeof t);
+        snprintf(d, sizeof d, "%.0f", a->digits);
+        for (l = strlen(d), i = 0; i < l && k + 2 < sizeof g; i++) { if (i && (l - i) % 3 == 0) g[k++] = ','; g[k++] = d[i]; }
+        g[k] = 0;   /* 33554432 -> 33,554,432 */
+        if (mb >= 1000) snprintf(mem, sizeof mem, "%.1f GB", mb / 1000); else snprintf(mem, sizeof mem, "%.0f MB", mb);
+        if (th == 1) snprintf(load, sizeof load, "One CPU thread is busy.");
+        else if (th >= ncpu) snprintf(load, sizeof load, "All %d CPU threads are 100%% busy.", th);
+        else snprintf(load, sizeof load, "%d CPU threads are busy.", th);
+        snprintf(title, tn, "Start SRS Pi (%s digits)?", g);
+        snprintf(body, bn, "It works out pi to %s decimal places with the %s method and checks every digit: %s on one thread "
+                 "of a current desktop CPU%s (older CPUs take longer). %s It needs up to about %s of memory.\n\n%s%s"
+                 "It can be stopped at any time. Close other programs for accurate results.",
+                 g, a->algo == PI_AGM ? "Gauss-Legendre / AGM" : "Chudnovsky", t,
+                 th > 1 ? "; more threads make it faster" : "", load, mem,
+                 a->digits >= 8e6 ? "This is a long run that uses a lot of memory. " : "", heavy ? ask_oc : "");
+        return heavy;
+    }
+    if (a->kind == BA_CRYPTO) {
+        int th = a->threads < 1 || a->threads > ncpu ? ncpu : a->threads;
+        char load[120];
+        heavy = th >= ncpu && ncpu > 1;
+        ask_time(8 * a->secs + 0.3, t, sizeof t);
+        if (th == 1) snprintf(load, sizeof load, "Each test runs on one CPU thread (light load).");
+        else snprintf(load, sizeof load, "Each test runs on one CPU thread and then on %d threads at once%s.", th,
+                      heavy ? " (every CPU thread 100% busy)" : "");
+        snprintf(title, tn, "Start the Crypto benchmark?");
+        snprintf(body, bn, "It checks the official AES and SHA-256 test vectors, then measures AES-128 encryption and SHA-256 "
+                 "speed with the CPU's crypto instructions and in plain C, %.1f s per measurement: %s. %s\n\n%s"
+                 "Close other programs for accurate results.", a->secs, t, load, heavy ? ask_oc : "");
+        return heavy;
+    }
+    if (a->kind == BA_PRIME) {
+        int th = a->threads < 1 || a->threads > ncpu ? ncpu : a->threads;
+        double one = 0.37 * pow(a->limit / 1e9, 1.05);
+        char lim[64];
+        heavy = a->limit >= 1e10 || (th >= ncpu && ncpu > 1);
+        ask_time(one / th * 1.1 + 0.1, t, sizeof t);
+        ask_count(a->limit, lim, sizeof lim);
+        snprintf(title, tn, "Start the Prime Sieve (up to %s)?", lim);
+        snprintf(body, bn, "It counts the prime numbers up to %s on %d CPU thread%s%s and checks the count: %s on a current "
+                 "desktop CPU (older CPUs take longer). It needs only a few MB of memory.\n\n%s"
+                 "It can be stopped at any time. Close other programs for accurate results.",
+                 lim, th, th == 1 ? "" : "s", th >= ncpu && ncpu > 1 ? " (every CPU thread 100% busy)" : "", t, heavy ? ask_oc : "");
+        return heavy;
+    }
+    return -1;
 }
 
 /* ======================================================================

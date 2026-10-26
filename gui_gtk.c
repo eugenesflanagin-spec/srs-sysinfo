@@ -2272,6 +2272,60 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
+    if (w->sub == BK_BENCH || w->sub == BK_IPI || w->sub == BK_LAT || w->sub == BK_PI || w->sub == BK_CRYPTO || w->sub == BK_PRIME) {
+        bench_ask q;
+        char title[200], body[2048];
+        int heavy;
+        memset(&q, 0, sizeof q);
+        if (w->sub == BK_BENCH) {
+            gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+            q.kind = BA_BENCH;
+            q.mode = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_mode));
+            q.secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        } else if (w->sub == BK_IPI) {
+            gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_cpus));
+            gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_rounds));
+            q.kind = BA_IPI;
+            q.cpus = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_cpus));
+            q.rounds = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_rounds));
+        } else if (w->sub == BK_LAT) {
+            gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
+            q.kind = BA_LAT;
+            q.max_mb = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max));
+        } else {
+            gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_threads));
+            q.threads = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
+            if (w->sub == BK_PI) {   /* the same size lookup as the run below */
+                int sp = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->bm_superpi)), i, n = 0, k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_digits));
+                q.kind = BA_PI;
+                q.digits = 1000000;
+                for (i = 0; i < pi_size_count; i++)
+                    if (pi_size_tab[i].superpi == sp && n++ == k) q.digits = (double)pi_size_tab[i].digits;
+                q.algo = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_algo)) == 1 ? PI_AGM : PI_CHUDNOVSKY;
+            } else if (w->sub == BK_CRYPTO) {
+                gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+                q.kind = BA_CRYPTO;
+                q.secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+            } else {
+                int k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_limit));
+                q.kind = BA_PRIME;
+                q.limit = prime_limits[k < 0 ? 1 : k];
+            }
+        }
+        heavy = bench_ask_text(&q, title, sizeof title, body, sizeof body);
+        if (heavy >= 0) {   /* -1: nothing would run in this mode (no efficiency cores): the run only says so */
+            GtkWidget *d;
+            int ok;
+            d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, heavy ? GTK_MESSAGE_WARNING : GTK_MESSAGE_QUESTION,
+                                       GTK_BUTTONS_YES_NO, "%s", title);
+            gtk_window_set_title(GTK_WINDOW(d), bk_title(w->sub));
+            gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", body);
+            if (heavy) gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
+            ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+            gtk_widget_destroy(d);
+            if (!ok || w->running || g_bench_busy || burn_active()) return;
+        }
+    }
     if (w->sub == BK_GPU) {
         GtkWidget *d;
         gpu_dev dv[GPU_MAXDEV];
@@ -2966,7 +3020,7 @@ static void build_bench(swin *w, GtkWidget *vb)
                        w->sub == BK_GPU ? "Not run - press Run (asks first; the GPU works at full load for about 15 seconds)" :
                        w->sub == BK_GPUBURN ? "Not run - press Run (asks first; full GPU load, high power and heat)" :
                        w->sub == BK_GPUCOMPARE ? "Not run - press Run (asks first; full GPU load, about 20 seconds per back end)" :
-                       "Not run - press Run (the CPUs will be busy while it runs)");
+                       "Not run - press Run (asks first; the CPUs will be busy while it runs)");
     if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
         gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
@@ -5153,11 +5207,11 @@ static GtkWidget *build_cat_page(int cat)
         gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
         if (cat == CAT_BENCH) {
             grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
-                "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run."));
+                "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("CPU IPI Delay", "How long the cores take to hand data to each other (core-to-core latency), as a table and heat map.",
-                "Busy for a few seconds while it measures.", "_IPI Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run."));
+                "Busy for a few seconds while it measures.", "_IPI Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
-                "Busy for a few seconds while it measures.", "_Latency...", "lat", "Open the Latency window. Nothing runs until you press Run."));
+                "Busy for a few seconds while it measures.", "_Latency...", "lat", "Open the Latency window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
                 "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "Cache & _Memory...", "cachemem",
                 "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
@@ -5198,11 +5252,11 @@ static GtkWidget *build_cat_page(int cat)
                 "GPU Compute Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
-                "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));
+                "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Crypto", "How fast the CPU encrypts (AES-128) and hashes (SHA-256), with and without its built-in crypto instructions.",
-                "Busy for about 8 seconds.", "C_rypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run."));
+                "Busy for about 8 seconds.", "C_rypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Prime Sieve", "Counts the prime numbers up to 10 billion and checks the count. Simple integer and cache work that scales with threads.",
-                "Busy for about a second on all threads.", "P_rime Sieve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run."));
+                "Busy for about a second on all threads.", "P_rime Sieve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("CPU Burnin", "Burn and cool cycles with a Pass or Fail at the end: tests cooling and stability.",
                 "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit (90 °C by default).",
                 "B_urnin...", "burn", "Open the CPU Burnin window. Nothing starts until you press Start and confirm."));

@@ -31,6 +31,23 @@ const double *bench_ipi_last(int *n);                           /* n x n matrix,
 int bench_latency_last(const long **sizes, const double **ns);  /* returns count */
 
 
+/* ---- the question these benchmarks ask before they start (the GUI dialog and the CLI prompt share the text) ---- */
+enum { BA_BENCH, BA_IPI, BA_LAT, BA_PI, BA_CRYPTO, BA_PRIME };
+typedef struct {
+    int kind;                 /* BA_* */
+    int mode;                 /* BA_BENCH: bench_mode */
+    int threads;              /* BA_PI, BA_CRYPTO, BA_PRIME (clamped the way the run clamps it) */
+    int cpus, rounds;         /* BA_IPI */
+    int algo;                 /* BA_PI: PI_CHUDNOVSKY / PI_AGM */
+    double secs;              /* BA_BENCH, BA_CRYPTO: seconds per measurement */
+    double max_mb;            /* BA_LAT: largest block */
+    double digits, limit;     /* BA_PI, BA_PRIME */
+} bench_ask;
+/* title: "Start the ...?"; body: plain sentences (paragraphs split by a blank line) saying what runs,
+   about how long, how many CPU threads are busy and (SRS Pi) the memory it needs.
+   Returns 1 = heavy run (the default answer is No), 0 = light run, -1 = nothing would run (no question). */
+int bench_ask_text(const bench_ask *a, char *title, size_t tn, char *body, size_t bn);
+
 /* ---- shared by the benchmarks ---- */
 /* render through fn into ~/.cache/srs/bench-<name>.txt, and into o when o is not NULL */
 void bench_save_render(const char *name, void (*fn)(srs_out *, void *), void *ctx, srs_out *o);
