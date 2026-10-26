@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **Network** page (Alt+7). Its tabs are Network adapters, IP address, Wi-Fi SSIDs, Bluetooth radios, Routing table, TCP V4 ports and TCP/IP counters; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group covers everything about how your PC talks to other machines: network adapters and
 their addresses, traffic counters, the routing and neighbour tables, open ports, DNS, the firewall,
 saved connection profiles, Wi-Fi, Bluetooth, and Windows-style file sharing (SMB/Samba).

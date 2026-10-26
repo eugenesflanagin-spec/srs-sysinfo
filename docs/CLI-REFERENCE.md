@@ -93,12 +93,13 @@ Benchmarks and stress (load the CPU; run only when you ask):
 
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
+        --gui-classic start in the classic SIV-style main window, --gui-new in the new one
 ```
 
 ### `--version`
 
 ```
-sysreport-search 1.1.4 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.0.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -167,7 +168,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.0.0 MYPC 2026-10-25 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...

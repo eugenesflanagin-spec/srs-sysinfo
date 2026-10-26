@@ -2,11 +2,13 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md) - [Part 2](buses-2.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+9). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus and Thunderbolt; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group shows how the parts of your PC are wired together: the PCI Express (PCIe) bus that carries
 the graphics card and SSDs, the USB and HID (Human Interface Device) devices, the small management buses
 (SMBus / I2C), the old ISA / LPC (Low Pin Count) bus, serial ports, ACPI (Advanced Configuration and
 Power Interface) devices, and the I/O port and memory address maps. Open any item with
-**Menu -> Buses / Devices -> item**. The main window also has a **PCI Bus** button (its panel has the
+**Menu -> Buses / Devices -> item**. The classic main window also has a **PCI Bus** button (its panel has the
 sub-buttons Properties, PnP Dev, Drives, PCI Dev, UAA Dev and ALL Dev) and a **USB Bus** button (sub-buttons
 Link Devices, USB Disks, HID Bus and USB Info). Most items work as a normal user. The items marked
 "Needs root data" show address ranges or raw register copies that Linux only gives to root. Run
@@ -986,7 +988,7 @@ out of address space for it, and the kernel log will say "can't assign".
 `pci-bus` - Linux data
 
 **In plain words.** This is the main PCI view: every PCI and PCIe device in a tree, with its name, type,
-driver and link speed. It is the **PCI Bus** button on the main window.
+driver and link speed. It is the **PCI Bus** button on the classic main window, and the **PCI bus** tab of the **USB & PCI devices** page.
 
 **What you see.**
 

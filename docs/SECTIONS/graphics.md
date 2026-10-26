@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **Graphics & audio** page (Alt+5). Its tabs are Graphics, GPU information, GPU clock speeds, GPU temperatures, Monitors, OpenCL and Audio devices; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group covers what you see and hear: the graphics card (GPU) with its clocks, temperatures, fans, power, firmware and PCIe link, the monitors plugged into it, the 3D and compute software (Vulkan, OpenGL, OpenCL), and sound, MIDI and game-controller devices. Many item names come from Windows (Direct3D, DirectX, dxdiag, RTSS); for those, SRS shows the closest Linux equivalent and says so in the item's title line. Open any item from **Menu -> Graphics / Monitors / Audio -> item**, or click the **Graphics** button on the Linux panel. Only **GPU register dump** (`gpu-dump`) needs root data: it shows the full PCI config space after you run **Menu -> Run as root (srs-root)** once. Everything here is read only: SRS never writes GPU settings, never changes fan speeds and never talks over the monitor's I2C/DDC bus.
 
 The examples come from the author's PC: AMD Ryzen 7 7800X3D, ASUS TUF GAMING X870-PRO WIFI7 board, XFX AMD Radeon RX 9070 XT (amdgpu driver, RDNA 4), an LG ULTRAGEAR 1440p 165 Hz monitor on DisplayPort and a BenQ RL2755 1080p monitor on HDMI.

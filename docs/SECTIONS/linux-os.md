@@ -2,7 +2,9 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-This group holds the items that SIV64X (System Information Viewer, by Ray Hinchliffe, RH Software) files under "Windows": the operating system itself, its services, drivers, users, memory, time, fonts, languages and crash handling. SRS (srs-sysinfo) is an independent Linux program. It is not affiliated with or endorsed by RH Software and contains no SIV code or data. Most Windows ideas have a close Linux twin, so each item shows that twin: services become systemd units, drivers become kernel modules, the registry becomes the files in `/etc` and `~/.config`, and Windows Error Reporting (WER) becomes `coredumpctl`. Open an item with **Menu -> Linux (SIV Windows items) -> item**, or press the **Linux** button in the main window (SIV's "Windows" button). That button opens the overview panel; its sub-buttons are Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, ALL Dev and Graphics. Only **Open server files** needs root data from the srs-root helper (Menu -> Run as root) to be complete; **Sessions** and **Product IDs** each have one line that also fills in only after srs-root has run.
+**Where to find these items (SRS 2.0).** In the main window they are on the **Operating system** page (Alt+0). Its first tab is **General Info** (SIV's "Windows" panel; the classic **Linux** button), then Drivers, Processes, Startup programs, Installed software, Environment and Users; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
+This group holds the items that SIV64X (System Information Viewer, by Ray Hinchliffe, RH Software) files under "Windows": the operating system itself, its services, drivers, users, memory, time, fonts, languages and crash handling. SRS (srs-sysinfo) is an independent Linux program. It is not affiliated with or endorsed by RH Software and contains no SIV code or data. Most Windows ideas have a close Linux twin, so each item shows that twin: services become systemd units, drivers become kernel modules, the registry becomes the files in `/etc` and `~/.config`, and Windows Error Reporting (WER) becomes `coredumpctl`. Open an item with **Menu -> Linux (SIV Windows items) -> item**, or press the **Linux** button in the classic main window (SIV's "Windows" button). That button opens the overview panel; its sub-buttons are Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, ALL Dev and Graphics. Only **Open server files** needs root data from the srs-root helper (Menu -> Run as root) to be complete; **Sessions** and **Product IDs** each have one line that also fills in only after srs-root has run.
 
 **How to read the saved text.** In a saved report (`sysreport-search '-save=[id]'`), `[=]` is a ticked box and `[_]` is an empty box. The GUI draws them as real check boxes. Some items take an argument after a colon, such as `driver-vsn:amdgpu`. You can type that form in the GUI or save it from the command line, for example `sysreport-search '-save=[signing:amdgpu]'`.
 
@@ -1258,7 +1260,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## System  
 `system` - Linux data
 
-**In plain words.** The overview panel: what Linux you run, on what hardware, since when, and how the desktop is set up. It is the Linux version of SIV's Windows panel. The main-window **Linux** button opens it, and [General Info](#general-info) shows the same page.
+**In plain words.** The overview panel: what Linux you run, on what hardware, since when, and how the desktop is set up. It is the Linux version of SIV's Windows panel. [General Info](#general-info) shows the same page: the classic main window's **Linux** button opens it, and in the main window it is the first tab of the **Operating system** page.
 
 **What you see.**
 - Top block (four lines):
@@ -1517,7 +1519,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## General Info  
 `windows` - Linux data
 
-**In plain words.** This is the panel SIV shows behind its "Windows" button (called "Windows (OS) panel" before SRS 2.0). In SRS it is the Linux overview, the same page as [System](#system), opened by the main-window **Linux** button.
+**In plain words.** This is the panel SIV shows behind its "Windows" button (called "Windows (OS) panel" before SRS 2.0). In SRS it is the Linux overview, the same page as [System](#system). In the main window it is the first tab of the **Operating system** page; in the classic view the main window's **Linux** button opens it.
 
 **What you see.** Exactly the fields described under [System](#system): distribution and kernel, install date, init and chassis, desktop session, system folders, kernel command line, one line per CPU, power and time zone, up-time and load, user and locale, BIOS, and connected monitors with their kernel driver. The panel's sub-buttons (Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, ALL Dev, Graphics) open the matching items in other groups.
 

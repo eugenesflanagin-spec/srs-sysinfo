@@ -26,27 +26,33 @@ Every technical word is explained the first time a page uses it, and again in th
 - **Needs root data** - some or all of the values come from the `srs-root` cache
   (`~/.cache/srs/root`, see the User Guide). Without it those values are empty.
 
-**How to open an item:** Menu -> the group -> the item (each menu entry shows the item id in
-brackets), or the panel buttons named in each group's introduction. From the command line:
-`sysreport-search '-save=[id]'`.
+**How to open an item:**
+
+- **In the main window** (SRS 2.0): pick the page in the sidebar (the table below names it). The
+  most used items are tabs; **All N items** at the right end of the tab row lists every item of
+  the page. Or type the item's name or id into the search box at the top (**Ctrl+F**). The
+  **Guide** button (F1) on each tab opens the item's section here.
+- **In the classic view:** Menu -> the group -> the item (each menu entry shows the item id in
+  brackets), or the panel buttons named in each group's introduction.
+- **From the command line:** `sysreport-search '-save=[id]'`.
 
 ## Groups
 
 The groups are in the same order as SRS's Menu.
 
-| Group | Items | Page |
-|---|---|---|
-| Processors | 44 | [processors.md](processors.md) |
-| Machine / BIOS / Memory | 58 | [machine.md](machine.md) |
-| Sensors / Cooling / Power | 34 | [sensors.md](sensors.md) |
-| Volumes / Drives | 28 | [storage.md](storage.md) |
-| Network | 36 | [network.md](network.md) |
-| Linux (SIV's Windows items) | 78 | [linux-os.md](linux-os.md) |
-| Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) |
-| Buses / Devices (part 1) | 64 | [buses-1.md](buses-1.md) |
-| Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) |
-| Tools | 28 | [tools.md](tools.md) |
-| SRS (SIV items) | 60 | [srs-items.md](srs-items.md) |
+| Group | Items | Page | Main-window page |
+|---|---|---|---|
+| Processors | 44 | [processors.md](processors.md) | Processor |
+| Machine / BIOS / Memory | 58 | [machine.md](machine.md) | Memory; Motherboard & BIOS |
+| Sensors / Cooling / Power | 34 | [sensors.md](sensors.md) | Sensors |
+| Volumes / Drives | 28 | [storage.md](storage.md) | Storage |
+| Network | 36 | [network.md](network.md) | Network |
+| Linux (SIV's Windows items) | 78 | [linux-os.md](linux-os.md) | Operating system |
+| Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & audio |
+| Buses / Devices (part 1) | 64 | [buses-1.md](buses-1.md) | USB & PCI devices |
+| Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
+| Tools | 28 | [tools.md](tools.md) | Benchmarks & stress; Tools |
+| SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
 
 ## Every item
 

@@ -16,13 +16,26 @@ memory, sensor, storage, bus, GPU, network and operating-system information,
 and includes a CPU burn-in / stress tester and benchmarks.
 SRS is not affiliated with or endorsed by RH Software.
 .PP
+The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
+Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices,
+Operating system, Benchmarks & stress and Tools. The Overview answers "Is my PC OK?" with a
+status light per check (temperatures against each sensor's own limit, drive health, hardware
+errors, free disk space, memory in use, sensor alarms) and cards with the key facts. Each other
+page shows key facts and the items as tabs; "All N items" lists every item of the page. The
+search box (\fBCtrl+F\fR) finds any item by name or id.
+.PP
+The classic view is the SIV-style interface of SRS 1.1: a main window with SIV's button row and
+every item in its own panel. Open it with Menu \(-> Classic View, or start in it with
+\fB\-\-gui\-classic\fR or the option "Start in classic view".
+.PP
 Root-only data (SMBIOS serials, DIMM SPD, SMART, ACPI tables, MSRs) is read
 from a cache filled by
 .BR srs-root (1).
 .SH OPTIONS
 .TP
 .BI \-\-gui\-open= PANEL
-Open the named panels at start, for example
+Open the named items or tools at start: in the main window an item opens on its page, in the
+classic view as its own panel. For example
 .BR sensors ", " processors ", " burnin ", " stress ", " bench ", " idlookup ", " find .
 .TP
 .B \-\-gui\-tray
@@ -39,10 +52,10 @@ start in the main window with the sidebar (Overview and one page per category), 
 Print the command-line help or the version and exit (these are shared with
 .BR sysreport-search (1)).
 .SH USER GUIDE
-Every panel has a \fBGuide\fR button (also \fBF1\fR, and "Open guide for this item"
+Every tab and panel has a \fBGuide\fR button (also \fBF1\fR, and "Open guide for this item"
 in its right-click menu) that opens the user guide at that item's section: in
 Okular, Evince or Papers at the right page, otherwise the HTML guide in the web
-browser. \fBMenu \(-> User Guide...\fR opens the start; \fBShift+F1\fR opens the Help panel.
+browser. \fBMenu \(-> User Guide\fR opens the start; \fBShift+F1\fR opens the Help panel.
 .SH ENVIRONMENT
 .TP
 .B SRS_OPEN
@@ -54,6 +67,9 @@ directory holding the user guide (default /usr/share/doc/srs-sysinfo).
 .TP
 .I /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf, /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
 the user guide (PDF and HTML), with its Markdown sources in the same folder.
+.TP
+.I ~/.config/srs/SRSDEF.ini
+settings (theme, update interval, tray, "Classic View=1" for Start in classic view, ...).
 .TP
 .I ~/.cache/srs/root/
 root-only data collected by srs-root.

@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+-) has buttons that open the CPU Benchmark, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results. **Tools** (Alt+=) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
 look-up and search tools (device ID lookup, report search, configuration search, ping). Open the
@@ -530,7 +532,7 @@ srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V1.1.0.
+`/usr/bin/sysreport-search`, V2.0.0.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

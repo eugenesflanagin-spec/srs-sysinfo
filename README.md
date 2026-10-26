@@ -37,6 +37,8 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 
 ## Using it
 
+![SRS 2.0 main window: the Overview page](docs/images/overview-light.png)
+
 - **Main window** (new in 2.0): a sidebar of pages - **Overview**, Processor, Memory,
   Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating
   system, Benchmarks & stress, Tools.
@@ -51,17 +53,20 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     expert ones too.
   - **Search** in the title bar (Ctrl+F) finds any item by name or id (`processor:3` works);
     Enter searches the text of the current tab, F3 for the next match.
-  - **Menu**: Save Report, Save All Items, Copy, Options, Run as root, Find, Device ID Lookup,
-    Classic View, the full Classic Menu, User Guide, About.
-- **Classic view** (Menu -> Classic View, `srs-gui --gui-classic`, or **Options -> Start in
-  classic view** to make it the default) is SRS's SIV-style interface, unchanged:
-- **Classic main window** = SIV's main panel with its button row: OK, Copy, **Linux** (SIV's "Windows"),
-  Machine, Sensors, USB Bus, Processors, Volumes, Adapters, PCI Bus, About, Help, plus **Menu**.
-- Each panel has SIV's own sub-buttons (Processors: Features, Hypervisor, Groups, CPU-n, Cache-n;
-  Sensors: Zero, Status, Cooling, Power, Hide; Adapters: Counters, ARP, Routing, TCP V4/V6, Wi-Fi,
-  Bluetooth, DNS, Ping; PCI Bus: Properties, PnP Dev, PCI Dev, UAA Dev, ALL Dev; ...).
-- **Menu** (SIV's tray menu) lists every item by group, plus the tools, Save Report, Save All Items,
-  Run as root and Exit. Right-click any panel for the same menu.
+  - **Menu**: Save Report, Save All Items, Copy This Tab, Options, Run as root, Find in System
+    Report, Device ID Lookup, Classic View, the full Classic Menu, User Guide, About SRS, Quit.
+  - The tools below open from the **Benchmarks & stress** and **Tools** pages too.
+- **Classic view** (Menu -> Classic View, the **Classic view** button under the sidebar,
+  `srs-gui --gui-classic`, or **Options -> Start in classic view** to make it the default) is
+  SRS's SIV-style interface, unchanged from 1.1:
+  - **Classic main window** = SIV's main panel with its button row: OK, Copy, **Linux** (SIV's
+    "Windows"; opens General Info), Machine, Sensors, USB Bus, Processors, Volumes, Adapters,
+    PCI Bus, About, Help, plus **Menu**.
+  - Each panel has SIV's own sub-buttons (Processors: Features, Hypervisor, Groups, CPU-n, Cache-n;
+    Sensors: Zero, Status, Cooling, Power, Hide; Adapters: Counters, ARP, Routing, TCP V4/V6, Wi-Fi,
+    Bluetooth, DNS, Ping; PCI Bus: Properties, PnP Dev, PCI Dev, UAA Dev, ALL Dev; ...).
+  - **Menu** (SIV's tray menu) lists every item by group, plus the tools, Save Report, Save All
+    Items, Run as root and Exit. Right-click any panel for the same menu.
 - **Tools:**
   - **CPU Burnin / CPU Stress** - per-CPU worker threads (Same CPU: Whetstone rating per CPU;
     Swap CPU: affinity test), affinity/APIC check, burn/cool cycles, current / average / rolling /
@@ -76,7 +81,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
     and **Find** (regex over a `srs-sysreport` folder, with highlighting and F3 navigation).
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
-- Hot-keys: Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
+- Hot-keys (classic view): Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
   the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page and
   Ctrl+W closes an extra tab.
@@ -98,7 +103,7 @@ an unchanged panel isn't redrawn at all. With the Sensors panel open this halved
 (about 4% to 2% on a 7800X3D).
 
 **Menu -> Options -> Update interval** sets how often live panels refresh: *Default* (each panel's
-own rate; the main window every 2 s), 0.5, 1, 2, 3, 5 or 10 seconds, or *Paused* (press F5 to
+own rate; the classic main window every 2 s; the Overview and the key-fact tiles every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or *Paused* (press F5 to
 refresh a panel by hand). Applies at once to every open window and is saved as `Update Interval=`
 (milliseconds; 0 = default, -1 = paused) in `~/.config/srs/SRSDEF.ini`. CPU Burnin / Stress always
 updates its status every second.
@@ -142,7 +147,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
 
 `sysreport-search` takes the same commands. `--help` lists them all; the full reference is in
 the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SRS User Guide
-(PDF)**, or the **Guide** button / F1 on any panel), sources in [docs/](docs/).
+(PDF)**, or the **Guide** button / F1 on any tab or panel), sources in [docs/](docs/).
 
 ## Safety
 

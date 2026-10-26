@@ -6,6 +6,9 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ## 2.0.0 - 2026-10-26
 
+This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per
+topic and a search box. The classic SIV-style windows are still there, one click away.
+
 ### Added
 - **A new main window: easier to find your way, nothing taken away.** One window with a sidebar of
   pages: **Overview**, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network,
@@ -53,6 +56,10 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 - `--gui-open=ITEM`, the tray menu's Sensors / Processors and a double-clicked device ID open the
   item on its page in the new window, and as a panel in the classic view.
 - The command line, `-save` reports and their format are unchanged.
+- **User guide and Section Reference updated for the new window**: a new tour of the main window
+  (section 6) with screenshots of the Overview (light and dark), the Processor and Sensors pages
+  and the search box; every tool, troubleshooting row and FAQ answer says where to find it in the
+  new window and in the classic view; each group of the Section Reference names its page.
 
 ## 1.1.4 - 2026-10-25
 

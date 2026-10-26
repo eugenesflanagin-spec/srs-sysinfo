@@ -1,4 +1,4 @@
-# How the SIV64X specification was gathered (clean-room evidence)
+# How the SIV64X specification was gathered
 
 SIV (System Information Viewer) is freeware by Ray Hinchliffe, RH Software (https://rh-software.com).
 SRS is an independent project and is not affiliated with RH Software. No SIV code was used, disassembled or decompiled.
@@ -100,7 +100,7 @@ matched, the stock (device-level) name and the resolved (most specific) name.
 The same three strategies (sorted bsearch / linear file scan / ask the OS) are what
 `sysreport-search id --mode tree|scan|info` re-creates, over open data.
 
-## Clean-room rebuild — `~/.local/bin/sysreport-search`
+## Independent rebuild — `~/.local/bin/sysreport-search`
 
 Now native C (`~/.local/src/sysreport-search/`): `sysreport-search` CLI and the `srs-gui` GTK3 GUI on
 Linux, plus `SRS64X.exe` / `SRS32X.exe` Win32 images. The CLI output is byte-identical to the original

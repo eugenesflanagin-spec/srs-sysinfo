@@ -2,10 +2,12 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **Processor** page (Alt+2). Its tabs are CPU Summary, Processors, CPU Clocks, CPUID Features, Cache Levels, CPUID, Microcode and Speculation Control; **All N items** lists the rest, plus **Each CPU** and **Cache levels of each CPU** (SIV's CPU-n and Cache-n buttons). You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group covers everything about the processor (CPU): its name and family, how many cores and threads
 it has, its caches, the features it supports, its clock speeds, power and idle states, temperatures,
 voltages and the low-level registers behind them. Open any item from **Menu -> Processors -> item**.
-The quickest way in is the **Processors** button on the main panel. Its row of sub-buttons opens
+The quickest way in is the **Processors** button on the classic main panel. Its row of sub-buttons opens
 **Features**, **Hypervisor**, **Groups**, **CPU-n** (one processor in detail) and **Cache-n** (the cache
 table of CPU number n). Most items read normal Linux files and need nothing special. **MSRs** needs root
 data: run the srs-root helper once (Menu -> Run as root) and SRS shows the cached result. Several AMD

@@ -4,6 +4,8 @@
 
 [Part 1](buses-1.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+9). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus and Thunderbolt; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This is the second half (alphabetical) of the Buses / Devices group. It covers the system resource maps (memory, I/O ports, interrupts), bus address translation, Thunderbolt / USB4, every USB view (bus, tree, devices, names, owners, flags, ID database), portable (MTP/PTP) devices, and two families of items for rare hardware: XMC mezzanine cards and the HP zx1 chipset. Open any item from **Menu -> Buses / Devices -> item**. The panel buttons lead to the busiest ones: **USB Bus** opens [USB bus](#usb-bus), and its sub-buttons are Link Devices, USB Disks, HID Bus and USB Info (the last opens [USB ID database](#usb-id-database)); **PCI Bus** has the sub-buttons Properties, PnP Dev, Drives, PCI Dev, UAA Dev and ALL Dev (see part 1). Only [System HAL resources](#system-hal-resources) and [System resources](#system-resources) need root data: without it the kernel hides the real addresses, so start the root helper once with **Menu -> Run as root (srs-root)**. In any panel, double-clicking a device ID written as `VVVV:DDDD` (for example `0bda:8153`) opens Device ID Lookup for that ID.
 
 ## Contents

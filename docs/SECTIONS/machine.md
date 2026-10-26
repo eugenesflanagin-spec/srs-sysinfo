@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on two pages: **Memory** (Alt+3: the memory sticks, SPD, timings, memory map, NUMA) and **Motherboard & BIOS** (Alt+4: everything else). Each page's **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group describes the computer itself rather than any one add-in card: the motherboard and its
 firmware (BIOS / UEFI), the memory sticks and how memory is laid out, the ACPI tables and devices
 the firmware hands to the operating system, the TPM security chip and the CMOS clock. Open it in

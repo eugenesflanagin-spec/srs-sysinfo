@@ -70,7 +70,9 @@ It also has tools:
 - **Device ID Lookup** - turn a number like `1002:7550` into a device name.
 - **Find** - search a saved full system report.
 
-SRS looks and behaves like SIV, the long-running Windows tool, so SIV users feel at home.
+Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
+one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
+behaves like SIV, the long-running Windows tool, so they feel at home.
 It has all 538 of SIV 5.87's report items (545 in total with SRS's own extras):
 
 - **364** show real Linux data.
@@ -89,7 +91,7 @@ no network traffic except one `ping` to your router when you open the Ping item.
   is my RAM at its rated speed?") without opening the case.
 - **Enthusiasts and tuners** who watch temperatures, clocks and fan speeds, run a burn-in after a
   change, and compare before and after.
-- **SIV users moving to Linux** who want the same layout and item names.
+- **SIV users moving to Linux** who want the same layout and item names (the classic view).
 - **Helpers and support people** who need a full text report from someone else's PC.
 - **Power users** who script it: everything is also available as plain text from the command line.
 
@@ -115,7 +117,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-1.1.4-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.0.0-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -143,8 +145,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-1.1.4-linux-x86_64.tar.gz
-cd srs-sysinfo-1.1.4-linux-x86_64
+tar xzf srs-sysinfo-2.0.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.0.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -189,7 +191,7 @@ Open your application menu. SRS installs four entries (category System / Monitor
 
 | Menu entry | Opens |
 |---|---|
-| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Device ID Lookup, Find in System Report. |
+| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Device ID Lookup, Find in System Report, Classic View. |
 | **SRS CPU Burnin & Stress** | The CPU Burnin and CPU Stress windows (nothing starts until you press Start). |
 | **SRS Benchmark** | The Benchmark, IPI Delay and Latency windows (nothing runs until you press Run). |
 | **SRS Full System Report** | A terminal that writes a full text report folder (see [13.3](#133-full-system-report-srs-sysreport)). |
@@ -199,6 +201,10 @@ Or type `srs-gui` in a terminal.
 **What you see first:** the main window. On the left is a list of pages; the first one,
 **Overview**, tells you whether the PC looks healthy and shows its key facts. (The SIV-style
 window of SRS 1.1 is still there: see [Classic view](#66-classic-view-the-siv-style-windows).)
+
+![SRS main window, Overview page](images/overview-light.png)
+
+*The main window with the Overview page, on the author's PC (light theme).*
 
 **First things to try:**
 
@@ -286,16 +292,16 @@ as **Sensor status** or **SMART drives**; there are 545 of them.
 |---|---|---|
 | **Overview** | Is the PC healthy, and its key facts | - |
 | **Processor** | The CPU: model, cores and threads, clocks, features, caches | CPU Summary, Processors, CPU Clocks, CPUID Features, Cache Levels, CPUID, Microcode, Speculation Control |
-| **Memory** | RAM: installed, in use, the sticks and their timings | Memory, DIMMs, SPD, Memory timings, DIMM status, Physical memory map, NUMA |
+| **Memory** | RAM: installed, in use, the sticks and their timings | Memory, DIMMs, SPD (DIMMs), Memory timings, DIMM status/temperatures, Physical memory map, NUMA |
 | **Motherboard & BIOS** | The board and its firmware | Machine, Hardware summary, Firmware, BIOS / SMBIOS tables, UEFI information, ACPI tables, TPM device |
 | **Graphics & audio** | Graphics cards, monitors, sound | Graphics, GPU information, GPU clock speeds, GPU temperatures, Monitors, OpenCL, Audio devices |
 | **Storage** | Drives, file systems, drive health | Disk drives, Volumes, SMART drives, Partitions, Disk performance, USB disk drives |
-| **Network** | Adapters, addresses, Wi-Fi, Bluetooth, connections | Network adapters, IP address, Wi-Fi, Bluetooth, Routing, TCP V4 ports, TCP/IP counters |
-| **Sensors** | Temperatures, fans, voltages, power | Sensor status, Hardware status, Cooling status, Power status |
+| **Network** | Adapters, addresses, Wi-Fi, Bluetooth, connections | Network adapters, IP address, Wi-Fi SSIDs, Bluetooth radios, Routing table, TCP V4 ports, TCP/IP counters |
+| **Sensors** | Temperatures, fans, voltages, power | Sensor status, Hardware status, Cooling status (fans), Power status |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
-| **Operating system** | Linux itself | Linux (SIV's "Windows" panel), Drivers, Processes, Startup, Installed software, Environment, Users |
+| **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
 | **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, CPU IPI Delay, Memory Latency (the last results) |
-| **Tools** | Look-ups, reports and SRS's own items | About, Help |
+| **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
 The tabs are the items most people need. **All N items** at the right end of the tab row lists
 **every** item of the page, the expert ones included, in alphabetical order; "(not present)" and
@@ -307,6 +313,10 @@ CPU** and **Cache levels of each CPU** (SIV's CPU-n and Cache-n buttons).
 
 The Overview starts with a line about the PC (board, Linux distribution, time since start-up), then
 **Is my PC OK?**: one line per check, each with a light and a plain-words verdict.
+
+![Overview page, dark theme](images/overview-dark.png)
+
+*The Overview in the dark theme: every check is green, and the cards under "At a glance" start below.*
 
 | Light | Means |
 |---|---|
@@ -324,8 +334,8 @@ The Overview starts with a line about the PC (board, Linux distribution, time si
 | **Hardware errors** | Kernel taint flag M (the CPU reported a machine check), EDAC counters (ECC memory), HardwareCorrupted in /proc/meminfo | none / corrected ECC errors / a machine check, uncorrected errors or faulty pages taken out of use |
 | **Free disk space** | The file system mounted at / | below 90 % used / 90-96 % / 97 % and up |
 | **Memory in use** | Memory used by programs (cache does not count) | below 90 % / 90-94 % / 95 % and up |
-| **Sensor alarms** | Alarm flags of the hardware monitor chips | none / any |
-| **CPU throttling** | Thermal throttling counters (shown only on CPUs that count them, such as Intel) | never / any |
+| **Sensor alarms** | Alarm flags of the hardware monitor chips | none / any flag set / - |
+| **CPU throttling** | Thermal throttling counters (shown only on CPUs that count them, such as Intel) | never / slowed down at least once / - |
 
 **Where the limits come from.** Each sensor's own limit wherever it publishes one:
 
@@ -336,7 +346,8 @@ The Overview starts with a line about the PC (board, Linux distribution, time si
   a Radeon RX 9070 XT.
 - **Drives:** each NVMe or SATA drive's own warning temperature, for example 81.85 °C on a
   Samsung 980 PRO. Drives are compared one by one, so a cooler drive with a low limit is not
-  hidden behind a warmer one.
+  hidden behind a warmer one. A drive that only publishes a critical temperature is judged against
+  5 °C below it.
 
 Where no limit is known, a general one is used: CPU 85 / 95 °C, graphics 95 / 105 °C, drives
 60 / 70 °C. The tooltip says which one applies.
@@ -352,6 +363,11 @@ free space, kernel, BIOS version ...). The button on each card opens its page.
 ### 6.3 A page
 
 Each page has three parts:
+
+![Processor page](images/processor-page.png)
+
+*The Processor page: the heading, the key facts as tiles, then the tabs. **All 43 items** at the
+right end of the tab row lists every processor item.*
 
 1. **The heading:** the topic and one sentence about what it is.
 2. **Key facts** as tiles (for example Model, Cores, Speed now, Busy, Temperature on the Processor
@@ -370,6 +386,11 @@ Each page has three parts:
 | **Copy** | Copy all the text. With **Options -> Redact** on, serials, UUIDs, MACs and the computer name are masked in the copy ([17](#17-privacy-before-you-share-a-report)). |
 | **Guide** | This guide at the item's section (**F1**). |
 | **Open in window** | The item as a classic panel with its SIV-style button row. |
+
+![Sensors page, dark theme](images/sensors-page.png)
+
+*The Sensors page in the dark theme, with the Sensor status tab: the same text and colours as the
+classic Sensors panel, plus the Live switch and the Zero and Hide unused buttons.*
 
 Double-click a line with a PCI or USB ID to look it up (it opens as a tab on the Tools page).
 Right-click the text for Copy, Select All, the guide link and the Classic Menu.
@@ -392,6 +413,11 @@ The search box in the title bar (**Ctrl+F**):
 - **Item ids with an argument:** type the id and press Enter, for example `processor:3` (CPU-3),
   `cache:0`, `volumes:/`.
 - **Esc** clears the box and the highlights.
+
+![Search suggestions](images/search-items.png)
+
+*Typing `temp` in the search box: each suggestion shows the item's name, its id in brackets and the
+page it is on.*
 
 To search a full text report on disk, use **Find in System Report** (**Ctrl+Shift+F**, see
 [9.6](#96-find-search-a-full-system-report)).
@@ -487,6 +513,8 @@ link to the Section Reference.
 
 ### 7.1 Linux (SIV's "Windows" panel)
 
+The classic **Linux** button opens the **General Info** item (`windows`; called "Windows (OS)
+panel" before SRS 2.0). In the main window it is the first tab of the **Operating system** page.
 The operating system: distribution, kernel, boot, desktop session, directories, kernel command
 line, per-CPU identification, time zone, up-time, user and locale, displays.
 Buttons: Linux, Machine, Sensors, USB Bus, Processors, Volumes, PCI Bus, **ALL Dev** (every device),
@@ -579,8 +607,11 @@ Device ID Lookup. (USB IDs open on the PCI bus; switch the lookup to USB by hand
 
 ### 7.9 About and Help
 
-**About** shows the program and version, build, the data files in use (hwdata `pci.ids`, `usb.ids`,
-`pnp.ids` with their dates), where settings live, the statement of origin, credit and licence.
+**About** (the item **About SRS**) shows the program and version, build, the data files in use
+(hwdata `pci.ids`, `usb.ids`, `pnp.ids` with their dates) and where settings live. Then who made SRS
+("Created by Eugene Flanagin"), its licence ("Licensed under" GPL-2.0-or-later) and its home page
+(<https://github.com/eugenesflanagin-spec/srs-sysinfo>), and last the statement of origin, credit
+and disclaimer. In the main window: **Menu -> About SRS**, or the first tab of the **Tools** page.
 **Help** shows help text and the command-line qualifiers.
 Their buttons: Linux, DNS Names, Lookup (data files), USB Dev, About, Help; the Lookup panel adds
 Signature, SRS DLLs and ID Lookup.
@@ -631,8 +662,9 @@ overclocks, undervolts (Curve Optimizer) or power limits.
 
 ![CPU Burnin window](images/cpu-burnin.png)
 
-Open: Processors -> CPU Burnin / CPU Stress, Menu -> Tools, or the menu entry
-"SRS CPU Burnin & Stress".
+Open: the **Benchmarks & stress** page -> **Burnin...** / **Stress...**, the menu entry
+"SRS CPU Burnin & Stress", or in the classic view Processors -> CPU Burnin / CPU Stress or
+Menu -> Tools.
 
 The difference:
 
@@ -702,6 +734,10 @@ Higher is better. They are good for comparing the same PC before and after a cha
 comparing very different CPUs.
 
 ![Benchmark window](images/benchmark.png)
+
+Open: the **Benchmarks & stress** page -> **Benchmark...**, the menu entry "SRS Benchmark", or in
+the classic view Processors -> Benchmark or Menu -> Tools. The page's **CPU Benchmarks** tab shows
+the last results.
 
 Controls: **Mode**, **Seconds per measurement** (0.1-10, default 1), **Run**.
 The modes, as in SIV:
@@ -886,6 +922,8 @@ the two dies. The exact numbers depend on the CPU, the memory and fabric clocks,
 for every pair of CPUs. Shows as a table in nanoseconds and a colour heat map (green = fast,
 red = slow). Cores that share a cache or a chip answer faster; cores on different chips
 (for example two CCDs on a Ryzen 9) answer slower.
+Open: the **Benchmarks & stress** page -> **IPI Delay...**, or Menu -> Tools -> IPI Delay... in
+the classic view.
 Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run**.
 For a step-by-step reading of one real result (partner threads, the L3, what a two-CCD CPU
 looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922-reading-the-cpu-ipi-delay-table---a-worked-example).
@@ -895,6 +933,8 @@ looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922
 **In plain words:** measures how long one memory read takes, for blocks from tiny to large. Small
 blocks fit in L1 and answer in about 1 ns; as the block grows past each cache, the time steps up:
 L2, L3, then RAM. The steps in the graph show you your cache sizes.
+Open: the **Benchmarks & stress** page -> **Latency...**, or Menu -> Tools -> Latency... in the
+classic view.
 Controls: **Largest block (MB)** (1-1024, default 256), **Run**. Results: a table (block size,
 time in ns, level) and a curve.
 
@@ -908,7 +948,9 @@ For a full Cache & Memory **bandwidth** benchmark, see the sister project
 
 ![Device ID Lookup](images/device-id-lookup.png)
 
-Open: **Ctrl+L**, Menu -> Tools, the Lookup panel's ID Lookup button, or double-click an ID in a panel.
+Open: **Ctrl+L**, **Menu -> Device ID Lookup...**, the **Tools** page -> **Lookup...**, or
+double-click an ID on any tab or panel. In the classic view also Menu -> Tools and the Lookup
+panel's ID Lookup button.
 
 Controls:
 
@@ -932,7 +974,9 @@ Output: each key tried (the matching one is marked `<`), then **Vendor**, **Subs
 
 ![Find window](images/find.png)
 
-Open: **Ctrl+F**, Menu -> Tools -> Find in Report..., or the menu entry's "Find in System Report" action.
+Open: **Ctrl+Shift+F** or **Menu -> Find in System Report...** in the main window, the **Tools**
+page -> **Find...**, or the menu entry's "Find in System Report" action. In the classic view:
+**Ctrl+F** or Menu -> Tools -> Find in Report....
 
 Controls:
 
@@ -961,7 +1005,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Light (SIV classic)** | SIV's light look and colours. | classic view |
 | **Theme -> Dark** | Dark panels, SIV's colours brightened so they stay readable, dark graphs. | |
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
-| **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the main window every 2 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). CPU Burnin / Stress always updates every second. | Default |
+| **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). CPU Burnin / Stress always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
 | **Close button hides to tray** | Closing the main window hides it instead of exiting. | off |
 | **Minimize hides to tray (X11 / XWayland)** | Minimising hides it to the tray. Native Wayland apps are not told when they are minimised, so this works only on X11 / XWayland. | off |
@@ -1002,6 +1046,7 @@ In the main window:
 | **F3 / Shift+F3** | Next / previous match on the tab |
 | **Esc** in the search box | Clear it and the highlights |
 | **Ctrl+Shift+F** | Find in System Report |
+| **Ctrl+H** | Highlight matches on / off (Find) |
 | **Ctrl+L** | Device ID Lookup |
 | **Ctrl+D** | ALL Devices tab |
 | **Ctrl+S** | Save Report |
@@ -1058,7 +1103,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V1.1.0 MYPC 2026-10-25 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.0.0 MYPC 2026-10-25 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -1145,10 +1190,12 @@ Environment variables:
 
 ## 15. Reading results and comparing runs
 
-- **Learn what normal looks like on your PC.** Open Sensors at idle and note the temperatures,
-  fan speeds and voltages. Then you can spot a change later.
-- **Minimum / Maximum** columns in Sensors record the extremes since SRS started (or since you
-  pressed **Zero**). Press Zero, play a game or run a burn-in, then look at Maximum.
+- **Learn what normal looks like on your PC.** Open the **Sensors** page at idle and note the
+  temperatures, fan speeds and voltages. Then you can spot a change later. The Overview's
+  **Is my PC OK?** gives a quick verdict; the Sensors page has the numbers.
+- **Minimum / Maximum** columns on the **Sensor status** tab (the Sensors panel in the classic
+  view) record the extremes since SRS started (or since you pressed **Zero**). Press Zero, play a
+  game or run a burn-in, then look at Maximum.
 - **Compare two reports:** save `-save=[all]` before and after a change and compare them with any
   diff tool, for example `diff -u before.txt after.txt | less` or `meld before.txt after.txt`.
   Expect live values (clocks, temperatures, up-time, counters) to differ every time; look for
@@ -1159,9 +1206,10 @@ Environment variables:
   (`meld old.txt new.txt`). Benchmarks keep only the last run of each mode
   (`~/.cache/srs/bench-<mode>.txt`): copy that file somewhere before you run the mode again if you
   want to keep it.
-- **Watch the PCIe link** (PCI Bus panel): a graphics card should normally show its full width
+- **Watch the PCIe link** (the **PCI bus** tab of **USB & PCI devices**, or the classic PCI Bus
+  panel): a graphics card should normally show its full width
   (x16) and speed under load; x4 or x8 can mean the wrong slot or a slot that shares lanes.
-- **Watch memory speed** (main window, Machine): if it shows 4800 MT/s for a 6000 MT/s kit, the
+- **Watch memory speed** (the **Memory** page's DIMMs tab, or Machine in the classic view): if it shows 4800 MT/s for a 6000 MT/s kit, the
   XMP / EXPO profile is not enabled in the BIOS.
 
 The Section Reference has "Healthy / typical values" and "Unusual values" for every item:
@@ -1169,6 +1217,14 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
+- **Two views, same data.** The main window and the classic view show the same 545 items with the
+  same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
+  their own right: in the main window find them under **All N items** on the page, or with the
+  search box. **Open in window** shows any tab as the classic panel with its button row.
+- **"Is my PC OK?" limits.** SRS knows the maximum temperature of Intel CPUs (they report it) and
+  of AMD desktop Ryzen 5000, 7000 and 9000 models (from AMD's specifications). Other AMD CPUs
+  (laptops, Threadripper, older models) and graphics cards that publish no limit are judged
+  against a general limit; the tooltip says which. The checks are a quick guide, not a diagnosis.
 - **Linux sources, not Windows ones.** Values come from the Linux kernel and standard tools, so
   wording and some figures differ from SIV on Windows for the same PC.
 - **Root data is a snapshot.** Panels that use `~/.cache/srs/root` show what was true when
@@ -1203,12 +1259,14 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 A full report describes your PC in detail. Some items include identifiers you may not want to post
 publicly:
 
-- Board and system **serial numbers** and the system **UUID** (Machine, and SMBIOS-related items).
-- **Disk serial numbers**, volume serials and partition IDs (Volumes, storage items).
-- **MAC addresses**, IP addresses, Wi-Fi network names (Network items).
-- **Monitor serial numbers** and the GPU unique ID (Graphics items).
-- USB device serial numbers (Properties).
-- The **kernel command line**, which contains your root file system's UUID (Linux, Speculation).
+- Board and system **serial numbers** and the system **UUID** (the Motherboard & BIOS page: Machine
+  and the SMBIOS items).
+- **Disk serial numbers**, volume serials and partition IDs (the Storage page).
+- **MAC addresses**, IP addresses, Wi-Fi network names (the Network page).
+- **Monitor serial numbers** and the GPU unique ID (the Graphics & audio page).
+- USB device serial numbers (Properties, on the USB & PCI devices page).
+- The **kernel command line**, which contains your root file system's UUID (General Info and
+  Speculation Control; the classic Linux panel).
 - The **boot ID**, machine ID and your PC's host name.
 
 **Redact before you share.** Save the report with identifiers masked:
@@ -1232,20 +1290,25 @@ post. Or save only the items you need: `sysreport-search '-save=[processors][sen
 
 | Problem | What to do |
 |---|---|
-| DIMM lines, serials, SMART or SPD panels are empty or say to run srs-root | Run **Menu -> Run as root** once (needs `polkit` for the password prompt), or `sudo srs-root`. Install `dmidecode`, `smartmontools`, `nvme-cli`, `i2c-tools` for full data. |
+| The Overview says "Not checked yet" for drive health, or a tab shows **Needs root data...** | Run **Menu -> Run as root (srs-root)...** once (or press **Needs root data...**). The drive health line turns green or red after that. |
+| A line on the Overview is grey ("Unknown") | SRS found nothing to check, for example no CPU or GPU temperature sensor. Look at the Sensors page; see "Sensors page is nearly empty" below. |
+| DIMM lines, serials, SMART or SPD tabs are empty or say to run srs-root | Run **Menu -> Run as root** once (needs `polkit` for the password prompt), or `sudo srs-root`. Install `dmidecode`, `smartmontools`, `nvme-cli`, `i2c-tools` for full data. |
 | Run as root does nothing / "did not complete" | You cancelled the password prompt, or no polkit agent is running (some minimal window managers). Use `sudo srs-root` in a terminal instead. |
 | No tray icon | Install `libayatana-appindicator`. On GNOME, install and enable the AppIndicator extension. |
-| Closing the window does not exit SRS | "Close button hides to tray" is on. Use **Menu -> Exit** or the tray's Exit, or untick the option. |
+| Closing the window does not exit SRS | "Close button hides to tray" is on. Use **Menu -> Quit** (Ctrl+Q; **Exit** in the classic Menu) or the tray's Exit, or untick the option. |
+| SRS opens the old SIV-style window | **Options -> Start in classic view** is on. Untick it, or use **Menu -> Open the new main window** in the classic Menu, or start `srs-gui --gui-new`. |
+| I want the old SIV-style window back | **Menu -> Classic View**, the **Classic view** button under the sidebar, or `srs-gui --gui-classic`. Tick **Options -> Start in classic view** to always start there. |
 | SRS starts hidden | "Start hidden in tray" or "Start with the desktop" is on; click the tray icon. |
 | Minimize to tray does nothing | You are on native Wayland. The option works only on X11 / XWayland. |
 | Colours look wrong or half-dark | Pick **Options -> Theme** explicitly (Light or Dark). |
 | Temperatures of 70-90 C or 0 C on some motherboard inputs | Those inputs are not connected to a sensor. SRS greys them out ("not connected"). Ignore them. See [sensors.md](SECTIONS/sensors.md). |
-| Sensors panel is nearly empty | The kernel has no driver for your board's monitoring chip. Run `sudo sensors-detect` (from `lm_sensors`) and load the module it suggests. |
+| Sensors page (or panel) is nearly empty | The kernel has no driver for your board's monitoring chip. Run `sudo sensors-detect` (from `lm_sensors`) and load the module it suggests. |
 | CPU Burnin stops quickly with Fail | The temperature limit was reached. Check cooling. Raise the limit only if you know your CPU's safe maximum. |
 | "GPU load command not found" | The program in GPU Load command is misspelled or not installed. Fix it, or untick GPU Load command. Its output is in `~/.cache/srs/gpu-load.log`. |
 | Find says there is no report | Run **SRS Full System Report** first. |
 | Device names show "Unknown Device" | Your `hwdata` package is old. Update it (new hardware is added to `pci.ids` / `usb.ids` regularly). |
-| Panels update too often / use CPU | **Options -> Update interval** -> 2 or 5 seconds, or Paused. |
+| Panels update too often / use CPU | **Options -> Update interval** -> 2 or 5 seconds, or Paused. In the main window you can also turn off the **Live** switch of one tab. |
+| I cannot find an item | Type part of its name or its id into the search box (**Ctrl+F**), or look under **All N items** on the page. |
 | `-save=[...]` gives "no matches found" in zsh | Quote it: `sysreport-search '-save=[cpuid]'` (the brackets are a pattern in zsh). |
 | Ping item hangs a moment | It waits for your router to answer. Normal. |
 
@@ -1279,7 +1342,14 @@ They are SIV items for hardware most PCs do not have (Itanium, IPMI, RAID cards.
 so the item list matches SIV's.
 
 **Why "Linux" where SIV says "Windows"?**
-The button opens the operating-system panel. On Linux that is Linux.
+SIV's "Windows" button opens its operating-system panel. On Linux that is Linux, so the classic view's
+button says **Linux**. The item itself is called **General Info** (id `windows`, as in SIV); in the
+main window it is the first tab of the **Operating system** page.
+
+**Where is the window from SRS 1.1?**
+It is the **classic view**: **Menu -> Classic View**, the **Classic view** button under the sidebar,
+or `srs-gui --gui-classic`. Tick **Options -> Start in classic view** to make it the default.
+Nothing was removed: both views show the same items.
 
 **Can I use it over SSH or in a script?**
 Yes. `sysreport-search` needs no desktop. See [CLI-REFERENCE.md](CLI-REFERENCE.md).

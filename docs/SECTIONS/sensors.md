@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **Sensors** page (Alt+8). Its tabs are Sensor status (with Zero and Hide unused), Hardware status, Cooling status (fans) and Power status; **All N items** lists the rest. The Overview's **Is my PC OK?** sums up the temperatures and alarms. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group shows what your PC can measure about itself: temperatures, fan speeds, voltages, power use and
 batteries. It also covers the chips and firmware that supply those readings (the Super I/O chip, ASUS WMI,
 IPMI on servers) and the export and "setup" items that SIV offers for its own sensor tools.

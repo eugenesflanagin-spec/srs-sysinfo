@@ -2,6 +2,8 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
+**Where to find these items (SRS 2.0).** In the main window they are on the **Storage** page (Alt+6). Its tabs are Disk drives, Volumes, SMART drives, Partitions, Disk performance and USB disk drives; **All N items** lists the rest. The Overview checks drive health and drive temperature. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+
 This group covers everything about storage: the physical drives in the PC, how they are split into
 partitions, which filesystems are on them, where those filesystems are mounted, how busy the drives
 are, and how healthy they are. Open any item with **Menu -> Volumes / Drives -> item**. The panel
