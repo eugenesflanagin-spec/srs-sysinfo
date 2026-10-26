@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 2.0.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 2.1.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -119,7 +119,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-2.0.0-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.1.0-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -147,8 +147,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-2.0.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.0.0-linux-x86_64
+tar xzf srs-sysinfo-2.1.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.1.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -166,14 +166,14 @@ with GTK and everything else it needs inside. Nothing is installed; you just run
 built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
 
 ```
-chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
-./srs-sysinfo-2.0.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.0.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.0.0-x86_64.AppImage srs-sysreport     # the full system report
+chmod +x srs-sysinfo-2.1.0-x86_64.AppImage
+./srs-sysinfo-2.1.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.1.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.1.0-x86_64.AppImage srs-sysreport     # the full system report
 ```
 
 - **Command line:** every `sysreport-search` command works with the AppImage, for example
-  `./srs-sysinfo-2.0.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  `./srs-sysinfo-2.1.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
   the AppImage behaves like the real `sysreport-search`.
 - **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
   that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
@@ -190,7 +190,7 @@ chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
 - **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
   packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
   `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
-  (see them with `./srs-sysinfo-2.0.0-x86_64.AppImage --appimage-extract`).
+  (see them with `./srs-sysinfo-2.1.0-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 

@@ -555,9 +555,10 @@ static void on_undo(GtkButton *b, gpointer d)
     snprintf(msg, sizeof msg, ok ? "Undone: %s is back as it was." : "Could not undo the change to %s.", u->id);
     if (!ok && err) tell(m, GTK_MESSAGE_WARNING, err);
     g_free(err);
+    const int ukind = u->kind;
     g_ptr_array_remove_index(m->undos, m->undos->len - 1);
     fill(m);
-    if (!dry_run() || u->kind <= SK_XDG_SYS) status(m, msg);
+    if (!dry_run() || ukind <= SK_XDG_SYS) status(m, msg);
 }
 
 static void on_restore(GtkButton *b, gpointer d)
@@ -609,8 +610,9 @@ static void on_restore(GtkButton *b, gpointer d)
     if (!ok) { snprintf(t, sizeof t, "Could not restore %s.\n%s", s->name, err ? err : ""); tell(m, GTK_MESSAGE_WARNING, t); }
     g_free(err);
     snprintf(t, sizeof t, "%s is back to its default.", s->name);
+    const int skind = s->kind;
     fill(m);
-    if (ok && (!dry_run() || s->kind <= SK_XDG_SYS)) status(m, t);
+    if (ok && (!dry_run() || skind <= SK_XDG_SYS)) status(m, t);
 }
 
 static void on_refresh(GtkButton *b, gpointer d) { (void)b; fill(d); }
