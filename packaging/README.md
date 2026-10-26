@@ -2,14 +2,16 @@
 
 This folder builds the release files for SRS: packages for Arch, Debian 13,
 Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, the generic Linux tarball,
-and the checksums. GitHub builds them for you when you push a version tag
+the AppImage, and the checksums. GitHub builds them for you when you push a version tag
 (see `.github/workflows/release.yml`). You can run the same build on your own
 PC with `build-all.sh`.
 
 Every package is built in a fresh Docker container of its distro, then
 installed with that distro's own package manager in a second fresh container
 and checked by `test.sh` (programs start, version is right, user guide is
-installed, menu entries are valid).
+installed, menu entries are valid). The AppImage is built in an Ubuntu 22.04
+container and started in fresh Debian 12 and Fedora 44 containers (see
+[The AppImage](#the-appimage) below).
 
 ## Making a release
 
@@ -32,7 +34,8 @@ installed, menu entries are valid).
    "Release packages" run (or `gh run watch`). It takes about 10 to 15 minutes.
    If the tag does not match `SRS_VERSION`, it stops in the first step.
 7. **Check the release** on the **Releases** page: 5 packages, the
-   `-linux-x86_64.tar.gz`, `SRS-User-Guide.pdf` and `SHA256SUMS`.
+   `-linux-x86_64.tar.gz`, the `-x86_64.AppImage` and its `.AppImage.zsync`,
+   `SRS-User-Guide.pdf` and `SHA256SUMS` (10 files).
    The release is only created if every build and every install test passed.
 8. **Update the AUR package** as before (`~/aur/srs-sysinfo`: new `pkgver`,
    `updpkgsums`, `makepkg --printsrcinfo > .SRCINFO`, push). The workflow does
@@ -68,6 +71,8 @@ first. Results go to `dist/release-<version>/`:
 
 - `<distro>/pkg/` the package, `<distro>/build.log`, `<distro>/test.log`,
   `lintian.txt` or `rpmlint.txt`, `contents.txt` (file list)
+- `appimage/` the AppImage, its `.zsync`, `contents.txt`; `appimage.log` and
+  `appimage-test.log` beside it (`SRS_NO_APPIMAGE=1` skips the AppImage)
 - `release/` all release files plus `SHA256SUMS`
 - `release-notes.md` the notes the release would use
 
@@ -77,6 +82,9 @@ The single steps can also be run on their own, exactly as the workflow does:
 packaging/build.sh debian-13 srs-sysinfo-1.2.0.tar.gz out/debian-13
 packaging/test-in-container.sh debian-13 out/debian-13/pkg 1.2.0
 packaging/make-tarball.sh out/arch/pkg/srs-sysinfo-1.2.0-1-x86_64.pkg.tar.zst srs-sysinfo-1.2.0.tar.gz out/tarball
+packaging/build-appimage.sh srs-sysinfo-1.2.0.tar.gz out/appimage
+packaging/test-appimage.sh out/appimage/srs-sysinfo-1.2.0-x86_64.AppImage 1.2.0
+packaging/test-appimage.sh -s shots/ out/appimage/srs-sysinfo-1.2.0-x86_64.AppImage 1.2.0 ubuntu:22.04 archlinux:latest
 ```
 
 ## What is in this folder
@@ -89,6 +97,11 @@ packaging/make-tarball.sh out/arch/pkg/srs-sysinfo-1.2.0-1-x86_64.pkg.tar.zst sr
 | `test-in-container.sh` | Installs a package in a fresh container and runs `test.sh` |
 | `test.sh`, `test-common.sh` | The install checks |
 | `make-tarball.sh`, `INSTALL.txt.in` | The generic Linux tarball and its INSTALL.txt |
+| `build-appimage.sh` | The AppImage and its `.zsync` (Ubuntu 22.04 container, pinned tools) |
+| `test-appimage.sh` | Starts the AppImage in fresh containers of other distros (CLI + window under Xvfb) |
+| `appimage/AppRun` | The AppImage's start script (GUI, or the command-line programs by name) |
+| `appimage/*.metainfo.xml` | AppStream metadata (name, description, screenshots) for software centres |
+| `appimage/SUBMIT.md` | Ready-made text for listing the AppImage in AppImageHub and AM |
 | `release-info.sh` | Reads the version, checks the tag, prints the release notes |
 | `lib-version.sh` | Writes the version into the Debian changelog, spec and man pages |
 | `build-all.sh` | Runs all of the above on your PC |
@@ -99,6 +112,68 @@ packaging/make-tarball.sh out/arch/pkg/srs-sysinfo-1.2.0-1-x86_64.pkg.tar.zst sr
 The generic tarball is the Arch package unpacked, so it needs a glibc at least
 as new as Arch's (`INSTALL.txt` in the tarball states the exact version). For
 Debian, Ubuntu, Fedora and openSUSE the distro packages are the ones to use.
+
+## The AppImage
+
+`srs-sysinfo-VER-x86_64.AppImage` is the whole program in one file, for any
+distribution. It is built by `build-appimage.sh` in a fresh **Ubuntu 22.04**
+container, the oldest Ubuntu LTS still supported, so it runs on glibc 2.35 and
+newer (the build prints the exact number: the highest `GLIBC_` symbol version
+of any program or library inside).
+
+How it is made:
+
+1. `make native` + `make install-system` into an AppDir, as for the packages.
+   The boot-time unit and the extra menu entries are left out; the man pages,
+   the user guide (PDF + HTML), the icon, `srs-gui.desktop` and the AppStream
+   file `appimage/io.github.eugenesflanagin_spec.srs_sysinfo.metainfo.xml` go in.
+2. `pci.ids`, `usb.ids` and `pnp.ids` from the hwdata project (pinned) go into
+   `usr/share/hwdata`. SRS uses the system's own copy first and this one only
+   when the system has none.
+3. **linuxdeploy** with **linuxdeploy-plugin-gtk** copies GTK 3 and every other
+   library SRS needs (except the ones every distro has, such as glibc and X11),
+   plus the tray library `libayatana-appindicator3`. The gtk plugin's hook makes
+   GTK use X11 (XWayland on Wayland desktops) unless `GDK_BACKEND` is set.
+4. `appimage/AppRun` replaces linuxdeploy's: `sysreport-search` and
+   `srs-sysreport` (as first argument, or as the name of a link to the AppImage)
+   start without the GTK settings; otherwise it runs `srs-gui` with the
+   arguments, which is the window, or the CLI when there are arguments. It also
+   remembers your desktop's own values of the variables the hook changes
+   (`SRS_HOSTENV_*`), so the PDF viewer SRS opens for the guide gets them back.
+5. **appimagetool** packs it with the static type2 runtime and embeds the update
+   information `gh-releases-zsync|eugenesflanagin-spec|srs-sysinfo|latest|srs-sysinfo-*x86_64.AppImage.zsync`,
+   and writes the `.zsync` file. AppImageUpdate reads that, looks at the newest
+   GitHub release and downloads only the changed blocks.
+6. A self-check extracts the result and checks the files, the update
+   information, `--version` and the glibc it needs.
+
+Containers have no FUSE, so every AppImage there runs with
+`APPIMAGE_EXTRACT_AND_RUN=1` (it unpacks itself to /tmp instead of mounting).
+
+**The tools are pinned.** `build-appimage.sh` downloads linuxdeploy,
+linuxdeploy-plugin-gtk, appimagetool, the type2 runtime and the ID files from
+their GitHub releases (or a fixed commit), each with its sha256. To update one,
+change its URL and sum in the `TOOLS` / `IDS` lists at the top. GitHub shows the
+sha256 of each release file: `gh api repos/OWNER/REPO/releases/tags/TAG --jq
+'.assets[] | .name + " " + .digest'`.
+
+**Run as root from the AppImage.** pkexec runs the helper as root, but root
+cannot read inside the AppImage while it runs: the FUSE mount is visible only
+to the user who started it. So `srs-gui` copies `srs-root` (a short read-only
+shell script) right before the prompt into a new folder only the user can open
+(`$XDG_RUNTIME_DIR/srs-root-XXXXXX`, mode 0700, a local tmpfs root can read;
+`~/.cache/srs` if that is missing or mounted noexec), runs `pkexec <copy>` and
+deletes the copy afterwards. Why this is safe: polkit asks for the administrator
+password exactly as for the packaged helper, and the prompt shows the file that
+runs; nothing is setuid, no polkit rule or system file is added. The copy is
+the same script the user's own AppImage contains; the user can already change
+that file (and could run anything through pkexec with the password), so no new
+trust is involved, and other users cannot read or change the private folder.
+The boot-time unit cannot be installed from an AppImage, so **Refresh root data
+at boot** stays greyed out there (its tooltip says why).
+
+**Listing it in catalogs** (AppImageHub, AM) is done by hand once per project:
+see `appimage/SUBMIT.md`.
 
 ## Troubleshooting
 
@@ -119,5 +194,11 @@ Debian, Ubuntu, Fedora and openSUSE the distro packages are the ones to use.
   A *draft* left over from a half-finished run is completed automatically.
 - **Re-running only the failed jobs** is fine: on the run's page use
   "Re-run failed jobs".
+- **The AppImage build fails in "linuxdeploy" or "appimagetool"**: read
+  `dist/release-<version>/appimage.log`. A failed sha256 check means a pinned
+  download changed: check the release on GitHub before changing the sum.
+- **The AppImage test fails**: `appimage-test.log` shows which check failed (`FAIL:`)
+  and the GUI's messages. Run one image with a screenshot:
+  `packaging/test-appimage.sh -s shots/ path/to.AppImage VER debian:12`.
 - **Docker permission errors on your PC**: your user must be in the `docker`
   group, or the Docker service is not running (`systemctl start docker`).

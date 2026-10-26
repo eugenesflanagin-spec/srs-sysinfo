@@ -155,7 +155,34 @@ The optional boot-time unit (see [5.3](#53-refresh-root-data-at-boot)) expects `
 Run-time needs: glibc 2.38+, GTK 3, GLib, Pango, Cairo, and **hwdata** (the PCI / USB name lists in
 `/usr/share/hwdata`). Debian/Ubuntu: `sudo apt install hwdata libgtk-3-0`.
 
-### 3.5 Build from source
+### 3.5 Any distribution - AppImage
+
+Each release also has `srs-sysinfo-<version>-x86_64.AppImage`: the whole program in one file,
+with GTK and everything else it needs inside. Nothing is installed; you just run the file. It is
+built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
+
+```
+chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
+./srs-sysinfo-2.0.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.0.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.0.0-x86_64.AppImage srs-sysreport     # the full system report
+```
+
+- **Command line:** every `sysreport-search` command works with the AppImage, for example
+  `./srs-sysinfo-2.0.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  the AppImage behaves like the real `sysreport-search`.
+- **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
+  that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
+  release.
+- **Run as root** works (see 5.2). **Refresh root data at boot** (5.3) is greyed out: the
+  boot-time service can only be installed by the package for your distribution.
+- **Device names:** SRS uses your system's PCI / USB name lists (`hwdata`) when they are
+  installed, and its own copy when they are not.
+- **If it does not start** with a message about FUSE: install the `fuse3` package (or `fuse`
+  on older systems), or run it with `--appimage-extract-and-run`.
+- **Window theme:** the AppImage uses GTK's own Adwaita theme, light or dark as your desktop asks.
+
+### 3.6 Build from source
 
 You need `gcc`, `make`, `pkg-config` and the GTK 3 development files
 (Arch `gtk3`; Debian/Ubuntu `libgtk-3-dev`; Fedora `gtk3-devel`).
@@ -236,6 +263,12 @@ for that). It then gives the files to you (`chown`).
 2. **From a terminal:** `pkexec srs-root` (or `sudo srs-root`).
 3. **At every boot, automatically:** see 5.3.
 
+**From the AppImage:** way 1 works the same. The administrator account cannot look inside a
+running AppImage (only you can), so SRS first copies the `srs-root` script into a new folder that
+only you can open (in `/run/user/<your id>`, or `~/.cache/srs` if that is not possible) and
+asks for the password to run that copy. The copy is the same read-only script and is deleted as
+soon as it has finished. Nothing is installed and no system settings are changed.
+
 Run it again after you change hardware (new RAM, new drive) or update the BIOS, so the cache is
 current. `~/.cache/srs/root/collected.txt` holds the date of the last collection.
 
@@ -258,7 +291,8 @@ ran sudo (or collects one first if there is none). You do not need to do this no
   as it was.
 - By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `disable`).
 - The option is greyed out if the unit file is not installed (`/usr/lib/systemd/system/srs-root@.service`
-  or `/etc/systemd/system/srs-root@.service`).
+  or `/etc/systemd/system/srs-root@.service`). That is always the case with the AppImage: use the
+  package for your distribution if you want this.
 
 ## 6. A tour of the main window
 
@@ -1252,6 +1286,7 @@ post. Or save only the items you need: `sysreport-search '-save=[processors][sen
 ## 19. Uninstall
 
 - **Arch:** `sudo pacman -R srs-sysinfo`
+- **AppImage:** delete the `.AppImage` file.
 - **Generic tarball:** remove the files you copied (the tarball's file list), for example from
   `/usr/local/bin` and `/usr/local/share`, and any unit you placed in `/etc/systemd/system`.
 - **Before uninstalling**, if you enabled "Refresh root data at boot":

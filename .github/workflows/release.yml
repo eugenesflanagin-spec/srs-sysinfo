@@ -144,11 +144,52 @@ jobs:
           path: tarball/
           if-no-files-found: error
 
-  # 5. Put every release file in one place with SHA256SUMS and the release notes.
+  # 5. The AppImage for any distribution (built in an Ubuntu 22.04 container, so it
+  #    runs on glibc 2.35 and newer), with its .zsync file for AppImageUpdate.
+  appimage:
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      VER: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: source
+          path: source/
+      - name: Build srs-sysinfo-${{ needs.prepare.outputs.version }}-x86_64.AppImage
+        run: packaging/build-appimage.sh "source/srs-sysinfo-$VER.tar.gz" appimage/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: appimage
+          path: appimage/
+          if-no-files-found: error
+
+  # 6. Start the AppImage in fresh Debian 12 and Fedora 44 containers (GTK 3, Xvfb and
+  #    fonts only): --version, the command line, and the GUI window under Xvfb.
+  appimage-test:
+    needs: [prepare, appimage]
+    runs-on: ubuntu-latest
+    env:
+      VER: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: appimage
+          path: appimage/
+      - name: Start-test the AppImage
+        run: packaging/test-appimage.sh "appimage/srs-sysinfo-$VER-x86_64.AppImage" "$VER" debian:12 fedora:44
+
+  # 7. Put every release file in one place with SHA256SUMS and the release notes.
   #    Runs on every run (also "Run workflow"), so a test run shows exactly what
   #    a release would contain: download the "release-files" artifact.
   assemble:
-    needs: [prepare, test, tarball]
+    needs: [prepare, test, tarball, appimage-test]
     runs-on: ubuntu-latest
     env:
       VER: ${{ needs.prepare.outputs.version }}
@@ -164,16 +205,21 @@ jobs:
         with:
           name: tarball
           path: built/tarball/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: appimage
+          path: built/appimage/
       - name: Collect the files and write SHA256SUMS
         run: |
           mkdir -p release
           cp built/pkg-*/pkg/* built/tarball/*.tar.gz release/
+          cp built/appimage/*.AppImage built/appimage/*.AppImage.zsync release/
           cp docs/SRS-User-Guide.pdf release/
           # the user guide PDF must be a real PDF, not a placeholder
           [ "$(head -c5 release/SRS-User-Guide.pdf)" = "%PDF-" ]
           (cd release && sha256sum -- * > SHA256SUMS)
-          # 5 packages + tarball + PDF + SHA256SUMS
-          n=$(find release -type f | wc -l); [ "$n" -eq 8 ] || { echo "::error::expected 8 release files, got $n"; ls -l release; exit 1; }
+          # 5 packages + tarball + AppImage + .zsync + PDF + SHA256SUMS
+          n=$(find release -type f | wc -l); [ "$n" -eq 10 ] || { echo "::error::expected 10 release files, got $n"; ls -l release; exit 1; }
           ls -l release; cat release/SHA256SUMS
       - name: Release notes
         run: |
@@ -189,7 +235,7 @@ jobs:
             release-title.txt
           if-no-files-found: error
 
-  # 6. Create the GitHub release. Only for tag pushes, and only after every
+  # 8. Create the GitHub release. Only for tag pushes, and only after every
   #    build and install test above has passed.
   release:
     if: github.ref_type == 'tag'

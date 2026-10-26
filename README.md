@@ -151,6 +151,24 @@ no hidraw, no SMU commands, no network traffic apart from `ping` to the default 
 Ping item. Burner and benchmarks never start on their own (not from `-save` either). Root-only
 data comes only from `srs-root`'s cache in `~/.cache/srs/root`.
 
+## Install
+
+Every [release](https://github.com/eugenesflanagin-spec/srs-sysinfo/releases) has packages for
+Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarball, and an
+**AppImage** for any other distribution. On Arch: `yay -S srs-sysinfo` (AUR).
+
+**AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
+
+    chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
+    ./srs-sysinfo-2.0.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.0.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.0.0-x86_64.AppImage srs-sysreport    # the full text report
+
+It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
+parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
+to a private folder first, because the administrator account cannot look inside a running
+AppImage). The boot-time refresh (**Refresh root data at boot**) needs the distribution package.
+
 ## Build
 
     make native                 # srs-gui + sysreport-search for this machine

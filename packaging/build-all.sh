@@ -10,6 +10,8 @@
 #
 # Result:
 #   OUTDIR/<distro>/pkg/<package>   OUTDIR/<distro>/{build.log,test.log,lintian.txt|rpmlint.txt,...}
+#   OUTDIR/appimage/                the AppImage + .zsync, appimage.log, appimage-test.log
+#                                   (skip it with SRS_NO_APPIMAGE=1)
 #   OUTDIR/release/                 exactly the files a release gets, plus SHA256SUMS and release-notes.md
 # Needs docker. Containers are --rm and named srs-pkg-*; nothing is pushed or uploaded.
 set -euo pipefail
@@ -65,9 +67,24 @@ if [ -f "$OUT/arch/pkg/srs-sysinfo-$VER-1-x86_64.pkg.tar.zst" ]; then
   else
     tail -20 "$OUT/tarball.log"; RESULT[tarball]="FAIL"
   fi
+  if [ -z "${SRS_NO_APPIMAGE:-}" ]; then
+    echo "===== appimage"
+    if "$PKG/build-appimage.sh" "$TARBALL" "$OUT/appimage" >"$OUT/appimage.log" 2>&1; then
+      tail -1 "$OUT/appimage.log"
+      if "$PKG/test-appimage.sh" "$OUT/appimage/srs-sysinfo-$VER-x86_64.AppImage" "$VER" >"$OUT/appimage-test.log" 2>&1; then
+        RESULT[appimage]="build OK, test PASS"
+      else
+        RESULT[appimage]="build OK, test FAIL"
+      fi
+      grep -E '^(PASS|FAIL):' "$OUT/appimage-test.log" || true
+    else
+      tail -20 "$OUT/appimage.log"; RESULT[appimage]="build FAIL"
+    fi
+  fi
   rm -rf "$REL"; mkdir -p "$REL"
   for d in "${DISTROS[@]}"; do [ -d "$OUT/$d/pkg" ] && cp "$OUT/$d"/pkg/* "$REL/"; done
   cp "$OUT"/tarball/*.tar.gz "$REL/" 2>/dev/null || true
+  cp "$OUT"/appimage/*.AppImage "$OUT"/appimage/*.AppImage.zsync "$REL/" 2>/dev/null || true
   tar xzOf "$TARBALL" "srs-sysinfo-$VER/docs/SRS-User-Guide.pdf" >"$REL/SRS-User-Guide.pdf"
   (cd "$REL" && sha256sum -- * >SHA256SUMS)
   "$PKG/release-info.sh" notes "v$VER" >"$OUT/release-notes.md"
@@ -75,5 +92,5 @@ if [ -f "$OUT/arch/pkg/srs-sysinfo-$VER-1-x86_64.pkg.tar.zst" ]; then
 fi
 
 echo "===== summary ($VER)"
-for d in "${DISTROS[@]}" ${RESULT[tarball]:+tarball}; do printf '%-22s %s\n' "$d" "${RESULT[$d]}"; done
-for d in "${DISTROS[@]}" ${RESULT[tarball]:+tarball}; do [[ ${RESULT[$d]} == *PASS || ${RESULT[$d]} == OK ]] || exit 1; done
+for d in "${DISTROS[@]}" ${RESULT[tarball]:+tarball} ${RESULT[appimage]:+appimage}; do printf '%-22s %s\n' "$d" "${RESULT[$d]}"; done
+for d in "${DISTROS[@]}" ${RESULT[tarball]:+tarball} ${RESULT[appimage]:+appimage}; do [[ ${RESULT[$d]} == *PASS || ${RESULT[$d]} == OK ]] || exit 1; done

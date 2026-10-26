@@ -1,0 +1,42 @@
+#!/bin/bash
+# AppRun of the SRS AppImage (copied in by packaging/build-appimage.sh).
+#
+#   SRS.AppImage                       the GUI (srs-gui)
+#   SRS.AppImage --version | find ...  srs-gui with arguments is the CLI, as in the packages
+#   SRS.AppImage sysreport-search ...  the CLI by name
+#   SRS.AppImage srs-sysreport         the full text system report (~/sysreports/...)
+# A symlink to the AppImage named sysreport-search or srs-sysreport works too.
+HERE=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+export APPDIR=${APPDIR:-$HERE}
+
+# The command-line programs do not use GTK: run them before the GTK settings below.
+prog=$(basename "${ARGV0:-$0}"); prog=${prog%.AppImage}
+case $prog in
+  sysreport-search|srs-sysreport) exec "$APPDIR/usr/bin/$prog" "$@" ;;
+esac
+case ${1:-} in
+  sysreport-search|srs-sysreport) prog=$1; shift; exec "$APPDIR/usr/bin/$prog" "$@" ;;
+esac
+
+# linuxdeploy's hooks point GTK at the libraries and modules inside the AppImage.
+# Programs SRS opens on your desktop (the PDF viewer for the guide, xdg-open) must
+# get your desktop's own values back, so remember every variable a hook changes:
+# SRS_HOSTENV_<NAME>=<old value>, and SRS_HOSTENV_UNSET lists the ones that were unset.
+declare -A before=()
+while IFS= read -r -d '' kv; do before[${kv%%=*}]=${kv#*=}; done < <(env -0)
+for hook in "$APPDIR"/apprun-hooks/*.sh; do
+  # shellcheck disable=SC1090
+  [ -f "$hook" ] && . "$hook"
+done
+unset_list=
+while IFS= read -r -d '' kv; do
+  name=${kv%%=*}
+  case $name in SRS_HOSTENV_*|_|SHLVL|PWD|OLDPWD) continue ;; esac
+  if [ -z "${before[$name]+x}" ]; then unset_list="$unset_list $name"
+  elif [ "${before[$name]}" != "${kv#*=}" ]; then export "SRS_HOSTENV_$name=${before[$name]}"
+  fi
+done < <(env -0)
+export SRS_HOSTENV_UNSET="${unset_list# }"
+unset before unset_list kv name hook
+
+exec "$APPDIR/usr/bin/srs-gui" "$@"
