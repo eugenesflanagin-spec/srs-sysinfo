@@ -121,6 +121,7 @@ typedef struct swin {
     GtkWidget *gb_back, *gb_prec, *gb_limit;   /* GPU Burnin: back end, precision, temperature limit */
     GtkWidget *gc_back[GB_N];                  /* GPU Compute comparison: back ends to compare */
     int gp_filled;
+    char gp_pci[GPU_MAXDEV][16];   /* GPU Burnin: PCI address of each listed (Vulkan) device, "" when the driver does not say */
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
@@ -1758,6 +1759,7 @@ static void gb_live_render(const gpuburn_snap *s, srs_out *o)
         so_kvf(o, "Hotspot / junction", C_VALUE, "%s (highest %s)", t, m);
         gb_val(t, sizeof t, d->now.mem_c, "%.0f °C"); gb_val(m, sizeof m, d->max.mem_c, "%.0f °C");
         so_kvf(o, "Memory temperature", C_VALUE, "%s (highest %s)", t, m);
+        if (d->no_temp) so_kv(o, "Temperature limit", C_ORANGE, "no temperature sensor: limit not active");
         gb_val(t, sizeof t, d->now.power_w, "%.0f W"); gb_val(m, sizeof m, d->max.power_w, "%.0f W");
         so_kvf(o, "Power", C_VALUE, "%s (highest %s)", t, m);
         gb_val(t, sizeof t, d->now.clock_mhz, "%.0f MHz");
@@ -1922,6 +1924,7 @@ typedef struct {
     int net_local, net_internet, ipv;     /* Network: loopback part, internet part (only after its own yes), IP version */
     int device;                           /* GPU windows: device index, -1 = default */
     int backend, prec;                    /* GPU Burnin: GB_* or GPUBURN_AUTO, GP_FP32 / GP_FP64 */
+    char pci[16];                         /* GPU Burnin with HIP / CUDA / OpenCL: the picked GPU, found by PCI address after Yes */
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -2104,6 +2107,7 @@ static gpointer bench_worker(gpointer data)
         gpuburn_cfg_default(&c);
         c.backend = j->backend;
         c.device = j->device;
+        snprintf(c.device_pci, sizeof c.device_pci, "%s", j->pci);
         c.prec = j->prec;
         c.seconds = j->secs;
         c.limit_c = j->limit;
@@ -2410,6 +2414,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         char hint[300], devname[300], bk[80];
         int ok, sel = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gp_dev)), back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
         int dev = sel <= 0 ? -1 : sel == 1 ? GPUBURN_ALL : sel - 2, prec = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_prec)) == 1 ? GP_FP64 : GP_FP32;
+        char pci[16] = "";
         double secs, limit;
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
@@ -2421,8 +2426,20 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
             return;
         }
+        if (dev >= 0) {   /* a GPU picked from the (Vulkan) list */
+            if (back < 0) back = GB_VULKAN;   /* Auto + a picked GPU: the list's own back end */
+            if (back != GB_VULKAN) {   /* HIP / CUDA / OpenCL find the same card by its PCI address after Yes */
+                if (dev >= GPU_MAXDEV || !w->gp_pci[dev][0]) {
+                    gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: the Vulkan driver does not tell this GPU's PCI address, so it cannot be "
+                                                                "found in the other back end's list. Choose \"The first GPU\" or the Vulkan back end.");
+                    return;
+                }
+                snprintf(pci, sizeof pci, "%s", w->gp_pci[dev]);
+                dev = -1;
+            }
+        }
         snprintf(bk, sizeof bk, "%s", back < 0 ? "Vulkan (or the first back end that has a GPU)" : gb_name[back]);
-        /* the device's name is known only when its list was opened; otherwise no runtime is started before Yes */
+        /* the device's name is known only when its list was opened; no HIP / CUDA / OpenCL runtime is started before Yes */
         if (dev == GPUBURN_ALL) snprintf(devname, sizeof devname, "every GPU of that back end");
         else if (sel >= 2) {
             gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w->gp_dev));
@@ -2448,6 +2465,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         j = g_new0(benchjob, 1);
         j->backend = back < 0 ? GPUBURN_AUTO : back;
         j->device = dev;
+        snprintf(j->pci, sizeof j->pci, "%s", pci);
         j->prec = prec;
         j->secs = secs;
         j->limit = limit;
@@ -2671,7 +2689,9 @@ static GtkWidget *threads_spin(swin *w, GtkWidget *row, int def, const char *tip
     return w->bm_threads;
 }
 
-/* GPU windows: the device list is read only when the user opens it (listing creates a Vulkan instance) */
+/* GPU windows: the device list is read only when the user opens it. It is always the Vulkan list (like vulkaninfo:
+   a Vulkan instance is created and the devices are named, no work is sent); HIP, CUDA and OpenCL are never started
+   before the user said Yes - GPU Burnin finds the picked GPU in their own list by its PCI address after Yes */
 static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
 {
     swin *w = data;
@@ -2683,21 +2703,6 @@ static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
     g_object_get(x, "popup-shown", &shown, NULL);
     if (w->gp_filled || !shown) return;
     w->gp_filled = 1;
-    if (w->sub == BK_GPUBURN) {   /* the chosen back end's own list (starts its runtime: only when the user opens the list) */
-        gb_info l[GB_LISTMAX];
-        int back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
-        n = gpuburn_list(back < 0 ? GB_VULKAN : back, l, GB_LISTMAX, why, sizeof why);
-        if (n <= 0) {
-            snprintf(b, sizeof b, "(no device: %s)", why[0] ? why : "none found");
-            gtk_widget_set_tooltip_text(w->gp_dev, b);
-            return;
-        }
-        for (i = 0; i < n; i++) {
-            snprintf(b, sizeof b, "%d: %.200s (%.60s, %.20s)", i, l[i].device, l[i].label, l[i].kind);
-            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), b);
-        }
-        return;
-    }
     n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
     if (n <= 0) {
         snprintf(b, sizeof b, "(no Vulkan device: %s)", why[0] ? why : "none found");
@@ -2707,6 +2712,7 @@ static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
     for (i = 0; i < n; i++) {
         snprintf(b, sizeof b, "%d: %.250s (%.100s)", i, d[i].name, d[i].type);
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), b);
+        snprintf(w->gp_pci[i], sizeof w->gp_pci[i], "%s", d[i].pci);
     }
 }
 static void gpu_device_defaults(swin *w)
@@ -2730,7 +2736,8 @@ static void gpu_device_combo(swin *w, GtkWidget *row)
     gtk_box_pack_start(GTK_BOX(row), lbl("GPU"), FALSE, FALSE, 0);
     w->gp_dev = gtk_combo_box_text_new();
     gpu_device_defaults(w);
-    gtk_widget_set_tooltip_text(w->gp_dev, "Open the list to see the devices of this PC (for HIP, CUDA and OpenCL this starts that runtime).");
+    gtk_widget_set_tooltip_text(w->gp_dev, "Open the list to see the GPUs of this PC. The list comes from Vulkan (like vulkaninfo: the GPUs are named, "
+                                           "no work is sent); ROCm / HIP, CUDA and OpenCL start only after you answer Yes.");
     g_signal_connect(w->gp_dev, "notify::popup-shown", G_CALLBACK(on_gpu_devs), w);
     gtk_box_pack_start(GTK_BOX(row), w->gp_dev, FALSE, FALSE, 0);
 }
@@ -2925,7 +2932,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         w->gp_mem = spin(0, 4096, 64, 0);
         gtk_widget_set_tooltip_text(w->gp_mem, "Buffer size of the video memory and upload / download tests. Auto = 256 MiB, less on small cards.");
         gtk_box_pack_start(GTK_BOX(row), w->gp_mem, FALSE, FALSE, 0);
-        /* only dlopen: no Vulkan instance, nothing touches a GPU until the list is opened or Run is pressed */
+        /* only dlopen here; opening the GPU list creates a Vulkan instance and names the GPUs (no work is sent) */
         if (gpu_available(hint, sizeof hint)) snprintf(b, sizeof b, "Vulkan: installed. The device list is read when you open it.");
         else snprintf(b, sizeof b, "Vulkan: %s", hint);
         gtk_box_pack_start(GTK_BOX(r2), lbl(b), FALSE, FALSE, 0);

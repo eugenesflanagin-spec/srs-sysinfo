@@ -171,6 +171,8 @@ static int make_instance(vki_Instance *inst, char *why, size_t wn)
     vki_ApplicationInfo ai = { VKI_ST_APPLICATION_INFO, NULL, "SRS", 1, "SRS", 1, (1u << 22) | (1u << 12) };
     vki_InstanceCreateInfo ci = { VKI_ST_INSTANCE_CREATE_INFO, NULL, 0, &ai, 0, NULL, 0, NULL };
     vki_Result r;
+    char none[8];
+    if (!why || !wn) { why = none; wn = sizeof none; }   /* why may be NULL */
     if (!gvk_load(why, wn)) return -1;
     if (fvkEnumerateInstanceVersion(&ver) || ver < ((1u << 22) | (1u << 12))) {
         snprintf(why, wn, "the Vulkan loader supports only Vulkan 1.0; 1.1 is needed");
@@ -318,6 +320,8 @@ int gvk_open(gvk_dev *g, int idx, int software_only, char *why, size_t wn)
     vki_PhysicalDeviceShaderFloat16Int8Features f16;
     vki_Result r;
     const char *so = getenv("SRS_GPU_SOFTWARE_ONLY");
+    char none[8];
+    if (!why || !wn) { why = none; wn = sizeof none; }   /* why may be NULL */
     memset(g, 0, sizeof *g);
     g->watchdog_s = 5.0;
     if (so && *so == '1') software_only = 1;

@@ -36,6 +36,7 @@ typedef struct {
     double elapsed, gflops, gflops_avg, iter_per_s;
     gpu_sensors now, max;
     char note[240];                  /* why it ended early ("" = ran to the end) */
+    int no_temp;                     /* a GPU that reports no temperature to SRS: the temperature limit is NOT active for it */
 } gpuburn_dev;
 
 typedef struct {
@@ -50,10 +51,13 @@ typedef void (*gpuburn_cb)(const gpuburn_snap *s, void *ud);   /* ~2 times a sec
 typedef struct {
     int backend;                     /* GB_*, or GPUBURN_AUTO */
     int device;                      /* index in the back end's list (gpuburn_list), GPUBURN_ALL, or -1 = default (first) */
+    char device_pci[16];             /* when set (and device is -1): the GPU at this PCI address, looked up in the back end's
+                                        own list only after the user said yes (the GUI names GPUs from the Vulkan list) */
     int prec;                        /* GP_FP32 (default) or GP_FP64 */
     double seconds;                  /* default 60; 1 .. 86400 */
     double limit_c;                  /* stop at this GPU temperature; default 100 */
-    int software_only;               /* tests: refuse anything that is not a software renderer */
+    int software_only;               /* tests: refuse anything that is not a software renderer. Without it a CPU / software
+                                        device (llvmpipe, PoCL) is never burned: "All GPUs" and the default skip it */
     int n_max;                       /* largest matrix side (default 4096; tests use 64) */
     gpuburn_cb cb;
     void *ud;
@@ -66,7 +70,9 @@ int  gpuburn_list(int backend, gb_info *out, int max, char *why, size_t wn);
 const char *gpuburn_stage(void);       /* "GPU Burnin: 12 s of 60 s, 0 errors" while running, "" when idle */
 /* run, render into o (may be NULL) and ~/.cache/srs/bench-gpuburn.txt, add a history line.
    0 PASS, 1 stopped by the user (no errors so far), 2 FAIL (compute errors found), -1 not started (why says why),
-   -2 ended early by a safety rule (why says which; results so far are shown) */
+   -2 ended early by a safety rule (why says which; results so far are shown). When a GPU driver call does not
+   come back at all, the run ends after a bounded wait, that worker thread is left behind and the GPU stays
+   claimed (gpu_busy) until SRS is restarted. */
 int  bench_gpuburn(const gpuburn_cfg *c, srs_out *o, volatile int *cancel, char *why, size_t wn);
 
 /* sensors, also usable on their own */

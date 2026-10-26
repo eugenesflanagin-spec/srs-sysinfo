@@ -22,7 +22,7 @@ LVP=${LVP_ICD:-/usr/share/vulkan/icd.d/lvp_icd.x86_64.json}
 export HOME=$TMP/home XDG_CONFIG_HOME=$TMP/home/.config XDG_CACHE_HOME=$TMP/home/.cache XDG_DATA_HOME=$TMP/home/.local/share XDG_STATE_HOME=$TMP/home/.local/state
 mkdir -p "$HOME"
 export VK_DRIVER_FILES=$LVP VK_ICD_FILENAMES=$LVP VK_LOADER_LAYERS_DISABLE='~implicit~' DISABLE_MANGOHUD=1 LP_NUM_THREADS=2 SRS_GPU_SOFTWARE_ONLY=1
-unset OCL_ICD_FILENAMES OPENCL_VENDOR_PATH
+unset OCL_ICD_FILENAMES OPENCL_VENDOR_PATH VK_ADD_DRIVER_FILES VK_ADD_LAYER_PATH VK_LAYER_PATH
 fail=0
 ok()  { printf '  ok    %s\n' "$*"; }
 bad() { printf '  FAIL  %s\n' "$*"; fail=1; }
@@ -129,6 +129,17 @@ int main(int argc, char **argv)
     }
     only_lavapipe();
     if (!strcmp(m, "list")) { printf("LAVAPIPE|ok\n"); return 0; }
+    if (!strcmp(m, "nocpu")) {   /* outside the test mode a software renderer is never burned: refused before anything is opened */
+        gpuburn_cfg c;
+        int dv[3] = { GPUBURN_ALL, -1, 0 };
+        for (i = 0; i < 3; i++) {
+            gpuburn_cfg_default(&c);
+            c.backend = GB_VULKAN; c.device = dv[i]; c.software_only = 0; c.seconds = 1; c.n_max = 64;
+            rc = bench_gpuburn(&c, NULL, NULL, why, sizeof why);
+            printf("NOCPU|%d|%s\n", rc, why);
+        }
+        return 0;
+    }
     if (!strcmp(m, "bench") || !strcmp(m, "benchstop")) {
         gpu_cfg c;
         gpu_cfg_default(&c);
@@ -223,6 +234,11 @@ echo "== lavapipe only"
 out=$(VK_LOADER_DEBUG=driver "$H" list 2>&1)
 grep -q '^LAVAPIPE|ok' <<<"$out" && ok "every Vulkan device is llvmpipe" || bad "device check: $out"
 grep -i "radeon\|radv" <<<"$out" | grep -qi "loading\|found" && bad "a real driver was loaded" || ok "only the lvp driver was loaded"
+
+echo "== GPU Burnin never burns a software renderer outside the test mode"
+out=$("$H" nocpu 2>&1)
+[ "$(grep -c '^NOCPU|-1|.*software renderer' <<<"$out")" = 3 ] && ok "All GPUs, the default and an explicit pick of llvmpipe: refused" || bad "nocpu: $out"
+grep -q "^LIVE" <<<"$out" && bad "nocpu: a run started"
 
 echo "== GPU compute benchmark, all tests, tiny sizes"
 t0=$(date +%s.%N)

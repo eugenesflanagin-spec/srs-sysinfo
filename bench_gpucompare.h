@@ -22,7 +22,7 @@ enum { GC_GEMM32_OWN, GC_GEMM32_LIB, GC_GEMM16_OWN, GC_GEMM16_LIB, GC_GEMM64_OWN
 extern const char *const gpucmp_row_name[GC_N];     /* "FP32 matrix multiply, own kernel" ... */
 extern const char *const gpucmp_row_unit[GC_N];     /* "GFLOPS", "GB/s", "µs" */
 
-enum { CS_NOTRUN, CS_OK, CS_WRONG, CS_NA, CS_FAILED, CS_STOPPED };
+enum { CS_NOTRUN, CS_OK, CS_WRONG, CS_NA, CS_FAILED, CS_STOPPED, CS_SKIPPED };   /* skipped: not run because the GPU failed earlier */
 
 typedef struct {
     unsigned backends;         /* bit (1u << GB_*); 0 = all four */

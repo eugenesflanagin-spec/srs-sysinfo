@@ -145,7 +145,7 @@ static const uint32_t k_mul[16] = { 1, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 
 static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxreps)
 {
     static const int tests = 64;
-    size_t es = prec == GP_FP64 ? 8 : 4, bytes, i;
+    size_t es = prec == GP_FP64 ? 8 : 4, bytes;
     gvk_buf *abc[3], *cr[3], *ab_ref[3];
     const uint32_t *spv;
     size_t sb;
@@ -192,7 +192,6 @@ static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxr
         for (k = 0; k < n; k++) e += mget(c->sa.map, r * n + k, es) * mget(c->sb.map, k * n + q, es);
         if (mget(c->rb.map, r * n + q, es) != e) c->prep_wrong++;
     }
-    (void)i;
     *work = 2.0 * (double)n * (double)n * (double)n;
     *maxreps = 4096;
     return GBP_OK;
@@ -279,10 +278,8 @@ static int prep_xfer(gb_ctx *c, int kind, size_t bytes, double *work, unsigned *
 static int prep_lat(gb_ctx *c, double *work, unsigned *maxreps)
 {
     gvk_buf *o[1];
-    uint32_t pc[1];
     double s;
     int rc;
-    (void)pc;
     c->ready = 1;
     if ((rc = new_buf(c, &c->a, 64, GVK_DEVICE)) || (rc = new_buf(c, &c->cntrb, 64, GVK_READBACK)) ||
         (rc = new_pipe(c, &c->p1, spv_tick, sizeof spv_tick))) return rc;
@@ -349,8 +346,6 @@ static int vk_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     switch (c->kind) {
     case GK_GEMM: {
         uint32_t pc[8] = { (uint32_t)c->n };
-        uint32_t zero = 0;
-        (void)zero;
         if ((rc = begin(c))) return rc;
         gvk_fill(&c->g, &c->cnt, 0);
         gvk_barrier(&c->g);

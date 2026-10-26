@@ -17,6 +17,7 @@
 
 #if defined(__linux__) && UINTPTR_MAX > 0xffffffffu
 #include <dlfcn.h>
+#include <pthread.h>
 #include <time.h>
 
 #define MEM_SEED 0x5EED1234u
@@ -54,6 +55,7 @@ typedef struct {
     int (*ReleaseEvent)(cl_h);
     int (*Finish)(cl_h);
     int (*Flush)(cl_h);
+    int (*Marker)(cl_h, unsigned, const cl_h *, cl_h *);   /* clEnqueueMarkerWithWaitList (OpenCL 1.2), optional */
     int (*BlastS)(int, int, int, size_t, size_t, size_t, float, cl_h, size_t, size_t, cl_h, size_t, size_t, float, cl_h, size_t, size_t, cl_h *, cl_h *);
     int (*BlastD)(int, int, int, size_t, size_t, size_t, double, cl_h, size_t, size_t, cl_h, size_t, size_t, double, cl_h, size_t, size_t, cl_h *, cl_h *);
     int (*BlastH)(int, int, int, size_t, size_t, size_t, uint16_t, cl_h, size_t, size_t, cl_h, size_t, size_t, uint16_t, cl_h, size_t, size_t, cl_h *, cl_h *);
@@ -75,7 +77,7 @@ static double now_s(void)
 #define CSYM(lib, field, name) \
     do { if (!(*(void **)&a->field = dlsym(lib, name)) && !a->miss[0]) snprintf(a->miss, sizeof a->miss, "%s", name); } while (0)
 
-static int cl_bind(void)
+static int cl_bind_once(void)
 {
     cl_api *a = &g_cl;
     const char *env = getenv("SRS_OPENCL_LIB");
@@ -113,6 +115,7 @@ static int cl_bind(void)
     CSYM(a->lib, Finish, "clFinish");
     CSYM(a->lib, Flush, "clFlush");
     if (a->miss[0]) return 0;
+    *(void **)&a->Marker = dlsym(a->lib, "clEnqueueMarkerWithWaitList");   /* optional: CLBlast timing */
     for (i = 0; bl[i] && !a->blast; i++) a->blast = dlopen(bl[i], RTLD_NOW | RTLD_LOCAL);
     if (a->blast) {
         char save[96];
@@ -125,6 +128,17 @@ static int cl_bind(void)
     }
     a->ok = 1;
     return 1;
+}
+
+/* the GUI thread (available()) and a worker thread (open) may bind at the same time: one at a time */
+static pthread_mutex_t g_bind_mu = PTHREAD_MUTEX_INITIALIZER;
+static int cl_bind(void)
+{
+    int ok;
+    pthread_mutex_lock(&g_bind_mu);
+    ok = cl_bind_once();
+    pthread_mutex_unlock(&g_bind_mu);
+    return ok;
 }
 
 int gb_cl_bind_check(char *detail, size_t dn)
@@ -244,7 +258,7 @@ static int cl_open(gb_ctx **cp, const gb_info *d, int so, char *why, size_t wn)
     cl_api *a = &g_cl;
     gb_ctx *c;
     int e = 0;
-    (void)so;
+    if (gb_software_only(so) && !d->is_cpu) { snprintf(why, wn, "test mode: %.200s is not a CPU / software device, refused", d->device); return -1; }
     if (!cl_bind()) { snprintf(why, wn, "%s", gb_hint[GB_OPENCL]); return -1; }
     if (d->index < 0 || d->index >= g_nslots) { snprintf(why, wn, "OpenCL device list is out of date"); return -1; }
     if (!(c = calloc(1, sizeof *c))) { snprintf(why, wn, "out of memory"); return -1; }
@@ -394,6 +408,12 @@ static int span(gb_ctx *c, cl_h first, cl_h last, double *secs)
     return GBP_OK;
 }
 
+/* release an event unless the GPU was given up (then nothing is touched again) */
+static void rel_ev(gb_ctx *c, cl_h ev)
+{
+    if (ev && !c->dead) c->a->ReleaseEvent(ev);
+}
+
 static double half_to_d(uint16_t h)
 {
     int e = (h >> 10) & 31, m = h & 1023;
@@ -479,8 +499,9 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         fill_mat(c->hb, n, es, 1);
         if ((rc = wr(c, c->ba, c->ha, bytes)) || (rc = wr(c, c->bb, c->hb, bytes))) break;
         if ((rc = gemm_once(c, c->bref, &ev))) break;
-        if ((rc = span(c, ev, ev, &s))) break;
-        c->a->ReleaseEvent(ev);
+        rc = span(c, ev, ev, &s);
+        rel_ev(c, ev);
+        if (rc) break;
         if ((rc = rd(c, c->host, c->bref, bytes))) break;
         for (t = 0; t < 64; t++) {   /* the first result is the reference: check a spread of its entries on the host */
             size_t row = (size_t)t * 2654435761u % n, q = (size_t)t * 40503u % n;
@@ -569,16 +590,20 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     switch (c->kind) {
     case GK_GEMM: {
         unsigned words = (unsigned)(c->bytes / 4);
-        cl_h first = NULL, last = NULL;
+        cl_h first = NULL, last = NULL, mark = NULL;
         uint32_t v = 0;
         if ((rc = wr(c, c->bcnt, zero, 64))) return rc;
-        for (i = 0; i < reps; i++) {
-            if ((rc = gemm_once(c, c->bc, i == 0 ? &first : NULL)) || (rc = cmp_once(c, c->bc, c->bref, words, i + 1 == reps ? &last : NULL))) return rc;
-        }
         if (!reps) return GBP_OK;
-        if (reps == 1) { /* first is the GEMM, last is the compare */ }
-        if ((rc = span(c, first, last, secs))) return rc;
-        a->ReleaseEvent(first); a->ReleaseEvent(last);
+        /* CLBlast hands back the event of its LAST internal kernel, so its GEMM is timed from a marker put in the
+           queue before it (the queue runs in order) */
+        if (c->variant == GV_LIB && a->Marker && a->Marker(c->q, 0, NULL, &mark)) mark = NULL;
+        for (i = 0; i < reps && !rc; i++) {
+            rc = gemm_once(c, c->bc, i == 0 && !mark ? &first : NULL);
+            if (!rc) rc = cmp_once(c, c->bc, c->bref, words, i + 1 == reps ? &last : NULL);
+        }
+        if (!rc) rc = span(c, mark ? mark : first, last, secs);   /* first: the GEMM; last: the compare */
+        rel_ev(c, mark); rel_ev(c, first); rel_ev(c, last);
+        if (rc) return rc;
         if ((rc = rd(c, &v, c->bcnt, 4))) return rc;
         *wrong = (long)v + c->prep_wrong;
         c->prep_wrong = 0;
@@ -596,8 +621,8 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         for (i = 0; i < 4; i++) e |= setarg(c, c->k_fma, 1 + i, as, fp64 ? (const void *)&md[i] : (const void *)&mf[i]);
         e |= setarg(c, c->k_fma, 5, sizeof reps, &reps) | setarg(c, c->k_fma, 6, sizeof seed, &seed) | setarg(c, c->k_fma, 7, sizeof nn, &nn);
         if (e) return GBP_ERROR;
-        if ((rc = enq(c, c->k_fma, (size_t)c->gx * 64, 1, 64, 1, &ev)) || (rc = span(c, ev, ev, secs))) return rc;
-        a->ReleaseEvent(ev);
+        if ((rc = enq(c, c->k_fma, (size_t)c->gx * 64, 1, 64, 1, &ev)) || (rc = span(c, ev, ev, secs))) { rel_ev(c, ev); return rc; }
+        rel_ev(c, ev);
         if ((rc = rd(c, c->host, c->ba, c->nthreads * as))) return rc;
         for (g = 0; g < nn; g++) {
             uint32_t sum = 0;
@@ -616,10 +641,11 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         if (g > 4096) g = 4096;
         if ((rc = wr(c, c->bcnt, zero, 64))) return rc;
         if (setarg(c, c->k_copy, 0, sizeof(cl_h), &c->ba) || setarg(c, c->k_copy, 1, sizeof(cl_h), &c->bb) || setarg(c, c->k_copy, 2, sizeof n4, &n4)) return GBP_ERROR;
-        for (i = 0; i < reps; i++) if ((rc = enq(c, c->k_copy, g * 256, 1, 256, 1, i == 0 ? &first : NULL))) return rc;
-        if ((rc = cmp_once(c, c->ba, c->bb, words, &last))) return rc;
-        if (!first) first = last;
-        if ((rc = span(c, first, last, secs))) return rc;
+        for (i = 0; i < reps && !rc; i++) rc = enq(c, c->k_copy, g * 256, 1, 256, 1, i == 0 ? &first : NULL);
+        if (!rc) rc = cmp_once(c, c->ba, c->bb, words, &last);
+        if (!rc) rc = span(c, first ? first : last, last, secs);
+        rel_ev(c, first); rel_ev(c, last);
+        if (rc) return rc;
         if ((rc = rd(c, &v, c->bcnt, 4))) return rc;
         *wrong = (long)v;
         return GBP_OK;
@@ -643,8 +669,9 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         if (setarg(c, c->k_tick, 0, sizeof(cl_h), &c->ba)) { free(lat); return GBP_ERROR; }
         for (i = 0; i < reps; i++) {
             double t0 = now_s();
-            if ((rc = enq(c, c->k_tick, 1, 1, 0, 0, &ev)) || (rc = wait_ev(c, ev))) { free(lat); return rc; }
-            a->ReleaseEvent(ev);
+            ev = NULL;
+            if ((rc = enq(c, c->k_tick, 1, 1, 0, 0, &ev)) || (rc = wait_ev(c, ev))) { rel_ev(c, ev); free(lat); return rc; }
+            rel_ev(c, ev);
             lat[i] = now_s() - t0;
             c->ticks++;
         }

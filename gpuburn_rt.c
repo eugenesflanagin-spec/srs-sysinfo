@@ -19,6 +19,7 @@
 
 #if defined(__linux__) && UINTPTR_MAX > 0xffffffffu
 #include <dlfcn.h>
+#include <pthread.h>
 #include <limits.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -120,7 +121,7 @@ static int file_has(const char *path, const char *needle)
          if (nm_ && !(*(void **)&r->field = dlsym(lib, nm_)) && !r->miss[0]) snprintf(r->miss, sizeof r->miss, "%s", nm_); } while (0)
 
 /* dlopen + dlsym only; never starts a GPU runtime */
-static int rt_bind(int cuda)
+static int rt_bind_once(int cuda)
 {
     rt_api *r = &g_rt[cuda];
     const char *env = getenv(cuda ? "SRS_CUDA_LIB" : "SRS_HIP_LIB");
@@ -202,6 +203,17 @@ static int rt_bind(int cuda)
     }
     r->ok = 1;
     return 1;
+}
+
+/* the GUI thread (available()) and a worker thread (open) may bind at the same time: one at a time */
+static pthread_mutex_t g_bind_mu = PTHREAD_MUTEX_INITIALIZER;
+static int rt_bind(int cuda)
+{
+    int ok;
+    pthread_mutex_lock(&g_bind_mu);
+    ok = rt_bind_once(cuda);
+    pthread_mutex_unlock(&g_bind_mu);
+    return ok;
 }
 
 int gb_rt_bind_check(int cuda, char *detail, size_t dn)
@@ -325,8 +337,17 @@ static int rt_open(rt_api *r, gb_ctx **cp, const gb_info *d, char *why, size_t w
     return 0;
 }
 
-static int hip_open(gb_ctx **cp, const gb_info *d, int so, char *w, size_t n) { (void)so; return rt_open(&g_rt[0], cp, d, w, n); }
-static int cuda_open(gb_ctx **cp, const gb_info *d, int so, char *w, size_t n) { (void)so; return rt_open(&g_rt[1], cp, d, w, n); }
+/* software_only (tests): HIP and CUDA only drive real GPUs, so they are never started then */
+static int hip_open(gb_ctx **cp, const gb_info *d, int so, char *w, size_t n)
+{
+    if (gb_software_only(so)) { snprintf(w, n, "test mode: ROCm / HIP drives a real GPU, refused"); return -1; }
+    return rt_open(&g_rt[0], cp, d, w, n);
+}
+static int cuda_open(gb_ctx **cp, const gb_info *d, int so, char *w, size_t n)
+{
+    if (gb_software_only(so)) { snprintf(w, n, "test mode: CUDA drives a real GPU, refused"); return -1; }
+    return rt_open(&g_rt[1], cp, d, w, n);
+}
 
 static void rt_release(gb_ctx *c)
 {

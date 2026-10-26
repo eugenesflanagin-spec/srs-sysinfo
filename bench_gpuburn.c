@@ -24,6 +24,7 @@
 
 #define PIECE_S 0.020        /* GPU time per piece of work */
 #define PIECE_MAX_S 2.0      /* a piece this slow ends the run */
+#define HANG_WAIT_S 15.0     /* after the end: how long a worker stuck in a driver call is waited for */
 
 static const char *volatile g_stage = "";
 static char g_stage_buf[160];
@@ -168,15 +169,18 @@ typedef struct {
     pthread_t t;
     gpu_hw *hw;
     double wsum, tsum;               /* all work (flop) and GPU seconds, for the average */
-    int done;
+    _Atomic int done;                /* written by the worker, read by the controller */
+    int started, abandoned;          /* the thread runs / it never came back from a driver call */
+    int many;                        /* one of several devices (All GPUs): a device that cannot start does not end the others */
 } worker;
 
 typedef struct run {
     _Atomic int stop;                 /* anything: user Stop, a safety rule, a failed GPU */
-    int user;                         /* stop was the user's */
+    _Atomic int user;                 /* stop was the user's */
     char abort_msg[240];              /* first safety message */
     pthread_mutex_t mu;
     double t0, deadline;
+    gpuburn_cfg c;                    /* the settings the workers read; on the heap, so a worker left behind never reads freed stack */
 } run_t;
 
 static void abort_run(run_t *r, const char *msg)
@@ -211,22 +215,20 @@ static void *worker_main(void *arg)
     unsigned maxreps = 1, reps = 1;
     int n = 128, variant = GV_OWN, rc;
     long wrong = 0;
-    double last_end;
     if (n > c->n_max) n = c->n_max;
     if (w->ops->open(&ctx, &w->info, c->software_only, why, sizeof why)) {
         w_note(w, GBS_ABORTED, "could not open the GPU: %s", why);
-        abort_run(r, why);
+        if (!w->many) abort_run(r, why);   /* with All GPUs the others go on */
         goto out;
     }
     rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
     if (rc == GBP_UNSUPPORTED) { variant = GV_LIB; rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps); }
     if (rc) {
-        snprintf(why, sizeof why, "%s", w->ops->error(ctx));
+        snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED ? "this GPU cannot run that precision here" : w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
-        abort_run(r, rc == GBP_UNSUPPORTED ? "this GPU cannot run that precision here" : why);
+        if (!w->many || rc == GBP_HUNG || rc == GBP_LOST) abort_run(r, why);
         goto out;
     }
-    last_end = now_s();
     /* grow the matrix until one multiplication takes about a piece; every result counts, also these */
     for (;;) {
         double per;
@@ -240,10 +242,13 @@ static void *worker_main(void *arg)
         pthread_mutex_unlock(&w->mu);
         per = secs;
         if (per < PIECE_S / 2 && n * 2 <= c->n_max) {
-            n *= 2;
+            rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n * 2, &work, &maxreps);
+            if (!rc) { n *= 2; continue; }
+            if (rc == GBP_HUNG || rc == GBP_LOST) break;
+            /* the bigger matrix does not fit (video memory, buffer size limit): go on at the size that worked */
             rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
             if (rc) break;
-            continue;
+            secs = per;
         }
         reps = per > 0 ? (unsigned)(PIECE_S / per) : 1;
         if (reps < 1) reps = 1;
@@ -273,10 +278,8 @@ static void *worker_main(void *arg)
         w->tsum += secs;
         w->d.elapsed = t - r->t0;
         pthread_mutex_unlock(&w->mu);
-        last_end = t;
         if (secs > PIECE_S * 2 && reps > 1) reps = (unsigned)((double)reps * PIECE_S / secs) + 1;
     }
-    (void)last_end;
     if (rc) {
         snprintf(why, sizeof why, "%s: %s", rc_text(rc), w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
@@ -288,7 +291,7 @@ out:
     if (w->d.state == GBS_ABORTED && !w->d.note[0]) snprintf(w->d.note, sizeof w->d.note, "%s", r->abort_msg);
     pthread_mutex_unlock(&w->mu);
     if (ctx) w->ops->close(ctx);
-    w->done = 1;
+    atomic_store(&w->done, 1);
     return NULL;
 }
 
@@ -342,6 +345,7 @@ static void gburn_render(srs_out *o, void *ctx)
         so_kvf(o, "Speed", C_VALUE, "%.0f GFLOPS average, %.0f GFLOPS in the last piece of work", d->gflops_avg, d->gflops);
         so_kvf(o, "Highest temperatures", C_VALUE, "edge %s, junction (hotspot) %s, memory %s", a, b, m);
         so_kvf(o, "Highest power, clock, fan", C_VALUE, "%s, %s, %s", pw, ck, fn);
+        if (d->no_temp) so_kv(o, "Temperature limit", C_ORANGE, "not active: this GPU reports no temperature to SRS, so the run could not stop at the limit");
         if (d->note[0]) so_kv(o, "Ended early", C_ORANGE, d->note);
     }
     so_par(o);
@@ -357,15 +361,19 @@ static void gburn_render(srs_out *o, void *ctx)
 }
 
 /* ---------------------------------------------------------------- the run */
-static int pick_backend(int want, char *why, size_t wn)
+/* Auto: the first back end whose list has a real GPU (a list with only a software renderer such as llvmpipe does not
+   count, unless the run is software_only) */
+static int pick_backend(int want, int software_only, char *why, size_t wn)
 {
     static const int order[GB_N] = { GB_VULKAN, GB_HIP, GB_CUDA, GB_OPENCL };
-    int i;
+    int i, k, n;
     if (want >= 0 && want < GB_N) return want;
     for (i = 0; i < GB_N; i++) {
         gb_info l[GPUBURN_MAXDEV];
         char w[200];
-        if (gb_table[order[i]]->available(w, sizeof w) && gb_table[order[i]]->list(l, GPUBURN_MAXDEV, w, sizeof w) > 0) return order[i];
+        if (!gb_table[order[i]]->available(w, sizeof w)) continue;
+        n = gb_table[order[i]]->list(l, GPUBURN_MAXDEV, w, sizeof w);
+        for (k = 0; k < n; k++) if (software_only || !l[k].is_cpu) return order[i];
     }
     snprintf(why, wn, "no GPU compute back end found (Vulkan, ROCm / HIP, CUDA or OpenCL with a GPU)");
     return -1;
@@ -378,9 +386,11 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     worker *w;
     run_t *run;
     bx *x;
-    int backend, n, first, last, nw, i, rc = 0;
+    int backend, n, nw, i, rc = 0, abandoned = 0;
+    int pick[GPUBURN_MAXDEV];
     gpuburn_cfg c = *cfg;
     char lw[240];
+    double end_at = 0;
     time_t now = time(NULL);
     if (why && wn) why[0] = 0;
     if (burn_active()) { if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU Burnin when it has finished"); return -1; }
@@ -391,32 +401,51 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     if (c.n_max < 32) c.n_max = 32;
     if (c.n_max > 16384) c.n_max = 16384;
     if (!gpu_claim("GPU Burnin", &who)) { if (why) snprintf(why, wn, "%s is running; wait for it to finish", who ? who : "another GPU test"); return -1; }
-    if ((backend = pick_backend(c.backend, lw, sizeof lw)) < 0) { if (why) snprintf(why, wn, "%s", lw); gpu_release(); return -1; }
+    if ((backend = pick_backend(c.backend, c.software_only, lw, sizeof lw)) < 0) { if (why) snprintf(why, wn, "%s", lw); gpu_release(); return -1; }
     if (!gb_table[backend]->available(lw, sizeof lw)) { if (why) snprintf(why, wn, "%s: %s", gb_name[backend], lw); gpu_release(); return -1; }
     n = gb_table[backend]->list(list, GPUBURN_MAXDEV, lw, sizeof lw);
     if (n <= 0) { if (why) snprintf(why, wn, "%s: %s", gb_name[backend], lw[0] ? lw : "no device found"); gpu_release(); return -1; }
-    if (c.device == GPUBURN_ALL) { first = 0; last = n - 1; }
-    else {
+    nw = 0;
+    if (c.device == GPUBURN_ALL) {   /* every GPU; a CPU / software device only in the test mode */
+        for (i = 0; i < n && nw < GPUBURN_MAXDEV; i++) if (c.software_only || !list[i].is_cpu) pick[nw++] = i;
+        if (!nw) { if (why) snprintf(why, wn, "%s lists no GPU (only a software renderer, which GPU Burnin does not burn)", gb_name[backend]); gpu_release(); return -1; }
+    } else {
         int d = c.device;
-        if (d < 0) { d = 0; for (i = 0; i < n; i++) if (!list[i].is_cpu) { d = i; break; } }
+        if (d < 0 && c.device_pci[0]) {   /* the GPU the user picked, found in this back end's own list by its PCI address */
+            if ((d = gb_find_by_pci(list, n, c.device_pci)) < 0) {
+                if (why) snprintf(why, wn, "%s does not list the GPU you picked (PCI %s); choose \"The first GPU\" or the Vulkan back end", gb_name[backend], c.device_pci);
+                gpu_release();
+                return -1;
+            }
+        } else if (d < 0) {
+            for (i = 0; i < n; i++) if (!list[i].is_cpu) { d = i; break; }
+            if (d < 0 && c.software_only) d = 0;
+            if (d < 0) { if (why) snprintf(why, wn, "%s lists no GPU (only a software renderer, which GPU Burnin does not burn)", gb_name[backend]); gpu_release(); return -1; }
+        }
         if (d >= n) { if (why) snprintf(why, wn, "%s has no device %d (found %d)", gb_name[backend], d, n); gpu_release(); return -1; }
-        first = last = d;
+        if (list[d].is_cpu && !c.software_only) {
+            if (why) snprintf(why, wn, "%s is a CPU / software renderer, not a GPU; GPU Burnin does not burn it", list[d].device);
+            gpu_release();
+            return -1;
+        }
+        pick[nw++] = d;
     }
-    nw = last - first + 1;
     w = calloc((size_t)nw, sizeof *w);
     run = calloc(1, sizeof *run);
     x = calloc(1, sizeof *x);
     if (!w || !run || !x) { free(w); free(run); free(x); if (why) snprintf(why, wn, "out of memory"); gpu_release(); return -1; }
     pthread_mutex_init(&run->mu, NULL);
+    run->c = c;
     run->t0 = now_s();
     run->deadline = run->t0 + c.seconds;
     for (i = 0; i < nw; i++) {
         worker *k = &w[i];
         pthread_mutex_init(&k->mu, NULL);
-        k->info = list[first + i];
+        k->info = list[pick[i]];
         k->ops = gb_table[backend];
-        k->c = &c;
+        k->c = &run->c;
         k->run = run;
+        k->many = nw > 1;
         k->hw = k->info.is_cpu ? NULL : gpu_hw_open(k->info.pci);   /* a software renderer has no sensors */
         k->d.state = GBS_RUNNING;
         snprintf(k->d.label, sizeof k->d.label, "%s", k->info.label);
@@ -424,15 +453,24 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
         snprintf(k->d.runtime, sizeof k->d.runtime, "%s", k->info.runtime);
         gpu_hw_read(k->hw, &k->d.now);
         k->d.max = k->d.now;
-        pthread_create(&k->t, NULL, worker_main, k);
+        k->d.no_temp = !k->info.is_cpu && k->d.now.edge_c < 0 && k->d.now.junction_c < 0;
+        if (pthread_create(&k->t, NULL, worker_main, k)) {   /* never join a thread that did not start */
+            k->d.state = GBS_ABORTED;
+            snprintf(k->d.note, sizeof k->d.note, "could not start a worker thread");
+            if (!k->many) abort_run(run, k->d.note);
+            atomic_store(&k->done, 1);
+        } else k->started = 1;
     }
     /* controller: sensors, temperature limit, live readout, Stop */
     for (;;) {
         int alldone = 1;
         struct timespec ts = { 0, 250000000L };
         gpuburn_snap *s = &x->s;
+        double tnow;
         nanosleep(&ts, NULL);
-        if (cancel && *cancel && !atomic_load(&run->stop)) { run->user = 1; atomic_store(&run->stop, 1); }
+        if (cancel && *cancel && !atomic_load(&run->stop)) { atomic_store(&run->user, 1); atomic_store(&run->stop, 1); }
+        tnow = now_s();
+        if (!end_at && (atomic_load(&run->stop) || tnow >= run->deadline)) end_at = tnow;
         s->ndev = nw;
         s->total = c.seconds;
         s->elapsed = now_s() - run->t0;
@@ -456,23 +494,45 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
                 w_note(k, GBS_ABORTED, "%s", m);
                 abort_run(run, m);
             }
-            if (!k->done) alldone = 0;
+            if (!atomic_load(&k->done)) alldone = 0;
         }
         snprintf(g_stage_buf, sizeof g_stage_buf, "GPU Burnin: %.0f s of %.0f s", s->elapsed, c.seconds);
         g_stage = g_stage_buf;
         if (c.cb) c.cb(s, c.ud);
         if (alldone) break;
+        if (end_at && tnow - end_at > HANG_WAIT_S) {   /* a worker is stuck inside a GPU driver call: do not wait forever */
+            atomic_store(&run->stop, 1);
+            for (i = 0; i < nw; i++) {
+                worker *k = &w[i];
+                if (atomic_load(&k->done)) continue;
+                k->abandoned = 1;
+                abandoned = 1;
+                pthread_mutex_lock(&k->mu);
+                k->d.state = GBS_ABORTED;
+                snprintf(k->d.note, sizeof k->d.note, "the GPU driver did not come back (no answer %.0f s after the end); the GPU was left alone - restart SRS (or the PC) before the next GPU test", HANG_WAIT_S);
+                pthread_mutex_unlock(&k->mu);
+                abort_run(run, k->d.note);
+            }
+            break;
+        }
     }
-    for (i = 0; i < nw; i++) pthread_join(w[i].t, NULL);
+    for (i = 0; i < nw; i++) {
+        if (!w[i].started) continue;
+        if (w[i].abandoned) pthread_detach(w[i].t);   /* it may still come back; it then only touches w and run, which are kept */
+        else pthread_join(w[i].t, NULL);
+    }
     x->s.running = 0;
     x->s.elapsed = now_s() - run->t0;
     for (i = 0; i < nw; i++) {
         worker *k = &w[i];
+        pthread_mutex_lock(&k->mu);   /* an abandoned worker may still write */
         x->s.dev[i] = k->d;
-        x->s.dev[i].elapsed = x->s.elapsed;
-        x->s.dev[i].iter_per_s = x->s.elapsed > 0 ? (double)k->d.iterations / x->s.elapsed : 0;
         x->s.dev[i].gflops_avg = k->tsum > 0 ? k->wsum / k->tsum / 1e9 : 0;
+        pthread_mutex_unlock(&k->mu);
+        x->s.dev[i].elapsed = x->s.elapsed;
+        x->s.dev[i].iter_per_s = x->s.elapsed > 0 ? (double)x->s.dev[i].iterations / x->s.elapsed : 0;
         gpu_hw_close(k->hw);
+        k->hw = NULL;
     }
     x->c = c;
     strftime(x->when, sizeof x->when, "%Y-%m-%d %H:%M:%S", localtime(&now));
@@ -484,7 +544,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
         if (d->errors) rc = rc == -2 ? rc : 2;
         if (d->state == GBS_ABORTED && rc != 2) rc = -2;
     }
-    if (!rc && run->user) rc = 1;
+    if (!rc && atomic_load(&run->user)) rc = 1;
     x->rc = rc;
     bench_save_render("gpuburn", gburn_render, x, o);
     {
@@ -499,6 +559,10 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
         bench_history_add("gpuburn", params, res);
     }
     if (rc == -2 && why) snprintf(why, wn, "%s", x->abort_msg[0] ? x->abort_msg : "the run ended early");
+    if (abandoned) {   /* a worker is still inside the driver: keep what it can touch and keep the GPU claimed */
+        free(x);
+        return rc;
+    }
     for (i = 0; i < nw; i++) pthread_mutex_destroy(&w[i].mu);
     pthread_mutex_destroy(&run->mu);
     free(w); free(run); free(x);

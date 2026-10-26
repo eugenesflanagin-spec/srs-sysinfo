@@ -982,10 +982,11 @@ static void gpuburn_live(const gpuburn_snap *s, void *ud)
     (void)ud;
     if (!s->ndev) return;
     for (i = 0; i < s->ndev; i++) err += s->dev[i].errors;
-    fprintf(stderr, "\r%5.0f / %.0f s  %s%s: %7.1f GFLOPS  %ld error%s  edge %s  hotspot %s  %s  %s   ",
+    fprintf(stderr, "\r%5.0f / %.0f s  %s%s: %7.1f GFLOPS  %ld error%s  edge %s  hotspot %s  %s  %s%s   ",
             s->elapsed, s->total, d->label, s->ndev > 1 ? " (+ more)" : "", d->gflops, err, err == 1 ? "" : "s",
             gb_c(t, sizeof t, d->now.edge_c, "C"), gb_c(j, sizeof j, d->now.junction_c, "C"),
-            gb_c(p, sizeof p, d->now.power_w, "W"), gb_c(c, sizeof c, d->now.clock_mhz, "MHz"));
+            gb_c(p, sizeof p, d->now.power_w, "W"), gb_c(c, sizeof c, d->now.clock_mhz, "MHz"),
+            d->no_temp ? "  (no temperature sensor: limit not active)" : "");
     fflush(stderr);
 }
 

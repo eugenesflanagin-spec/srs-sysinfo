@@ -2,6 +2,7 @@
 #include "gpu_backend.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 const char *const gb_id[GB_N] = { "vulkan", "hip", "cuda", "opencl" };
@@ -31,4 +32,10 @@ int gb_find_by_pci(const gb_info *l, int n, const char *pci)
     if (!pci || !pci[0]) return -1;
     for (i = 0; i < n; i++) if (l[i].pci[0] && !strcmp(l[i].pci, pci)) return i;
     return -1;
+}
+
+int gb_software_only(int so)
+{
+    const char *e = getenv("SRS_GPU_SOFTWARE_ONLY");
+    return so || (e && e[0] == '1');
 }

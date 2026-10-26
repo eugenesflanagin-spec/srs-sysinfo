@@ -32,6 +32,7 @@ void gpu_cfg_default(gpu_cfg *c)
 }
 
 #ifdef __linux__
+#include <sys/sysinfo.h>
 #include "bench_gpu_spv.inc"
 
 static const char *volatile g_stage = "";
@@ -54,6 +55,7 @@ typedef struct {
     long lat_n;
     double mem_bytes;
     int shared_mem;           /* video memory is system memory (integrated / software) */
+    int mem_capped;           /* the size the user asked for was lowered to fit video memory / RAM */
     int cancelled, failed, wrong;
     char fail[240];
     char when[32];
@@ -262,6 +264,12 @@ static void run_memory(gx *x, unsigned want)
         mib = x->g.info.dtype == GPU_CPU ? 8 : 256;
         if (x->g.info.vram_bytes > 0 && mib * 1048576.0 * 4 > x->g.info.vram_bytes) mib = x->g.info.vram_bytes / 4 / 1048576.0;
     }
+    else {   /* the user's size: at most a quarter of the video memory and of the PC's memory (2 buffers on the GPU, 2 in RAM) */
+        struct sysinfo si;
+        double ram = sysinfo(&si) == 0 ? (double)si.totalram * (double)si.mem_unit : 0;
+        if (x->g.info.vram_bytes > 0 && mib * 1048576.0 * 4 > x->g.info.vram_bytes) { mib = x->g.info.vram_bytes / 4 / 1048576.0; x->mem_capped = 1; }
+        if (ram > 0 && mib * 1048576.0 * 4 > ram) { mib = ram / 4 / 1048576.0; x->mem_capped = 1; }
+    }
     if (mib < 1) mib = 1;
     bytes = (size_t)(mib * 1048576.0) / 16384 * 16384;
     if (bytes > x->g.max_storage) bytes = (size_t)x->g.max_storage / 16384 * 16384;
@@ -292,7 +300,8 @@ static void run_memory(gx *x, unsigned want)
         for (i = 0; i < u.n4 * 4; i++) w[i] = i * 2654435761u + MEM_SEED;
     }
     /* the pattern in A for the read / copy / download tests, whatever is selected */
-    if (gvk_begin(&x->g) == 0) {
+    if (gvk_begin(&x->g)) { x->failed = 1; snprintf(x->fail, sizeof x->fail, "%s", x->g.err); goto out; }   /* not a wrong result: the GPU failed */
+    {
         double s;
         mem_dispatch(x, &u, u.pw, u.sw);
         if (gvk_submit(&x->g, &s)) { x->failed = 1; snprintf(x->fail, sizeof x->fail, "%s", x->g.err); goto out; }
@@ -426,7 +435,8 @@ static void gpu_render(srs_out *o, void *c)
     if (d->vram_bytes > 0) so_kvf(o, "Device memory", C_VALUE, "%.1f GB%s", d->vram_bytes / 1e9, x->shared_mem ? " (shared with the system)" : "");
     if (d->cus) so_kvf(o, "Shader cores", C_VALUE, "%d %s, subgroup size %d", d->cus, d->cu_word, d->subgroup);
     else if (d->subgroup) so_kvf(o, "Subgroup size", C_VALUE, "%d", d->subgroup);
-    if (x->mem_bytes > 0) so_kvf(o, "Memory tests", C_VALUE, "%.0f MiB buffers", x->mem_bytes / 1048576.0);
+    if (x->mem_bytes > 0) so_kvf(o, "Memory tests", C_VALUE, "%.0f MiB buffers%s", x->mem_bytes / 1048576.0,
+                                 x->mem_capped ? " (lowered from the size asked for, to a quarter of the video memory or of the PC's memory)" : "");
     so_kvf(o, "Settings", C_VALUE, "%.1f s of GPU time per test, timed with %s", x->c.seconds,
            x->g.timestamps ? "GPU timestamps" : "the host clock (this queue has no timestamps)");
     so_kv(o, "Run", C_GRAY, x->when);

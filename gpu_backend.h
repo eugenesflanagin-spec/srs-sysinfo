@@ -73,6 +73,10 @@ int gb_bind_check(int backend, char *detail, size_t dn);
 int gb_rt_bind_check(int cuda, char *detail, size_t dn);     /* gpuburn_rt.c: HIP (0) or CUDA (1) */
 int gb_cl_bind_check(char *detail, size_t dn);             /* gpuburn_cl.c */
 
+/* the test mode is on: the caller asked for it (so) or SRS_GPU_SOFTWARE_ONLY=1 is set. Every open() checks this,
+   so a test run can never start a real GPU runtime */
+int gb_software_only(int so);
+
 /* which device of back end b is the one at PCI address pci (any back end), else -1 */
 int gb_find_by_pci(const gb_info *l, int n, const char *pci);
 

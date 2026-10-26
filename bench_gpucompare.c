@@ -253,6 +253,7 @@ static void cmp_render(srs_out *o, void *ctx)
             case CS_NA: snprintf(b, 48, "not available"); colors[c + 1] = C_GRAY; break;
             case CS_FAILED: snprintf(b, 48, "failed"); colors[c + 1] = C_RED; break;
             case CS_STOPPED: snprintf(b, 48, "stopped"); colors[c + 1] = C_ORANGE; break;
+            case CS_SKIPPED: snprintf(b, 48, "not run"); colors[c + 1] = C_GRAY; break;
             default: snprintf(b, 48, "-"); colors[c + 1] = C_GRAY;
             }
             cells[c + 1] = b;
@@ -309,7 +310,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
     x->fma_groups = x->c.tiny ? 16 : 4096;
     g_stage = "Looking for the GPU back ends";
     if (build_columns(x, why ? why : x->fail, why ? wn : sizeof x->fail)) { g_stage = ""; free(x); if (!res) free(r); gpu_release(); return -1; }
-    for (c = 0; c < r->ncol && !(cancel && *cancel); c++) {
+    for (c = 0; c < r->ncol && !(cancel && *cancel) && !x->failed; c++) {   /* a hung or lost GPU is not touched again */
         gpucmp_col *col = &r->col[c];
         const gb_ops *ops;
         gb_ctx *ctx = NULL;
@@ -341,6 +342,14 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
         }
         ops->close(ctx);
     }
+    if (x->failed)   /* every test that did not run after the failure says so, in this column and the ones after it */
+        for (c = 0; c < r->ncol; c++) {
+            gpucmp_col *col = &r->col[c];
+            int any = 0;
+            if (!col->shown) continue;
+            for (row = 0; row < GC_N; row++) if (col->state[row] == CS_NOTRUN) { col->state[row] = CS_SKIPPED; any = 1; }
+            if (any && !col->aborted[0]) snprintf(col->aborted, sizeof col->aborted, "not run: the GPU failed earlier in this run (%.150s)", x->fail);
+        }
     if (cancel && *cancel) x->stopped = 1;
     for (c = 0; c < r->ncol; c++)
         for (row = 0; row < GC_N; row++) {
