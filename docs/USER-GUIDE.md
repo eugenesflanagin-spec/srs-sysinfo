@@ -613,7 +613,8 @@ of yours already has it), **Remove this lineup...** removes one of your own, and
 default lineup** goes back to Expert.
 
 The first time SRS starts it asks which lineup you want (Basic, Enthusiast or Expert) and tells you
-where to change it later: the menu button (or **Ctrl+M**) -> **Lineup**. It asks only once.
+where to change it later: the menu button (or **Ctrl+M**) -> **Lineup**. It asks only once. If you used SRS before 2.1, your pages stay as they were (the Enthusiast
+lineup, preselected as "your current tabs") unless you pick another one.
 
 ### 6.8 Sortable tables
 

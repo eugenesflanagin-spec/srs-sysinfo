@@ -150,7 +150,8 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   devices moves to Alt+0, Operating system to Alt+-, Benchmarks & stress to Alt+= and Tools to
   Alt+Backspace (Overview ... Sensors keep Alt+1 ... Alt+8; Power & cost is Alt+9).
 - The first time 2.1 starts it asks which tab lineup you want (Basic, Enthusiast or Expert, the
-  default) and says where to change it later (menu button or Ctrl+M, then Lineup).
+  default) and says where to change it later (menu button or Ctrl+M, then Lineup). If you used
+  SRS before, your tabs stay as they were (Enthusiast) unless you pick another lineup.
 - `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
 - The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
   memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).

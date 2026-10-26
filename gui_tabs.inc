@@ -27,6 +27,7 @@ typedef struct { char name[128]; int layout; pagestate pg[CAT_N]; } lineup;
 static lineup g_cur;                       /* what the main window shows */
 static char g_lineup[128] = "Expert";  /* the lineup it came from */
 static int g_lu_ask;                    /* no lineup chosen yet: ask on the first start */
+static int g_lu_returning;              /* ... and SRS was used before (2.0): keep their tabs unless they choose */
 static int g_opt_alltabs, g_opt_showhidden;
 static GHashTable *g_empty;                /* item id -> "1": nothing to show on this PC */
 static int g_scan_running;
@@ -265,10 +266,18 @@ static void tabs_state_load(void)
 {
     GKeyFile *kf = g_key_file_new();
     lineup base = { "", 0, { { 0 } } };
-    lu_builtin(&base, LU_DEFAULT);
-    lu_copy(&g_cur, &base);
+    int used = g_file_test(g_ini, G_FILE_TEST_EXISTS);   /* SRS ran here before */
     g_lu_ask = 1;
-    if (g_key_file_load_from_file(kf, g_ini, G_KEY_FILE_NONE, NULL)) {
+    g_lu_returning = 0;
+    if (used && g_key_file_load_from_file(kf, g_ini, G_KEY_FILE_NONE, NULL)) {
+        char *n = g_key_file_get_string(kf, "Tabs", "Lineup", NULL);
+        g_lu_returning = !(n && *n);   /* 2.0 had no lineups: the tabs they know are the Enthusiast ones */
+        g_free(n);
+    }
+    lu_builtin(&base, g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT);
+    snprintf(g_lineup, sizeof g_lineup, "%s", g_lu_builtin[g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT]);
+    lu_copy(&g_cur, &base);
+    if (used && g_key_file_load_from_file(kf, g_ini, G_KEY_FILE_NONE, NULL)) {
         char *n = g_key_file_get_string(kf, "Tabs", "Lineup", NULL);
         if (n && *n) g_lu_ask = 0;
         lineup from = { "", 0, { { 0 } } };
@@ -1536,23 +1545,24 @@ static gboolean lineup_first_ask(gpointer d)
         "The standard tabs (as in SRS 2.0).",
         "Every item of every page as a tab, in a side list." };
     GtkWidget *dlg, *box, *r[LU_EXPERT + 1] = { 0 }, *l;
-    int i, pick = LU_DEFAULT;
+    int i, pick = g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT;
     (void)d;
     if (!g_lu_ask || !g_main) return G_SOURCE_REMOVE;
-    dlg = gtk_dialog_new_with_buttons("Welcome to SRS", GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+    dlg = gtk_dialog_new_with_buttons(g_lu_returning ? "SRS 2.1: your tabs" : "Welcome to SRS", GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                       "_OK", GTK_RESPONSE_OK, NULL);
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_container_set_border_width(GTK_CONTAINER(box), 14);
-    l = gtk_label_new("Which tabs would you like on SRS's pages?");
+    l = gtk_label_new(g_lu_returning ? "SRS 2.1 can arrange its pages in lineups.\nYour pages stay as you know them (the Enthusiast lineup) unless you pick another:"
+                                     : "Which tabs would you like on SRS's pages?");
     gtk_label_set_xalign(GTK_LABEL(l), 0);
     gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);
     for (i = LU_BASIC; i <= LU_EXPERT; i++) {
-        char *t = g_strdup_printf("%s%s - %s", g_lu_builtin[i], i == LU_DEFAULT ? " (default)" : "", what[i]);
+        char *t = g_strdup_printf("%s%s - %s", g_lu_builtin[i], i == (g_lu_returning ? LU_ENTHUSIAST : LU_DEFAULT) ? (g_lu_returning ? " (your current tabs)" : " (default)") : "", what[i]);
         r[i] = gtk_radio_button_new_with_label_from_widget(i > LU_BASIC ? GTK_RADIO_BUTTON(r[LU_BASIC]) : NULL, t);
         g_free(t);
         gtk_box_pack_start(GTK_BOX(box), r[i], FALSE, FALSE, 0);
     }
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(r[LU_DEFAULT]), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(r[pick]), TRUE);
     l = gtk_label_new("You can change this at any time: menu button (or Ctrl+M) -> Lineup. "
                       "The sidebar shows the lineup in use. The user guide explains lineups in 6.7.");
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
