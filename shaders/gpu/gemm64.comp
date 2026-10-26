@@ -1,0 +1,26 @@
+// gemm64.comp - SRS GPU benchmark: tiled matrix multiply C = A * B, double precision (FP64).
+// n x n row-major matrices, 16 x 16 tiles through shared memory. The inputs hold only 0 and 1, so every
+// result is a whole number and exact; the host checks sample entries and the compare shader checks the
+// whole matrix against the first result.
+#version 450
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(push_constant) uniform PC { uint n, u1, u2, u3, u4, u5, u6, u7; } pc;
+layout(std430, binding = 0) readonly buffer A { double a[]; };
+layout(std430, binding = 1) readonly buffer B { double b[]; };
+layout(std430, binding = 2) writeonly buffer C { double c[]; };
+shared double ta[16][16];
+shared double tb[16][16];
+
+void main()
+{
+    uint row = gl_GlobalInvocationID.y, col = gl_GlobalInvocationID.x, lx = gl_LocalInvocationID.x, ly = gl_LocalInvocationID.y;
+    double acc = double(0);
+    for (uint t = 0u; t < pc.n; t += 16u) {
+        ta[ly][lx] = double(a[row * pc.n + t + lx]);
+        tb[ly][lx] = double(b[(t + ly) * pc.n + col]);
+        barrier();
+        for (uint k = 0u; k < 16u; k++) acc = fma(ta[ly][k], tb[k][lx], acc);
+        barrier();
+    }
+    c[row * pc.n + col] = double(acc);
+}

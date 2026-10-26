@@ -1,0 +1,26 @@
+// fma32.comp - SRS GPU benchmark: FP32 fused multiply-add throughput.
+// Eight independent chains per invocation (enough independent work to hide the ALU latency).
+// Each loop step applies a = a*m1 + c1 then a = a*m2 + c2; with m1 = 2, c1 = 1, m2 = 0.5, c2 = -0.5
+// (sent as push constants, so the compiler cannot fold them) the pair maps a back to a, and every
+// intermediate is a small integer, exactly representable - fused or not, the result is exact.
+// Output: one float per invocation = sum of the eight chains, checked on the host.
+#version 450
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { float m1, c1, m2, c2; uint iters, seed, n, pad; } pc;
+layout(std430, binding = 0) writeonly buffer Out { float o[]; };
+
+void main()
+{
+    uint g = gl_GlobalInvocationID.x;
+    float a0 = float((g + pc.seed) & 255u),        a1 = float((g * 3u + 1u) & 255u);
+    float a2 = float((g * 5u + 2u) & 255u),        a3 = float((g * 7u + 3u) & 255u);
+    float a4 = float((g * 11u + 4u) & 255u),       a5 = float((g * 13u + 5u) & 255u);
+    float a6 = float((g * 17u + 6u) & 255u),       a7 = float((g * 19u + 7u) & 255u);
+    for (uint i = 0u; i < pc.iters; i++) {
+        a0 = fma(a0, pc.m1, pc.c1); a1 = fma(a1, pc.m1, pc.c1); a2 = fma(a2, pc.m1, pc.c1); a3 = fma(a3, pc.m1, pc.c1);
+        a4 = fma(a4, pc.m1, pc.c1); a5 = fma(a5, pc.m1, pc.c1); a6 = fma(a6, pc.m1, pc.c1); a7 = fma(a7, pc.m1, pc.c1);
+        a0 = fma(a0, pc.m2, pc.c2); a1 = fma(a1, pc.m2, pc.c2); a2 = fma(a2, pc.m2, pc.c2); a3 = fma(a3, pc.m2, pc.c2);
+        a4 = fma(a4, pc.m2, pc.c2); a5 = fma(a5, pc.m2, pc.c2); a6 = fma(a6, pc.m2, pc.c2); a7 = fma(a7, pc.m2, pc.c2);
+    }
+    if (g < pc.n) o[g] = ((a0 + a1) + (a2 + a3)) + ((a4 + a5) + (a6 + a7));
+}

@@ -140,6 +140,7 @@ similar names):
 | `iw`, `bluez-utils` | Wi-Fi link and Bluetooth details |
 | `wireplumber`, `libpulse` | Audio graph details |
 | `inxi`, `lshw`, `hwinfo` | Extra sections in the full system report |
+| `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
 
 ### 3.4 Any other distribution - generic tarball
 
@@ -1654,6 +1655,57 @@ day, Wi-Fi, other traffic and the server.
 saved; only the IP version used. The result is saved to `~/.cache/srs/bench-net.txt` and added to
 the [Benchmark history](#910-benchmark-history). Tested on one PC on a wired connection only - see
 the note at the start of this chapter.
+
+### 9.17 GPU Benchmark
+
+**In plain words:** how fast your graphics card (GPU) does sums and moves data. It runs short
+pieces of work on the GPU through **Vulkan** (the graphics and compute interface that every modern
+Linux GPU driver offers - the same one many games use) and checks every answer, so a wrong answer
+is reported instead of a fast number. **Higher is better**, except for the latency row, where
+lower is better.
+Open: the **Benchmarks & stress** page -> **GPU Benchmark...**, or Menu -> Tools -> GPU
+Benchmark... in the classic view. Command line: `sysreport-search gpu`.
+Controls: **GPU** (Default = the first discrete graphics card; open the list to pick another - SRS
+reads the list only when you open it), **Seconds per test** (default 1), **Memory test size**
+(0 = auto, 256 MiB on most cards), **Run** (asks first), **Stop**. The line under the controls
+says whether Vulkan is installed.
+
+**What it measures.**
+
+- **FP32, FP16, FP64 multiply-add** - floating-point maths (numbers with a decimal point) at
+  three precisions: FP32 (single precision) is what games and most GPU programs use, FP16 (half
+  precision) is used by AI and some effects, FP64 (double precision) by science programs. In
+  **GFLOPS** - billions of operations per second. Most gaming cards do FP64 at only a small
+  fraction of their FP32 speed; that is normal. A card or driver without FP16 or FP64 says "not
+  supported".
+- **INT32 multiply-add** - whole-number maths, in **GIOPS** (billions per second).
+- **Video memory read, write and copy** - how fast the GPU uses its own memory, in **GB/s**
+  (1 GB = 1,000,000,000 bytes).
+- **Upload and Download** - how fast data moves between the system memory and the graphics card,
+  over the PCIe slot, in GB/s.
+- **Dispatch latency** - how long the GPU takes to answer an empty piece of work, in **µs**
+  (millionths of a second); lower is better.
+
+On a GPU built into the processor (integrated graphics) the memory rows measure the system RAM it
+shares, and the page says so.
+
+**Reading the result.** Compare runs on the same PC, with alike SRS builds and the same graphics
+driver version: a driver update alone can change the numbers, and the page says which driver ran.
+Much lower numbers than last time usually mean heat, a power-saving setting or another program
+using the GPU. Upload / download well below what the slot should give can mean the card sits in a
+slot with fewer lanes or its link has dropped to a slower speed. A **WRONG RESULT** means the GPU
+computed something wrong - usually too much overclock or undervolt, too much heat, or a faulty
+card; run [GPU Burnin](#918-gpu-burnin) to check.
+
+**Safety:** Run **asks first**, naming the GPU and the time (about 15 seconds at the defaults),
+and says that the GPU works at full load and that an unstable GPU overclock or undervolt can crash
+the PC or the display driver under that load. The work is cut into pieces of about 25 ms, one at a
+time, so the desktop stays usable; a GPU that stops answering ends the run cleanly with the results
+so far; Stop ends it at once. SRS never changes clocks, voltages or fans, and keeps Vulkan overlays
+such as MangoHud out of the run. Vulkan is loaded when needed: without it the window says "not
+available" and the rest of SRS works as before. The result is saved to
+`~/.cache/srs/bench-gpu.txt` and added to the [Benchmark history](#910-benchmark-history). Tested
+on a software GPU only - see the note at the start of this chapter.
 
 ## 10. Options
 

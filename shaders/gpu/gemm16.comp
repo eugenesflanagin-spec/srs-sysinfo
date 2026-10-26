@@ -1,0 +1,27 @@
+// gemm16.comp - SRS GPU benchmark: tiled matrix multiply C = A * B, half precision arithmetic (FP16).
+// n x n row-major matrices, 16 x 16 tiles through shared memory. The inputs hold only 0 and 1, so every
+// result is a whole number and exact; the host checks sample entries and the compare shader checks the
+// whole matrix against the first result.
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(push_constant) uniform PC { uint n, u1, u2, u3, u4, u5, u6, u7; } pc;
+layout(std430, binding = 0) readonly buffer A { float a[]; };
+layout(std430, binding = 1) readonly buffer B { float b[]; };
+layout(std430, binding = 2) writeonly buffer C { float c[]; };
+shared float16_t ta[16][16];
+shared float16_t tb[16][16];
+
+void main()
+{
+    uint row = gl_GlobalInvocationID.y, col = gl_GlobalInvocationID.x, lx = gl_LocalInvocationID.x, ly = gl_LocalInvocationID.y;
+    float16_t acc = float16_t(0);
+    for (uint t = 0u; t < pc.n; t += 16u) {
+        ta[ly][lx] = float16_t(a[row * pc.n + t + lx]);
+        tb[ly][lx] = float16_t(b[(t + ly) * pc.n + col]);
+        barrier();
+        for (uint k = 0u; k < 16u; k++) acc = fma(ta[ly][k], tb[k][lx], acc);
+        barrier();
+    }
+    c[row * pc.n + col] = float(acc);
+}

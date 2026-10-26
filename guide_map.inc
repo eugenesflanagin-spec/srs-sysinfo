@@ -192,6 +192,7 @@
 { "gpu-all", "sections-graphics--gpu-all-details" },
 { "gpu-api", "sections-graphics--gpu-api-routines" },
 { "gpu-apps", "sections-graphics--gpu-applications" },
+{ "gpu-bench", "sections-tools--gpu-benchmark" },
 { "gpu-bios", "sections-graphics--gpu-vbios-status" },
 { "gpu-clocks", "sections-graphics--gpu-clock-speeds" },
 { "gpu-cuda", "sections-graphics--cuda-information" },

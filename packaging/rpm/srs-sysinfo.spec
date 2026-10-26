@@ -54,6 +54,12 @@ Suggests:       libcurl4
 %else
 Suggests:       libcurl
 %endif
+# the Vulkan loader, loaded at run time by the GPU benchmarks (with the GPU's own Vulkan driver)
+%if 0%{?suse_version}
+Suggests:       libvulkan1
+%else
+Suggests:       vulkan-loader
+%endif
 %if 0%{?suse_version}
 Suggests:       libayatana-appindicator3-1
 %else

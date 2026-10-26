@@ -25,7 +25,9 @@ Needed at run time
     vulkan-tools, clinfo, mesa-utils, inxi, lshw, hwinfo;
     zlib, zstd, lz4 and xz (liblzma) for the Everyday Work benchmark's compression rows
     (loaded at run time; a missing one only skips its rows); libcurl (libcurl4 / curl)
-    for the Network benchmark's optional internet speed test
+    for the Network benchmark's optional internet speed test; the Vulkan loader
+    (libvulkan1 / vulkan-icd-loader / vulkan-loader) and a Vulkan driver for the
+    GPU benchmarks
 
 Try it without installing
   ./usr/bin/srs-gui

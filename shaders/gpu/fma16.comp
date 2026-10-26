@@ -1,0 +1,33 @@
+// fma16.comp - SRS GPU benchmark: FP16 fused multiply-add throughput (packed pairs, f16vec2).
+// Same scheme as fma32.comp: a -> 2a + 1 -> a, all values small integers (below 128), exact in
+// half precision. Push constants stay 32-bit (no 16-bit push-constant feature needed); the
+// result is widened to 32-bit float for the output (no 16-bit storage feature needed).
+// Each f16vec2 fma = 2 FMAs = 4 floating-point operations.
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { float m1, c1, m2, c2; uint iters, seed, n, pad; } pc;
+layout(std430, binding = 0) writeonly buffer Out { float o[]; };
+
+void main()
+{
+    uint g = gl_GlobalInvocationID.x;
+    f16vec2 m1 = f16vec2(float16_t(pc.m1)), c1 = f16vec2(float16_t(pc.c1));
+    f16vec2 m2 = f16vec2(float16_t(pc.m2)), c2 = f16vec2(float16_t(pc.c2));
+    f16vec2 a0 = f16vec2(float((g + pc.seed) & 63u), float((g * 3u + 1u) & 63u));
+    f16vec2 a1 = f16vec2(float((g * 5u + 2u) & 63u), float((g * 7u + 3u) & 63u));
+    f16vec2 a2 = f16vec2(float((g * 11u + 4u) & 63u), float((g * 13u + 5u) & 63u));
+    f16vec2 a3 = f16vec2(float((g * 17u + 6u) & 63u), float((g * 19u + 7u) & 63u));
+    f16vec2 a4 = f16vec2(float((g * 23u + 8u) & 63u), float((g * 29u + 9u) & 63u));
+    f16vec2 a5 = f16vec2(float((g * 31u + 10u) & 63u), float((g * 37u + 11u) & 63u));
+    f16vec2 a6 = f16vec2(float((g * 41u + 12u) & 63u), float((g * 43u + 13u) & 63u));
+    f16vec2 a7 = f16vec2(float((g * 47u + 14u) & 63u), float((g * 53u + 15u) & 63u));
+    for (uint i = 0u; i < pc.iters; i++) {
+        a0 = fma(a0, m1, c1); a1 = fma(a1, m1, c1); a2 = fma(a2, m1, c1); a3 = fma(a3, m1, c1);
+        a4 = fma(a4, m1, c1); a5 = fma(a5, m1, c1); a6 = fma(a6, m1, c1); a7 = fma(a7, m1, c1);
+        a0 = fma(a0, m2, c2); a1 = fma(a1, m2, c2); a2 = fma(a2, m2, c2); a3 = fma(a3, m2, c2);
+        a4 = fma(a4, m2, c2); a5 = fma(a5, m2, c2); a6 = fma(a6, m2, c2); a7 = fma(a7, m2, c2);
+    }
+    vec2 s = ((vec2(a0) + vec2(a1)) + (vec2(a2) + vec2(a3))) + ((vec2(a4) + vec2(a5)) + (vec2(a6) + vec2(a7)));
+    if (g < pc.n) o[g] = s.x + s.y;
+}

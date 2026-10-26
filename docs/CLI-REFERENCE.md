@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work` and `net`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net` and `gpu`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -51,6 +51,7 @@ sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,swi
 sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
+sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -68,7 +69,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -90,7 +91,7 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
         open the user guide at ITEM's section (PDF viewer, else the HTML guide);
         --print only shows the section and the command that would run
 
-Benchmarks and stress (load the CPU; run only when you ask):
+Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):
   burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
   bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]
@@ -131,10 +132,15 @@ Benchmarks and stress (load the CPU; run only when you ask):
         --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com
         (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test
         asks separately and only --yes-internet skips that question
+  gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
+      [--mem-mib M] [--list] [--yes]
+        GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory
+        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
+        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -638,7 +644,42 @@ $ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most abou
 
 See [tools.md](SECTIONS/tools.md#network-benchmark).
 
-Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `gpu` - GPU benchmark (Vulkan)
+
+```
+sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
+                     [--mem-mib M] [--list] [--yes]
+```
+
+Measures the graphics card through Vulkan: FP32, FP16, FP64 and INT32 multiply-add (GFLOPS /
+GIOPS), video memory read, write and copy, upload and download (GB/s, 1 GB = 10^9 bytes) and the
+round trip of an empty dispatch (µs). Every result is checked; a wrong one is printed as WRONG
+RESULT. The Vulkan loader is opened at run time: without it, or without a Vulkan driver, the
+command says so and exits with 2. It **asks first** (the GPU, the time, full GPU load, and that
+an unstable overclock or undervolt can crash the PC); `--yes` (`-y`) starts at once. Without a
+terminal and without `--yes` it does not start (exit code 2).
+
+| Option | Meaning |
+|---|---|
+| `--device N` | The Vulkan device to test, numbered as `--list` shows them (default: the first discrete GPU, else the first device) |
+| `--seconds S` | GPU time per test, 0.1-10 (default 1) |
+| `--only LIST` | Run only these tests (comma-separated): fp32, fp16, fp64, int32, read, write, copy, upload, download, latency |
+| `--mem-mib M` | Buffer size of the memory and transfer tests in MiB, 1-4096 (default: 256, less on small cards) |
+| `--list` | List the Vulkan devices (number, name, type, video memory, driver) and exit; nothing runs on a GPU |
+| `--yes` | Start without asking |
+
+Exit code 0 when every test ran and was right, 1 when it was stopped, a result was wrong or the
+GPU failed during the run, 2 when it did not start (bad option, not confirmed, no Vulkan, no such
+device, CPU Burnin running). Examples:
+
+```
+$ sysreport-search gpu --list
+$ sysreport-search gpu --only fp32,read,upload --seconds 0.5
+```
+
+See [tools.md](SECTIONS/tools.md#gpu-benchmark).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -673,6 +714,7 @@ or one of these tool names:
 | `compute` | CPU Compute |
 | `work` | Everyday Work |
 | `netbench` | Network benchmark (`network` alone is the Network page's item) |
+| `gpubench` | GPU Benchmark |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
@@ -684,7 +726,7 @@ The environment variable `SRS_OPEN=sensors,burnin` does the same.
 The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
 `burnin`, `stress`, `bench`, `cachemem`, `storagebench`, `oslatency`, `compute`, `work`,
-`netbench`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
+`netbench`, `gpubench`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
 
 ---
 
@@ -750,4 +792,6 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_POWER_DB`, `SRS_POWER_INI` | Power & cost: use another history database / settings file instead of `~/.local/share/srs/power.db` and `~/.config/srs/power.ini` (for tests) |
 | `SRS_DATA_DIR` | Folder holding `power-zip-rates.tsv` for the offline US ZIP price lookup (default: next to the program, then `/usr/share/srs-sysinfo`) |
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
+| `SRS_VULKAN_LIB` | GPU benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |
+| `SRS_GPU_SOFTWARE_ONLY=1` | GPU benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

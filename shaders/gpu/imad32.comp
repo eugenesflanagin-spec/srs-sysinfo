@@ -1,0 +1,20 @@
+// imad32.comp - SRS GPU benchmark: 32-bit integer multiply-add throughput.
+// Eight independent linear congruential chains a = a * A + C (mod 2^32); A and C are push
+// constants. The host computes the same chains with an O(log n) jump-ahead and compares every
+// invocation's result (XOR of the eight chains). One multiply-add = 2 integer operations.
+#version 450
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { uint A, C, u2, u3; uint iters, seed, n, pad; } pc;
+layout(std430, binding = 0) writeonly buffer Out { uint o[]; };
+
+void main()
+{
+    uint g = gl_GlobalInvocationID.x;
+    uint a0 = g ^ pc.seed, a1 = g * 3u + 1u, a2 = g * 5u + 2u, a3 = g * 7u + 3u;
+    uint a4 = g * 11u + 4u, a5 = g * 13u + 5u, a6 = g * 17u + 6u, a7 = g * 19u + 7u;
+    for (uint i = 0u; i < pc.iters; i++) {
+        a0 = a0 * pc.A + pc.C; a1 = a1 * pc.A + pc.C; a2 = a2 * pc.A + pc.C; a3 = a3 * pc.A + pc.C;
+        a4 = a4 * pc.A + pc.C; a5 = a5 * pc.A + pc.C; a6 = a6 * pc.A + pc.C; a7 = a7 * pc.A + pc.C;
+    }
+    if (g < pc.n) o[g] = a0 ^ a1 ^ a2 ^ a3 ^ a4 ^ a5 ^ a6 ^ a7;
+}

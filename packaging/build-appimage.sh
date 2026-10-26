@@ -54,7 +54,8 @@ apt-get update -qq
 # libgtk-3-bin / libgdk-pixbuf2.0-bin / librsvg2-common: what linuxdeploy-plugin-gtk bundles
 # (IM modules, pixbuf loaders incl. SVG for icons);
 # libayatana-appindicator3-1: the optional tray icon (srs-gui dlopen()s it); libsqlite3-dev: Power & cost history.
-# Not bundled: zlib / zstd / lz4 / liblzma (Everyday Work benchmark) and libcurl (Network benchmark's internet test),
+# Not bundled: zlib / zstd / lz4 / liblzma (Everyday Work benchmark), libcurl (Network benchmark's internet test) and
+# libvulkan (GPU benchmarks; must match the host's GPU driver),
 # loaded from the host with dlopen when present.
 apt-get install -y -q --no-install-recommends build-essential pkgconf libgtk-3-dev libgtk-3-bin libsqlite3-dev \
   libgdk-pixbuf2.0-bin librsvg2-common shared-mime-info \

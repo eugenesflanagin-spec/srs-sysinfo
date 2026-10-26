@@ -127,6 +127,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     PC), and an optional internet speed test against Cloudflare's public speed test (DNS, connect,
     HTTPS, download / upload with 1 and N streams) that asks separately and states its data use;
     libcurl optional; no addresses or network names in the results.
+  - **GPU Benchmark** - through Vulkan: FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS),
+    video memory read / write / copy and upload / download (GB/s), dispatch latency (µs); every
+    result checked; Vulkan loaded at run time (optional); about 15 s at full GPU load.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -205,6 +208,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui ipi [--cpus N] [--rounds R]    srs-gui latency [--max MB]
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
     srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes] [--yes-internet]
+    srs-gui gpu [--device N] [--seconds S] [--only TESTS] [--list] [--yes]
     srs-gui work [--threads N] [--seconds S] [--only GROUPS] [--libs zlib,zstd,lz4,xz] [--single] [--yes]
     srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
@@ -266,12 +270,15 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_compute.c` | CPU Compute benchmark (SGEMM / DGEMM, multiply-add, FFT, N-body, Mandelbrot, ray tracer; SSE2 / AVX2 / AVX-512) |
 | `bench_net.c` | Network benchmark (loopback sockets; internet test through libcurl loaded with dlopen) |
+| `bench_gpu.c` | GPU Benchmark (Vulkan compute: multiply-add, video memory, transfers, dispatch latency) |
+| `gpu_vk.c`, `bench_gpu_spv.inc`, `shaders/gpu/` | the Vulkan layer of the GPU benchmarks (loader opened with dlopen, own copy of the few Vulkan types it needs); the GLSL compute shaders and their pre-compiled SPIR-V (`shaders/gpu/build.sh`, `make gpu-shaders`) |
 | `bench_work.c` | Everyday Work benchmark (compression via dlopen, sorting, checksums, text, interpreter) |
 | `bench_os.c` | OS Latency benchmark (system calls, context switches, wake-ups, timers, page faults, file metadata) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
 | `tests/bench-compute-test.sh` | CPU Compute self-test on every code path, spoilt-result detection, Stop, CLI |
 | `tests/bench-net-test.sh` | Network loopback test, privacy checks, Stop, refusals, strace (loopback only), CLI |
+| `tests/bench-gpu-test.sh` | GPU benchmarks on lavapipe only (software Vulkan; refuses any real GPU), ASan + UBSan, Vulkan layouts, shaders, Stop, CLI |
 | `tests/bench-work-test.sh` | Everyday Work known answers, round trips, "not installed" path, Stop, CLI (ASan + UBSan) |
 | `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
@@ -298,7 +305,10 @@ specification), CRC32 / CRC32C with slicing-by-8 (Kounavis and Berry), FNV-1a (F
 Boyer-Moore-Horspool (1980) and multikey quicksort (Bentley and Sedgewick, 1997), and loads the
 system's zlib, zstd, lz4 and xz libraries at run time (not shipped or linked). The Network
 benchmark's internet test uses Cloudflare's public speed test endpoints (speed.cloudflare.com,
-`/__down` and `/__up`; SRS is not affiliated with Cloudflare) through libcurl, loaded at run time. SRS Pi's reference checksums were computed once
+`/__down` and `/__up`; SRS is not affiliated with Cloudflare) through libcurl, loaded at run time.
+The GPU benchmarks open the system's Vulkan loader at run time and use their own copy of the few
+Vulkan structures they need, laid out as in the Khronos Vulkan-Headers (Apache-2.0 OR MIT); they
+were tested on Mesa's lavapipe software renderer (MIT). SRS Pi's reference checksums were computed once
 with [mpmath](https://mpmath.org) (BSD licence); mpmath is not part of SRS.
 
 The Power & cost page's built-in price and CO2 tables come from public data: U.S. Energy

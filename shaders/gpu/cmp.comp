@@ -1,0 +1,15 @@
+// cmp.comp - SRS GPU benchmark: counts the 32-bit words of two buffers that differ (GPU Burnin's error check).
+#version 450
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { uint words, u1, u2, u3, u4, u5, u6, u7; } pc;
+layout(std430, binding = 0) readonly buffer X { uint x[]; };
+layout(std430, binding = 1) readonly buffer Y { uint y[]; };
+layout(std430, binding = 2) buffer Cnt { uint cnt[]; };
+
+void main()
+{
+    uint stride = gl_NumWorkGroups.x * 64u;
+    uint bad = 0u;
+    for (uint i = gl_GlobalInvocationID.x; i < pc.words; i += stride) bad += (x[i] != y[i]) ? 1u : 0u;
+    if (bad != 0u) atomicAdd(cnt[0], bad);
+}

@@ -588,6 +588,7 @@ The groups are in the same order as SRS's Menu.
 | [CPU compute benchmark](tools.md#cpu-compute-benchmark) | `cpu-compute` | Linux data |
 | [Everyday work benchmark](tools.md#everyday-work-benchmark) | `everyday-work` | Linux data |
 | [Network benchmark](tools.md#network-benchmark) | `net-bench` | Linux data |
+| [GPU benchmark](tools.md#gpu-benchmark) | `gpu-bench` | Linux data |
 | [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
 | [Crypto benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
 | [Prime sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |

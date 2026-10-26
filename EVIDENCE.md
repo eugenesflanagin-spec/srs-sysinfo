@@ -194,3 +194,9 @@ or result files were used or looked at for them. Public sources are credited in 
   public documentation (option numbers are libcurl's stable ABI values, checked against `curl.h`
   by the test script with `-DNET_CHECK_CURL_ABI`); Cloudflare's public speed test endpoints as its
   own web page uses them.
+- **GPU Benchmark** (`bench_gpu.c`, `gpu_vk.c`, `shaders/gpu/*.comp`): the Vulkan 1.1 and SPIR-V
+  specifications from the Khronos registry; the few Vulkan structures SRS needs are declared in
+  `gpu_vk.h` with their layouts as in the Khronos Vulkan-Headers (checked against the real header
+  for 64-bit and 32-bit by `tests/bench-gpu-test.sh` with `-DGVK_LAYOUT_CHECK`); the loader is
+  opened with `dlopen`. The GLSL compute shaders were written for SRS and compiled with glslang;
+  the generated SPIR-V is in `bench_gpu_spv.inc`. Developed and tested on lavapipe only.

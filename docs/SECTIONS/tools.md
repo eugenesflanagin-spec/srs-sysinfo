@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -10,7 +10,7 @@ look-up and search tools (device ID lookup, report search, configuration search,
 items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows sit at
 the top of the Menu itself: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
 SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark..., OS
-Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., Device ID Lookup... and Find in
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., Device ID Lookup... and Find in
 Report.... The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
@@ -44,6 +44,7 @@ shows the last stored result.
 - [CPU compute benchmark](#cpu-compute-benchmark) `cpu-compute`
 - [Everyday work benchmark](#everyday-work-benchmark) `everyday-work`
 - [Network benchmark](#network-benchmark) `net-bench`
+- [GPU benchmark](#gpu-benchmark) `gpu-bench`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -873,6 +874,71 @@ healthy; Wi-Fi is often half of it or less.
 from `/proc/net/wireless`. Setups with only policy routing (some VPNs) are reported as "no network
 connection". Stored in `~/.cache/srs/bench-net.txt`; each run is added to the
 [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+
+---
+## GPU benchmark  
+`gpu-bench` - Linux data
+
+**In plain words.** How fast the graphics card (GPU) computes and moves data, measured through
+Vulkan, the graphics and compute interface every modern Linux GPU driver offers. It runs short
+pieces of work on the GPU and checks every answer: a wrong answer is shown as WRONG, never as a
+speed. **Higher is better**, except for the latency row.
+
+**What you see.**
+
+| Row | What it measures | Unit |
+|---|---|---|
+| FP32 multiply-add | single-precision (32-bit) floating-point maths, the kind games and most GPU programs use | GFLOPS |
+| FP16 multiply-add | half precision (16-bit), used by AI and some game effects; "not supported" when the GPU or driver lacks it | GFLOPS |
+| FP64 multiply-add | double precision (64-bit), used by science programs; most gaming GPUs do it at a small fraction of FP32 speed | GFLOPS |
+| INT32 multiply-add | 32-bit whole-number maths | GIOPS |
+| Video memory read / write / copy | how fast the GPU reads and writes its own memory (copy counts the bytes read plus the bytes written) | GB/s |
+| Upload / Download | data moving from system memory to the GPU and back, over PCIe on a graphics card | GB/s |
+| Dispatch latency | the round trip of an empty piece of GPU work: how quickly the GPU answers | µs (median, best, 95% under) |
+
+Below: the device and its type (discrete GPU, integrated GPU, software renderer), the driver and
+its version, the Vulkan version, the device memory, the subgroup (wave / warp) size, the buffer
+size of the memory tests, how it was timed (GPU timestamps, else the host clock) and the
+**Build** line. GFLOPS = billions of floating-point operations per second (a fused multiply-add
+counts as 2); GIOPS the same for whole numbers; 1 GB = 1,000,000,000 bytes; µs = millionths of a
+second.
+
+| Setting | Choices |
+|---|---|
+| GPU | Default (the first discrete GPU, else the first device) or a device from the list; the list is read when you open it |
+| Seconds per test | 0.1-2 in the window (command line 0.1-10), default 1 |
+| Memory test size | 0 = auto (256 MiB, less on small cards), up to 4096 MiB |
+
+**Safety.** It asks before it starts, naming the GPU, the time (about 15 seconds at the defaults)
+and that the GPU works at full load; an unstable GPU overclock or undervolt can crash the PC or
+the display driver under that load. The work is cut into pieces of about 25 ms of GPU time, one at
+a time, each waited for with a 5 s watchdog, so the desktop stays usable. A lost or stuck GPU ends
+the run cleanly with the results so far. Stop ends it at once. SRS never changes clocks, voltages
+or fans. Vulkan overlay layers (such as MangoHud) are kept out of the run.
+
+**Healthy / typical values.** Not measured by SRS on a real GPU yet (only on the software
+renderer); as a rough guide from the makers' published figures, a current graphics card: FP32 in the tens of thousands of GFLOPS,
+video memory several hundred GB/s, upload and download 10-25 GB/s on PCIe 4.0 x16 (about half on
+PCIe 3.0), dispatch latency 5-30 µs. An integrated GPU: FP32 a few hundred to a few thousand
+GFLOPS, and the memory rows measure the system RAM it shares. The software renderer (lavapipe,
+which runs on the CPU) is far slower; it is there for testing.
+
+**Unusual values and what they suggest.**
+- FP64 at 1/16 to 1/64 of FP32: normal for gaming GPUs; workstation and data-centre cards are faster.
+- Upload / download far below the card's link: the card is in a slot with fewer PCIe lanes or a
+  lower PCIe generation, or the link has dropped to a slower speed (see the PCI items).
+- Much lower numbers than last time: heat (the GPU slows down when hot), a power-saving profile,
+  another program using the GPU, or a driver change. Compare only results from alike SRS builds
+  and the same driver version.
+- WRONG RESULT: the GPU computed something wrong - usually too much overclock or undervolt, too
+  much heat or a faulty card. Run GPU Burnin to check.
+
+**Where Linux gets it.** Built in: the Vulkan loader (`libvulkan.so.1`) is opened at run time with
+`dlopen`, so SRS does not need Vulkan to build or start; without it, or without a Vulkan driver,
+the window says "not available". The compute programs (shaders) are pre-compiled into SRS.
+Stored in `~/.cache/srs/bench-gpu.txt`; each run is added to the
+[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS, and none runs
+while CPU Burnin / Stress runs.
 
 ---
 ## SRS Pi  

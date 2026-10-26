@@ -42,6 +42,7 @@ optdepends=(
   'lz4: lz4 rows of the Everyday Work benchmark (loaded at run time)'
   'xz: xz rows of the Everyday Work benchmark (loaded at run time)'
   'curl: libcurl for the optional internet speed test of the Network benchmark (loaded at run time)'
+  "vulkan-icd-loader: the GPU benchmarks (Vulkan loader, loaded at run time; plus your GPU's Vulkan driver)"
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')   # set by build-arch.sh

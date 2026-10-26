@@ -117,6 +117,18 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   does), stating the server, the data use (up to about 1000 MB with the defaults) and that the
   server sees the public IP. libcurl is optional (loaded at run time). No addresses, host names or
   network names in the results. Stop works.
+- **GPU Benchmark** (`sysreport-search gpu`, Benchmarks & stress -> GPU Benchmark,
+  `--gui-open=gpubench`): through Vulkan, FP32, FP16 and FP64 multiply-add (GFLOPS), INT32
+  multiply-add (GIOPS), video memory read, write and copy and upload / download (GB/s, 1 GB =
+  10^9 bytes), and dispatch latency (µs, median, best and 95%). Every result is checked against a
+  value SRS works out itself; a wrong one is shown as WRONG RESULT, never as a speed. Timed with
+  GPU timestamps when the device has them. The Vulkan loader is opened at run time (`dlopen`), so
+  Vulkan is optional and SRS needs no Vulkan headers to build; the shaders are pre-compiled into
+  SRS (`shaders/gpu/`, `make gpu-shaders`). Work is cut into pieces of about 25 ms, one at a time,
+  each with a 5 s watchdog; a lost or stuck GPU ends the run cleanly. Asks before it starts
+  (the GPU, the time, full GPU load, overclock / undervolt warning); Stop works; one history line
+  per run. Vulkan overlay layers such as MangoHud are kept out of the run. `--list` lists the
+  Vulkan devices without running anything.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -194,6 +206,12 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - `tests/bench-net-test.sh`: Network loopback test, no addresses or host name in the output,
   Stop, refusals (http:// server, nothing chosen), strace check that only 127.0.0.1 is contacted,
   and that `--internet` never starts without its own yes.
+- `tests/bench-gpu-test.sh`: the GPU benchmarks on lavapipe (Mesa's software Vulkan renderer)
+  only - the test refuses to run anything unless every Vulkan device it sees is the software
+  renderer - with the GPU files built under AddressSanitizer + UBSan; Vulkan type layouts checked
+  against the Khronos header for 64-bit and 32-bit; the pre-compiled shaders checked against their
+  sources; Vulkan / driver missing paths; Stop; result file, history line; the CLI (help, unknown
+  option, no terminal, `--yes`).
 
 ### Changed
 

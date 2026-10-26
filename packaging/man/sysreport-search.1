@@ -3,7 +3,7 @@
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -73,8 +73,11 @@ Everyday work: compression with the system's zlib, zstd, lz4 and xz (loaded at r
 .TP
 \fBnet\fR [\fB\-\-local\fR] [\fB\-\-internet\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-streams\fR \fIN\fR] [\fB\-\-samples\fR \fIN\fR] [\fB\-\-max\-mb\fR \fIMB\fR] [\fB\-4\fR|\fB\-6\fR] [\fB\-\-server\fR \fIURL\fR] [\fB\-\-hosts\fR \fIHOST\fR[:\fIPORT\fR],...] [\fB\-\-yes\fR] [\fB\-\-yes\-internet\fR]
 Network benchmark. Without options: loopback TCP / UDP throughput, loss and round trip time (nothing leaves the computer; asks first unless \fB\-\-yes\fR). \fB\-\-internet\fR adds DNS, connect, HTTPS, download and upload tests against https://speed.cloudflare.com; it prints what it contacts and the data use (up to about 4 x \fB\-\-max\-mb\fR, default 1000 MB) and asks its own question, which only \fB\-\-yes\-internet\fR skips. libcurl is optional (loaded at run time). No addresses or host names are shown or saved.
+.TP
+\fBgpu\fR [\fB\-\-device\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fItests\fR] [\fB\-\-mem\-mib\fR \fIM\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
+GPU benchmark through Vulkan: FP32, FP16, FP64 and INT32 multiply\-add (GFLOPS / GIOPS), video memory read, write and copy, upload and download (GB/s) and dispatch latency (µs), every result checked. The Vulkan loader is opened at run time (optional). \fB\-\-list\fR lists the Vulkan devices and runs nothing. Asks first unless \fB\-\-yes\fR; exit code 2 when it did not start. \fItests\fR: fp32, fp16, fp64, int32, read, write, copy, upload, download, latency.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR and \fBnet\fR load the CPU, the drive or the network and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR and \fBnet\fR also ask before they start unless \fB\-\-yes\fR is given.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR and \fBgpu\fR load the CPU, the drive, the network or the GPU and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR and \fBgpu\fR also ask before they start unless \fB\-\-yes\fR is given.
 Run
 .B sysreport-search \-\-help
 for the full option list.

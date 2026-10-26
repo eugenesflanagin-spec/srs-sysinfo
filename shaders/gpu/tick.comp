@@ -1,0 +1,10 @@
+// tick.comp - SRS GPU benchmark: dispatch latency. One invocation adds 1 to a counter; after N
+// round trips the host checks the counter is N (every dispatch really ran).
+#version 450
+layout(local_size_x = 1) in;
+layout(std430, binding = 0) buffer Cnt { uint c[]; };
+
+void main()
+{
+    c[0] += 1u;
+}

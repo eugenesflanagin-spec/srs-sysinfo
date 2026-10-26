@@ -1,0 +1,23 @@
+// fma64.comp - SRS GPU benchmark: FP64 (double precision) fused multiply-add throughput.
+// Same scheme as fma32.comp in double precision; the sum (a small integer) is written as float.
+#version 450
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { float m1, c1, m2, c2; uint iters, seed, n, pad; } pc;
+layout(std430, binding = 0) writeonly buffer Out { float o[]; };
+
+void main()
+{
+    uint g = gl_GlobalInvocationID.x;
+    double m1 = double(pc.m1), c1 = double(pc.c1), m2 = double(pc.m2), c2 = double(pc.c2);
+    double a0 = double((g + pc.seed) & 255u),       a1 = double((g * 3u + 1u) & 255u);
+    double a2 = double((g * 5u + 2u) & 255u),       a3 = double((g * 7u + 3u) & 255u);
+    double a4 = double((g * 11u + 4u) & 255u),      a5 = double((g * 13u + 5u) & 255u);
+    double a6 = double((g * 17u + 6u) & 255u),      a7 = double((g * 19u + 7u) & 255u);
+    for (uint i = 0u; i < pc.iters; i++) {
+        a0 = fma(a0, m1, c1); a1 = fma(a1, m1, c1); a2 = fma(a2, m1, c1); a3 = fma(a3, m1, c1);
+        a4 = fma(a4, m1, c1); a5 = fma(a5, m1, c1); a6 = fma(a6, m1, c1); a7 = fma(a7, m1, c1);
+        a0 = fma(a0, m2, c2); a1 = fma(a1, m2, c2); a2 = fma(a2, m2, c2); a3 = fma(a3, m2, c2);
+        a4 = fma(a4, m2, c2); a5 = fma(a5, m2, c2); a6 = fma(a6, m2, c2); a7 = fma(a7, m2, c2);
+    }
+    if (g < pc.n) o[g] = float(((a0 + a1) + (a2 + a3)) + ((a4 + a5) + (a6 + a7)));
+}

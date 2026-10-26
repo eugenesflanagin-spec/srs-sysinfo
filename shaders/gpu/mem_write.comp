@@ -1,0 +1,16 @@
+// mem_write.comp - SRS GPU benchmark: VRAM write bandwidth.
+// Grid-stride loop over the buffer, 16 bytes (uvec4) per store. Word w gets w * 2654435761 + seed
+// (Knuth's multiplicative hash), so the read test can check every word through a known sum.
+#version 450
+layout(local_size_x = 64) in;
+layout(push_constant) uniform PC { uint n4, seed, u2, u3, u4, u5, u6, u7; } pc;
+layout(std430, binding = 0) writeonly buffer Dst { uvec4 d[]; };
+
+void main()
+{
+    uint stride = gl_NumWorkGroups.x * 64u;
+    for (uint i = gl_GlobalInvocationID.x; i < pc.n4; i += stride) {
+        uint w = i * 4u;
+        d[i] = uvec4(w, w + 1u, w + 2u, w + 3u) * 2654435761u + pc.seed;
+    }
+}

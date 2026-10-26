@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -42,7 +42,7 @@ static const char *HELP =
     "        --print only shows the section and the command that would run\n"
 #ifdef __linux__
     "\n"
-    "Benchmarks and stress (load the CPU; run only when you ask):\n"
+    "Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
     "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
     "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
     "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]\n"
@@ -83,11 +83,16 @@ static const char *HELP =
     "        --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com\n"
     "        (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test\n"
     "        asks separately and only --yes-internet skips that question\n"
+    "  gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]\n"
+    "      [--mem-mib M] [--list] [--yes]\n"
+    "        GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory\n"
+    "        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;\n"
+    "        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -816,6 +821,90 @@ static int cmd_net(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_gpu.h"
+
+/* parse "--device N" for the GPU commands; -1 = default */
+static int gpu_parse_device(const char *cmd, const char *v, int *dev)
+{
+    char *e;
+    long n = strtol(v, &e, 10);
+    if (*e || n < 0 || n >= GPU_MAXDEV) { fprintf(stderr, "%s: --device must be a number 0..%d (see --list)\n", cmd, GPU_MAXDEV - 1); return 0; }
+    *dev = (int)n;
+    return 1;
+}
+
+/* gpu [--device N] [--seconds S] [--only ...] [--mem-mib M] [--list] [--yes] - Vulkan compute benchmark; asks first */
+static int cmd_gpu(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]\n"
+        "                            [--mem-mib M] [--list] [--yes]\n"
+        "  --device N   the Vulkan device to test (number from --list; default: the first discrete GPU)\n"
+        "  --seconds S  GPU time per test, 0.1..10 (default 1)\n"
+        "  --only ...   run only these tests (comma-separated)\n"
+        "  --mem-mib M  buffer size of the memory and transfer tests in MiB, 1..4096 (default: 256, less on small cards)\n"
+        "  --list       list the Vulkan devices and exit (runs nothing on the GPU)\n"
+        "  --yes        start without asking";
+    srs_out o;
+    gpu_cfg c;
+    gpu_dev d[GPU_MAXDEV];
+    char why[300], what[900];
+    int i, yes = 0, list = 0, rc, n, k, ntests = 0;
+    gpu_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--device") || !strcmp(a, "--seconds") || !strcmp(a, "--only") || !strcmp(a, "--mem-mib");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (need && !v) { fprintf(stderr, "gpu: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--device")) { if (!gpu_parse_device("gpu", v, &c.device)) return 2; }
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--mem-mib")) c.mem_mib = atof(v);
+        else if (!strcmp(a, "--list")) list = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--only")) {
+            char buf[256], *t, *sp;
+            snprintf(buf, sizeof buf, "%s", v);
+            for (t = strtok_r(buf, ",", &sp); t; t = strtok_r(NULL, ",", &sp)) {
+                for (k = 0; k < GT_N && strcmp(t, gpu_test_id[k]); k++) ;
+                if (k == GT_N) {
+                    fprintf(stderr, "gpu: unknown --only value '%s' (valid: fp32, fp16, fp64, int32, read, write, copy, upload, download, latency)\n", t);
+                    return 2;
+                }
+                c.tests |= 1u << k;
+            }
+            if (!c.tests) return usage_error("gpu: --only needs at least one test");
+        } else { fprintf(stderr, "gpu: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 10) return usage_error("gpu: --seconds must be 0.1..10");
+    if (c.mem_mib < 0 || c.mem_mib > 4096) return usage_error("gpu: --mem-mib must be 1..4096 (0 = auto)");
+    gpu_quiet_layers();   /* main thread, before any Vulkan call: no overlays (MangoHud ...) in the run */
+    if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
+    if (n < 0) { fprintf(stderr, "gpu: not available - %s\n", why); return 2; }
+    if (list) {
+        if (n == 0) printf("No Vulkan device found%s%s\n", why[0] ? ": " : "", why);
+        for (i = 0; i < n; i++)
+            printf("%d  %s  (%s, %.1f GB video memory%s%s)\n", i, d[i].name, d[i].type, d[i].vram_bytes / 1e9,
+                   d[i].driver[0] ? ", " : "", d[i].driver);
+        return 0;
+    }
+    if (n == 0) { fprintf(stderr, "gpu: not started - no Vulkan device found%s%s\n", why[0] ? ": " : "", why); return 2; }
+    if (c.device >= n) { fprintf(stderr, "gpu: not started - there is no device %d (see --list)\n", c.device); return 2; }
+    k = c.device >= 0 ? c.device : gpu_default_device(d, n);
+    for (i = 0; i < GT_N; i++) if (!c.tests || (c.tests >> i & 1)) ntests++;
+    snprintf(what, sizeof what, "GPU compute benchmark on %s: runs short GPU kernels and copies for about %.0f s\n"
+             "(%d tests, %.1f s of GPU time each, in pieces of about 25 ms). The GPU works at full load while a test runs.\n"
+             "An unstable GPU overclock or undervolt can crash the PC or the display driver under this load.",
+             d[k].name, ntests * c.seconds * 1.5 + 2, ntests, c.seconds);
+    if (!yes && !ask_start("gpu", what)) return 2;
+    why[0] = 0;
+    rc = bench_gpu(&c, &o, NULL, why, sizeof why);
+    if (rc < 0 && why[0]) fprintf(stderr, "gpu: %s%s\n", rc == -1 ? "not started - " : "", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -934,6 +1023,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "compute")) return cmd_compute(argc, argv);
     if (!strcmp(cmd, "work")) return cmd_work(argc, argv);
     if (!strcmp(cmd, "net")) return cmd_net(argc, argv);
+    if (!strcmp(cmd, "gpu")) return cmd_gpu(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;
