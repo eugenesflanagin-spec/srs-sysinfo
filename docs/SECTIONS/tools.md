@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -40,6 +40,7 @@ shows the last stored result.
 - [Storage benchmark](#storage-benchmark) `storage-bench`
 - [OS latency benchmark](#os-latency-benchmark) `os-latency`
 - [CPU compute benchmark](#cpu-compute-benchmark) `cpu-compute`
+- [Everyday work benchmark](#everyday-work-benchmark) `everyday-work`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -739,6 +740,67 @@ SSE2 about 47, AVX2 about 121.
 run time with `__builtin_cpu_supports`, so a generic x86-64 package still uses AVX-512. On ARM
 (aarch64) only plain C runs. Stored in `~/.cache/srs/bench-compute.txt`; each run is added to the
 [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+
+---
+## Everyday work benchmark  
+`everyday-work` - Linux data
+
+**In plain words.** How fast the PC does the work it does all day long: compressing and
+unpacking files, sorting, checksums and hashes, searching and checking text, and running a small
+program in an interpreter. Higher is better. Every result is checked, so a wrong answer is
+reported instead of a fast number.
+
+**What you see.** One row per test with the result on **1 thread** and on **N threads** (default
+all logical CPUs; one pinned thread per CPU, each with its own copy of the data) and the check.
+Compression rows also show the **ratio** on text-like, record-like and random data. Below: the
+library versions found, the self-test, the data size and the threads.
+
+| Group (`--only` word) | Rows | Unit | How each result is checked |
+|---|---|---|---|
+| Compression (`compress`) | zlib -1 / -6 / -9, zstd -1 / -3 / -19, lz4, xz -1 / -6; compress and decompress | MB/s of original data | full round trip: length and every byte equal the original |
+| Sorting (`sort`) | 64-bit integers: C library qsort, radix sort; strings: qsort, multikey quicksort | Mkeys/s | in order, and a sum / hash of the keys shows nothing was lost or doubled |
+| Checksums and hashes (`hash`) | CRC32 (byte table, slicing-by-8), CRC32C (table, CPU instruction on x86-64), xxHash64, FNV-1a | GB/s | known-answer self-test, then every pass equals a value from the simple version |
+| Text processing (`text`) | substring search (memmem, Boyer-Moore-Horspool), JSON check, UTF-8 check | GB/s | match count, JSON token count and code point count equal what the generator wrote |
+| Bytecode interpreter (`interp`) | switch dispatch, threaded dispatch | Mops/s | prime count and hash equal a plain C reference |
+
+| Setting | Choices |
+|---|---|
+| Threads | 1 to all logical CPUs (default all) |
+| Seconds per test | 0.1-10 in the window (command line 0.1-60), default 0.5 |
+| Test groups / libraries | tick boxes (command line `--only`, `--libs`) |
+| 1 thread only | skip the N-thread column |
+| Data size | 1024 KB of each kind per thread (command line `--part-kib`, 64-16384) |
+
+**Libraries.** The compression libraries are the system's own - `libz.so.1`, `libzstd.so.1`,
+`liblz4.so.1`, `liblzma.so.5` - loaded when the test runs; SRS needs none of them to start. A
+missing one shows "not installed" and its rows are skipped.
+
+**Safety.** It asks before it starts, with the expected time (about half a minute at the
+defaults; the estimate is rough). The data is generated by SRS from fixed seeds, so every run and
+every PC does the same work; your files are never read or written. With N threads every CPU is
+100% busy; xz -6 and zstd -19 use about 100 MB of memory per thread, and fewer threads are used
+(with a note) when free memory is short. It does not start while CPU Burnin or Stress runs.
+
+**Healthy / typical values.** Depend strongly on the CPU and the library versions; compare runs
+on the same PC and SRS build. Ryzen 7 7800X3D, one thread, generic package build (a short run):
+lz4 about 1,000 MB/s compress and 7,400 MB/s unpack; zstd -1 about 650 / 2,200 MB/s; zlib -6
+about 74 / 1,800 MB/s; zstd -19 and xz -6 about 6-7 MB/s compress; radix sort about 110 Mkeys/s
+against 17 for qsort; CRC32C with the CPU instruction about 14 GB/s, xxHash64 about 15 GB/s,
+CRC32 slicing-by-8 about 3 GB/s; the interpreter about 1,250-1,500 Mops/s. Random data does not
+shrink (ratio about 1.0); text and records shrink about 1.8-4.8 times.
+
+**Unusual values and what they suggest.**
+- A row marked as failed: a wrong result - an unstable overclock, undervolt or memory setting.
+- "not installed": the library is missing; install it (`zstd`, `lz4`, `xz` / `liblzma` packages)
+  to get those rows.
+- N-thread figures far below threads x the 1-thread figure: memory bandwidth, thermal or power
+  limits, or other programs are busy.
+
+**Where Linux gets it.** Built in: SRS's own sorting, checksum, text and interpreter code; the
+compression libraries through `dlopen`; threads pinned with `sched_setaffinity`. Stored in
+`~/.cache/srs/bench-work.txt`; each test group adds a line (`work-compress`, `work-sort`,
+`work-hash`, `work-text`, `work-interp`) to the [Benchmark history](#benchmark-history). Only one
+benchmark runs at a time in SRS.
 
 ---
 ## SRS Pi  

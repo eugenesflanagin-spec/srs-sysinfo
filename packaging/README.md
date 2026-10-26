@@ -134,6 +134,9 @@ How it is made:
    library SRS needs (except the ones every distro has, such as glibc and X11),
    plus the tray library `libayatana-appindicator3`. The gtk plugin's hook makes
    GTK use X11 (XWayland on Wayland desktops) unless `GDK_BACKEND` is set.
+   Not bundled on purpose: the optional libraries the benchmarks load at run time
+   with `dlopen` - zlib, zstd, lz4 and xz/liblzma (Everyday Work) - come from
+   the host system; a missing one only skips its rows.
 4. `appimage/AppRun` replaces linuxdeploy's: `sysreport-search` and
    `srs-sysreport` (as first argument, or as the name of a link to the AppImage)
    start without the GTK settings; otherwise it runs `srs-gui` with the

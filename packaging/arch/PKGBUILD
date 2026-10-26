@@ -37,6 +37,10 @@ optdepends=(
   'inxi: srs-sysreport section'
   'lshw: srs-sysreport section'
   'hwinfo: srs-sysreport section'
+  'zlib: zlib rows of the Everyday Work benchmark (loaded at run time)'
+  'zstd: zstd rows of the Everyday Work benchmark (loaded at run time)'
+  'lz4: lz4 rows of the Everyday Work benchmark (loaded at run time)'
+  'xz: xz rows of the Everyday Work benchmark (loaded at run time)'
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')   # set by build-arch.sh

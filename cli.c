@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -72,11 +72,16 @@ static const char *HELP =
     "        CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /\n"
     "        Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%\n"
     "        busy (--single: one thread); asks first, --yes starts at once\n"
+    "  work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz]\n"
+    "       [--single] [--part-kib K] [--yes]\n"
+    "        Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing\n"
+    "        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;\n"
+    "        generated data only; asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -661,6 +666,72 @@ static int cmd_compute(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_work.h"
+
+/* "a,b" -> bits over ids[0..n-1]; 0 and a message for an unknown word */
+static int parse_ids(const char *cmd, const char *opt, const char *v, const char *const *ids, int n, unsigned *mask)
+{
+    char buf[256], *t, *sp;
+    snprintf(buf, sizeof buf, "%s", v);
+    for (t = strtok_r(buf, ",", &sp); t; t = strtok_r(NULL, ",", &sp)) {
+        int k;
+        for (k = 0; k < n && strcmp(t, ids[k]); k++) ;
+        if (k == n) {
+            int i;
+            fprintf(stderr, "%s: unknown %s value '%s' (valid:", cmd, opt, t);
+            for (i = 0; i < n; i++) fprintf(stderr, "%s %s", i ? "," : "", ids[i]);
+            fprintf(stderr, ")\n");
+            return 0;
+        }
+        *mask |= 1u << k;
+    }
+    if (!*mask) { fprintf(stderr, "%s: %s needs a value\n", cmd, opt); return 0; }
+    return 1;
+}
+
+/* work [options] - Everyday work benchmark; asks first unless --yes */
+static int cmd_work(int argc, char **argv)
+{
+    srs_out o;
+    wk_cfg c;
+    int i, rc, yes = 0;
+    char what[600];
+    wk_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--threads") || !strcmp(a, "--seconds") || !strcmp(a, "--only") || !strcmp(a, "--libs") ||
+                   !strcmp(a, "--part-kib");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]\n"
+                 "                             [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "work: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--threads")) c.threads = atoi(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--part-kib")) c.part_kib = atol(v);
+        else if (!strcmp(a, "--single")) c.single_only = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--only")) { if (!parse_ids("work", "--only", v, wk_group_id, WK_NGROUP, &c.run_mask)) return 2; }
+        else if (!strcmp(a, "--libs")) { if (!parse_ids("work", "--libs", v, wk_lib_id, WK_NLIB, &c.codec_mask)) return 2; }
+        else { fprintf(stderr, "work: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("work: --seconds must be 0.1..60");
+    if (c.part_kib < 64 || c.part_kib > 16384) return usage_error("work: --part-kib must be 64..16384");
+    if (c.threads < 0 || c.threads > BURN_MAXCPU) return usage_error("work: --threads must be 1 or more (0 = all)");
+    if (!wk_available()) { bench_work(&c, &o, NULL); return 2; }
+    snprintf(what, sizeof what, "Everyday work runs compression, sorting, checksum, text and interpreter tests for about %.0f s,\n"
+             "%s\nThe test data is generated; none of your files are read or written (only the result is saved).",
+             wk_estimate_seconds(&c), c.single_only ? "on one thread only." :
+             "on one thread and then on all chosen threads at once: every CPU 100% busy, up to ~100 MB of memory per thread.");
+    if (!yes && !ask_start("work", what)) return 2;
+    rc = bench_work(&c, &o, NULL);
+    if (rc == -1) fprintf(stderr, "work: not started - CPU Burnin / Stress or another run is active, or out of memory\n");
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -777,6 +848,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "storage")) return cmd_storage(argc, argv);
     if (!strcmp(cmd, "os-latency")) return cmd_os_latency(argc, argv);
     if (!strcmp(cmd, "compute")) return cmd_compute(argc, argv);
+    if (!strcmp(cmd, "work")) return cmd_work(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

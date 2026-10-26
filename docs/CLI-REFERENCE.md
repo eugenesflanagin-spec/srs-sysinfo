@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency` and `compute`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute` and `work`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -49,6 +49,7 @@ sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile stand
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
 sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -66,7 +67,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -118,10 +119,15 @@ Benchmarks and stress (load the CPU; run only when you ask):
         CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /
         Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%
         busy (--single: one thread); asks first, --yes starts at once
+  work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz]
+       [--single] [--part-kib K] [--yes]
+        Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing
+        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;
+        generated data only; asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -546,7 +552,41 @@ $ sysreport-search compute --single --tests sgemm,nbody --yes
 
 See [tools.md](SECTIONS/tools.md#cpu-compute-benchmark).
 
-Every `cachemem`, `storage`, `os-latency`, `compute`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `work` - Everyday work
+
+```
+sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]
+                      [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
+```
+
+Compression and decompression with the system's zlib, zstd, lz4 and xz libraries (MB/s and
+ratio), sorting (Mkeys/s), checksums and hashes (GB/s), text processing (GB/s) and a bytecode
+interpreter (Mops/s), on 1 thread and on N threads; every result is checked. The data is generated
+by SRS (your files are never read or written). It keeps every CPU busy and **asks first** with the
+expected time; `--yes` (`-y`) starts at once. Without a terminal and without `--yes` it does not
+start (exit code 2). A library that is not installed shows "not installed" and its rows are
+skipped.
+
+| Option | Meaning |
+|---|---|
+| `--threads N` | Threads for the right-hand column (default 0 = all logical CPUs) |
+| `--seconds S` | Measuring time per test and column, 0.1-60 (default 0.5) |
+| `--only` | Test groups, e.g. `--only compress,hash` |
+| `--libs` | Compression libraries, e.g. `--libs zstd,lz4` |
+| `--single` | Only the 1-thread column |
+| `--part-kib K` | Size of each generated data part per thread, 64-16384 KiB (default 1024) |
+
+Exit code 0 when every check passed, 1 when a check failed or it was stopped, 2 when it did not
+start (bad option, not confirmed, CPU Burnin running, not enough memory). Each test group adds a
+line (`work-compress` ... `work-interp`) to the history. Example:
+
+```
+$ sysreport-search work --only compress --libs zstd,lz4 --single --yes
+```
+
+See [tools.md](SECTIONS/tools.md#everyday-work-benchmark).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -579,6 +619,7 @@ or one of these tool names:
 | `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
 | `oslatency` | OS Latency |
 | `compute` | CPU Compute |
+| `work` | Everyday Work |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

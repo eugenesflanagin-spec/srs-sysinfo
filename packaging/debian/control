@@ -15,7 +15,8 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, hwdata, hicolor-icon-theme, xdg-uti
 Recommends: pkexec, dmidecode, pciutils
 Suggests: libayatana-appindicator3-1, i2c-tools, smartmontools, nvme-cli,
  usbutils, lm-sensors, vulkan-tools, clinfo, mesa-utils, iw, bluez,
- wireplumber, pulseaudio-utils, inxi, lshw, hwinfo
+ wireplumber, pulseaudio-utils, inxi, lshw, hwinfo, zlib1g, libzstd1,
+ liblz4-1, liblzma5
 Description: Linux system information viewer inspired by SIV64X
  SRS is a system information viewer for Linux that follows SIV64X, the System
  Information Viewer by Ray Hinchliffe (RH Software), built to improve on it and

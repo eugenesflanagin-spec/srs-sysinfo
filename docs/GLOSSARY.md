@@ -50,6 +50,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Boost (CPB / Turbo Boost)** - running above the base clock when power and temperature allow; CPB (Core Performance Boost) is AMD's name, Turbo Boost is Intel's. *See: [processors](SECTIONS/processors.md).*
 - **BootOrder** - the UEFI variable listing the boot entries (Boot####) in the order the firmware tries them. *See: [machine](SECTIONS/machine.md).*
 - **BORE (Burst-Oriented Response Enhancer)** - a change to Linux's EEVDF CPU scheduler that favours tasks which run in short bursts (typically interactive programs), shipped in some gaming kernels. *See: [tools](SECTIONS/tools.md).*
+- **Boyer-Moore-Horspool** - a fast way to find a word in a text by skipping ahead using the last letter of the word. *See: [tools](SECTIONS/tools.md).*
 - **Bridge (USB bridge)** - The chip in a USB enclosure, stick or card reader that converts USB to SATA, NVMe or flash commands. *See: [buses-1](SECTIONS/buses-1.md), [storage](SECTIONS/storage.md).*
 - **BSSID** - the radio (MAC) address of one Wi-Fi access point; one network name (SSID) can have several. *See: [network](SECTIONS/network.md).*
 - **btrfs** - A Linux copy-on-write filesystem with checksums, subvolumes, snapshots, compression and built-in multi-disk support. *See: [storage](SECTIONS/storage.md).*
@@ -81,6 +82,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Code point** - Unicode's number for one character, written like `U+0041`. *See: [linux-os](SECTIONS/linux-os.md).*
 - **COM port** - A serial port. COM1 is traditionally at I/O 0x3F8, IRQ 4 (`ttyS0` on Linux). *See: [buses-1](SECTIONS/buses-1.md).*
 - **Commit charge** - the total memory programs have reserved; it can exceed RAM when swap exists. *See: [machine](SECTIONS/machine.md).*
+- **Compression ratio** - how much smaller data became: 2.5 means the packed data is 2.5 times smaller than the original. *See: [tools](SECTIONS/tools.md).*
 - **Compute unit (CU)** - A block of shader cores inside the GPU. RDNA GPUs pair two CUs into a WGP. *See: [graphics](SECTIONS/graphics.md).*
 - **Congestion control** - the method TCP uses to guess how fast it can send without overloading the path. *See: [network](SECTIONS/network.md), [srs-items](SECTIONS/srs-items.md).*
 - **Context switch** - the kernel stopping one task on a CPU and starting another; the OS Latency benchmark times it with two threads or programs passing a byte back and forth through a pipe. *See: [tools](SECTIONS/tools.md).*
@@ -91,6 +93,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **CPUID** - an x86 instruction that returns facts about the CPU (vendor, family, features, caches) in four registers, organised by leaf number. *See: [processors](SECTIONS/processors.md).*
 - **cpuidle** - the Linux subsystem that puts idle CPUs into C-states. *See: [processors](SECTIONS/processors.md).*
 - **CRB** - Command Response Buffer; the memory-based interface used by firmware TPMs. *See: [machine](SECTIONS/machine.md).*
+- **CRC32, CRC32C** - checksums that detect damaged data (CRC32 in ZIP and Ethernet, CRC32C in storage and networks); many CPUs have an instruction for CRC32C. *See: [tools](SECTIONS/tools.md).*
 - **Critical Warning** - NVMe health field: a bit field that is 0x00 when the drive sees no serious problem. *See: [storage](SECTIONS/storage.md).*
 - **CRTC** - The part of the display engine that reads one picture from memory and sends it to one or more outputs. VRR is switched on per CRTC. *See: [graphics](SECTIONS/graphics.md).*
 - **CSM (Compatibility Support Module)** - Compatibility Support Module; the UEFI option that emulates a legacy BIOS for old operating systems and cards. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
@@ -339,6 +342,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **MTP (Media Transfer Protocol)** - the protocol phones and media players use to share files over USB without exposing a raw disk. *See: [buses-2](SECTIONS/buses-2.md).*
 - **MTU (Maximum Transmission Unit)** - the largest packet a link carries, normally 1500 bytes on Ethernet. *See: [network](SECTIONS/network.md).*
 - **Multicast** - one-to-many traffic: devices join a group address and receive what is sent to it. *See: [network](SECTIONS/network.md).*
+- **Multikey quicksort** - a way of sorting text that compares one letter position at a time. *See: [tools](SECTIONS/tools.md).*
 - **Multipath** - Reaching one drive over more than one route; Linux combines the routes into one disk. *See: [storage](SECTIONS/storage.md).*
 - **Mutex (mutual exclusion)** - a lock that stops two threads using the same thing at the same time. *See: [srs-items](SECTIONS/srs-items.md).*
 - **MWIPS** - Million Whetstone Instructions Per Second, the score of the Whetstone benchmark. *See: [tools](SECTIONS/tools.md).*
@@ -436,6 +440,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## R
 
 - **radeonsi** - Mesa's OpenGL driver for AMD GPUs. *See: [graphics](SECTIONS/graphics.md).*
+- **Radix sort** - sorting numbers by their digits (or bytes) instead of comparing them with each other. *See: [tools](SECTIONS/tools.md).*
 - **RADV** - Mesa's Vulkan driver for AMD GPUs. *See: [graphics](SECTIONS/graphics.md).*
 - **RAID** - Redundant Array of Independent Disks: joining disks for speed (raid0), safety (raid1 mirrors) or both. *See: [storage](SECTIONS/storage.md).*
 - **Rank** - a set of memory chips on a stick that is accessed together; sticks are single- or dual-rank. *See: [machine](SECTIONS/machine.md).*
@@ -451,6 +456,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ROCm** - AMD's open GPU computing platform (HIP, OpenCL, libraries) for Linux. *See: [graphics](SECTIONS/graphics.md).*
 - **Root complex** - The part of the CPU where PCIe starts. On AMD it is the device at `00:00.0`. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Root hub** - The virtual hub that stands for a USB host controller's ports. Each USB 3 controller has a 2.0 root hub and a 3.x root hub. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
+- **Round trip (compression)** - compress, then decompress, then compare with the original; it must be identical. *See: [tools](SECTIONS/tools.md).*
 - **RPC** - Remote Procedure Call, a way for one program to send commands to another over a network connection. *See: [tools](SECTIONS/tools.md).*
 - **RPM (revolutions per minute)** - Fan or pump speed. *See: [sensors](SECTIONS/sensors.md).*
 - **RSS (Resident Set Size)** - the RAM a process is really using right now. *See: [linux-os](SECTIONS/linux-os.md).*
@@ -480,6 +486,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SLAAC (stateless address autoconfiguration)** - the way an IPv6 device builds its own address from the router's advertisements. *See: [network](SECTIONS/network.md).*
 - **Slab** - the kernel's allocator for its own small objects; "reclaimable" slab is cache it can drop. *See: [linux-os](SECTIONS/linux-os.md).*
 - **SLAT** - Second Level Address Translation (Intel EPT, AMD RVI/NPT); hardware help that makes virtual machine memory fast. *See: [processors](SECTIONS/processors.md).*
+- **Slicing-by-8** - a way of computing CRC checksums 8 bytes at a time with lookup tables. *See: [tools](SECTIONS/tools.md).*
 - **SMART (Self-Monitoring, Analysis and Reporting Technology)** - Self-Monitoring, Analysis and Reporting Technology: the health log a drive keeps about itself. *See: [srs-items](SECTIONS/srs-items.md), [storage](SECTIONS/storage.md).*
 - **SMB (Server Message Block)** - the Windows file-sharing protocol. *See: [network](SECTIONS/network.md).*
 - **SMBIOS (System Management BIOS)** - System Management BIOS; the firmware inventory of board, BIOS, CPU socket and memory slots. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
@@ -529,6 +536,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Thermistor** - A resistor whose value changes with temperature; most board temperature probes are thermistors. *See: [sensors](SECTIONS/sensors.md).*
 - **THP (Transparent Huge Pages)** - grouping memory into 2 MB pages automatically so the CPU spends less time on address lookups. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
 - **Thread state** - a one-letter code: R running, S sleeping, D waiting on hardware, T stopped, Z zombie. *See: [srs-items](SECTIONS/srs-items.md).*
+- **Threaded dispatch** - an interpreter technique where each instruction jumps straight to the next one's code instead of going back through one big switch. *See: [tools](SECTIONS/tools.md).*
 - **Threshold** - The SMART failure line for an attribute; a normalised value at or below it means the attribute has failed. *See: [storage](SECTIONS/storage.md).*
 - **Throttling** - the CPU lowering its clock to stay under a temperature or power limit. *See: [tools](SECTIONS/tools.md).*
 - **Thunderbolt** - Intel's high-speed port that carries PCI Express, DisplayPort and USB over one cable; USB4 is based on it. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -610,11 +618,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **xHCI** - The USB 3 host controller standard. One xHCI controller also serves USB 2 and USB 1 devices. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
 - **XMC (Switched Mezzanine Card)** - an ANSI/VITA 42 plug-in module for industrial and embedded computers, connected over PCI Express. *See: [buses-2](SECTIONS/buses-2.md).*
 - **XMP** - Intel Extreme Memory Profile; faster memory settings stored in the SPD. *See: [machine](SECTIONS/machine.md).*
+- **xxHash** - a very fast non-cryptographic hash by Yann Collet, used to check data quickly; xxHash64 gives a 64-bit result. *See: [tools](SECTIONS/tools.md).*
 
 ## Z
 
 - **zenergy** - An out-of-tree Linux driver that reads AMD energy counters per core and per socket. *See: [sensors](SECTIONS/sensors.md).*
 - **ZLUDA** - A layer that lets programs written for NVIDIA CUDA run on AMD GPUs. *See: [graphics](SECTIONS/graphics.md).*
 - **zram** - a RAM-based block device that stores compressed data, often used as fast swap. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md), [storage](SECTIONS/storage.md).*
+- **Zstandard (zstd), LZ4, xz, zlib** - common compression formats and libraries: lz4 is the fastest, zstd fast with good ratios, zlib (gzip / ZIP) the classic, and xz the smallest but slowest. *See: [tools](SECTIONS/tools.md).*
 - **zswap** - a compressed cache in RAM that sits in front of disk swap. *See: [linux-os](SECTIONS/linux-os.md).*
 - **zx1** - HP's chipset for Itanium 2 servers and workstations. *See: [buses-2](SECTIONS/buses-2.md).*

@@ -165,6 +165,7 @@
 { "enum-remote", "sections-buses-1--remote-system-enum" },
 { "environment", "sections-linux-os--environment" },
 { "esu-sts", "sections-linux-os--esu-status" },
+{ "everyday-work", "sections-tools--everyday-work-benchmark" },
 { "f-w-table", "sections-machine--firmware-interface-table" },
 { "fak-imcs", "sections-srs-items--fake-imcs" },
 { "fak-mchbar", "sections-srs-items--fake-mchbar" },

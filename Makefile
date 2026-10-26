@@ -23,8 +23,10 @@ HDRS      := srs.h
 # the SIV section engine (Linux images): every SIV item, the burner and the benchmarks
 SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c sec_sensors.c sec_storage.c sec_network.c \
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
-             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c guide.c
-SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h sec_default_save.inc guide_map.inc
+             bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c guide.c
+SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h bench_work.h sec_default_save.inc guide_map.inc
+# -ldl on the Linux link lines: the benchmarks load optional libraries (zlib, zstd, lz4, xz, libcurl) at
+# run time with dlopen; glibc 2.34+ has dlopen in libc, older glibc needs libdl
 LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread
 
 # --- PE layout copied field-for-field from SIV64X.exe / SIV32X.exe (objdump -p) ---
@@ -54,15 +56,15 @@ gui: $(DIST)/linux-x86_64/srs-gui
 
 $(DIST)/linux-x86_64/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm
+	$(CC) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm -ldl
 
 $(DIST)/linux-i686/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
-	$(CC32) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm
+	$(CC32) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm -ldl
 
 $(DIST)/linux-aarch64/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
-	$(CCA64) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm
+	$(CCA64) $(BASE) $(LINUX) -s -o $@ $(CORE) plat_posix.c $(SECS) -lm -ldl
 
 $(DIST)/win/srs64.res.o: srs.rc srs.ico srs.manifest
 	@mkdir -p $(@D)
@@ -90,7 +92,7 @@ GUIX     := tblsort.c gui_startup.c
 GUIXHDRS := tblsort.h gui_tabs.inc gui_startup.h
 $(DIST)/linux-x86_64/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm -ldl
 
 # unit tests of the power arithmetic and history database, with synthetic counter data
 test-power: $(DIST)/test/test_power
@@ -126,15 +128,15 @@ native: $(NATIVE)/srs-gui $(NATIVE)/sysreport-search
 
 $(NATIVE)/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm
+	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm -ldl
 
 $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm -ldl
 
 # correctness tests of the benchmarks: short runs on a few threads, results in a throw-away HOME.
 # Not part of the package builds' check (they time real work); run by hand before a release.
-BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh
+BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done
 

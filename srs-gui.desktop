@@ -8,7 +8,7 @@ Icon=srs
 Terminal=false
 Categories=System;Monitor;
 Keywords=SIV;system;information;hardware;sensors;PCI;USB;CPU;SMART;report;
-Actions=Sensors;Processors;Burnin;Stress;Benchmark;CacheMemory;Storage;OsLatency;Compute;Pi;Lookup;Find;Classic;
+Actions=Sensors;Processors;Burnin;Stress;Benchmark;CacheMemory;Storage;OsLatency;Compute;Work;Pi;Lookup;Find;Classic;
 
 [Desktop Action Sensors]
 Name=Sensors
@@ -45,6 +45,10 @@ Exec=srs-gui --gui-open=oslatency
 [Desktop Action Compute]
 Name=CPU compute benchmark
 Exec=srs-gui --gui-open=compute
+
+[Desktop Action Work]
+Name=Everyday work benchmark
+Exec=srs-gui --gui-open=work
 
 [Desktop Action Pi]
 Name=SRS Pi

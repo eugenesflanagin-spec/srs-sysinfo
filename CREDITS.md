@@ -11,6 +11,7 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 |---|---|---|
 | GTK 3, GLib, Pango, cairo | the GUI | LGPL-2.1-or-later (cairo: LGPL-2.1 / MPL-1.1) |
 | SQLite | the Power & cost history (`srs-gui` only) | public domain |
+| zlib (or zlib-ng in zlib mode), Zstandard, LZ4, XZ Utils liblzma | Everyday Work's compression rows; the system's own libraries, loaded at run time when installed, not shipped or linked | zlib licence; BSD-3-Clause / GPL-2.0; BSD-2-Clause (library); 0BSD / public domain |
 | hwdata (`pci.ids`, `usb.ids`, `pnp.ids`) | device names (not part of SRS) | GPL-2.0-or-later / BSD-3-Clause |
 
 ## Data in the Power & cost page
@@ -42,4 +43,5 @@ The benchmarks are SRS's own code, written from published sources.
 | Prime Sieve | the sieve of Eratosthenes; known prime counts pi(10^n) | published facts |
 | Cache & Memory | the measuring engine of Linux System Audit (LSA) 0.2.0, the author's own project (GPL-2.0-or-later), now part of SRS | GPL-2.0-or-later |
 | CPU Compute | matrix multiply: the register-blocked micro-kernel described in K. Goto and R. van de Geijn, "Anatomy of High-Performance Matrix Multiplication" (2008), as used in GotoBLAS / BLIS; FFT: iterative radix-2 Cooley-Tukey (J. W. Cooley and J. W. Tukey, 1965), with the usual 5 N log2 N operation count (as used by benchFFT); N-body: direct-sum gravity with Plummer softening (H. C. Plummer, 1911; S. Aarseth); Mandelbrot: the escape-time algorithm (B. Mandelbrot, 1980); ray tracer: Whitted-style recursive ray tracing (T. Whitted, 1980); vector code: the Intel Intrinsics Guide | published methods; all code written for SRS, none copied |
+| Everyday Work | xxHash64: the xxHash design by Yann Collet (BSD-2-Clause reference, <https://github.com/Cyan4973/xxHash>), written for SRS from the published specification and checked against its known values; CRC32 (IEEE 802.3, polynomial 0xEDB88320) and CRC32C (Castagnoli, 0x82F63B78), slicing-by-8 after M. Kounavis and F. Berry (Intel); FNV-1a (G. Fowler, L. C. Noll, K.-P. Vo); Boyer-Moore-Horspool (R. N. Horspool, 1980); multikey quicksort (J. Bentley and R. Sedgewick, 1997); LSD radix sort (textbook) | published methods; all code written for SRS, none copied |
 | OS Latency | Linux and POSIX interfaces as documented in the Linux man-pages project (<https://man7.org/linux/man-pages/>) and the kernel documentation (<https://docs.kernel.org/>: sched_ext, transparent huge pages, clock sources); pipe ping-pong timing of context switches, a widely published method | public documentation; no code copied |

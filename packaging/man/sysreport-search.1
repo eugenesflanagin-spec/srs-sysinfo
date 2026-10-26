@@ -3,7 +3,7 @@
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -67,8 +67,11 @@ how quickly the OS answers: system calls, context switches, thread / process sta
 .TP
 \fBcompute\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-code\fR \fBauto\fR|\fBc\fR|\fBsse2\fR|\fBavx2\fR|\fBavx512\fR] [\fB\-\-single\fR] [\fB\-\-yes\fR]
 CPU Compute: matrix multiply, peak multiply\-add, FFT, N\-body, Mandelbrot and a ray tracer in GFLOPS / Mpixels/s on 1 and N threads, every answer checked (WRONG instead of a score). All threads are 100% busy (AVX\-512 where available; an unstable overclock or undervolt may crash the PC); \fB\-\-single\fR keeps it light; asks first unless \fB\-\-yes\fR.
+.TP
+\fBwork\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fIgroups\fR] [\fB\-\-libs\fR \fIlibs\fR] [\fB\-\-single\fR] [\fB\-\-part\-kib\fR \fIK\fR] [\fB\-\-yes\fR]
+Everyday work: compression with the system's zlib, zstd, lz4 and xz (loaded at run time; a missing one is skipped), sorting, checksums, text processing and a bytecode interpreter on 1 and N threads, every result checked; generated data only; asks first unless \fB\-\-yes\fR. \fIgroups\fR: compress, sort, hash, text, interp.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR and \fBcompute\fR load the CPU or the drive and only run when asked; the benchmarks ask before they start.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR and \fBwork\fR load the CPU or the drive and only run when asked; the benchmarks ask before they start.
 Run
 .B sysreport-search \-\-help
 for the full option list.

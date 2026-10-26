@@ -186,3 +186,7 @@ or result files were used or looked at for them. Public sources are credited in 
   radix-2 Cooley-Tukey FFT, direct-sum N-body, Mandelbrot escape time, Whitted ray tracing) and the
   Intel Intrinsics Guide for the SSE2 / AVX2 / AVX-512 code; the results are checked against
   references computed by SRS itself.
+- **Everyday Work** (`bench_work.c`): published algorithm descriptions (xxHash64 specification,
+  CRC32 / CRC32C polynomials and slicing-by-8, FNV-1a, Boyer-Moore-Horspool, multikey quicksort,
+  radix sort) and the public APIs of zlib, zstd, lz4 and liblzma, declared in the file and loaded
+  with `dlopen` (no headers or code from those projects are included).

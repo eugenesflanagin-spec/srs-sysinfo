@@ -120,6 +120,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **CPU Compute** - matrix multiply (SGEMM / DGEMM), peak multiply-add, FFT, N-body, Mandelbrot
     and a ray tracer in GFLOPS / Mpixels/s on 1 and all threads, with the best vector code the CPU
     has (SSE2, AVX2, AVX-512); every answer checked, a wrong one shown as WRONG.
+  - **Everyday Work** - compression with the system's zlib / zstd / lz4 / xz (optional, loaded at
+    run time), sorting, CRC32 / CRC32C / xxHash64 / FNV-1a, text search and JSON / UTF-8 checks and
+    a bytecode interpreter, 1 and all threads, every result checked, generated data only.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -197,6 +200,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
     srs-gui ipi [--cpus N] [--rounds R]    srs-gui latency [--max MB]
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
+    srs-gui work [--threads N] [--seconds S] [--only GROUPS] [--libs zlib,zstd,lz4,xz] [--single] [--yes]
     srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
 `sysreport-search` takes the same commands. `--help` lists them all; the full reference is in
@@ -255,10 +259,12 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_compute.c` | CPU Compute benchmark (SGEMM / DGEMM, multiply-add, FFT, N-body, Mandelbrot, ray tracer; SSE2 / AVX2 / AVX-512) |
+| `bench_work.c` | Everyday Work benchmark (compression via dlopen, sorting, checksums, text, interpreter) |
 | `bench_os.c` | OS Latency benchmark (system calls, context switches, wake-ups, timers, page faults, file metadata) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
 | `tests/bench-compute-test.sh` | CPU Compute self-test on every code path, spoilt-result detection, Stop, CLI |
+| `tests/bench-work-test.sh` | Everyday Work known answers, round trips, "not installed" path, Stop, CLI (ASan + UBSan) |
 | `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
@@ -279,7 +285,10 @@ The new benchmarks are SRS's own code, written from published sources: the Chudn
 FIPS 180-4 (SHA-256) and the sieve of Eratosthenes; CPU Compute uses the register-blocked
 matrix multiply described by Goto and van de Geijn (2008), the Cooley-Tukey FFT (1965), direct-sum
 N-body gravity with Plummer softening, the Mandelbrot escape-time algorithm and Whitted-style ray
-tracing (1980). SRS Pi's reference checksums were computed once
+tracing (1980); Everyday Work uses the xxHash64 design by Yann Collet (written from its published
+specification), CRC32 / CRC32C with slicing-by-8 (Kounavis and Berry), FNV-1a (Fowler, Noll, Vo),
+Boyer-Moore-Horspool (1980) and multikey quicksort (Bentley and Sedgewick, 1997), and loads the
+system's zlib, zstd, lz4 and xz libraries at run time (not shipped or linked). SRS Pi's reference checksums were computed once
 with [mpmath](https://mpmath.org) (BSD licence); mpmath is not part of SRS.
 
 The Power & cost page's built-in price and CO2 tables come from public data: U.S. Energy

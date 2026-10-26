@@ -36,6 +36,18 @@ Suggests:       iw
 Suggests:       inxi
 Suggests:       lshw
 Suggests:       hwinfo
+# loaded at run time (dlopen) by the Everyday Work benchmark; a missing one only skips its rows
+%if 0%{?suse_version}
+Suggests:       libz1
+Suggests:       libzstd1
+Suggests:       liblz4-1
+Suggests:       liblzma5
+%else
+Suggests:       zlib
+Suggests:       libzstd
+Suggests:       lz4-libs
+Suggests:       xz-libs
+%endif
 %if 0%{?suse_version}
 Suggests:       libayatana-appindicator3-1
 %else
