@@ -8,7 +8,7 @@ Icon=srs
 Terminal=false
 Categories=System;Monitor;
 Keywords=SIV;system;information;hardware;sensors;PCI;USB;CPU;SMART;report;
-Actions=Sensors;Processors;Burnin;Stress;Benchmark;Lookup;Find;
+Actions=Sensors;Processors;Burnin;Stress;Benchmark;Lookup;Find;Classic;
 
 [Desktop Action Sensors]
 Name=Sensors
@@ -37,3 +37,7 @@ Exec=srs-gui --gui-open=idlookup
 [Desktop Action Find]
 Name=Find in System Report
 Exec=srs-gui --gui-open=find
+
+[Desktop Action Classic]
+Name=Classic View (SIV-style windows)
+Exec=srs-gui --gui-classic

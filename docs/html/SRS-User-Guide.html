@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 1.1.4. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 1.2.0. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -331,22 +331,25 @@ href="#user-guide--133-full-system-report-srs-sysreport">13.3</a>).</td>
 </tbody>
 </table>
 <p>Or type <code>srs-gui</code> in a terminal.</p>
-<p><strong>What you see first:</strong> the main window, a summary of
-the PC with a row of buttons at the bottom.</p>
-<p><img src="../images/main-window.png" alt="SRS main window" /></p>
-<p><em>The main window on the author's PC (Ryzen 7 7800X3D, ASUS TUF
-GAMING X870-PRO WIFI7, 2 x 16 GB DDR5-6000).</em></p>
+<p><strong>What you see first:</strong> the main window. On the left is
+a list of pages; the first one, <strong>Overview</strong>, tells you
+whether the PC looks healthy and shows its key facts. (The SIV-style
+window of SRS 1.1 is still there: see <a
+href="#user-guide--66-classic-view-the-siv-style-windows">Classic view</a>.)</p>
 <p><strong>First things to try:</strong></p>
 <ol type="1">
-<li>Press <strong>Sensors</strong> to see temperatures, fans and
-voltages.</li>
-<li>Press <strong>Processors</strong> for the CPU, its cores and
-caches.</li>
-<li>Press <strong>Machine</strong> for the board, BIOS and memory
-sticks.</li>
-<li>Press <strong>Menu</strong> to see every item SRS has.</li>
+<li>Read <strong>Is my PC OK?</strong> on the Overview. Every line has a
+green, yellow or red light and says what it means; press
+<strong>Details</strong> to see the readings behind it.</li>
+<li>Click <strong>Sensors</strong> on the left for temperatures, fans
+and voltages.</li>
+<li>Click <strong>Processor</strong> for the CPU, its cores and caches,
+and <strong>Memory</strong> for the memory sticks.</li>
+<li>Type a word such as <code>temperature</code> or <code>BIOS</code>
+into the search box at the top and pick an item.</li>
 <li>Run <strong>Menu -&gt; Run as root (srs-root)...</strong> once, so
-the panels that need root data fill in (next section).</li>
+the items that need root data fill in (next section). Until then the
+drive health line says "Not checked yet".</li>
 </ol>
 <h2 id="user-guide--5-root-only-data-srs-root">5. Root-only data (srs-root)</h2>
 <h3 id="user-guide--51-in-plain-words">5.1 In plain words</h3>
@@ -410,11 +413,411 @@ the prompt, the tick stays as it was.</li>
 <code>/etc/systemd/system/srs-root@.service</code>).</li>
 </ul>
 <h2 id="user-guide--6-a-tour-of-the-main-window">6. A tour of the main window</h2>
-<p>The main window is SRS's version of SIV's main panel. In plain words:
+<p>The main window is one window with everything in it. In plain words:
+<strong>the left side is a list of topics, the right side shows the
+topic you picked.</strong> Nothing that SRS showed before is gone: every
+detail is still on the pages, and the SIV-style windows are one click
+away (<a href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</p>
+<p>From top to bottom:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Title bar</strong></td>
+<td><strong>Refresh</strong> (left; also <strong>F5</strong>) reads the
+page again. The <strong>search box</strong> finds any item or text (<a
+href="#user-guide--64-search">6.4</a>). The <strong>menu button</strong> (three
+lines; also <strong>Ctrl+M</strong>) has Save Report, Options, Run as
+root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
+</tr>
+<tr>
+<td><strong>Sidebar</strong> (left)</td>
+<td>The pages: Overview, Processor, Memory, Motherboard &amp; BIOS,
+Graphics &amp; audio, Storage, Network, Sensors, USB &amp; PCI devices,
+Operating system, Benchmarks &amp; stress, Tools. <strong>Alt+1</strong>
+... <strong>Alt+9</strong>, <strong>Alt+0</strong>,
+<strong>Alt+-</strong> and <strong>Alt+=</strong> jump straight to them.
+Below the list: <strong>Classic view</strong> and the SRS version.</td>
+</tr>
+<tr>
+<td><strong>Page</strong> (right)</td>
+<td>What you picked. The title bar's second line names it.</td>
+</tr>
+</tbody>
+</table>
+<p>The window follows your desktop's light or dark theme (see
+<strong>Options -&gt; Theme</strong> in <a
+href="#user-guide--10-options">10</a>).</p>
+<h3 id="user-guide--61-the-pages-and-the-items-on-them">6.1 The pages and the items
+on them</h3>
+<p>Every page groups the items of one topic. "Item" is SRS's word for
+one table of information, such as <strong>Sensor status</strong> or
+<strong>SMART drives</strong>; there are 545 of them.</p>
+<table>
+<thead>
+<tr>
+<th>Page</th>
+<th>What it covers</th>
+<th>Tabs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Overview</strong></td>
+<td>Is the PC healthy, and its key facts</td>
+<td>-</td>
+</tr>
+<tr>
+<td><strong>Processor</strong></td>
+<td>The CPU: model, cores and threads, clocks, features, caches</td>
+<td>CPU Summary, Processors, CPU Clocks, CPUID Features, Cache Levels,
+CPUID, Microcode, Speculation Control</td>
+</tr>
+<tr>
+<td><strong>Memory</strong></td>
+<td>RAM: installed, in use, the sticks and their timings</td>
+<td>Memory, DIMMs, SPD, Memory timings, DIMM status, Physical memory
+map, NUMA</td>
+</tr>
+<tr>
+<td><strong>Motherboard &amp; BIOS</strong></td>
+<td>The board and its firmware</td>
+<td>Machine, Hardware summary, Firmware, BIOS / SMBIOS tables, UEFI
+information, ACPI tables, TPM device</td>
+</tr>
+<tr>
+<td><strong>Graphics &amp; audio</strong></td>
+<td>Graphics cards, monitors, sound</td>
+<td>Graphics, GPU information, GPU clock speeds, GPU temperatures,
+Monitors, OpenCL, Audio devices</td>
+</tr>
+<tr>
+<td><strong>Storage</strong></td>
+<td>Drives, file systems, drive health</td>
+<td>Disk drives, Volumes, SMART drives, Partitions, Disk performance,
+USB disk drives</td>
+</tr>
+<tr>
+<td><strong>Network</strong></td>
+<td>Adapters, addresses, Wi-Fi, Bluetooth, connections</td>
+<td>Network adapters, IP address, Wi-Fi, Bluetooth, Routing, TCP V4
+ports, TCP/IP counters</td>
+</tr>
+<tr>
+<td><strong>Sensors</strong></td>
+<td>Temperatures, fans, voltages, power</td>
+<td>Sensor status, Hardware status, Cooling status, Power status</td>
+</tr>
+<tr>
+<td><strong>USB &amp; PCI devices</strong></td>
+<td>Every device in or plugged into the PC</td>
+<td>ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt</td>
+</tr>
+<tr>
+<td><strong>Operating system</strong></td>
+<td>Linux itself</td>
+<td>Linux (SIV's "Windows" panel), Drivers, Processes, Startup,
+Installed software, Environment, Users</td>
+</tr>
+<tr>
+<td><strong>Benchmarks &amp; stress</strong></td>
+<td>Measure or load the CPU and memory</td>
+<td>CPU Benchmarks, CPU IPI Delay, Memory Latency (the last
+results)</td>
+</tr>
+<tr>
+<td><strong>Tools</strong></td>
+<td>Look-ups, reports and SRS's own items</td>
+<td>About, Help</td>
+</tr>
+</tbody>
+</table>
+<p>The tabs are the items most people need. <strong>All N items</strong>
+at the right end of the tab row lists <strong>every</strong> item of the
+page, the expert ones included, in alphabetical order; "(not present)"
+and "(Windows-only)" mark the ones SIV has but this PC or Linux does
+not. Picking one opens it as an extra tab with a close button (x, or
+<strong>Ctrl+W</strong>). On the Processor page the list also has
+<strong>Each CPU</strong> and <strong>Cache levels of each CPU</strong>
+(SIV's CPU-n and Cache-n buttons).</p>
+<h3 id="user-guide--62-overview-is-my-pc-ok">6.2 Overview: "Is my PC OK?"</h3>
+<p>The Overview starts with a line about the PC (board, Linux
+distribution, time since start-up), then <strong>Is my PC OK?</strong>:
+one line per check, each with a light and a plain-words verdict.</p>
+<table>
+<thead>
+<tr>
+<th>Light</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Green dot, "OK:"</td>
+<td>Normal.</td>
+</tr>
+<tr>
+<td>Yellow dot, "Check:"</td>
+<td>Worth a look, not urgent.</td>
+</tr>
+<tr>
+<td>Red dot, "Problem:"</td>
+<td>Act on it (the text says what to do).</td>
+</tr>
+<tr>
+<td>Hollow grey circle, "Unknown:"</td>
+<td>SRS could not check it (for example no sensor, or no root data
+yet).</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Based on</th>
+<th>OK / check / problem</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CPU temperature</strong></td>
+<td>The hottest CPU sensor (k10temp, coretemp, zenpower)</td>
+<td>below 85 °C / 85-94 °C / 95 °C and up</td>
+</tr>
+<tr>
+<td><strong>Graphics temperature</strong></td>
+<td>The GPU's hotspot (junction) sensor, which runs hotter than the
+edge</td>
+<td>below 95 °C / 95-104 °C / 105 °C and up</td>
+</tr>
+<tr>
+<td><strong>Drive health (SMART)</strong></td>
+<td>Each drive's own self-check, from srs-root's cache</td>
+<td>all PASSED / - / any FAILED. "Not checked yet" until srs-root has
+run once. USB adapters usually cannot pass SMART on.</td>
+</tr>
+<tr>
+<td><strong>Drive temperature</strong></td>
+<td>The warmest drive</td>
+<td>below 60 °C / 60-69 °C / 70 °C and up</td>
+</tr>
+<tr>
+<td><strong>Hardware errors</strong></td>
+<td>Kernel taint flag M (the CPU reported a machine check), EDAC
+counters (ECC memory), HardwareCorrupted in /proc/meminfo</td>
+<td>none / corrected ECC errors / a machine check, uncorrected errors or
+faulty pages taken out of use</td>
+</tr>
+<tr>
+<td><strong>Free disk space</strong></td>
+<td>The file system mounted at /</td>
+<td>below 90 % used / 90-96 % / 97 % and up</td>
+</tr>
+<tr>
+<td><strong>Memory in use</strong></td>
+<td>Memory used by programs (cache does not count)</td>
+<td>below 90 % / 90-94 % / 95 % and up</td>
+</tr>
+<tr>
+<td><strong>Sensor alarms</strong></td>
+<td>Alarm flags of the hardware monitor chips</td>
+<td>none / any</td>
+</tr>
+<tr>
+<td><strong>CPU throttling</strong></td>
+<td>Thermal throttling counters (shown only on CPUs that count them,
+such as Intel)</td>
+<td>never / any</td>
+</tr>
+</tbody>
+</table>
+<p>Hover over a line for its limits; <strong>Details</strong> opens the
+page and tab with the full readings. The checks repeat every 3 seconds
+(drive data every 30 seconds); <strong>F5</strong> reads everything
+again now. They only read what SRS already shows, and change
+nothing.</p>
+<p>Below the checks, <strong>At a glance</strong> has a card for the
+processor, graphics, memory, storage, operating system and motherboard,
+with the numbers people look for (model, cores, speed now, memory in
+use, free space, kernel, BIOS version ...). The button on each card
+opens its page.</p>
+<h3 id="user-guide--63-a-page">6.3 A page</h3>
+<p>Each page has three parts:</p>
+<ol type="1">
+<li><strong>The heading:</strong> the topic and one sentence about what
+it is.</li>
+<li><strong>Key facts</strong> as tiles (for example Model, Cores, Speed
+now, Busy, Temperature on the Processor page). They update while the
+page is open; hover over a tile for an explanation and the full
+value.</li>
+<li><strong>The tabs</strong> with the full items - the same text and
+colours as the classic panels, nothing left out. Above the text:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Source:</strong></td>
+<td>Where the data comes from (sysfs file, tool, srs-root cache). Hover
+for the item's id.</td>
+</tr>
+<tr>
+<td><strong>Needs root data...</strong></td>
+<td>Shown when part of the item can only be read as root and srs-root
+has not run yet.</td>
+</tr>
+<tr>
+<td><strong>Live</strong> switch</td>
+<td>Live items (sensors, clocks, counters ...) refresh by themselves
+while shown. Turn it off to freeze this tab. <strong>Options -&gt;
+Update interval</strong> sets the rate for all.</td>
+</tr>
+<tr>
+<td><strong>Zero</strong>, <strong>Hide unused</strong></td>
+<td>Sensor status only: start minimum / maximum again; hide sensors that
+read nothing.</td>
+</tr>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Read the item again (<strong>F5</strong>).</td>
+</tr>
+<tr>
+<td><strong>Copy</strong></td>
+<td>Copy all the text. With <strong>Options -&gt; Redact</strong> on,
+serials, UUIDs, MACs and the computer name are masked in the copy (<a
+href="#user-guide--17-privacy-before-you-share-a-report">17</a>).</td>
+</tr>
+<tr>
+<td><strong>Guide</strong></td>
+<td>This guide at the item's section (<strong>F1</strong>).</td>
+</tr>
+<tr>
+<td><strong>Open in window</strong></td>
+<td>The item as a classic panel with its SIV-style button row.</td>
+</tr>
+</tbody>
+</table>
+<p>Double-click a line with a PCI or USB ID to look it up (it opens as a
+tab on the Tools page). Right-click the text for Copy, Select All, the
+guide link and the Classic Menu.</p>
+<p>The <strong>Benchmarks &amp; stress</strong> page has buttons that
+open the CPU Benchmark, IPI Delay, Memory Latency, CPU Burnin and CPU
+Stress windows (<a href="#user-guide--9-tools">9</a>); nothing runs until you press
+<strong>Run</strong> or <strong>Start</strong> there. Its tabs show the
+last results. The <strong>Tools</strong> page opens Device ID Lookup,
+Find in a system report, Save Report, Run as root and the Classic
+view.</p>
+<h3 id="user-guide--64-search">6.4 Search</h3>
+<p>The search box in the title bar (<strong>Ctrl+F</strong>):</p>
+<ul>
+<li><strong>Find an item:</strong> type part of a name or id, for
+example <code>temperature</code>, <code>smart</code>, <code>bios</code>
+or <code>usb</code>, and pick from the list (arrow keys + Enter, or
+click). The item opens on its page. Page names work too. Every word you
+type must match, so <code>cpu clock</code> finds CPU Clocks.</li>
+<li><strong>Find text on the current tab:</strong> type the text and
+press <strong>Enter</strong>. All matches are highlighted and the first
+one is selected; <strong>F3</strong> / <strong>Shift+F3</strong> go to
+the next / previous one. The title bar shows how many there are.</li>
+<li><strong>Item ids with an argument:</strong> type the id and press
+Enter, for example <code>processor:3</code> (CPU-3),
+<code>cache:0</code>, <code>volumes:/</code>.</li>
+<li><strong>Esc</strong> clears the box and the highlights.</li>
+</ul>
+<p>To search a full text report on disk, use <strong>Find in System
+Report</strong> (<strong>Ctrl+Shift+F</strong>, see <a
+href="#user-guide--96-find-search-a-full-system-report">9.6</a>).</p>
+<h3 id="user-guide--65-the-menu">6.5 The menu</h3>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Save Report...</strong> (Ctrl+S) / <strong>Save All
+Items...</strong></td>
+<td>Save a text report (<a
+href="#user-guide--131-save-report-and-save-all-items-siv-format-text">13.1</a>).</td>
+</tr>
+<tr>
+<td><strong>Copy This Tab</strong></td>
+<td>Same as the tab's Copy button.</td>
+</tr>
+<tr>
+<td><strong>Options</strong></td>
+<td>See <a href="#user-guide--10-options">10</a>.</td>
+</tr>
+<tr>
+<td><strong>Run as root (srs-root)...</strong></td>
+<td>Collect the root-only data (<a
+href="#user-guide--5-root-only-data-srs-root">5</a>).</td>
+</tr>
+<tr>
+<td><strong>Find in System Report...</strong> (Ctrl+Shift+F) /
+<strong>Device ID Lookup...</strong> (Ctrl+L)</td>
+<td>The tools of <a href="#user-guide--96-find-search-a-full-system-report">9.6</a>
+and <a href="#user-guide--95-device-id-lookup">9.5</a>.</td>
+</tr>
+<tr>
+<td><strong>Classic View</strong></td>
+<td>Opens the classic main window (<a
+href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</td>
+</tr>
+<tr>
+<td><strong>Classic Menu</strong></td>
+<td>The full menu of the classic view: every item by group and every
+tool (<a href="#user-guide--8-the-menu">8</a>). Items open as classic panels.</td>
+</tr>
+<tr>
+<td><strong>User Guide</strong> (F1) / <strong>About SRS</strong></td>
+<td>This guide; version, build and data files.</td>
+</tr>
+<tr>
+<td><strong>Quit</strong> (Ctrl+Q)</td>
+<td>Exit SRS.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="user-guide--66-classic-view-the-siv-style-windows">6.6 Classic view (the
+SIV-style windows)</h3>
+<p>The classic view is SRS's SIV-style interface, exactly as in SRS 1.1:
+a main window with SIV's button row, and every item in its own panel
+window with its own buttons (<a
+href="#user-guide--7-the-panels-and-their-buttons">7</a>).</p>
+<ul>
+<li><strong>Open it</strong> from <strong>Menu -&gt; Classic
+View</strong>, the <strong>Classic view</strong> button under the
+sidebar, or the Tools page. Closing it does not close SRS.</li>
+<li><strong>Start SRS in it:</strong>
+<code>srs-gui --gui-classic</code>, the <strong>Classic View</strong>
+action of the SRS menu entry (right-click it in your application menu),
+or tick <strong>Options -&gt; Start in classic view</strong> to make it
+the default. From the classic Menu, <strong>Open the new main
+window</strong> brings the sidebar window back;
+<code>srs-gui --gui-new</code> starts with it whatever the option
+says.</li>
+</ul>
+<p><img src="../images/main-window.png"
+alt="SRS classic main window" /></p>
+<p><em>The classic main window on the author's PC (Ryzen 7 7800X3D, ASUS
+TUF GAMING X870-PRO WIFI7, 2 x 16 GB DDR5-6000).</em></p>
+<p>The classic main window is SRS's version of SIV's main panel:
 <strong>one screen that tells you what this PC is and how busy it
-is</strong>.</p>
-<p>From top to bottom (see the picture in <a
-href="#user-guide--4-first-launch">section 4</a>):</p>
+is</strong>. From top to bottom:</p>
 <table>
 <thead>
 <tr>
@@ -477,12 +880,12 @@ memory sticks.</td>
 </tr>
 </tbody>
 </table>
-<p>The main window refreshes every 2 seconds (see <a
+<p>The classic main window refreshes every 2 seconds (see <a
 href="#user-guide--10-options">Options -&gt; Update interval</a>).</p>
 <p>The full meaning of every value is in the Section Reference: <a
 href="#sections-srs-items">srs-items.md</a> and <a
 href="#sections-machine">machine.md</a>.</p>
-<h3 id="user-guide--61-the-button-row">6.1 The button row</h3>
+<h4 id="user-guide--the-button-row">The button row</h4>
 <table>
 <thead>
 <tr>
@@ -552,10 +955,13 @@ hides to tray" is on, see <a href="#user-guide--11-system-tray">11</a>.)</td>
 letter</strong> to click it.</p>
 <h2 id="user-guide--7-the-panels-and-their-buttons">7. The panels and their
 buttons</h2>
-<p>Each panel opens in its own window with its own button row, like SIV.
-Every panel has <strong>OK</strong> (close) and <strong>Copy</strong>
-(copy all text). Live panels refresh on a timer; press
-<strong>F5</strong> to refresh now.</p>
+<p>In the classic view (<a
+href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>), and from
+<strong>Open in window</strong> on any tab, each panel opens in its own
+window with its own button row, like SIV. Every panel has
+<strong>OK</strong> (close) and <strong>Copy</strong> (copy all text).
+Live panels refresh on a timer; press <strong>F5</strong> to refresh
+now.</p>
 <p>Every panel also has a <strong>Guide</strong> button (right end of
 the button row; also <strong>F1</strong>, and <strong>Open guide for
 this item</strong> in the panel's right-click menu). It opens this guide
@@ -672,13 +1078,17 @@ href="#sections-srs-items">srs-items.md</a>.</p>
 <p>Every other item opens in a window with <strong>OK, Copy, Refresh,
 Menu, Help</strong>.</p>
 <h2 id="user-guide--8-the-menu">8. The Menu</h2>
-<p>Press <strong>Menu</strong> on the main window, press
-<strong>Ctrl+M</strong> in any window, or right-click the text of any
-panel and choose <strong>SRS Menu</strong>. It has:</p>
+<p>This is the classic view's Menu. Press <strong>Menu</strong> on the
+classic main window, press <strong>Ctrl+M</strong> in any classic
+window, right-click the text of any panel and choose <strong>SRS
+Menu</strong>, or use <strong>Menu -&gt; Classic Menu</strong> in the
+main window. It has:</p>
 <ol type="1">
 <li><p><strong>Tools:</strong> CPU Burnin..., CPU Stress...,
 Benchmark..., IPI Delay..., Latency..., Device ID Lookup..., Find in
-Report...</p></li>
+Report..., and <strong>Classic view</strong> (from the main window) or
+<strong>Open the new main window</strong> (when SRS started in the
+classic view).</p></li>
 <li><p><strong>Every item, grouped</strong> (the same groups as the
 Section Reference):</p>
 <ul>
@@ -1277,9 +1687,10 @@ Shift+F3</strong>)</td>
 <p>If there is no report yet, Find tells you to run SRS Full System
 Report first.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
-<p><strong>Menu -&gt; Options</strong> (also in the tray's SRS Menu).
-All are saved in <code>~/.config/srs/SRSDEF.ini</code> and apply at once
-to every open window.</p>
+<p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
+classic Menu and the tray's SRS Menu). All are saved in
+<code>~/.config/srs/SRSDEF.ini</code> and apply at once to every open
+window.</p>
 <table>
 <thead>
 <tr>
@@ -1292,7 +1703,7 @@ to every open window.</p>
 <tr>
 <td><strong>Theme -&gt; Light (SIV classic)</strong></td>
 <td>SIV's light look and colours.</td>
-<td>yes</td>
+<td>classic view</td>
 </tr>
 <tr>
 <td><strong>Theme -&gt; Dark</strong></td>
@@ -1306,7 +1717,7 @@ graphs.</td>
 by KDE Plasma and GNOME) and switches live when you change it. Without a
 portal, it reads <code>GTK_THEME</code> or
 <code>~/.config/gtk-3.0/settings.ini</code>.</td>
-<td></td>
+<td>main window</td>
 </tr>
 <tr>
 <td><strong>Update interval</strong></td>
@@ -1359,12 +1770,21 @@ still show everything.</td>
 <td>off</td>
 </tr>
 <tr>
+<td><strong>Start in classic view</strong></td>
+<td>Start SRS in the SIV-style main window instead of the window with
+the sidebar (<a
+href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</td>
+<td>off</td>
+</tr>
+<tr>
 <td><strong>Hide to Tray</strong></td>
 <td>Hide all SRS windows now.</td>
 <td></td>
 </tr>
 </tbody>
 </table>
+<p>Until you pick a Theme, the main window follows the desktop and the
+classic view starts light.</p>
 <p>The tray options are greyed out if the tray library is not installed
 (the menu then says "(tray needs libayatana-appindicator)").</p>
 <h2 id="user-guide--11-system-tray">11. System tray</h2>
@@ -1377,12 +1797,101 @@ and load, updated every 2 seconds.</li>
 <li><strong>Middle-click:</strong> show / hide SRS.</li>
 <li><strong>Tray menu:</strong> Show SRS / Hide to Tray, Sensors,
 Processors, CPU Burnin..., CPU Stress..., Benchmark..., Find...,
-<strong>SRS Menu</strong> (the full menu), Exit.</li>
+<strong>SRS Menu</strong> (the full menu), Exit. Sensors and Processors
+open their page in the main window (or their panel in the classic
+view).</li>
 <li><code>srs-gui --gui-tray</code> starts hidden in the tray.</li>
 <li>Safety: SRS only hides its windows if a tray icon really exists, so
 it cannot get lost.</li>
 </ul>
 <h2 id="user-guide--12-keyboard-shortcuts">12. Keyboard shortcuts</h2>
+<p>In the main window:</p>
+<table>
+<thead>
+<tr>
+<th>Keys</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Alt+1</strong> ... <strong>Alt+9</strong>,
+<strong>Alt+0</strong>, <strong>Alt+-</strong>,
+<strong>Alt+=</strong></td>
+<td>Go to page 1 to 12 (Overview ... Tools)</td>
+</tr>
+<tr>
+<td><strong>Ctrl+F</strong></td>
+<td>Search box (<a href="#user-guide--64-search">6.4</a>)</td>
+</tr>
+<tr>
+<td><strong>Enter</strong> in the search box</td>
+<td>Find the text on the current tab</td>
+</tr>
+<tr>
+<td><strong>F3 / Shift+F3</strong></td>
+<td>Next / previous match on the tab</td>
+</tr>
+<tr>
+<td><strong>Esc</strong> in the search box</td>
+<td>Clear it and the highlights</td>
+</tr>
+<tr>
+<td><strong>Ctrl+Shift+F</strong></td>
+<td>Find in System Report</td>
+</tr>
+<tr>
+<td><strong>Ctrl+L</strong></td>
+<td>Device ID Lookup</td>
+</tr>
+<tr>
+<td><strong>Ctrl+D</strong></td>
+<td>ALL Devices tab</td>
+</tr>
+<tr>
+<td><strong>Ctrl+S</strong></td>
+<td>Save Report</td>
+</tr>
+<tr>
+<td><strong>Ctrl+M</strong></td>
+<td>Open the menu</td>
+</tr>
+<tr>
+<td><strong>Ctrl+W</strong></td>
+<td>Close an extra tab</td>
+</tr>
+<tr>
+<td><strong>Ctrl+PageUp / Ctrl+PageDown</strong></td>
+<td>Previous / next tab (when the tab row has the focus)</td>
+</tr>
+<tr>
+<td><strong>F5</strong></td>
+<td>Read the page again</td>
+</tr>
+<tr>
+<td><strong>F1</strong></td>
+<td>User guide at the current tab's item (the Overview opens the
+start)</td>
+</tr>
+<tr>
+<td><strong>Shift+F1</strong></td>
+<td>Help item</td>
+</tr>
+<tr>
+<td><strong>Ctrl+Q</strong></td>
+<td>Quit</td>
+</tr>
+<tr>
+<td><strong>Alt + underlined letter</strong></td>
+<td>Press that button</td>
+</tr>
+<tr>
+<td><strong>Double-click a PCI or USB ID</strong></td>
+<td>Look it up</td>
+</tr>
+</tbody>
+</table>
+<p>In the classic view:</p>
 <table>
 <thead>
 <tr>
@@ -1600,7 +2109,8 @@ SRS is closed.</p>
 <tr>
 <td><code>Theme</code></td>
 <td><code>Light</code>, <code>Dark</code>, <code>System</code></td>
-<td>Options -&gt; Theme (<code>System</code> = Follow desktop)</td>
+<td>Options -&gt; Theme (<code>System</code> = Follow desktop). Not set:
+the main window follows the desktop, the classic view is light.</td>
 </tr>
 <tr>
 <td><code>Update Interval</code></td>
@@ -1653,6 +2163,11 @@ paused</td>
 <td><code>1</code> / <code>0</code></td>
 <td>Options -&gt; Redact identifiers in saved reports and copied
 text</td>
+</tr>
+<tr>
+<td><code>Classic View</code></td>
+<td><code>1</code> / <code>0</code></td>
+<td>Options -&gt; Start in classic view</td>
 </tr>
 <tr>
 <td><code>SIO Sensors</code></td>
@@ -28767,7 +29282,7 @@ sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
 
-srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray]
+srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
 srs-sysreport</code></pre>
 <hr />
@@ -29269,15 +29784,29 @@ href="#sections-tools--memory-latency">tools.md</a>.</p>
 <tbody>
 <tr>
 <td>(none)</td>
-<td>Open the main window.</td>
+<td>Open the main window (the window with the sidebar, or the classic
+one when <strong>Options -&gt; Start in classic view</strong> is
+on).</td>
 </tr>
 <tr>
 <td><code>--gui-open=WHAT[,WHAT...]</code></td>
-<td>Also open these panels or tools at start.</td>
+<td>Also open these panels or tools at start. In the main window an item
+opens on its page (for example <code>sensors</code> on the Sensors
+page); in the classic view it opens as its own panel.</td>
 </tr>
 <tr>
 <td><code>--gui-tray</code></td>
 <td>Start hidden in the system tray (used by the autostart entry).</td>
+</tr>
+<tr>
+<td><code>--gui-classic</code></td>
+<td>Start in the classic view: SIV's main window with its button row,
+every item in its own panel (as in SRS 1.1).</td>
+</tr>
+<tr>
+<td><code>--gui-new</code></td>
+<td>Start in the main window with the sidebar, even when <strong>Start
+in classic view</strong> is on.</td>
 </tr>
 <tr>
 <td>any other argument</td>
@@ -29338,7 +29867,8 @@ href="#sections-tools--memory-latency">tools.md</a>.</p>
 Burnin &amp; Stress), <code>--gui-open=bench,ipi,latency</code> (SRS
 Benchmark), and the jump-list actions <code>sensors</code>,
 <code>processors</code>, <code>burnin</code>, <code>stress</code>,
-<code>bench</code>, <code>idlookup</code>, <code>find</code>.</p>
+<code>bench</code>, <code>idlookup</code>, <code>find</code>, and
+<strong>Classic View</strong> (<code>--gui-classic</code>).</p>
 <hr />
 <h2 id="cli-reference--srs-root"><code>srs-root</code></h2>
 <pre><code>pkexec srs-root            # or: sudo srs-root

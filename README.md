@@ -30,14 +30,32 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 
 | Program | What |
 |---|---|
-| `srs-gui` | GTK3 GUI laid out like SIV's main window and panels; with arguments it is the CLI |
+| `srs-gui` | GTK3 GUI: a main window with an Overview and one page per category, plus a classic view laid out like SIV's main window and panels; with arguments it is the CLI |
 | `sysreport-search` | CLI: `-save` reports in SIV's text format, device-ID lookup, report search, burner, benchmarks |
 | `srs-root` | optional helper (one `pkexec` prompt) that caches root-only data: dmidecode, SPD, SMART, ACPI tables, MSRs, PCI config space |
 | `srs-sysreport` | writes a full text report folder (`~/sysreports/...`) that `srs-gui`'s Find searches |
 
 ## Using it
 
-- **Main window** = SIV's main panel with its button row: OK, Copy, **Linux** (SIV's "Windows"),
+- **Main window** (new in 1.2): a sidebar of pages - **Overview**, Processor, Memory,
+  Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating
+  system, Benchmarks & stress, Tools.
+  - **Overview** answers "Is my PC OK?": status lights for CPU and graphics temperature, drive
+    health (SMART) and temperature, hardware errors (machine checks, ECC errors, faulty memory
+    pages), free space on the system disk, memory in use and sensor alarms, each in plain words
+    with a **Details** button. Cards below show the key numbers for the processor, graphics,
+    memory, storage, operating system and motherboard.
+  - **Each page** starts with a short explanation and the key facts, then the full panels as tabs
+    (same text, colours and live updates as the classic panels) with Refresh, Copy, Guide (F1),
+    a Live switch and **Open in window**. **All N items** lists every item of the page, the
+    expert ones too.
+  - **Search** in the title bar (Ctrl+F) finds any item by name or id (`processor:3` works);
+    Enter searches the text of the current tab, F3 for the next match.
+  - **Menu**: Save Report, Save All Items, Copy, Options, Run as root, Find, Device ID Lookup,
+    Classic View, the full Classic Menu, User Guide, About.
+- **Classic view** (Menu -> Classic View, `srs-gui --gui-classic`, or **Options -> Start in
+  classic view** to make it the default) is SRS's SIV-style interface, unchanged:
+- **Classic main window** = SIV's main panel with its button row: OK, Copy, **Linux** (SIV's "Windows"),
   Machine, Sensors, USB Bus, Processors, Volumes, Adapters, PCI Bus, About, Help, plus **Menu**.
 - Each panel has SIV's own sub-buttons (Processors: Features, Hypervisor, Groups, CPU-n, Cache-n;
   Sensors: Zero, Status, Cooling, Power, Hide; Adapters: Counters, ARP, Routing, TCP V4/V6, Wi-Fi,
@@ -59,7 +77,9 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     and **Find** (regex over a `srs-sysreport` folder, with highlighting and F3 navigation).
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
 - Hot-keys: Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
-  F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel.
+  F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
+  the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page and
+  Ctrl+W closes an extra tab.
 
 ## System tray
 
@@ -85,7 +105,8 @@ updates its status every second.
 
 ## Dark mode
 
-**Menu -> Options -> Theme**: *Light (SIV classic)* (default), *Dark*, or *Follow desktop*. Dark
+**Menu -> Options -> Theme**: *Light (SIV classic)*, *Dark*, or *Follow desktop*. Until you pick
+one, the new main window follows the desktop and the classic view starts light. Dark
 mode uses a dark panel with SIV's colour palette brightened so it stays readable, dark buttons and
 graphs. *Follow desktop* reads the desktop colour scheme from xdg-desktop-portal
 (`org.freedesktop.appearance color-scheme`, set by KDE Plasma / GNOME) and switches live when you

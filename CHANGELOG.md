@@ -4,6 +4,47 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 1.2.0 - 2026-10-26
+
+### Added
+- **A new main window: easier to find your way, nothing taken away.** One window with a sidebar of
+  pages: **Overview**, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network,
+  Sensors, USB & PCI devices, Operating system, Benchmarks & stress, and Tools. It follows the
+  desktop's light or dark theme.
+  - **Overview** answers "Is my PC OK?" with a status light per check: CPU and graphics
+    temperature, drive health (SMART) and drive temperature, hardware errors (machine checks, ECC
+    memory errors, faulty memory pages), free space on the system disk, memory in use, sensor alarm
+    flags, and CPU throttling on CPUs that count it. Each line says what it means in plain words;
+    hover over it for the limits, press **Details** for the readings behind it. Below are cards
+    for the processor, graphics, memory, storage, operating system and motherboard with the
+    numbers people look for, each with a button to its page.
+  - **Each page** starts with a short explanation and the key facts as tiles, then the same panels
+    as before as tabs, with the same text, colours and live updates. Every tab has Refresh, Copy,
+    Guide (F1), a Live switch where the item updates by itself, and **Open in window** for the
+    classic panel. **All N items** lists every item of the page, the expert ones too, and opens
+    them as extra tabs (Processor also has each CPU and its caches).
+  - **Search** (Ctrl+F) in the title bar: type a name such as "temperature", "SMART" or "BIOS"
+    and pick an item from the list; Enter finds the text on the current tab (F3 / Shift+F3 for the
+    next / previous match). Item ids work too, with an argument: `processor:3`, `volumes:/`.
+  - **Menu**: Save Report, Save All Items, Copy This Tab, Options, Run as root, Find in System
+    Report, Device ID Lookup, Classic View, the Classic Menu (every item and tool, as before), User
+    Guide, About, Quit.
+  - Keys: Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page, F5 reads the page again, Ctrl+W closes
+    an extra tab, Ctrl+Shift+F opens Find in System Report. Every button has a plain-English
+    tooltip and an underlined Alt key.
+- **Classic view** keeps the SIV-style windows exactly as they were: **Menu -> Classic View**, the
+  **Classic view** button under the sidebar, `srs-gui --gui-classic`, and the menu entry's
+  **Classic View** action. **Options -> Start in classic view** makes it the default (saved as
+  `Classic View=1` in `SRSDEF.ini`); `--gui-new` opens the new window anyway.
+
+### Changed
+- Without a `Theme=` setting the new window follows the desktop's light / dark setting; the classic
+  view still starts light. A saved Theme is used as before.
+- In the new window the panel text is 9 pt instead of 8 pt (the classic panels keep 8 pt).
+- `--gui-open=ITEM`, the tray menu's Sensors / Processors and a double-clicked device ID open the
+  item on its page in the new window, and as a panel in the classic view.
+- The command line, `-save` reports and their format are unchanged.
+
 ## 1.1.4 - 2026-10-25
 
 ### Changed

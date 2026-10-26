@@ -55,6 +55,7 @@ static const char *HELP =
     "\n"
     "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
+    "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
 #endif
     ;
 

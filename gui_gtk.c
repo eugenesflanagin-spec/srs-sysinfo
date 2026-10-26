@@ -1,7 +1,11 @@
-/* gui_gtk.c - srs-gui: native Linux GUI (plain C + GTK3) laid out the way SIV64X is.
+/* gui_gtk.c - srs-gui: native Linux GUI (plain C + GTK3).
  *
- * The main window shows [overview] with SIV's button row; every SIV item (538, see sec.h /
- * CHECKLIST.tsv) opens as a panel with SIV's own sub-button row, and Menu lists them all.
+ * Main window (1.2, see "the main window" below): a header bar with search and menu, a sidebar
+ * of categories, an Overview page with a health check and summary cards, and one page per
+ * category with a plain-words summary on top of the same section panels.
+ * Classic view (--gui-classic, Menu -> Classic view): laid out the way SIV64X is. Its main window
+ * shows [overview] with SIV's button row; every SIV item (538, see sec.h / CHECKLIST.tsv) opens
+ * as a panel with SIV's own sub-button row, and Menu lists them all.
  * Tool windows: CPU Burnin, CPU Stress, Benchmark, IPI Delay, Latency, Device ID Lookup, Find.
  * With command-line arguments the same binary runs the CLI ("SIV64X -save" style). */
 #ifndef _DEFAULT_SOURCE
@@ -19,6 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/utsname.h>
+#include <time.h>
 #include <unistd.h>
 
 /* optional hooks provided by sec_sensors.c (SIV's Zero and Hide buttons) */
@@ -31,7 +37,7 @@ static const char *const g_pal_dark[C_NCOL] = { "#E6E6E6", "#5CB0FF", "#8FB4FF",
 static const char *const *g_pal = g_pal_light;
 /* theme: 0 light (SIV classic), 1 dark, 2 follow the desktop */
 enum { TH_LIGHT, TH_DARK, TH_SYSTEM };
-static int g_theme = TH_LIGHT, g_dark, g_portal_scheme = -1;
+static int g_theme = TH_LIGHT, g_dark, g_portal_scheme = -1, g_theme_set;
 /* Menu -> Options -> Update interval: 0 = each panel's own rate, -1 = paused, else ms */
 static int g_update_ms = 0;
 static char g_env_theme[256];
@@ -42,14 +48,19 @@ static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
 static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
 static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
+static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "Classic View") */
+static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
 
-typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH } wkind;
+typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
 enum { BK_BENCH, BK_IPI, BK_LAT };
 
 typedef struct swin {
     wkind kind;
     char id[160];
     int is_main, sub;                     /* sub: W_BURN 0 burnin / 1 stress; W_BENCH BK_* */
+    int embedded, shown, paused, cat;     /* a panel shown as a tab in the main window (not its own window) */
+    int rendered;                         /* embedded: drawn at least once (static items are not redrawn on every show) */
+    GtkWidget *page;                      /* embedded: the tab's page widget */
     GtkWidget *win, *view, *plot;
     GtkTextBuffer *buf;
     GtkTextBuffer *scratch;  /* live refresh is drawn here, then only changed lines are copied over */
@@ -79,6 +90,15 @@ typedef struct swin {
 
 static GPtrArray *g_wins;
 static swin *g_main;
+static swin *g_classic;   /* the classic main window when it was opened from the new one */
+static int g_home_open;   /* the new main window exists */
+
+static void open_item(const char *id);   /* new main window: show the item's page, else a classic panel */
+static void home_open(int as_main);
+static void home_refresh_data(void);
+static int home_key(swin *w, GdkEventKey *ev);
+static void home_destroyed(swin *w);
+static void open_main(int as_main);
 
 static swin *open_section(const char *id);
 static void open_guide(swin *w);
@@ -280,14 +300,14 @@ static void settings_load(void)
         }
         {
             char *th = g_key_file_get_string(kf, "SRSDEF", "Theme", NULL);
-            if (th) g_theme = !g_ascii_strcasecmp(th, "Dark") ? TH_DARK : !g_ascii_strcasecmp(th, "System") ? TH_SYSTEM : TH_LIGHT;
+            if (th) { g_theme = !g_ascii_strcasecmp(th, "Dark") ? TH_DARK : !g_ascii_strcasecmp(th, "System") ? TH_SYSTEM : TH_LIGHT; g_theme_set = 1; }
             g_free(th);
         }
         {
-            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports" };
-            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact };
+            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports", "Classic View" };
+            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic };
             int k;
-            for (k = 0; k < 5; k++) {
+            for (k = 0; k < 6; k++) {
                 GError *e2 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
                 if (!e2) *vars[k] = v; else g_error_free(e2);
@@ -315,6 +335,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Redact Reports", g_opt_redact);
+    g_key_file_set_integer(kf, "SRSDEF", "Classic View", g_opt_classic);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
     g_key_file_set_integer(kf, "SRSDEF", "Update Interval", g_update_ms);
     g_key_file_save_to_file(kf, g_ini, NULL);
@@ -408,7 +429,7 @@ static swin *find_win(wkind k, const char *id, int sub)
     guint i;
     for (i = 0; i < g_wins->len; i++) {
         swin *w = g_ptr_array_index(g_wins, i);
-        if (w->kind == k && !w->is_main && (k != W_SECTION || !strcmp(w->id, id)) && (k == W_SECTION || w->sub == sub)) return w;
+        if (w->kind == k && !w->is_main && !w->embedded && (k != W_SECTION || !strcmp(w->id, id)) && (k == W_SECTION || w->sub == sub)) return w;
     }
     return NULL;
 }
@@ -425,6 +446,8 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     if (w->have_fr) srs_find_free(&w->fr);
     if (w->marks) g_ptr_array_free(w->marks, TRUE);
     g_ptr_array_remove(g_wins, w);
+    if (w == g_classic) g_classic = NULL;
+    if (w->kind == W_HOME) home_destroyed(w);
     if (w->is_main) gtk_main_quit();
     g_free(w);
 }
@@ -467,6 +490,8 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "save")) save_dialog(0);
     else if (!strcmp(t, "saveall")) save_dialog(1);
     else if (!strcmp(t, "root")) run_root();
+    else if (!strcmp(t, "home")) home_open(0);
+    else if (!strcmp(t, "classic")) open_main(0);
     else if (!strcmp(t, "exit") && g_main) gtk_widget_destroy(g_main->win);
 }
 
@@ -490,6 +515,10 @@ static void build_menu(GtkWidget *menu)
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
+    if (g_classic_session && (!g_main || g_main->kind != W_HOME))   /* classic start: the new window one click away */
+        g_signal_connect(menu_add(menu, "Open the _new main window (sidebar, overview)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"home");
+    else
+        g_signal_connect(menu_add(menu, "Classic _view (SIV-style main window)"), "activate", G_CALLBACK(on_menu_tool), (gpointer)"classic");
     for (g = 0; groups[g].group; g++) {
         GtkWidget *sub = gtk_menu_new(), *top = menu_add(menu, groups[g].label);
         int cnt = 0;
@@ -557,6 +586,7 @@ static void root_done(GPid pid, gint status, gpointer data)
     (void)data;
     g_spawn_close_pid(pid);
     for (i = 0; i < g_wins->len; i++) { swin *w = g_ptr_array_index(g_wins, i); if (w->kind == W_SECTION) render(w); }
+    home_refresh_data();
     if (g_main) {
         GtkWidget *m = gtk_message_dialog_new(GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL, status == 0 ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING,
                                               GTK_BUTTONS_OK, "%s", status == 0 ? "Root data collected into ~/.cache/srs/root"
@@ -613,6 +643,7 @@ static void live_start(swin *w)
     guint ms;
     if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
     if (w->own_ms <= 0 || g_update_ms < 0) return;  /* static panel, or paused */
+    if (w->embedded && (!w->shown || w->paused)) return;  /* main-window tab: only while on screen */
     ms = (guint)(g_update_ms > 0 ? g_update_ms : w->own_ms);
     w->timer = g_timeout_add(ms < 250 ? 250 : ms, live_tick, w);
 }
@@ -668,7 +699,7 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
         char tgt[100];
         if (srs_line_device_id(w->id, line, usb || strstr(line, "USB") != NULL, tgt, sizeof tgt)) {
             g_free(line);
-            open_section(tgt);
+            if (w->embedded) open_item(tgt); else open_section(tgt);
             return TRUE;
         }
     }
@@ -722,6 +753,7 @@ static GtkWidget *make_window(swin *w, const char *title, int width, int height)
     gtk_window_set_title(GTK_WINDOW(w->win), title);
     gtk_window_set_default_size(GTK_WINDOW(w->win), width, height);
     gtk_window_set_icon_name(GTK_WINDOW(w->win), "srs");
+    gtk_style_context_add_class(gtk_widget_get_style_context(w->win), "siv");   /* classic look (load_css) */
     if (!w->is_main && g_main) {
         gtk_window_set_transient_for(GTK_WINDOW(w->win), GTK_WINDOW(g_main->win));
         gtk_window_move(GTK_WINDOW(w->win), 40 + (int)(g_wins->len % 12) * 24, 40 + (int)(g_wins->len % 12) * 22);
@@ -1580,6 +1612,7 @@ static gboolean on_key(GtkWidget *wid, GdkEventKey *ev, gpointer data)
     swin *w = data, *f;
     int ctrl = (ev->state & GDK_CONTROL_MASK) != 0, shift = (ev->state & GDK_SHIFT_MASK) != 0;
     (void)wid;
+    if (w->kind == W_HOME) return home_key(w, ev);
     switch (ev->keyval) {
     case GDK_KEY_Escape: if (!w->is_main) gtk_widget_destroy(w->win); return TRUE;
     case GDK_KEY_F1: if (shift) open_section("help"); else open_guide(w); return TRUE;   /* Shift+F1: Help panel */
@@ -1669,7 +1702,7 @@ static void on_tray_open(GtkMenuItem *mi, gpointer d)
     else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
-    else open_section(t);
+    else open_item(t);
 }
 static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main) gtk_widget_destroy(g_main->win); }
 
@@ -1756,7 +1789,7 @@ static void autostart_set(int on)
     g_free(p);
 }
 
-enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT };
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC };
 /* "Refresh root data at boot": the packaged srs-root@<user>.service runs srs-root as root
  * once per boot, so the root-only panels are filled without a password prompt. */
 static char *bootroot_unit(void) { return g_strdup_printf("srs-root@%s.service", g_get_user_name()); }
@@ -1810,6 +1843,7 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
     case OPT_START: g_opt_start_tray = on; break;
     case OPT_AUTOSTART: autostart_set(on); break;
     case OPT_REDACT: g_opt_redact = on; settings_save(); return;
+    case OPT_CLASSIC: g_opt_classic = on; settings_save(); return;
     }
     settings_save();
     tray_apply();   /* also rebuilds the tray menu so its check marks stay in sync */
@@ -1849,7 +1883,8 @@ static void build_options(GtkWidget *menu)
         { "_Minimize hides to tray (X11 / XWayland)", OPT_MIN }, { "_Start hidden in tray", OPT_START },
         { "Start with the _desktop (autostart)", OPT_AUTOSTART },
         { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT },
-        { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT }, { NULL, 0 } };
+        { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT },
+        { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC }, { NULL, 0 } };
     int i, have = tray_available();
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
@@ -1883,9 +1918,10 @@ static void build_options(GtkWidget *menu)
         GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
               : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on()
-              : opts[i].id == OPT_REDACT ? g_opt_redact : autostart_on();
+              : opts[i].id == OPT_REDACT ? g_opt_redact : opts[i].id == OPT_CLASSIC ? g_opt_classic : autostart_on();
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
-        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT) gtk_widget_set_sensitive(it, FALSE);
+        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC)
+            gtk_widget_set_sensitive(it, FALSE);
         if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) gtk_widget_set_sensitive(it, FALSE);
         g_signal_connect(it, "toggled", G_CALLBACK(on_option), GINT_TO_POINTER(opts[i].id));
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
@@ -1926,15 +1962,18 @@ static gboolean on_main_state(GtkWidget *wid, GdkEventWindowState *ev, gpointer 
  * main window
  * ====================================================================== */
 
-static void open_main(void)
+/* as_main 0: opened from the new main window (Menu -> Classic view); closing it does not quit */
+static void open_main(int as_main)
 {
-    swin *w = g_new0(swin, 1);
+    swin *w;
     GtkWidget *vb;
     char title[400];
+    if (!as_main && g_classic) { gtk_window_present(GTK_WINDOW(g_classic->win)); return; }
+    w = g_new0(swin, 1);
     w->kind = W_SECTION;
-    w->is_main = 1;
+    w->is_main = as_main;
     snprintf(w->id, sizeof w->id, "overview");
-    g_main = w;
+    if (as_main) g_main = w; else g_classic = w;
     snprintf(title, sizeof title, "%s - System Report Search V%s  %s", g_image, SRS_VERSION, g_host);
     make_window(w, title, 1100, 520);
     vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
@@ -1945,11 +1984,16 @@ static void open_main(void)
     render(w);
     w->own_ms = 2000;
     live_start(w);
-    g_signal_connect(w->win, "delete-event", G_CALLBACK(on_main_delete), NULL);
-    g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
+    if (as_main) {
+        g_signal_connect(w->win, "delete-event", G_CALLBACK(on_main_delete), NULL);
+        g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
+    }
     gtk_widget_show_all(w->win);
 }
 
+/* Classic windows keep SIV's look (8pt Tahoma, square grey buttons). In a classic session the rules
+ * apply to everything, as before 1.2; in a new-window session they are scoped to windows with the
+ * "siv" style class, so the new main window follows the desktop's GTK theme (light or dark). */
 static void load_css(void)
 {
     static GtkCssProvider *c;
@@ -1973,11 +2017,62 @@ static void load_css(void)
         "#sivbtn:hover { background-color: #3F4B57; border-color: #3399FF; }"
         "#sivbtn:active { background-color: #2A4A66; }"
         "#lbl, radiobutton label, checkbutton label { color: #8FB4FF; }";
+    /* the same rules, limited to classic windows */
+    static const char light_scoped[] =
+        "window.siv, .siv #panel, .siv #panel text { background-color: #F5F5F5; }"
+        "#panel, #panel text { font: 8pt Tahoma; }"
+        ".siv #panel, .siv #panel text { color: #000000; }"
+        ".siv #panel text selection { background-color: #3399FF; color: #FFFFFF; }"
+        ".siv button, .siv entry, .siv label, .siv checkbutton, .siv radiobutton, .siv spinbutton, .siv combobox { font: 8pt Tahoma; }"
+        "#sivbtn { padding: 1px 4px; min-height: 18px; border-radius: 0; background-image: none;"
+        "  background-color: #E1E1E1; color: #000000; border: 1px solid #ADADAD; box-shadow: none; }"
+        "#sivbtn:hover { background-color: #E5F1FB; border-color: #0078D7; }"
+        "#sivbtn:active { background-color: #CCE4F7; }"
+        "#lbl, .siv radiobutton label, .siv checkbutton label { color: #0000CC; }";
+    static const char dark_scoped[] =
+        "window.siv, .siv #panel, .siv #panel text { background-color: #1E1E1E; }"
+        "#panel, #panel text { font: 8pt Tahoma; }"
+        ".siv #panel, .siv #panel text { color: #E6E6E6; }"
+        ".siv #panel text selection { background-color: #264F78; color: #FFFFFF; }"
+        ".siv button, .siv entry, .siv label, .siv checkbutton, .siv radiobutton, .siv spinbutton, .siv combobox { font: 8pt Tahoma; }"
+        "#sivbtn { padding: 1px 4px; min-height: 18px; border-radius: 0; background-image: none;"
+        "  background-color: #383838; color: #E6E6E6; border: 1px solid #5A5A5A; box-shadow: none; text-shadow: none; }"
+        "#sivbtn:hover { background-color: #3F4B57; border-color: #3399FF; }"
+        "#sivbtn:active { background-color: #2A4A66; }"
+        "#lbl, .siv radiobutton label, .siv checkbutton label { color: #8FB4FF; }";
+    /* the new main window: theme colours only (works in light and dark), no fixed palette */
+    static const char modern[] =
+        ".srs-side { border-right: 1px solid @borders; }"
+        ".srs-side row { padding: 7px 14px 7px 12px; }"
+        ".srs-side row image { margin-right: 10px; }"
+        ".srs-side-head { padding: 14px 14px 6px 14px; font-weight: bold; }"
+        ".srs-h1 { font-size: 20px; font-weight: bold; }"
+        ".srs-h2 { font-size: 15px; font-weight: bold; }"
+        ".srs-big { font-size: 14px; font-weight: bold; }"
+        ".srs-cap { font-size: smaller; }"
+        ".srs-val { font-weight: bold; }"
+        ".srs-card { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 8px; padding: 14px 16px; }"
+        ".srs-fact { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 6px; padding: 7px 12px; }"
+        ".srs-health { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 8px; padding: 6px 16px 10px 16px; }"
+        ".srs-dot { font-size: 16px; }"
+        ".srs-ok { color: @success_color; }"
+        ".srs-warn { color: @warning_color; }"
+        ".srs-bad { color: @error_color; }"
+        ".srs-unk { color: @insensitive_fg_color; }"
+        ".srs-tabbar { padding: 4px 6px; border-bottom: 1px solid @borders; }"
+        ".srs-tabbar button { padding: 2px 8px; }"
+        "notebook.srs-nb > header { border-top: 1px solid @borders; }"
+        ".srs-tool button { min-height: 0; }"
+        ".srs-main #panel, .srs-main #panel text { font: 9pt Tahoma; }";
+    GString *css = g_string_new(NULL);
     if (!c) {
         c = gtk_css_provider_new();
         gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(c), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
-    gtk_css_provider_load_from_data(c, g_dark ? dark : light, -1, NULL);
+    if (g_classic_session && !g_home_open) g_string_append(css, g_dark ? dark : light);
+    else { g_string_append(css, g_dark ? dark_scoped : light_scoped); g_string_append(css, modern); }
+    gtk_css_provider_load_from_data(c, css->str, -1, NULL);
+    g_string_free(css, TRUE);
 }
 
 /* desktop colour scheme: xdg-desktop-portal org.freedesktop.appearance color-scheme (0 none, 1 dark, 2 light) */
@@ -2070,6 +2165,1682 @@ static void theme_apply(void)
     }
 }
 
+/* ======================================================================
+ * the main window (1.2): header bar (search, menu), sidebar of categories, an Overview page with
+ * an "Is my PC OK?" check and summary cards, and one page per category: a plain-words summary on
+ * top of the same section panels as the classic windows (same text view, colours, Copy / redact,
+ * Guide, live refresh, double-click lookup). The classic (SIV-style) windows stay one click away.
+ * Read-only like everything else: the summaries are parsed from the sections' own output.
+ * ====================================================================== */
+enum { CAT_OVERVIEW, CAT_CPU, CAT_MEM, CAT_BOARD, CAT_GPU, CAT_STORAGE, CAT_NET, CAT_SENSORS, CAT_DEVICES, CAT_OS,
+       CAT_BENCH, CAT_TOOLS, CAT_N };
+
+typedef struct {
+    const char *name, *title, *icons, *blurb;
+    const char *tabs[10];       /* the sections shown as tabs; every other item of the category is under "All items" */
+} catdef;
+
+static const catdef g_cats[CAT_N] = {
+    { "overview", "Overview", "computer-symbolic", "A quick health check and the key facts about this PC.", { NULL } },
+    { "processor", "Processor", "cpu-symbolic|processor-symbolic|system-run-symbolic",
+      "The processor (CPU) runs every program. Model, cores and threads, clock speeds, features and caches.",
+      { "cpus", "processors", "cpu-clocks", "features", "cache", "cpuid", "microcode", "speculation", NULL } },
+    { "memory", "Memory", "memory-symbolic|media-flash-symbolic",
+      "Memory (RAM) holds the programs and data in use. How much is installed and in use, the memory sticks and their timings.",
+      { "memory", "dimms", "spd", "mem-tweak", "dimm-status", "physical", "numa", NULL } },
+    { "board", "Motherboard & BIOS", "motherboard-symbolic|application-x-firmware-symbolic|emblem-system-symbolic",
+      "The main circuit board and its firmware (BIOS / UEFI), as the board describes itself.",
+      { "machine", "hardware", "firmware", "bios-tables", "uefi-info", "acpi-tables", "tpm-device", NULL } },
+    { "graphics", "Graphics & audio", "video-display-symbolic",
+      "Graphics cards, monitors and sound devices.",
+      { "graphics", "gpu-info", "gpu-clocks", "gpu-temp", "monitors", "opencl", "audio", NULL } },
+    { "storage", "Storage", "drive-harddisk-symbolic",
+      "Drives and the file systems on them: size, free space and drive health (SMART).",
+      { "drives", "volumes", "smart", "partitions", "performance", "usb-disks", NULL } },
+    { "network", "Network", "network-wired-symbolic",
+      "Network adapters, addresses, Wi-Fi, Bluetooth and open connections.",
+      { "adapters", "ip-address", "wi-fi", "bluetooth", "routing", "tcp-ip4-ports", "counters", NULL } },
+    { "sensors", "Sensors", "sensors-temperature-symbolic|temperature-symbolic|power-profile-balanced-symbolic",
+      "Temperatures, fan speeds, voltages and power, read live from the hardware monitor chips.",
+      { "sensors", "hw-status", "cooling", "power", NULL } },
+    { "devices", "USB & PCI devices", "preferences-system-devices-symbolic|drive-removable-media-symbolic",
+      "Every device in or plugged into the PC. Double-click a line with a device ID to look it up.",
+      { "all-dev", "pci-bus", "usb-bus", "usb-tree", "hid-bus", "thunder", NULL } },
+    { "os", "Operating system", "distributor-logo-symbolic|applications-system-symbolic",
+      "Linux itself: distribution, kernel, drivers, running programs and services.",
+      { "windows", "drivers", "processes", "startup", "software", "environment", "users", NULL } },
+    { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
+      "Measure the processor and memory, or load the CPU to test cooling and stability. "
+      "Nothing runs until you press Run or Start in the tool's window.",
+      { "benchmark", "ipi-delay", "latency", NULL } },
+    { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
+      "Look up device IDs, search a full system report, save a report, and SRS's own items.",
+      { "about", "help", NULL } },
+};
+
+enum { LV_UNK = -1, LV_OK, LV_WARN, LV_BAD };
+#define NCHECK 9
+#define NFACT 8
+static const int g_card_cats[] = { CAT_CPU, CAT_GPU, CAT_MEM, CAT_STORAGE, CAT_OS, CAT_BOARD };
+#define NCARD ((int)(sizeof g_card_cats / sizeof g_card_cats[0]))
+
+typedef struct { char cap[48], val[320], tip[400]; double level; } fact;   /* level 0..1 draws a bar; <0 none */
+typedef struct { GtkWidget *box, *tile[NFACT], *cap[NFACT], *val[NFACT]; int n; } factsui;
+typedef struct { GtkWidget *main, *k[4], *v[4], *bar; } cardui;
+typedef struct { GtkWidget *dot, *name, *text, *btn; } checkui;
+
+typedef struct {
+    swin *w;
+    GtkWidget *hb, *side, *stack, *search, *menubtn;
+    GtkWidget *nb[CAT_N];
+    factsui facts[CAT_N];
+    GtkWidget *ov_sub, *ov_icon, *ov_verdict, *ov_vsub;
+    checkui ck[NCHECK];
+    cardui card[NCARD];
+    GtkListStore *items;
+    guint tick;
+    int cur;
+} home_t;
+static home_t *g_home;
+
+/* ---- capture: render a section into rows of cells (tab = next cell, paragraph = next row) ---- */
+typedef struct { GPtrArray *rows, *cur; GString *cell; } cap;
+
+static void cap_cell_done(cap *c)
+{
+    char *s = g_string_free(c->cell, FALSE);
+    g_ptr_array_add(c->cur, g_strstrip(s));
+    c->cell = g_string_new(NULL);
+}
+static void cp_text(srs_out *o, int col, int b, int m, const char *s) { (void)col; (void)b; (void)m; g_string_append(((cap *)o->ctx)->cell, s); }
+static void cp_tab(srs_out *o) { cap_cell_done(o->ctx); }
+static void cp_par(srs_out *o)
+{
+    cap *c = o->ctx;
+    cap_cell_done(c);
+    g_ptr_array_add(c->rows, c->cur);
+    c->cur = g_ptr_array_new_with_free_func(g_free);
+}
+static void cp_tabs(srs_out *o, const int *px, int n) { (void)o; (void)px; (void)n; }
+
+static void cap_free(cap *c)
+{
+    if (!c) return;
+    g_ptr_array_free(c->rows, TRUE);
+    g_ptr_array_free(c->cur, TRUE);
+    g_string_free(c->cell, TRUE);
+    g_free(c);
+}
+
+static cap *cap_render(const char *id)
+{
+    cap *c = g_new0(cap, 1);
+    const srs_item *it = srs_section_find(id);
+    const char *colon = strchr(id, ':');
+    srs_out o;
+    c->rows = g_ptr_array_new_with_free_func((GDestroyNotify)g_ptr_array_unref);
+    c->cur = g_ptr_array_new_with_free_func(g_free);
+    c->cell = g_string_new(NULL);
+    memset(&o, 0, sizeof o);
+    o.text = cp_text; o.tab = cp_tab; o.par = cp_par; o.tabs = cp_tabs;
+    o.ctx = c;
+    o.arg = colon ? colon + 1 : NULL;
+    if (it) srs_section_render(it, &o);
+    cp_par(&o);
+    return c;
+}
+
+/* small cache so the Overview's 3-second tick doesn't re-run slow sections */
+static struct { char id[48]; cap *c; double t; } g_cc[24];
+static cap *cap_get(const char *id, double max_age_ms)
+{
+    double now = srs_now_ms();
+    int i, slot = -1;
+    for (i = 0; i < 24; i++) {
+        if (!strcmp(g_cc[i].id, id)) { slot = i; break; }
+        if (slot < 0 && !g_cc[i].id[0]) slot = i;
+    }
+    if (slot < 0) slot = 0;
+    if (strcmp(g_cc[slot].id, id) || !g_cc[slot].c || now - g_cc[slot].t > max_age_ms) {
+        cap_free(g_cc[slot].c);
+        snprintf(g_cc[slot].id, sizeof g_cc[slot].id, "%s", id);
+        g_cc[slot].c = cap_render(id);
+        g_cc[slot].t = now;
+    }
+    return g_cc[slot].c;
+}
+static void cap_flush(void) { int i; for (i = 0; i < 24; i++) g_cc[i].t = -1e18; }
+
+static const char *cell(GPtrArray *r, int i) { return r && i >= 0 && (guint)i < r->len ? g_ptr_array_index(r, i) : ""; }
+static GPtrArray *cap_row(cap *c, const char *key)
+{
+    guint i;
+    for (i = 0; i < c->rows->len; i++) { GPtrArray *r = g_ptr_array_index(c->rows, i); if (!strcmp(cell(r, 0), key)) return r; }
+    return NULL;
+}
+static GPtrArray *cap_row_prefix(cap *c, const char *key)
+{
+    guint i;
+    for (i = 0; i < c->rows->len; i++) { GPtrArray *r = g_ptr_array_index(c->rows, i); if (g_str_has_prefix(cell(r, 0), key)) return r; }
+    return NULL;
+}
+static const char *cap_kv(cap *c, const char *key) { const char *v = cell(cap_row(c, key), 1); return strcmp(v, "-") ? v : ""; }
+static int row_col(GPtrArray *r, const char *name) { int i; for (i = 0; r && (guint)i < r->len; i++) if (!strcmp(cell(r, i), name)) return i; return -1; }
+
+/* "a  b  c" (two-space separated parts inside a cell): part n */
+static void part(const char *s, int n, char *out, size_t sz)
+{
+    const char *p = s, *e;
+    while (n-- > 0) { p = strstr(p, "  "); if (!p) { *out = 0; return; } while (*p == ' ') p++; }
+    e = strstr(p, "  ");
+    snprintf(out, sz, "%.*s", (int)(e ? (size_t)(e - p) : strlen(p)), p);
+}
+/* text before " (" - drops serial numbers and notes in brackets */
+static void before_paren(const char *s, char *out, size_t sz)
+{
+    const char *p = strstr(s, " (");
+    snprintf(out, sz, "%.*s", (int)(p ? (size_t)(p - s) : strlen(s)), s);
+}
+/* the number just before " word" in s, -1 if none */
+static long num_before(const char *s, const char *word)
+{
+    const char *p = strstr(s, word);
+    while (p && p > s && p[-1] == ' ') p--;
+    if (!p || p == s || !g_ascii_isdigit(p[-1])) return -1;
+    while (p > s && g_ascii_isdigit(p[-1])) p--;
+    return atol(p);
+}
+
+/* ---- data for the summaries (read-only, from the sections SRS already shows) ---- */
+static burn_sample g_hs;
+static void hs_update(void) { burn_sample_now(&g_hs); }
+
+static void fmt_uptime(char *out, size_t sz)
+{
+    char buf[64] = "";
+    double up;
+    long m, h, d;
+    *out = 0;
+    if (!rd_str("/proc/uptime", buf, sizeof buf)) return;
+    up = atof(buf);
+    m = (long)(up / 60) % 60; h = (long)(up / 3600) % 24; d = (long)(up / 86400);
+    if (d) snprintf(out, sz, "%ld day%s %ld h", d, d == 1 ? "" : "s", h);
+    else if (h) snprintf(out, sz, "%ld h %ld min", h, m);
+    else snprintf(out, sz, "%ld min", m);
+}
+
+typedef struct { int total, passed, failed, unknown; double tmax; char tdev[40]; } smartsum;
+static void smart_sum(smartsum *m)
+{
+    cap *c = cap_get("smart", 30000);
+    guint i;
+    int hcol = -1, tcol = -1, inrows = 0;
+    memset(m, 0, sizeof *m);
+    for (i = 0; i < c->rows->len; i++) {
+        GPtrArray *r = g_ptr_array_index(c->rows, i);
+        if (!inrows) {
+            if (!strcmp(cell(r, 0), "Drive") && (hcol = row_col(r, "Health")) >= 0) { tcol = row_col(r, "Temperature"); inrows = 1; }
+            continue;
+        }
+        if (!*cell(r, 0)) { if (m->total) break; continue; }
+        if ((int)r->len <= hcol) break;
+        m->total++;
+        if (!strcmp(cell(r, hcol), "PASSED") || !strcmp(cell(r, hcol), "OK")) m->passed++;
+        else if (strstr(cell(r, hcol), "FAIL")) m->failed++;
+        else m->unknown++;
+        if (tcol >= 0 && atof(cell(r, tcol)) > m->tmax) { m->tmax = atof(cell(r, tcol)); snprintf(m->tdev, sizeof m->tdev, "%s", cell(r, 0)); }
+    }
+}
+
+typedef struct { char free[40], total[40]; double used; int ok; } volsum;
+static void root_volume(volsum *v)
+{
+    cap *c = cap_get("volumes", 30000);
+    GPtrArray *h = cap_row(c, "Drive and Path"), *r = cap_row(c, "/");
+    memset(v, 0, sizeof *v);
+    if (!h || !r) return;
+    snprintf(v->free, sizeof v->free, "%s", cell(r, row_col(h, "Free")));
+    snprintf(v->total, sizeof v->total, "%s", cell(r, row_col(h, "Total")));
+    v->used = atof(cell(r, row_col(h, "Used"))) / 100.0;
+    v->ok = *v->total != 0;
+}
+
+typedef struct { int chips, alarms; } hwsum;
+static void hw_sum(hwsum *s)
+{
+    cap *c = cap_get("hw-status", 30000);
+    guint i;
+    int acol = -1, in = 0;
+    memset(s, 0, sizeof *s);
+    for (i = 0; i < c->rows->len; i++) {
+        GPtrArray *r = g_ptr_array_index(c->rows, i);
+        if (!in) { if (!strcmp(cell(r, 0), "Chip") && (acol = row_col(r, "Alarms")) >= 0) in = 1; continue; }
+        if (!*cell(r, 0)) { if (s->chips) break; continue; }
+        s->chips++;
+        s->alarms += atoi(cell(r, acol));
+    }
+}
+
+/* memory / CPU error counters: EDAC (ECC memory), HardwareCorrupted pages, kernel taint M (machine check) */
+typedef struct { int edac, mce; long ce, ue, corrupt_kb; } errsum;
+static void err_sum(errsum *e)
+{
+    char **mc;
+    int n = dir_list("/sys/devices/system/edac/mc", &mc), i;
+    long v;
+    cap *c = cap_get("memory", 5000);
+    memset(e, 0, sizeof *e);
+    for (i = 0; i < n; i++) {
+        char p[300];
+        if (strncmp(mc[i], "mc", 2) || !g_ascii_isdigit(mc[i][2])) continue;
+        e->edac = 1;
+        snprintf(p, sizeof p, "/sys/devices/system/edac/mc/%s/ce_count", mc[i]);
+        if (rd_long(p, &v)) e->ce += v;
+        snprintf(p, sizeof p, "/sys/devices/system/edac/mc/%s/ue_count", mc[i]);
+        if (rd_long(p, &v)) e->ue += v;
+    }
+    dir_free(mc, n);
+    if (rd_long("/proc/sys/kernel/tainted", &v)) e->mce = (v >> 4) & 1;   /* taint flag M */
+    e->corrupt_kb = (long)atof(cap_kv(c, "HardwareCorrupted"));
+}
+
+/* Intel CPUs count thermal throttling events; -1 when the CPU has no such counters */
+static long throttle_count(void)
+{
+    long sum = -1, v;
+    int i;
+    for (i = 0; i < burn_ncpu(); i++) {
+        char p[200];
+        snprintf(p, sizeof p, "/sys/devices/system/cpu/cpu%d/thermal_throttle/core_throttle_count", i);
+        if (rd_long(p, &v)) sum = (sum < 0 ? 0 : sum) + v;
+    }
+    return sum;
+}
+
+static void fact_set(fact *f, const char *capt, const char *val, const char *tip)
+{
+    snprintf(f->cap, sizeof f->cap, "%s", capt);
+    snprintf(f->val, sizeof f->val, "%s", val && *val ? val : "-");
+    snprintf(f->tip, sizeof f->tip, "%s", tip ? tip : "");
+    f->level = -1;
+}
+
+/* The key facts of a category in plain words: the page's summary tiles and the Overview cards. */
+static int facts_for(int cat, fact *f, int max)
+{
+    int n = 0;
+    char b[400], t[200];
+#define F(c, v, tip) do { if (n < max) fact_set(&f[n++], c, v, tip); } while (0)
+    switch (cat) {
+    case CAT_CPU: {
+        cap *c = cap_get("cpus", 60000);
+        const char *topo = cap_kv(c, "Topology");
+        long cores = num_before(topo, " core"), thr = num_before(topo, " logical"), pk = num_before(topo, " package");
+        F("Model", sys_cpu_name(), "The processor's own name for itself (/proc/cpuinfo)");
+        if (cores > 0 && thr > 0) snprintf(b, sizeof b, "%ld cores, %ld threads%s", cores, thr, pk > 1 ? " (several packages)" : "");
+        else snprintf(b, sizeof b, "%s", topo);
+        F("Cores", b, "Physical cores, and the threads (logical CPUs) they run at once");
+        if (g_hs.cpu_mhz > 0) snprintf(b, sizeof b, "%.2f GHz", g_hs.cpu_mhz / 1000); else *b = 0;
+        F("Speed now", b, "Clock of the fastest core right now (cpufreq). It changes all the time with the load.");
+        snprintf(b, sizeof b, "%.0f %%", g_hs.cpu_load);
+        F("Busy", b, "How busy all CPUs are together, since the last update");
+        if (g_hs.cpu_temp > 0) snprintf(b, sizeof b, "%.0f °C", g_hs.cpu_temp); else snprintf(b, sizeof b, "no sensor");
+        snprintf(t, sizeof t, "Hottest CPU temperature sensor (%s)", *g_hs.cpu_temp_name ? g_hs.cpu_temp_name : "k10temp / coretemp");
+        F("Temperature", b, t);
+        F("Frequency driver", cap_kv(c, "Frequency driver"), "The Linux driver that sets the CPU clock speed");
+        F("Microcode", cap_kv(c, "Microcode"), "Version of the CPU's built-in firmware patch, loaded at boot");
+        break;
+    }
+    case CAT_MEM: {
+        cap *c = cap_get("memory", 5000);
+        GPtrArray *r = cap_row(c, "System Physical Memory"), *s = cap_row(c, "System Paging File (swap)");
+        const char *inst = cap_kv(c, "Installed (SMBIOS)"), *edac = cap_kv(c, "EDAC");
+        F("Installed", *inst ? inst : cell(r, 3), "Memory the board reports, and how many slots are filled (SMBIOS)");
+        before_paren(cap_kv(c, "Memory Speed"), b, sizeof b);
+        snprintf(t, sizeof t, "The speed the memory runs at now: %s", cap_kv(c, "Memory Speed"));
+        F("Speed", b, t);
+        if (r) {
+            snprintf(b, sizeof b, "%s  (%s of %s)", cell(r, 4), cell(r, 1), cell(r, 3));
+            F("In use", b, "Memory used by programs now. Cache and buffers don't count: Linux frees them when programs need memory.");
+            f[n - 1].level = atof(cell(r, 4)) / 100.0;
+        }
+        if (s) { snprintf(b, sizeof b, "%s of %s", cell(s, 1), cell(s, 3)); F("Swap in use", b, "Swap space (on disk or zram) used now, and its size"); }
+        if (strstr(edac, "no memory controllers")) snprintf(b, sizeof b, "Not available (no ECC)");
+        else snprintf(b, sizeof b, "%s", edac);
+        F("Error checking", b, "ECC memory finds and corrects memory errors; Linux reports them through EDAC");
+        break;
+    }
+    case CAT_BOARD: {
+        cap *c = cap_get("machine", 60000);
+        const char *bd = sys_board(), *bios = strstr(bd, " BIOS ");
+        GPtrArray *br = cap_row_prefix(c, "BIOS "), *boot = cap_row(c, "System Boot");
+        snprintf(b, sizeof b, "%.*s", (int)(bios ? (size_t)(bios - bd) : strlen(bd)), bd);
+        F("Motherboard", b, "Board maker and model (SMBIOS)");
+        if (bios) {
+            char v[120];
+            part(cell(br, 3), 0, v, sizeof v);
+            snprintf(b, sizeof b, "%s%s%s", bios + 6, *v ? " - " : "", v);
+            F("BIOS", b, "Firmware version and date, and who wrote it. Board makers publish newer versions on their support page.");
+        }
+        if (boot) {
+            char a[100], s2[100];
+            part(cell(boot, 3), 0, a, sizeof a);
+            part(cell(boot, 3), 1, s2, sizeof s2);
+            snprintf(b, sizeof b, "%s%s%s", a, *s2 ? ", " : "", s2);
+            F("Firmware type", b, "UEFI or legacy BIOS boot, and whether Secure Boot is on");
+            F("Last boot", cell(boot, 2), "What the firmware reported about the last start-up");
+        }
+        break;
+    }
+    case CAT_GPU: {
+        cap *g = cap_get("gpu-info", 10000), *d = cap_get("graphics", 60000);
+        char v1[100], v2[100];
+        guint i;
+        int nd = 0;
+        F("Graphics card", cap_kv(g, "GPU"), "The graphics processor (GPU) and its product name");
+        part(cap_kv(g, "VRAM"), 0, v1, sizeof v1);
+        part(cap_kv(g, "VRAM"), 1, v2, sizeof v2);
+        snprintf(b, sizeof b, "%s%s%s", v1, *v2 ? ", " : "", v2);
+        F("Video memory", b, "Memory on the graphics card (VRAM) and how much of it is in use");
+        part(cap_kv(g, "Kernel driver"), 0, v1, sizeof v1);
+        F("Driver", v1, "The Linux kernel driver in use for this card");
+        *b = 0;
+        for (i = 0; i < d->rows->len; i++) {
+            GPtrArray *r = g_ptr_array_index(d->rows, i);
+            if (strcmp(cell(r, 0), "Resolution")) continue;
+            if (!strcmp(cell(r, 1), "-") || !*cell(r, 1)) { nd++; continue; }
+            if (nd++ && *b) g_strlcat(b, ", ", sizeof b);
+            g_strlcat(b, cell(r, 1), sizeof b);
+        }
+        if (nd) { char x[400]; snprintf(x, sizeof x, "%d%s%s", nd, *b ? ": " : "", b); F("Displays", x, "Monitors that are on, and their resolution @ refresh rate (Hz)"); }
+        if (g_hs.gpu_temp > 0) {
+            snprintf(b, sizeof b, "%.0f °C, %.0f %% busy", g_hs.gpu_temp, g_hs.gpu_load);
+            F("Temperature", b, "The GPU's hottest point (junction / hotspot sensor) and how busy it is");
+        }
+        part(cap_kv(g, "Architecture"), 0, v1, sizeof v1);
+        F("Architecture", v1, "The chip family");
+        break;
+    }
+    case CAT_STORAGE: {
+        cap *d = cap_get("drives", 30000);
+        smartsum m;
+        volsum v;
+        before_paren(cap_kv(d, "Drives"), b, sizeof b);
+        F("Drives", b, "Physical drives (loop, zram and device-mapper devices left out)");
+        smart_sum(&m);
+        if (!m.total) snprintf(b, sizeof b, "No SMART data yet (Run as root)");
+        else {
+            snprintf(b, sizeof b, "%d PASSED", m.passed);
+            if (m.failed) { size_t l = strlen(b); snprintf(b + l, sizeof b - l, ", %d FAILED", m.failed); }
+            if (m.unknown) { size_t l = strlen(b); snprintf(b + l, sizeof b - l, ", %d can't report", m.unknown); }
+        }
+        F("Drive health", b, "The drives' own self-check (SMART). USB adapters usually can't pass it on.");
+        root_volume(&v);
+        if (v.ok) {
+            snprintf(b, sizeof b, "%s free of %s", v.free, v.total);
+            F("System disk ( / )", b, "Free space on the file system Linux runs from");
+            f[n - 1].level = v.used;
+        }
+        if (m.tmax > 0) { snprintf(b, sizeof b, "%.0f °C (%s)", m.tmax, m.tdev); F("Warmest drive", b, "Highest drive temperature from SMART / the drive's own sensor"); }
+        break;
+    }
+    case CAT_NET: {
+        char **ifs;
+        int ni = dir_list("/sys/class/net", &ifs), i, phys = 0, up = 0, virt = 0;
+        char con[300] = "";
+        for (i = 0; i < ni; i++) {
+            char p[300], st[32] = "";
+            long sp = 0;
+            int wifi;
+            if (!strcmp(ifs[i], "lo")) continue;
+            snprintf(p, sizeof p, "/sys/class/net/%s/device", ifs[i]);
+            if (!path_exists(p)) { virt++; continue; }
+            phys++;
+            snprintf(p, sizeof p, "/sys/class/net/%s/wireless", ifs[i]);
+            wifi = path_exists(p);
+            snprintf(p, sizeof p, "/sys/class/net/%s/operstate", ifs[i]);
+            rd_str(p, st, sizeof st);
+            if (strcmp(st, "up")) continue;
+            up++;
+            snprintf(p, sizeof p, "/sys/class/net/%s/speed", ifs[i]);
+            if (!wifi) rd_long(p, &sp);
+            if (*con) g_strlcat(con, ", ", sizeof con);
+            if (wifi) snprintf(b, sizeof b, "%s (Wi-Fi)", ifs[i]);
+            else if (sp >= 1000) snprintf(b, sizeof b, "%s (wired, %g Gbps)", ifs[i], sp / 1000.0);
+            else if (sp > 0) snprintf(b, sizeof b, "%s (wired, %ld Mbps)", ifs[i], sp);
+            else snprintf(b, sizeof b, "%s (wired)", ifs[i]);
+            g_strlcat(con, b, sizeof con);
+        }
+        dir_free(ifs, ni);
+        snprintf(b, sizeof b, "%d, %d connected", phys, up);
+        F("Network adapters", b, "Network hardware (wired, Wi-Fi, USB); virtual adapters are counted separately");
+        F("Connected", *con ? con : "none", "Adapters with a link now, and the link speed of wired ones");
+        snprintf(b, sizeof b, "%d", virt);
+        F("Virtual adapters", b, "Bridges, VPNs, containers and virtual machines' networks");
+        break;
+    }
+    case CAT_SENSORS: {
+        hwsum h;
+        if (g_hs.cpu_temp > 0) {
+            snprintf(b, sizeof b, "%.0f °C", g_hs.cpu_temp);
+            snprintf(t, sizeof t, "Hottest CPU sensor (%s)", g_hs.cpu_temp_name);
+            F("CPU", b, t);
+        }
+        if (g_hs.gpu_temp > 0) { snprintf(b, sizeof b, "%.0f °C", g_hs.gpu_temp); F("Graphics (hotspot)", b, "The GPU's hottest point (junction sensor)"); }
+        if (g_hs.sio_temp > 0) {
+            snprintf(b, sizeof b, "%.0f °C", g_hs.sio_temp);
+            snprintf(t, sizeof t, "Hottest motherboard sensor (%s)", g_hs.sio_name);
+            F("Motherboard", b, t);
+        }
+        hw_sum(&h);
+        snprintf(b, sizeof b, "%d", h.chips);
+        F("Sensor chips", b, "Hardware monitor chips Linux can read (hwmon)");
+        snprintf(b, sizeof b, "%d", h.alarms);
+        F("Alarm flags", b, "Alarms the monitor chips raise for out-of-range readings; 0 is normal");
+        break;
+    }
+    case CAT_DEVICES: {
+        srs_dev *d = NULL;
+        int np = srs_devices(BUS_PCI, &d), nu;
+        free(d);
+        d = NULL;
+        nu = srs_devices(BUS_USB, &d);
+        free(d);
+        snprintf(b, sizeof b, "%d", np < 0 ? 0 : np);
+        F("PCI devices", b, "Chips and cards on the PCI Express bus, including the ones built into the CPU and board");
+        snprintf(b, sizeof b, "%d", nu < 0 ? 0 : nu);
+        F("USB devices", b, "USB devices, including the hubs built into the PC");
+        break;
+    }
+    case CAT_OS: {
+        cap *c = cap_get("windows", 60000);
+        struct utsname u;
+        char *pn = g_get_os_info(G_OS_INFO_KEY_PRETTY_NAME), a[60], s2[60];
+        F("Distribution", pn, "The Linux distribution (/etc/os-release)");
+        g_free(pn);
+        if (!uname(&u)) { F("Kernel", u.release, "The running Linux kernel"); F("Architecture", u.machine, NULL); }
+        part(cap_kv(c, "Linux Desktop Session"), 0, a, sizeof a);
+        part(cap_kv(c, "Linux Desktop Session"), 1, s2, sizeof s2);
+        snprintf(b, sizeof b, "%s%s%s%s", a, *s2 ? " (" : "", s2, *s2 ? ")" : "");
+        F("Desktop", b, "Desktop environment and display system (Wayland or X11)");
+        fmt_uptime(b, sizeof b);
+        F("Up time", b, "Time since the last start-up");
+        break;
+    }
+    default: break;
+    }
+#undef F
+    return n;
+}
+
+/* ---- "Is my PC OK?" ---- */
+typedef struct { const char *name; int level; char text[300], tip[400]; const char *item; int show; } check;
+
+static void checks_collect(check *c)
+{
+    smartsum m;
+    volsum v;
+    hwsum h;
+    errsum e;
+    long thr = throttle_count();
+    cap *mem = cap_get("memory", 5000);
+    GPtrArray *mr = cap_row(mem, "System Physical Memory");
+    int i;
+    memset(c, 0, sizeof(check) * NCHECK);
+    for (i = 0; i < NCHECK; i++) { c[i].show = 1; c[i].level = LV_UNK; }
+
+    c[0].name = "CPU temperature"; c[0].item = "sensors";
+    if (g_hs.cpu_temp > 0) {
+        double x = g_hs.cpu_temp;
+        c[0].level = x >= 95 ? LV_BAD : x >= 85 ? LV_WARN : LV_OK;
+        snprintf(c[0].text, sizeof c[0].text, "%.0f °C - %s", x, x >= 95 ? "hot. The CPU may be slowing itself down; check the cooler and airflow."
+                 : x >= 85 ? "warm. Fine under heavy load; if it stays this high when idle, check the cooler." : "normal");
+    } else snprintf(c[0].text, sizeof c[0].text, "No CPU temperature sensor found (k10temp / coretemp not loaded?)");
+    snprintf(c[0].tip, sizeof c[0].tip, "Hottest CPU sensor (%s). OK below 85 °C, warm 85-94 °C, hot from 95 °C.",
+             *g_hs.cpu_temp_name ? g_hs.cpu_temp_name : "none");
+
+    c[1].name = "Graphics temperature"; c[1].item = "gpu-temp";
+    if (g_hs.gpu_temp > 0) {
+        double x = g_hs.gpu_temp;
+        c[1].level = x >= 105 ? LV_BAD : x >= 95 ? LV_WARN : LV_OK;
+        snprintf(c[1].text, sizeof c[1].text, "%.0f °C hotspot - %s", x, x >= 105 ? "hot. Check the card's fans and the case airflow."
+                 : x >= 95 ? "warm. Normal for a short heavy game or benchmark." : "normal");
+    } else snprintf(c[1].text, sizeof c[1].text, "No graphics temperature sensor found");
+    snprintf(c[1].tip, sizeof c[1].tip, "The GPU's hottest point (junction sensor), which runs hotter than the edge. OK below 95 °C, warm 95-104 °C, hot from 105 °C.");
+
+    smart_sum(&m);
+    c[2].name = "Drive health (SMART)"; c[2].item = "smart";
+    if (!m.total || m.passed + m.failed == 0) {
+        snprintf(c[2].text, sizeof c[2].text, "Not checked yet. Use Menu > Run as root once to read the drives' self-checks.");
+    } else if (m.failed) {
+        c[2].level = LV_BAD;
+        snprintf(c[2].text, sizeof c[2].text, "%d drive%s report%s FAILED - back up the data on %s now.", m.failed, m.failed > 1 ? "s" : "",
+                 m.failed > 1 ? "" : "s", m.failed > 1 ? "them" : "it");
+    } else {
+        c[2].level = LV_OK;
+        snprintf(c[2].text, sizeof c[2].text, "%d drive%s passed%s", m.passed, m.passed > 1 ? "s" : "",
+                 m.unknown ? "; USB drives can't report SMART" : "");
+    }
+    snprintf(c[2].tip, sizeof c[2].tip, "Each drive's own health self-test (SMART overall assessment), from srs-root's cached smartctl / nvme data.");
+
+    c[3].name = "Drive temperature"; c[3].item = "smart";
+    if (m.tmax > 0) {
+        c[3].level = m.tmax >= 70 ? LV_BAD : m.tmax >= 60 ? LV_WARN : LV_OK;
+        snprintf(c[3].text, sizeof c[3].text, "Warmest %.0f °C (%s) - %s", m.tmax, m.tdev, m.tmax >= 70 ? "hot; drives may slow down. Add airflow or a heatsink."
+                 : m.tmax >= 60 ? "warm" : "normal");
+    } else snprintf(c[3].text, sizeof c[3].text, "No drive temperatures yet");
+    snprintf(c[3].tip, sizeof c[3].tip, "Highest drive temperature. OK below 60 °C, warm 60-69 °C, hot from 70 °C.");
+
+    err_sum(&e);
+    c[4].name = "Hardware errors"; c[4].item = "memory";
+    if (e.mce || e.ue || e.corrupt_kb) {
+        c[4].level = LV_BAD;
+        snprintf(c[4].text, sizeof c[4].text, "%s%s%s", e.mce ? "The processor reported a hardware error (machine check) since start-up. " : "",
+                 e.ue ? "Uncorrected memory errors were found. " : "", e.corrupt_kb ? "Linux has taken faulty memory pages out of use." : "");
+    } else if (e.ce) {
+        c[4].level = LV_WARN;
+        snprintf(c[4].text, sizeof c[4].text, "%ld corrected memory error%s (ECC fixed them). A few are harmless; many point to a failing stick.", e.ce, e.ce > 1 ? "s" : "");
+    } else {
+        c[4].level = LV_OK;
+        snprintf(c[4].text, sizeof c[4].text, "None reported%s", e.edac ? "" : " (memory errors are only counted with ECC memory)");
+    }
+    snprintf(c[4].tip, sizeof c[4].tip, "Kernel taint flag M (machine check), EDAC error counters (ECC memory) and HardwareCorrupted pages in /proc/meminfo.");
+
+    root_volume(&v);
+    c[5].name = "Free disk space"; c[5].item = "volumes";
+    if (v.ok) {
+        c[5].level = v.used >= 0.97 ? LV_BAD : v.used >= 0.90 ? LV_WARN : LV_OK;
+        snprintf(c[5].text, sizeof c[5].text, "%s free on the system disk (%.0f %% used)%s", v.free, v.used * 100,
+                 v.used >= 0.90 ? " - running low; updates may fail when it is full." : "");
+    } else snprintf(c[5].text, sizeof c[5].text, "Could not read the system disk");
+    snprintf(c[5].tip, sizeof c[5].tip, "The file system mounted at /. Low from 90 %% used, critical from 97 %%.");
+
+    c[6].name = "Memory in use"; c[6].item = "memory";
+    if (mr) {
+        double l = atof(cell(mr, 4));
+        c[6].level = l >= 95 ? LV_BAD : l >= 90 ? LV_WARN : LV_OK;
+        snprintf(c[6].text, sizeof c[6].text, "%.0f %% (%s of %s)%s", l, cell(mr, 1), cell(mr, 3),
+                 l >= 90 ? " - nearly full; programs may slow down or be closed." : "");
+    }
+    snprintf(c[6].tip, sizeof c[6].tip, "Memory used by programs. Nearly full from 90 %%.");
+
+    hw_sum(&h);
+    c[7].name = "Sensor alarms"; c[7].item = "hw-status";
+    if (h.chips) {
+        c[7].level = h.alarms ? LV_WARN : LV_OK;
+        if (h.alarms) snprintf(c[7].text, sizeof c[7].text, "%d alarm flag%s set by the monitor chips - see Sensors > Hardware status", h.alarms, h.alarms > 1 ? "s" : "");
+        else snprintf(c[7].text, sizeof c[7].text, "No alarms from %d sensor chip%s", h.chips, h.chips > 1 ? "s" : "");
+    } else snprintf(c[7].text, sizeof c[7].text, "No hardware monitor chips found");
+    snprintf(c[7].tip, sizeof c[7].tip, "Alarm flags the hwmon chips set when a reading leaves its limits.");
+
+    c[8].name = "CPU throttling"; c[8].item = "cpu-clocks";
+    if (thr < 0) c[8].show = 0;   /* only Intel CPUs count throttling events */
+    else {
+        c[8].level = thr ? LV_WARN : LV_OK;
+        if (thr) snprintf(c[8].text, sizeof c[8].text, "Slowed down %ld time%s since start-up because it was too hot", thr, thr > 1 ? "s" : "");
+        else snprintf(c[8].text, sizeof c[8].text, "Never slowed down by heat since start-up");
+    }
+    snprintf(c[8].tip, sizeof c[8].tip, "Thermal throttling events counted by the CPU (thermal_throttle/core_throttle_count).");
+}
+
+/* ---- widgets ---- */
+static GtkWidget *label_cls(const char *text, const char *cls, float xalign)
+{
+    GtkWidget *l = gtk_label_new(text);
+    gtk_label_set_xalign(GTK_LABEL(l), xalign);
+    if (cls) {
+        char **v = g_strsplit(cls, " ", -1), **p;
+        for (p = v; *p; p++) gtk_style_context_add_class(gtk_widget_get_style_context(l), *p);
+        g_strfreev(v);
+    }
+    return l;
+}
+
+static const char *icon_pick(const char *list)
+{
+    static char out[8][96];
+    static int k;
+    char **v = g_strsplit(list, "|", -1), **p;
+    GtkIconTheme *th = gtk_icon_theme_get_default();
+    const char *r = NULL;
+    k = (k + 1) % 8;
+    for (p = v; *p; p++) if (gtk_icon_theme_has_icon(th, *p)) { r = *p; break; }
+    snprintf(out[k], sizeof out[k], "%s", r ? r : v[g_strv_length(v) - 1]);
+    g_strfreev(v);
+    return out[k];
+}
+
+static void set_level_class(GtkWidget *w, int level)
+{
+    GtkStyleContext *sc = gtk_widget_get_style_context(w);
+    gtk_style_context_remove_class(sc, "srs-ok");
+    gtk_style_context_remove_class(sc, "srs-warn");
+    gtk_style_context_remove_class(sc, "srs-bad");
+    gtk_style_context_remove_class(sc, "srs-unk");
+    gtk_style_context_add_class(sc, level == LV_OK ? "srs-ok" : level == LV_WARN ? "srs-warn" : level == LV_BAD ? "srs-bad" : "srs-unk");
+}
+
+static swin *home_cur_tab(void)
+{
+    GtkWidget *page;
+    if (!g_home || g_home->cur == CAT_OVERVIEW || !g_home->nb[g_home->cur]) return NULL;
+    page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(g_home->nb[g_home->cur]), gtk_notebook_get_current_page(GTK_NOTEBOOK(g_home->nb[g_home->cur])));
+    return page ? g_object_get_data(G_OBJECT(page), "swin") : NULL;
+}
+
+static int cat_of_id(const char *id)
+{
+    char base[64];
+    const srs_item *s;
+    const char *g;
+    int c, i;
+    snprintf(base, sizeof base, "%.*s", (int)strcspn(id, ":"), id);
+    for (c = 1; c < CAT_N; c++)
+        for (i = 0; g_cats[c].tabs[i]; i++) if (!strcmp(base, g_cats[c].tabs[i])) return c;
+    s = srs_section_find(base);
+    g = s && s->group ? s->group : "";
+    if (!strcmp(g, "cpu")) return CAT_CPU;
+    if (!strcmp(g, "machine"))
+        return !strncmp(base, "dimm", 4) || !strncmp(base, "spd", 3) || !strncmp(base, "mem", 3) || !strcmp(base, "physical") ||
+               !strncmp(base, "numa", 4) ? CAT_MEM : CAT_BOARD;
+    if (!strcmp(g, "sensors")) return CAT_SENSORS;
+    if (!strcmp(g, "storage")) return CAT_STORAGE;
+    if (!strcmp(g, "network")) return CAT_NET;
+    if (!strcmp(g, "os")) return CAT_OS;
+    if (!strcmp(g, "gpu")) return CAT_GPU;
+    if (!strcmp(g, "bus")) return CAT_DEVICES;
+    if (!strcmp(g, "tools") && (!strncmp(base, "benchmark", 9) || !strncmp(base, "ipi", 3) || !strcmp(base, "latency") ||
+                                !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
+    return CAT_TOOLS;
+}
+
+static int is_curated(int cat, const char *id)
+{
+    int i;
+    for (i = 0; g_cats[cat].tabs[i]; i++) if (!strcmp(id, g_cats[cat].tabs[i])) return 1;
+    return 0;
+}
+
+/* ---- section tabs (an embedded panel: same swin, text view and render() as a classic panel) ---- */
+/* a tab comes on screen: draw it the first time (live items every time), start its refresh timer */
+static void on_tab_map(GtkWidget *v, gpointer d)
+{
+    swin *t = d;
+    (void)v;
+    t->shown = 1;
+    if (!t->rendered || t->own_ms > 0) render(t);
+    t->rendered = 1;
+    live_start(t);
+}
+static void on_tab_unmap(GtkWidget *v, gpointer d) { swin *t = d; (void)v; t->shown = 0; if (t->timer) { g_source_remove(t->timer); t->timer = 0; } }
+static void on_tab_destroy(GtkWidget *p, gpointer d)
+{
+    swin *t = d;
+    (void)p;
+    if (t->timer) g_source_remove(t->timer);
+    if (t->commit_id) g_source_remove(t->commit_id);
+    if (t->scratch) g_object_unref(t->scratch);
+    g_ptr_array_remove(g_wins, t);
+    g_free(t);
+}
+static void on_tab_btn(GtkButton *b, gpointer d)
+{
+    swin *t = d;
+    const char *tg = g_object_get_data(G_OBJECT(b), "target");
+    if (!strcmp(tg, "!pop")) open_section(t->id);
+    else if (!strcmp(tg, "!root")) run_root();
+    else do_target(t, tg);
+}
+static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
+{
+    swin *t = d;
+    (void)ps;
+    t->paused = !gtk_switch_get_active(GTK_SWITCH(sw));
+    live_start(t);
+}
+static void on_tab_close(GtkButton *b, gpointer d) { (void)b; gtk_widget_destroy(GTK_WIDGET(d)); }
+
+static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const char *target, const char *tip)
+{
+    GtkWidget *b = gtk_button_new_with_mnemonic(label);
+    if (icon) {
+        gtk_button_set_image(GTK_BUTTON(b), gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_BUTTON));
+        gtk_button_set_always_show_image(GTK_BUTTON(b), TRUE);
+    }
+    gtk_widget_set_tooltip_text(b, tip);
+    g_object_set_data(G_OBJECT(b), "target", (gpointer)target);
+    g_signal_connect(b, "clicked", G_CALLBACK(on_tab_btn), t);
+    return b;
+}
+
+static swin *tab_add(int cat, const char *id, int select)
+{
+    GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    const srs_item *it = srs_section_find(id);
+    GtkWidget *page, *bar, *src, *tl, *lab;
+    swin *t;
+    char title[200], s[600];
+    int i, n = gtk_notebook_get_n_pages(nb), closable = !is_curated(cat, id);
+    for (i = 0; i < n; i++) {
+        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
+        if (x && !strcmp(x->id, id)) { if (select) gtk_notebook_set_current_page(nb, i); return x; }
+    }
+    t = g_new0(swin, 1);
+    t->kind = W_SECTION;
+    t->embedded = 1;
+    t->cat = cat;
+    t->win = g_home->w->win;
+    snprintf(t->id, sizeof t->id, "%s", id);
+    t->own_ms = it && it->live_ms > 0 ? (it->live_ms < 500 ? 500 : it->live_ms) : 0;
+    page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    g_object_set_data(G_OBJECT(page), "swin", t);
+    t->page = page;
+
+    bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    gtk_style_context_add_class(gtk_widget_get_style_context(bar), "srs-tool");
+    gtk_style_context_add_class(gtk_widget_get_style_context(bar), "srs-tabbar");
+    snprintf(s, sizeof s, "Source: %s", it && it->linux_src ? it->linux_src : "-");
+    src = label_cls(s, "dim-label srs-cap", 0);
+    gtk_label_set_ellipsize(GTK_LABEL(src), PANGO_ELLIPSIZE_END);
+    gtk_widget_set_hexpand(src, TRUE);
+    snprintf(s, sizeof s, "Item [%s] - data from %s%s", id, it && it->linux_src ? it->linux_src : "-",
+             it && it->needs_root ? ". Some of it needs root data (Run as root)." : "");
+    gtk_widget_set_tooltip_text(src, s);
+    gtk_box_pack_start(GTK_BOX(bar), src, TRUE, TRUE, 4);
+    if (it && it->needs_root && !so_root_file("collected.txt"))
+        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "dialog-password-symbolic", "Needs root data...", "!root",
+                           "Parts of this item can only be read as root. Collect them once with one password prompt (read-only)."), FALSE, FALSE, 0);
+    if (t->own_ms > 0) {
+        GtkWidget *sw = gtk_switch_new(), *ll = gtk_label_new_with_mnemonic("_Live");
+        snprintf(s, sizeof s, "Refresh this view every %.1f s while it is shown. Menu > Options > Update interval changes the rate for all views.",
+                 (g_update_ms > 0 ? g_update_ms : t->own_ms) / 1000.0);
+        gtk_switch_set_active(GTK_SWITCH(sw), TRUE);
+        gtk_widget_set_valign(sw, GTK_ALIGN_CENTER);
+        gtk_label_set_mnemonic_widget(GTK_LABEL(ll), sw);
+        gtk_widget_set_tooltip_text(sw, s);
+        gtk_widget_set_tooltip_text(ll, s);
+        g_signal_connect(sw, "notify::active", G_CALLBACK(on_tab_live), t);
+        gtk_box_pack_start(GTK_BOX(bar), ll, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(bar), sw, FALSE, FALSE, 4);
+    }
+    if (!strcmp(id, "sensors")) {
+        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Zero", "!zero", "Start the minimum and maximum columns again from now"), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Hide unused", "!hide", "Hide or show sensors that read nothing (press again to show them)"), FALSE, FALSE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "view-refresh-symbolic", "_Refresh", "!refresh", "Read this item again now (F5)"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "edit-copy-symbolic", "_Copy", "!copy",
+                       "Copy all of this text. With Options > Redact on, serials, UUIDs, MACs and the computer name are masked."), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "help-browser-symbolic", "_Guide", "!guide", "Open the user guide at this item: what each value means (F1)"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "view-dual-symbolic", "Open in _window", "!pop",
+                       "Open this item as a classic SRS panel with its SIV-style button row"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(page), bar, FALSE, FALSE, 0);
+    {
+        GtkWidget *sw = make_view(t);
+        gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
+        gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
+    }
+    gtk_text_view_set_left_margin(GTK_TEXT_VIEW(t->view), 10);
+    gtk_text_view_set_top_margin(GTK_TEXT_VIEW(t->view), 8);
+    g_signal_connect(t->view, "map", G_CALLBACK(on_tab_map), t);
+    g_signal_connect(t->view, "unmap", G_CALLBACK(on_tab_unmap), t);
+    g_signal_connect(page, "destroy", G_CALLBACK(on_tab_destroy), t);
+    g_ptr_array_add(g_wins, t);
+
+    if (it && strchr(id, ':')) snprintf(title, sizeof title, "%s %s", it->title, strchr(id, ':') + 1);
+    else snprintf(title, sizeof title, "%s", it ? it->title : id);
+    tl = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    lab = gtk_label_new(title);
+    gtk_box_pack_start(GTK_BOX(tl), lab, FALSE, FALSE, 0);
+    snprintf(s, sizeof s, "%s  [%s]", it ? it->title : id, id);
+    gtk_widget_set_tooltip_text(tl, s);
+    if (closable) {
+        GtkWidget *x = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+        gtk_button_set_relief(GTK_BUTTON(x), GTK_RELIEF_NONE);
+        gtk_widget_set_focus_on_click(x, FALSE);
+        gtk_widget_set_tooltip_text(x, "Close this tab (Ctrl+W)");
+        g_signal_connect(x, "clicked", G_CALLBACK(on_tab_close), page);
+        gtk_box_pack_start(GTK_BOX(tl), x, FALSE, FALSE, 0);
+    }
+    gtk_widget_show_all(tl);
+    gtk_widget_show_all(page);
+    i = gtk_notebook_append_page(nb, page, tl);
+    gtk_notebook_set_tab_reorderable(nb, page, TRUE);
+    if (select) gtk_notebook_set_current_page(nb, i);
+    return t;
+}
+
+/* ---- navigation ---- */
+static void facts_update(int cat);
+static void ov_update(void);
+
+static void home_subtitle(const char *extra)
+{
+    char s[400];
+    if (!g_home) return;
+    snprintf(s, sizeof s, "%s%s%s", g_cats[g_home->cur].title, extra && *extra ? "  -  " : "", extra ? extra : "");
+    gtk_header_bar_set_subtitle(GTK_HEADER_BAR(g_home->hb), s);
+}
+
+static void home_go(int cat)
+{
+    GtkListBoxRow *r;
+    if (!g_home || cat < 0 || cat >= CAT_N) return;
+    r = gtk_list_box_get_row_at_index(GTK_LIST_BOX(g_home->side), cat);
+    if (r) gtk_list_box_select_row(GTK_LIST_BOX(g_home->side), r);
+}
+
+static void on_side_row(GtkListBox *lb, GtkListBoxRow *row, gpointer d)
+{
+    int c;
+    (void)lb; (void)d;
+    if (!row || !g_home) return;
+    c = gtk_list_box_row_get_index(row);
+    g_home->cur = c;
+    gtk_stack_set_visible_child_name(GTK_STACK(g_home->stack), g_cats[c].name);
+    home_subtitle(NULL);
+    if (c == CAT_OVERVIEW) ov_update(); else facts_update(c);
+}
+
+static void open_item(const char *id)
+{
+    int cat;
+    if (!g_home) { open_section(id); return; }
+    cat = cat_of_id(id);
+    home_go(cat);
+    tab_add(cat, id, 1);
+    gtk_window_present(GTK_WINDOW(g_home->w->win));
+}
+
+static void on_go_cat(GtkButton *b, gpointer d) { (void)b; home_go(GPOINTER_TO_INT(d)); }
+static void on_more_item(GtkMenuItem *mi, gpointer d) { (void)mi; open_item(d); }
+
+static void on_launch(GtkButton *b, gpointer d)
+{
+    const char *t = d;
+    (void)b;
+    if (!strcmp(t, "burn")) open_tool(W_BURN, 0);
+    else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+    else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
+    else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
+    else if (!strcmp(t, "lat")) open_tool(W_BENCH, BK_LAT);
+    else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
+    else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
+    else if (!strcmp(t, "save")) save_dialog(0);
+    else if (!strcmp(t, "saveall")) save_dialog(1);
+    else if (!strcmp(t, "root")) run_root();
+    else if (!strcmp(t, "guide")) open_guide(NULL);
+    else if (!strcmp(t, "classic")) open_main(0);
+}
+
+/* ---- summary tiles ---- */
+static void facts_update(int cat)
+{
+    factsui *u;
+    fact f[NFACT];
+    int n, i;
+    if (!g_home || !(u = &g_home->facts[cat])->box) return;
+    n = facts_for(cat, f, 6);   /* one row of tiles at the default size; the rest is in the tabs */
+    if (n != u->n) {
+        for (i = 0; i < u->n; i++) gtk_widget_destroy(u->tile[i]);
+        for (i = 0; i < n; i++) {
+            GtkWidget *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+            gtk_style_context_add_class(gtk_widget_get_style_context(v), "srs-fact");
+            u->cap[i] = label_cls("", "dim-label srs-cap", 0);
+            u->val[i] = label_cls("", "srs-val", 0);
+            gtk_label_set_ellipsize(GTK_LABEL(u->val[i]), PANGO_ELLIPSIZE_END);
+            gtk_label_set_max_width_chars(GTK_LABEL(u->val[i]), 44);
+            gtk_box_pack_start(GTK_BOX(v), u->cap[i], FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(v), u->val[i], FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(u->box), v, TRUE, TRUE, 0);
+            u->tile[i] = v;
+            gtk_widget_show_all(v);
+        }
+        u->n = n;
+    }
+    for (i = 0; i < n; i++) {
+        char tip[800];
+        gtk_label_set_text(GTK_LABEL(u->cap[i]), f[i].cap);
+        gtk_label_set_text(GTK_LABEL(u->val[i]), f[i].val);
+        snprintf(tip, sizeof tip, "%s\n%s", f[i].val, f[i].tip);
+        gtk_widget_set_tooltip_text(u->tile[i], tip);
+    }
+}
+
+/* ---- Overview ---- */
+static void ov_update(void)
+{
+    check c[NCHECK];
+    int i, warn = 0, bad = 0, k;
+    char s[600], up[64], *pn;
+    time_t now = time(NULL);
+    struct tm tm;
+    if (!g_home || !g_home->ov_verdict) return;
+    checks_collect(c);
+    for (i = 0; i < NCHECK; i++) {
+        checkui *u = &g_home->ck[i];
+        gtk_widget_set_visible(u->dot, c[i].show);
+        gtk_widget_set_visible(u->name, c[i].show);
+        gtk_widget_set_visible(u->text, c[i].show);
+        gtk_widget_set_visible(u->btn, c[i].show);
+        if (!c[i].show) continue;
+        if (c[i].level == LV_WARN) warn++;
+        if (c[i].level == LV_BAD) bad++;
+        set_level_class(u->dot, c[i].level);
+        gtk_label_set_text(GTK_LABEL(u->dot), c[i].level == LV_UNK ? "○" : "●");
+        gtk_label_set_text(GTK_LABEL(u->name), c[i].name);
+        snprintf(s, sizeof s, "%s%s", c[i].level == LV_OK ? "OK: " : c[i].level == LV_WARN ? "Check: " : c[i].level == LV_BAD ? "Problem: " : "Unknown: ", c[i].text);
+        gtk_label_set_text(GTK_LABEL(u->text), s);
+        gtk_widget_set_tooltip_text(u->text, c[i].tip);
+        gtk_widget_set_tooltip_text(u->dot, c[i].tip);
+        g_object_set_data(G_OBJECT(u->btn), "item", (gpointer)c[i].item);
+    }
+    if (bad + warn == 0) snprintf(s, sizeof s, "Everything looks fine");
+    else snprintf(s, sizeof s, "%d thing%s to look at", bad + warn, bad + warn > 1 ? "s" : "");
+    gtk_label_set_text(GTK_LABEL(g_home->ov_verdict), s);
+    gtk_image_set_from_icon_name(GTK_IMAGE(g_home->ov_icon), bad ? icon_pick("dialog-error-symbolic") : warn ? icon_pick("dialog-warning-symbolic")
+                                 : icon_pick("emblem-ok-symbolic|object-select-symbolic"), GTK_ICON_SIZE_DIALOG);
+    set_level_class(g_home->ov_icon, bad ? LV_BAD : warn ? LV_WARN : LV_OK);
+    localtime_r(&now, &tm);
+    strftime(up, sizeof up, "%H:%M:%S", &tm);
+    snprintf(s, sizeof s, "Checked at %s from the sensors, the drives' SMART data and the kernel's error counters. Hover over a line for the limits.", up);
+    gtk_label_set_text(GTK_LABEL(g_home->ov_vsub), s);
+
+    fmt_uptime(up, sizeof up);
+    pn = g_get_os_info(G_OS_INFO_KEY_PRETTY_NAME);
+    {
+        const char *bd = sys_board(), *bios = strstr(bd, " BIOS ");
+        snprintf(s, sizeof s, "%.*s   ·   %s   ·   up %s", (int)(bios ? (size_t)(bios - bd) : strlen(bd)), bd, pn ? pn : "Linux", up);
+    }
+    g_free(pn);
+    gtk_label_set_text(GTK_LABEL(g_home->ov_sub), s);
+
+    for (k = 0; k < NCARD; k++) {
+        cardui *u = &g_home->card[k];
+        fact f[NFACT];
+        int n = facts_for(g_card_cats[k], f, NFACT), j;
+        double lv = -1;
+        gtk_label_set_text(GTK_LABEL(u->main), n ? f[0].val : "-");
+        gtk_widget_set_tooltip_text(u->main, n ? f[0].tip : NULL);
+        for (j = 0; j < 4; j++) {
+            int on = j + 1 < n;
+            gtk_widget_set_visible(u->k[j], on);
+            gtk_widget_set_visible(u->v[j], on);
+            if (!on) continue;
+            gtk_label_set_text(GTK_LABEL(u->k[j]), f[j + 1].cap);
+            gtk_label_set_text(GTK_LABEL(u->v[j]), f[j + 1].val);
+            gtk_widget_set_tooltip_text(u->v[j], f[j + 1].tip);
+        }
+        for (j = 0; j < n; j++) if (f[j].level >= 0) { lv = f[j].level; break; }
+        gtk_widget_set_visible(u->bar, lv >= 0);
+        if (lv >= 0) gtk_level_bar_set_value(GTK_LEVEL_BAR(u->bar), lv > 1 ? 1 : lv);
+    }
+}
+
+static void on_check_btn(GtkButton *b, gpointer d) { const char *it = g_object_get_data(G_OBJECT(b), "item"); (void)d; if (it) open_item(it); }
+
+static GtkWidget *build_overview(void)
+{
+    GtkWidget *sc = gtk_scrolled_window_new(NULL, NULL), *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 14), *h, *hb, *grid, *fb, *t;
+    int i;
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_container_set_border_width(GTK_CONTAINER(vb), 20);
+    gtk_container_add(GTK_CONTAINER(sc), vb);
+
+    h = label_cls("This PC", "srs-h1", 0);
+    gtk_box_pack_start(GTK_BOX(vb), h, FALSE, FALSE, 0);
+    g_home->ov_sub = label_cls("", "dim-label", 0);
+    gtk_label_set_ellipsize(GTK_LABEL(g_home->ov_sub), PANGO_ELLIPSIZE_END);
+    gtk_box_pack_start(GTK_BOX(vb), g_home->ov_sub, FALSE, FALSE, 0);
+
+    /* "Is my PC OK?" */
+    t = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    gtk_style_context_add_class(gtk_widget_get_style_context(t), "srs-health");
+    hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 14);
+    g_home->ov_icon = gtk_image_new();
+    gtk_widget_set_valign(g_home->ov_icon, GTK_ALIGN_CENTER);
+    gtk_box_pack_start(GTK_BOX(hb), g_home->ov_icon, FALSE, FALSE, 0);
+    {
+        GtkWidget *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        gtk_box_pack_start(GTK_BOX(v), label_cls("Is my PC OK?", "dim-label srs-cap", 0), FALSE, FALSE, 0);
+        g_home->ov_verdict = label_cls("", "srs-h2", 0);
+        gtk_box_pack_start(GTK_BOX(v), g_home->ov_verdict, FALSE, FALSE, 0);
+        g_home->ov_vsub = label_cls("", "dim-label srs-cap", 0);
+        gtk_label_set_line_wrap(GTK_LABEL(g_home->ov_vsub), TRUE);
+        gtk_box_pack_start(GTK_BOX(v), g_home->ov_vsub, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hb), v, TRUE, TRUE, 0);
+    }
+    gtk_widget_set_margin_top(hb, 10);
+    gtk_widget_set_margin_bottom(hb, 6);
+    gtk_box_pack_start(GTK_BOX(t), hb, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(t), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 2);
+    grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 12);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 2);
+    for (i = 0; i < NCHECK; i++) {
+        checkui *u = &g_home->ck[i];
+        u->dot = label_cls("○", "srs-dot srs-unk", 0.5);
+        u->name = label_cls("", "srs-val", 0);
+        u->text = label_cls("", NULL, 0);
+        gtk_label_set_line_wrap(GTK_LABEL(u->text), TRUE);
+        gtk_widget_set_hexpand(u->text, TRUE);
+        u->btn = gtk_button_new_with_label("Details");
+        gtk_button_set_relief(GTK_BUTTON(u->btn), GTK_RELIEF_NONE);
+        gtk_widget_set_tooltip_text(u->btn, "Show the full readings this line is based on");
+        g_signal_connect(u->btn, "clicked", G_CALLBACK(on_check_btn), NULL);
+        gtk_widget_set_no_show_all(u->dot, TRUE);
+        gtk_widget_set_no_show_all(u->name, TRUE);
+        gtk_widget_set_no_show_all(u->text, TRUE);
+        gtk_widget_set_no_show_all(u->btn, TRUE);
+        gtk_grid_attach(GTK_GRID(grid), u->dot, 0, i, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), u->name, 1, i, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), u->text, 2, i, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), u->btn, 3, i, 1, 1);
+    }
+    gtk_box_pack_start(GTK_BOX(t), grid, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), t, FALSE, FALSE, 0);
+
+    /* key facts: one card per category */
+    gtk_box_pack_start(GTK_BOX(vb), label_cls("At a glance", "srs-h2", 0), FALSE, FALSE, 4);
+    fb = gtk_flow_box_new();
+    gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(fb), GTK_SELECTION_NONE);
+    gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(fb), TRUE);
+    gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(fb), 1);
+    gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(fb), 3);
+    gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), 12);
+    gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(fb), 12);
+    for (i = 0; i < NCARD; i++) {
+        cardui *u = &g_home->card[i];
+        int c = g_card_cats[i], j;
+        GtkWidget *card = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6), *head = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8), *g2, *b;
+        char lab[100];
+        gtk_style_context_add_class(gtk_widget_get_style_context(card), "srs-card");
+        gtk_widget_set_size_request(card, 300, -1);
+        gtk_box_pack_start(GTK_BOX(head), gtk_image_new_from_icon_name(icon_pick(g_cats[c].icons), GTK_ICON_SIZE_LARGE_TOOLBAR), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(head), label_cls(g_cats[c].title, "dim-label", 0), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(card), head, FALSE, FALSE, 0);
+        u->main = label_cls("", "srs-big", 0);
+        gtk_label_set_line_wrap(GTK_LABEL(u->main), TRUE);
+        gtk_label_set_lines(GTK_LABEL(u->main), 2);
+        gtk_label_set_ellipsize(GTK_LABEL(u->main), PANGO_ELLIPSIZE_END);
+        gtk_label_set_max_width_chars(GTK_LABEL(u->main), 30);
+        gtk_box_pack_start(GTK_BOX(card), u->main, FALSE, FALSE, 0);
+        g2 = gtk_grid_new();
+        gtk_grid_set_column_spacing(GTK_GRID(g2), 12);
+        gtk_grid_set_row_spacing(GTK_GRID(g2), 3);
+        for (j = 0; j < 4; j++) {
+            u->k[j] = label_cls("", "dim-label", 0);
+            u->v[j] = label_cls("", NULL, 0);
+            gtk_label_set_ellipsize(GTK_LABEL(u->v[j]), PANGO_ELLIPSIZE_END);
+            gtk_label_set_max_width_chars(GTK_LABEL(u->v[j]), 24);
+            gtk_widget_set_hexpand(u->v[j], TRUE);
+            gtk_widget_set_no_show_all(u->k[j], TRUE);
+            gtk_widget_set_no_show_all(u->v[j], TRUE);
+            gtk_grid_attach(GTK_GRID(g2), u->k[j], 0, j, 1, 1);
+            gtk_grid_attach(GTK_GRID(g2), u->v[j], 1, j, 1, 1);
+        }
+        gtk_box_pack_start(GTK_BOX(card), g2, FALSE, FALSE, 0);
+        u->bar = gtk_level_bar_new_for_interval(0, 1);
+        gtk_level_bar_add_offset_value(GTK_LEVEL_BAR(u->bar), GTK_LEVEL_BAR_OFFSET_LOW, 0.9);
+        gtk_level_bar_add_offset_value(GTK_LEVEL_BAR(u->bar), GTK_LEVEL_BAR_OFFSET_HIGH, 0.97);
+        gtk_level_bar_set_inverted(GTK_LEVEL_BAR(u->bar), FALSE);
+        gtk_widget_set_no_show_all(u->bar, TRUE);
+        gtk_box_pack_start(GTK_BOX(card), u->bar, FALSE, FALSE, 2);
+        snprintf(lab, sizeof lab, "%s details", g_cats[c].title);
+        b = gtk_button_new_with_label(lab);
+        gtk_widget_set_halign(b, GTK_ALIGN_START);
+        snprintf(lab, sizeof lab, "Open the %s page: every detail, live readings and the expert items", g_cats[c].title);
+        gtk_widget_set_tooltip_text(b, lab);
+        g_signal_connect(b, "clicked", G_CALLBACK(on_go_cat), GINT_TO_POINTER(c));
+        gtk_box_pack_end(GTK_BOX(card), b, FALSE, FALSE, 0);
+        gtk_flow_box_insert(GTK_FLOW_BOX(fb), card, -1);
+        gtk_widget_set_can_focus(gtk_widget_get_parent(card), FALSE);
+    }
+    gtk_box_pack_start(GTK_BOX(vb), fb, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), label_cls("Everything else is on the pages on the left, and in the search box at the top. "
+                       "Menu > Classic view opens the SIV-style windows.", "dim-label srs-cap", 0), FALSE, FALSE, 0);
+    return sc;
+}
+
+/* a launcher card on the Benchmarks and Tools pages: opens an existing tool window (nothing starts by itself) */
+/* a launcher row on the Benchmarks and Tools pages: opens an existing tool window (nothing starts by itself) */
+static GtkWidget *launcher(const char *title, const char *text, const char *note, const char *btn, const char *target, const char *tip)
+{
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16), *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2), *l, *b;
+    gtk_widget_set_margin_top(row, 8);
+    gtk_widget_set_margin_bottom(row, 8);
+    gtk_box_pack_start(GTK_BOX(v), label_cls(title, "srs-val", 0), FALSE, FALSE, 0);
+    l = label_cls(text, NULL, 0);
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
+    if (note) {
+        l = label_cls(note, "dim-label srs-cap", 0);
+        gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+        gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(row), v, TRUE, TRUE, 0);
+    b = gtk_button_new_with_mnemonic(btn);
+    gtk_widget_set_valign(b, GTK_ALIGN_CENTER);
+    gtk_widget_set_size_request(b, 130, -1);
+    gtk_widget_set_tooltip_text(b, tip);
+    g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)target);
+    gtk_box_pack_end(GTK_BOX(row), b, FALSE, FALSE, 0);
+    return row;
+}
+
+/* launcher rows, two columns, separated by lines */
+static void grid_add3(GtkWidget *grid, GtkWidget *w)
+{
+    int n = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(grid), "n"));
+    gtk_widget_set_hexpand(w, TRUE);
+    if (n >= 2) gtk_grid_attach(GTK_GRID(grid), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), n % 2, (n / 2) * 2 - 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), w, n % 2, (n / 2) * 2, 1, 1);
+    g_object_set_data(G_OBJECT(grid), "n", GINT_TO_POINTER(n + 1));
+}
+
+static gint item_title_cmp(gconstpointer a, gconstpointer b)
+{
+    const srs_item *x = *(const srs_item *const *)a, *y = *(const srs_item *const *)b;
+    return g_ascii_strcasecmp(x->title, y->title);
+}
+
+/* show a menu's items (not the menu: showing it outside a popup maps an empty window) */
+static void menu_show_items(GtkWidget *m);
+static void menu_show_one(GtkWidget *it, gpointer d)
+{
+    GtkWidget *sub = GTK_IS_MENU_ITEM(it) ? gtk_menu_item_get_submenu(GTK_MENU_ITEM(it)) : NULL;
+    (void)d;
+    gtk_widget_show(it);
+    if (sub) menu_show_items(sub);
+}
+static void menu_show_items(GtkWidget *m) { gtk_container_foreach(GTK_CONTAINER(m), menu_show_one, NULL); }
+
+/* "All items": every item of the category (expert ones included), alphabetical */
+static GtkWidget *more_menu(int cat, int *count)
+{
+    GtkWidget *m = gtk_menu_new();
+    GPtrArray *v = g_ptr_array_new();
+    int i, n = srs_section_count();
+    guint k;
+    for (i = 0; i < n; i++) {
+        const srs_item *s = srs_section_at(i);
+        if (s && s->id && cat_of_id(s->id) == cat) g_ptr_array_add(v, (gpointer)s);
+    }
+    g_ptr_array_sort(v, item_title_cmp);
+    if (cat == CAT_CPU) {   /* SIV's CPU-n / Cache-n buttons: one entry per logical CPU */
+        static const char *const what[] = { "processor", "cache" };
+        static const char *const lab[] = { "_Each CPU (Processor CPU-n)", "Cache levels of _each CPU (Cache-n)" };
+        int w2;
+        for (w2 = 0; w2 < 2; w2++) {
+            GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic(lab[w2]);
+            int c;
+            for (c = 0; c < burn_ncpu(); c++) {
+                char id[40], l[40];
+                GtkWidget *it;
+                snprintf(id, sizeof id, "%s:%d", what[w2], c);
+                snprintf(l, sizeof l, "CPU-%d", c);
+                it = gtk_menu_item_new_with_label(l);
+                g_signal_connect_data(it, "activate", G_CALLBACK(on_more_item), g_strdup(id), (GClosureNotify)(void (*)(void))g_free, 0);
+                gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
+            }
+            gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
+            gtk_menu_shell_append(GTK_MENU_SHELL(m), top);
+        }
+        gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    }
+    for (k = 0; k < v->len; k++) {
+        const srs_item *s = g_ptr_array_index(v, k);
+        char lab[240];
+        GtkWidget *it;
+        snprintf(lab, sizeof lab, "%s  [%s]%s", s->title, s->id,
+                 s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
+        it = gtk_menu_item_new_with_label(lab);
+        g_signal_connect(it, "activate", G_CALLBACK(on_more_item), (gpointer)s->id);
+        gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
+    }
+    *count = (int)v->len;
+    g_ptr_array_free(v, TRUE);
+    menu_show_items(m);
+    return m;
+}
+
+static GtkWidget *build_cat_page(int cat)
+{
+    const catdef *d = &g_cats[cat];
+    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb, *mb, *bx;
+    char s[200];
+    int i, cnt = 0;
+    gtk_widget_set_margin_start(head, 20);
+    gtk_widget_set_margin_end(head, 20);
+    gtk_widget_set_margin_top(head, 16);
+    gtk_widget_set_margin_bottom(head, 12);
+    tr = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+    img = gtk_image_new_from_icon_name(icon_pick(d->icons), GTK_ICON_SIZE_DND);
+    gtk_box_pack_start(GTK_BOX(tr), img, FALSE, FALSE, 0);
+    {
+        GtkWidget *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        gtk_box_pack_start(GTK_BOX(v), label_cls(d->title, "srs-h1", 0), FALSE, FALSE, 0);
+        l = label_cls(d->blurb, "dim-label", 0);
+        gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+        gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(tr), v, TRUE, TRUE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(head), tr, FALSE, FALSE, 0);
+    if (cat != CAT_BENCH && cat != CAT_TOOLS) {
+        factsui *u = &g_home->facts[cat];
+        u->box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+        gtk_box_pack_start(GTK_BOX(head), u->box, FALSE, FALSE, 0);
+    } else {
+        GtkWidget *fb = gtk_grid_new();   /* launcher rows in a framed box */
+        gtk_grid_set_column_homogeneous(GTK_GRID(fb), TRUE);
+        gtk_grid_set_column_spacing(GTK_GRID(fb), 32);
+        gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
+        if (cat == CAT_BENCH) {
+            grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
+                "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run."));
+            grid_add3(fb, launcher("CPU IPI Delay", "How long the cores take to hand data to each other (core-to-core latency), as a table and heat map.",
+                "Busy for a few seconds while it measures.", "_IPI Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run."));
+            grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
+                "Busy for a few seconds while it measures.", "_Latency...", "lat", "Open the Latency window. Nothing runs until you press Run."));
+            grid_add3(fb, launcher("CPU Burnin", "Burn and cool cycles with a Pass or Fail at the end: tests cooling and stability.",
+                "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit (90 °C by default).",
+                "B_urnin...", "burn", "Open the CPU Burnin window. Nothing starts until you press Start and confirm."));
+            grid_add3(fb, launcher("CPU Stress", "Keeps the chosen CPUs busy until you press Stop, while showing clocks and temperatures.",
+                "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit.",
+                "_Stress...", "stress", "Open the CPU Stress window. Nothing starts until you press Start and confirm."));
+        } else {
+            grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
+                "Ctrl+L. Also: double-click a device line on any page.", "_Lookup...", "idlookup", "Open the Device ID Lookup window"));
+            grid_add3(fb, launcher("Find in a system report", "Search every section of a full text report made by SRS Full System Report (srs-sysreport).",
+                "Ctrl+Shift+F", "_Find...", "find", "Open the Find window"));
+            grid_add3(fb, launcher("Save a report", "Write this PC's details to a text file, in SIV's report format.",
+                "Options > Redact hides serial numbers, UUIDs, MACs and the computer name in saved reports.", "_Save...", "save",
+                "Save SRS's default set of items (Ctrl+S). Menu > Save All Items saves every item."));
+            grid_add3(fb, launcher("Collect root data", "Memory stick details, drive health and serial numbers need administrator rights.",
+                "One password prompt. Read-only; the results are cached in ~/.cache/srs/root.", "Run as r_oot...", "root", "Run srs-root with pkexec"));
+            grid_add3(fb, launcher("Classic view", "The SIV-style main window with its button rows, every item in its own window.",
+                "Menu > Options > Start in classic view makes it the default.", "O_pen...", "classic", "Open the classic main window"));
+        }
+        gtk_box_pack_start(GTK_BOX(head), fb, FALSE, FALSE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
+
+    nb = gtk_notebook_new();
+    g_home->nb[cat] = nb;
+    gtk_style_context_add_class(gtk_widget_get_style_context(nb), "srs-nb");
+    gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
+    gtk_notebook_set_show_border(GTK_NOTEBOOK(nb), FALSE);
+    bx = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    mb = gtk_menu_button_new();
+    gtk_menu_button_set_popup(GTK_MENU_BUTTON(mb), more_menu(cat, &cnt));
+    snprintf(s, sizeof s, "All %d items", cnt);
+    gtk_box_pack_start(GTK_BOX(bx), gtk_label_new(s), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(bx), gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_BUTTON), FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(mb), bx);
+    gtk_button_set_relief(GTK_BUTTON(mb), GTK_RELIEF_NONE);
+    snprintf(s, sizeof s, "Every SRS item in %s, the expert ones too (opens as a new tab)", d->title);
+    gtk_widget_set_tooltip_text(mb, s);
+    gtk_widget_show_all(mb);
+    gtk_notebook_set_action_widget(GTK_NOTEBOOK(nb), mb, GTK_PACK_END);
+    for (i = 0; d->tabs[i]; i++) tab_add(cat, d->tabs[i], 0);
+    gtk_box_pack_start(GTK_BOX(vb), nb, TRUE, TRUE, 0);
+    return vb;
+}
+
+/* ---- search: item names / ids (jump), else text in the current tab (F3 = next) ---- */
+static void view_find(swin *t, const char *needle, int dir)
+{
+    GtkTextIter s, e, a, b, cur;
+    int n = 0;
+    char msg[300];
+    if (!t || !t->buf || !*needle) return;
+    gtk_text_buffer_get_bounds(t->buf, &s, &e);
+    gtk_text_buffer_remove_tag_by_name(t->buf, "hl", &s, &e);
+    a = s;
+    while (gtk_text_iter_forward_search(&a, needle, GTK_TEXT_SEARCH_CASE_INSENSITIVE, &a, &b, NULL)) {
+        gtk_text_buffer_apply_tag_by_name(t->buf, "hl", &a, &b);
+        a = b;
+        n++;
+    }
+    if (!n) {
+        snprintf(msg, sizeof msg, "No \"%s\" on this tab", needle);
+        home_subtitle(msg);
+        gtk_widget_error_bell(t->win);
+        return;
+    }
+    gtk_text_buffer_get_iter_at_mark(t->buf, &cur, gtk_text_buffer_get_insert(t->buf));
+    if (dir > 0) {
+        if (!gtk_text_iter_forward_search(&cur, needle, GTK_TEXT_SEARCH_CASE_INSENSITIVE, &a, &b, NULL))
+            gtk_text_iter_forward_search(&s, needle, GTK_TEXT_SEARCH_CASE_INSENSITIVE, &a, &b, NULL);
+    } else {
+        GtkTextIter sb, se;
+        if (gtk_text_buffer_get_selection_bounds(t->buf, &sb, &se)) cur = sb;
+        if (!gtk_text_iter_backward_search(&cur, needle, GTK_TEXT_SEARCH_CASE_INSENSITIVE, &a, &b, NULL))
+            gtk_text_iter_backward_search(&e, needle, GTK_TEXT_SEARCH_CASE_INSENSITIVE, &a, &b, NULL);
+    }
+    gtk_text_buffer_select_range(t->buf, &b, &a);
+    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(t->view), &a, 0.1, FALSE, 0, 0);
+    snprintf(msg, sizeof msg, "%d match%s for \"%s\" on this tab (F3 next, Shift+F3 previous)", n, n == 1 ? "" : "es", needle);
+    home_subtitle(msg);
+}
+
+static gboolean on_match(GtkEntryCompletion *c, GtkTreeModel *m, GtkTreeIter *it, gpointer d)
+{
+    char *id = NULL;
+    (void)c; (void)d;
+    gtk_tree_model_get(m, it, 1, &id, -1);
+    if (id) {
+        if (id[0] == '@') home_go(atoi(id + 1));
+        else open_item(id);
+        g_free(id);
+    }
+    gtk_entry_set_text(GTK_ENTRY(g_home->search), "");
+    return TRUE;
+}
+
+static gboolean match_func(GtkEntryCompletion *c, const char *key, GtkTreeIter *it, gpointer d)
+{
+    char *hay = NULL, **w, **p, *low;
+    gboolean ok = TRUE;
+    (void)d;
+    gtk_tree_model_get(gtk_entry_completion_get_model(c), it, 2, &hay, -1);
+    low = g_utf8_strdown(gtk_entry_get_text(GTK_ENTRY(gtk_entry_completion_get_entry(c))), -1);
+    (void)key;
+    w = g_strsplit(low, " ", -1);
+    for (p = w; *p; p++) if (**p && (!hay || !strstr(hay, *p))) { ok = FALSE; break; }
+    g_strfreev(w);
+    g_free(low);
+    g_free(hay);
+    return ok;
+}
+
+static void on_search_activate(GtkEntry *e, gpointer d)
+{
+    const char *t = gtk_entry_get_text(e);
+    int c;
+    (void)d;
+    if (!*t) return;
+    if (srs_section_find(t) && !strchr(t, ' ')) { open_item(t); gtk_entry_set_text(e, ""); return; }
+    for (c = 0; c < CAT_N; c++) if (!g_ascii_strcasecmp(t, g_cats[c].title)) { home_go(c); gtk_entry_set_text(e, ""); return; }
+    if (home_cur_tab()) view_find(home_cur_tab(), t, +1);
+    else home_subtitle("Open a page on the left to search its text, or pick an item from the list while you type");
+}
+
+static void on_search_stop(GtkSearchEntry *e, gpointer d)
+{
+    swin *t = home_cur_tab();
+    (void)d;
+    gtk_entry_set_text(GTK_ENTRY(e), "");
+    if (t && t->buf) {
+        GtkTextIter s, x;
+        gtk_text_buffer_get_bounds(t->buf, &s, &x);
+        gtk_text_buffer_remove_tag_by_name(t->buf, "hl", &s, &x);
+        gtk_widget_grab_focus(t->view);
+    }
+    home_subtitle(NULL);
+}
+
+static GtkWidget *build_search(void)
+{
+    GtkWidget *e = gtk_search_entry_new();
+    GtkEntryCompletion *comp = gtk_entry_completion_new();
+    GtkListStore *ls = gtk_list_store_new(3, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+    GtkCellRenderer *r = gtk_cell_renderer_text_new();
+    GtkTreeIter it;
+    int i, n = srs_section_count();
+    for (i = 0; i < CAT_N; i++) {
+        char id[16], *mk = g_markup_printf_escaped("<b>%s</b>  <small>page</small>", g_cats[i].title), *hay = g_utf8_strdown(g_cats[i].title, -1);
+        snprintf(id, sizeof id, "@%d", i);
+        gtk_list_store_insert_with_values(ls, &it, -1, 0, mk, 1, id, 2, hay, -1);
+        g_free(mk);
+        g_free(hay);
+    }
+    for (i = 0; i < n; i++) {
+        const srs_item *s = srs_section_at(i);
+        char *mk, *h1, *hay;
+        if (!s || !s->id) continue;
+        mk = g_markup_printf_escaped("%s  <small>[%s]  %s%s</small>", s->title, s->id, g_cats[cat_of_id(s->id)].title,
+                                     s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
+        h1 = g_strdup_printf("%s %s %s", s->title, s->id, g_cats[cat_of_id(s->id)].title);
+        hay = g_utf8_strdown(h1, -1);
+        gtk_list_store_insert_with_values(ls, &it, -1, 0, mk, 1, s->id, 2, hay, -1);
+        g_free(mk);
+        g_free(h1);
+        g_free(hay);
+    }
+    gtk_entry_completion_set_model(comp, GTK_TREE_MODEL(ls));
+    g_object_unref(ls);
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(comp), r, TRUE);
+    gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(comp), r, "markup", 0);
+    gtk_entry_completion_set_match_func(comp, match_func, NULL, NULL);
+    gtk_entry_completion_set_minimum_key_length(comp, 2);
+    gtk_entry_completion_set_popup_single_match(comp, TRUE);
+    g_signal_connect(comp, "match-selected", G_CALLBACK(on_match), NULL);
+    gtk_entry_set_completion(GTK_ENTRY(e), comp);
+    g_object_unref(comp);
+    gtk_entry_set_width_chars(GTK_ENTRY(e), 34);
+    gtk_entry_set_placeholder_text(GTK_ENTRY(e), "Search items, or text on this page");
+    gtk_widget_set_tooltip_text(e, "Type a name like \"temperature\", \"SMART\" or \"BIOS\" and pick an item from the list (Ctrl+F). "
+                                   "Press Enter to find the text on the current tab instead; F3 finds the next one. "
+                                   "Item ids work too, with an argument: processor:3, volumes:/");
+    g_signal_connect(e, "activate", G_CALLBACK(on_search_activate), NULL);
+    g_signal_connect(e, "stop-search", G_CALLBACK(on_search_stop), NULL);
+    return e;
+}
+
+/* ---- header menu ---- */
+static void on_hmenu(GtkMenuItem *mi, gpointer d)
+{
+    const char *t = d;
+    swin *tab = home_cur_tab();
+    (void)mi;
+    if (!strcmp(t, "copy")) { if (tab) copy_all(tab); }
+    else if (!strcmp(t, "quit")) { if (g_main) gtk_widget_destroy(g_main->win); }
+    else if (!strcmp(t, "about")) open_item("about");
+    else if (!strcmp(t, "guide")) open_guide(tab);
+    else on_launch(NULL, (gpointer)t);
+}
+
+static GtkWidget *hmenu_add(GtkWidget *m, const char *label, const char *act, guint key, GdkModifierType mods)
+{
+    GtkWidget *it = gtk_menu_item_new_with_mnemonic(label);
+    if (key) gtk_accel_label_set_accel(GTK_ACCEL_LABEL(gtk_bin_get_child(GTK_BIN(it))), key, mods);
+    if (act) g_signal_connect(it, "activate", G_CALLBACK(on_hmenu), (gpointer)act);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
+    return it;
+}
+
+static void on_menu_btn(GtkButton *b, gpointer d)
+{
+    GtkWidget *m = gtk_menu_new(), *sub, *it;
+    (void)d;
+    hmenu_add(m, "Save _Report...", "save", GDK_KEY_s, GDK_CONTROL_MASK);
+    hmenu_add(m, "Save _All Items...", "saveall", 0, 0);
+    gtk_widget_set_sensitive(hmenu_add(m, "_Copy This Tab", "copy", 0, 0), home_cur_tab() != NULL);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    sub = gtk_menu_new();
+    build_options(sub);
+    it = hmenu_add(m, "_Options", NULL, 0, 0);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
+    hmenu_add(m, "Run as r_oot (srs-root)...", "root", 0, 0);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    hmenu_add(m, "_Find in System Report...", "find", GDK_KEY_f, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
+    hmenu_add(m, "Device _ID Lookup...", "idlookup", GDK_KEY_l, GDK_CONTROL_MASK);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    hmenu_add(m, "Classic _View (SIV-style windows)", "classic", 0, 0);
+    sub = gtk_menu_new();
+    build_menu(sub);
+    it = hmenu_add(m, "Classic _Menu (every item and tool)", NULL, 0, 0);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    hmenu_add(m, "User _Guide", "guide", GDK_KEY_F1, 0);
+    hmenu_add(m, "_About SRS", "about", 0, 0);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
+    hmenu_add(m, "_Quit", "quit", GDK_KEY_q, GDK_CONTROL_MASK);
+    gtk_widget_show_all(m);
+    gtk_menu_popup_at_widget(GTK_MENU(m), GTK_WIDGET(b), GDK_GRAVITY_SOUTH_EAST, GDK_GRAVITY_NORTH_EAST, NULL);
+}
+
+/* ---- refresh, keys, lifetime ---- */
+static void home_refresh_data(void)
+{
+    swin *t;
+    if (!g_home) return;
+    cap_flush();
+    hs_update();
+    if (g_home->cur == CAT_OVERVIEW) ov_update(); else facts_update(g_home->cur);
+    if ((t = home_cur_tab())) render(t);
+}
+
+static void on_refresh_btn(GtkButton *b, gpointer d) { (void)b; (void)d; home_refresh_data(); }
+
+static gboolean home_tick(gpointer d)
+{
+    (void)d;
+    if (!g_home || g_update_ms < 0 || !gtk_widget_get_visible(g_home->w->win)) return G_SOURCE_CONTINUE;
+    hs_update();
+    if (g_home->cur == CAT_OVERVIEW) ov_update(); else facts_update(g_home->cur);
+    return G_SOURCE_CONTINUE;
+}
+
+static int home_key(swin *w, GdkEventKey *ev)
+{
+    int ctrl = (ev->state & GDK_CONTROL_MASK) != 0, shift = (ev->state & GDK_SHIFT_MASK) != 0, alt = (ev->state & GDK_MOD1_MASK) != 0;
+    swin *t = home_cur_tab();
+    guint k = gdk_keyval_to_lower(ev->keyval);
+    if (alt && !ctrl && k >= GDK_KEY_0 && k <= GDK_KEY_9) { home_go(k == GDK_KEY_0 ? 9 : (int)(k - GDK_KEY_1)); return TRUE; }
+    if (alt && !ctrl && (k == GDK_KEY_minus || k == GDK_KEY_equal)) { home_go(k == GDK_KEY_minus ? 10 : 11); return TRUE; }
+    switch (ev->keyval) {
+    case GDK_KEY_F1: if (shift) open_item("help"); else open_guide(t ? t : NULL); return TRUE;
+    case GDK_KEY_F5: home_refresh_data(); return TRUE;
+    case GDK_KEY_F3:
+        if (t && *gtk_entry_get_text(GTK_ENTRY(g_home->search))) view_find(t, gtk_entry_get_text(GTK_ENTRY(g_home->search)), shift ? -1 : 1);
+        return TRUE;
+    default: break;
+    }
+    if (ctrl) {
+        switch (k) {
+        case GDK_KEY_f:
+            if (shift) open_tool(W_FIND, 0);
+            else { gtk_widget_grab_focus(g_home->search); gtk_editable_select_region(GTK_EDITABLE(g_home->search), 0, -1); }
+            return TRUE;
+        case GDK_KEY_l: open_tool(W_IDLOOKUP, 0); return TRUE;
+        case GDK_KEY_s: save_dialog(0); return TRUE;
+        case GDK_KEY_q: gtk_widget_destroy(w->win); return TRUE;
+        case GDK_KEY_m: on_menu_btn(GTK_BUTTON(g_home->menubtn), NULL); return TRUE;
+        case GDK_KEY_d: open_item("all-dev"); return TRUE;
+        case GDK_KEY_h: toggle_highlight(); return TRUE;
+        case GDK_KEY_w: if (t && !is_curated(t->cat, t->id)) gtk_widget_destroy(t->page); return TRUE;
+        default: break;
+        }
+    }
+    return FALSE;
+}
+
+static void home_destroyed(swin *w)
+{
+    int i;
+    (void)w;
+    if (!g_home) return;
+    if (g_home->tick) g_source_remove(g_home->tick);
+    for (i = 0; i < 24; i++) { cap_free(g_cc[i].c); g_cc[i].c = NULL; g_cc[i].id[0] = 0; }
+    g_free(g_home);
+    g_home = NULL;
+    g_home_open = 0;
+    load_css();
+}
+
+static void home_open(int as_main)
+{
+    swin *w;
+    GtkWidget *hb, *paned, *side, *sw, *lb, *b, *box;
+    int c;
+    if (g_home) { gtk_window_present(GTK_WINDOW(g_home->w->win)); return; }
+    g_home = g_new0(home_t, 1);
+    g_home_open = 1;
+    load_css();
+    w = g_new0(swin, 1);
+    w->kind = W_HOME;
+    w->is_main = as_main;
+    snprintf(w->id, sizeof w->id, "overview");
+    g_home->w = w;
+    if (as_main) g_main = w;
+    make_window(w, "SRS System Information", 1240, 800);
+    gtk_style_context_remove_class(gtk_widget_get_style_context(w->win), "siv");
+    gtk_style_context_add_class(gtk_widget_get_style_context(w->win), "srs-main");
+    gtk_window_set_transient_for(GTK_WINDOW(w->win), NULL);
+    hs_update();
+
+    hb = gtk_header_bar_new();
+    g_home->hb = hb;
+    gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(hb), TRUE);
+    gtk_header_bar_set_title(GTK_HEADER_BAR(hb), "SRS System Information");
+    b = gtk_button_new_from_icon_name("open-menu-symbolic", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_set_tooltip_text(b, "Menu: save a report, options, run as root, classic view, guide (Ctrl+M)");
+    g_signal_connect(b, "clicked", G_CALLBACK(on_menu_btn), NULL);
+    g_home->menubtn = b;
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), b);
+    g_home->search = build_search();
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), g_home->search);
+    b = gtk_button_new_from_icon_name("view-refresh-symbolic", GTK_ICON_SIZE_BUTTON);
+    gtk_widget_set_tooltip_text(b, "Read everything on this page again (F5)");
+    g_signal_connect(b, "clicked", G_CALLBACK(on_refresh_btn), NULL);
+    gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), b);
+    gtk_window_set_titlebar(GTK_WINDOW(w->win), hb);
+
+    paned = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    side = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(side), "srs-side");
+    gtk_style_context_add_class(gtk_widget_get_style_context(side), "sidebar");
+    sw = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    lb = gtk_list_box_new();
+    g_home->side = lb;
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(lb), GTK_SELECTION_BROWSE);
+    for (c = 0; c < CAT_N; c++) {
+        GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        char tip[300];
+        gtk_box_pack_start(GTK_BOX(row), gtk_image_new_from_icon_name(icon_pick(g_cats[c].icons), GTK_ICON_SIZE_MENU), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), label_cls(g_cats[c].title, NULL, 0), FALSE, FALSE, 0);
+        static const char *const keyname[CAT_N] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=" };
+        snprintf(tip, sizeof tip, "%s\n(Alt+%s)", g_cats[c].blurb, keyname[c]);
+        gtk_widget_set_tooltip_text(row, tip);
+        gtk_list_box_insert(GTK_LIST_BOX(lb), row, -1);
+    }
+    g_signal_connect(lb, "row-selected", G_CALLBACK(on_side_row), NULL);
+    gtk_container_add(GTK_CONTAINER(sw), lb);
+    gtk_box_pack_start(GTK_BOX(side), sw, TRUE, TRUE, 0);
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 10);
+    b = gtk_button_new_with_mnemonic("Classic _view");
+    gtk_widget_set_tooltip_text(b, "The SIV-style main window and panels, with every button row (Menu > Classic view)");
+    g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)"classic");
+    gtk_box_pack_start(GTK_BOX(box), b, FALSE, FALSE, 0);
+    {
+        char v[64];
+        snprintf(v, sizeof v, "SRS %s", SRS_VERSION);
+        gtk_box_pack_start(GTK_BOX(box), label_cls(v, "dim-label srs-cap", 0.5), FALSE, FALSE, 2);
+    }
+    gtk_box_pack_end(GTK_BOX(side), box, FALSE, FALSE, 0);
+    gtk_widget_set_size_request(side, 230, -1);
+    gtk_box_pack_start(GTK_BOX(paned), side, FALSE, FALSE, 0);
+
+    g_home->stack = gtk_stack_new();
+    gtk_stack_set_transition_type(GTK_STACK(g_home->stack), GTK_STACK_TRANSITION_TYPE_NONE);
+    gtk_stack_add_named(GTK_STACK(g_home->stack), build_overview(), g_cats[CAT_OVERVIEW].name);
+    for (c = 1; c < CAT_N; c++) gtk_stack_add_named(GTK_STACK(g_home->stack), build_cat_page(c), g_cats[c].name);
+    gtk_box_pack_start(GTK_BOX(paned), g_home->stack, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(w->win), paned);
+    if (as_main) {
+        g_signal_connect(w->win, "delete-event", G_CALLBACK(on_main_delete), NULL);
+        g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
+    }
+    gtk_widget_show_all(w->win);
+    home_go(CAT_OVERVIEW);
+    ov_update();
+    gtk_widget_grab_focus(lb);
+    g_home->tick = g_timeout_add(3000, home_tick, NULL);
+}
+
 int main(int argc, char **argv)
 {
     const char *autop;
@@ -2084,6 +3855,15 @@ int main(int argc, char **argv)
     g_unsetenv("GTK_THEME");
     gtk_init(&argc, &argv);
     settings_load();
+    {   /* which main window: the new one, or the classic SIV-style one (--gui-classic / Options) */
+        int i;
+        g_classic_session = g_opt_classic;
+        for (i = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "--gui-classic")) g_classic_session = 1;
+            else if (!strcmp(argv[i], "--gui-new")) g_classic_session = 0;
+        }
+    }
+    if (!g_theme_set) g_theme = g_classic_session ? TH_LIGHT : TH_SYSTEM;   /* no Theme= yet: classic stays light, new follows the desktop */
     theme_apply();
     {
         char *icon = g_build_filename(g_get_user_data_dir(), "icons", "hicolor", "256x256", "apps", "srs.png", NULL);
@@ -2094,7 +3874,7 @@ int main(int argc, char **argv)
     {
         int i, start_hidden = g_opt_start_tray;
         for (i = 1; i < argc; i++) if (!strcmp(argv[i], "--gui-tray")) { start_hidden = 1; g_opt_tray = 1; }   /* autostart */
-        open_main();
+        if (g_classic_session) open_main(1); else home_open(1);
         tray_apply();
         if (start_hidden) srs_hide_all();   /* only hides when a tray icon really exists */
     }
@@ -2115,7 +3895,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
             else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);
-            else open_section(t);
+            else open_item(t);
         }
     }
     gtk_main();

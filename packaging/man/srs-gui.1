@@ -1,9 +1,9 @@
-.TH SRS-GUI 1 "October 2026" "srs-sysinfo 1.1.0" "User Commands"
+.TH SRS-GUI 1 "October 2026" "srs-sysinfo 1.2.0" "User Commands"
 .SH NAME
 srs-gui \- SRS system information viewer (GTK 3)
 .SH SYNOPSIS
 .B srs-gui
-[\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR]
+[\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR] [\fB\-\-gui\-classic\fR | \fB\-\-gui\-new\fR]
 .br
 .B srs-gui
 \fB\-\-help\fR | \fB\-\-version\fR
@@ -27,6 +27,13 @@ Open the named panels at start, for example
 .TP
 .B \-\-gui\-tray
 start in the system tray.
+.TP
+.B \-\-gui\-classic
+start in the classic view: the SIV-style main window with its button row, every item in its own panel.
+.TP
+.B \-\-gui\-new
+start in the main window with the sidebar (Overview and one page per category), even when
+"Start in classic view" is set in the options.
 .TP
 .BR \-\-help ", " \-\-version
 Print the command-line help or the version and exit (these are shared with

@@ -44,7 +44,7 @@ sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
 
-srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray]
+srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
 srs-sysreport
 ```
@@ -377,9 +377,11 @@ block size, nanoseconds per read and the cache level. See
 
 | Option | What it does |
 |---|---|
-| (none) | Open the main window. |
-| `--gui-open=WHAT[,WHAT...]` | Also open these panels or tools at start. |
+| (none) | Open the main window (the window with the sidebar, or the classic one when **Options -> Start in classic view** is on). |
+| `--gui-open=WHAT[,WHAT...]` | Also open these panels or tools at start. In the main window an item opens on its page (for example `sensors` on the Sensors page); in the classic view it opens as its own panel. |
 | `--gui-tray` | Start hidden in the system tray (used by the autostart entry). |
+| `--gui-classic` | Start in the classic view: SIV's main window with its button row, every item in its own panel (as in SRS 1.1). |
+| `--gui-new` | Start in the main window with the sidebar, even when **Start in classic view** is on. |
 | any other argument | Run as the command line (`srs-gui -save` = `sysreport-search -save`). |
 
 `WHAT` can be any item id from `--list` (e.g. `sensors`, `processors`, `pci-bus`, `processor:4`),
@@ -401,7 +403,7 @@ The environment variable `SRS_OPEN=sensors,burnin` does the same.
 
 The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
-`burnin`, `stress`, `bench`, `idlookup`, `find`.
+`burnin`, `stress`, `bench`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
 
 ---
 
