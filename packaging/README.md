@@ -136,9 +136,10 @@ How it is made:
    GTK use X11 (XWayland on Wayland desktops) unless `GDK_BACKEND` is set.
    Not bundled on purpose: the optional libraries the benchmarks load at run time
    with `dlopen` - zlib, zstd, lz4 and xz/liblzma (Everyday Work), libcurl
-   (the Network benchmark's internet test) and the Vulkan loader (the GPU
-   benchmarks; it must match the host's GPU driver) - come from the host
-   system; a missing one only skips its rows or says "not available".
+   (the Network benchmark's internet test), the Vulkan loader and ROCm / HIP,
+   CUDA, OpenCL and CLBlast (the GPU benchmarks; they must match the host's
+   GPU driver) - come from the host system; a missing one only skips its
+   rows or says "not available" / "not installed".
 4. `appimage/AppRun` replaces linuxdeploy's: `sysreport-search` and
    `srs-sysreport` (as first argument, or as the name of a link to the AppImage)
    start without the GTK settings; otherwise it runs `srs-gui` with the

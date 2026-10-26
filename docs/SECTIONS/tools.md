@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -10,7 +10,7 @@ look-up and search tools (device ID lookup, report search, configuration search,
 items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows sit at
 the top of the Menu itself: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
 SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark..., OS
-Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., Device ID Lookup... and Find in
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU Burnin..., Device ID Lookup... and Find in
 Report.... The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
@@ -45,6 +45,7 @@ shows the last stored result.
 - [Everyday work benchmark](#everyday-work-benchmark) `everyday-work`
 - [Network benchmark](#network-benchmark) `net-bench`
 - [GPU benchmark](#gpu-benchmark) `gpu-bench`
+- [GPU Burnin](#gpu-burnin) `gpu-burnin`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -939,6 +940,80 @@ the window says "not available". The compute programs (shaders) are pre-compiled
 Stored in `~/.cache/srs/bench-gpu.txt`; each run is added to the
 [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS, and none runs
 while CPU Burnin / Stress runs.
+
+---
+## GPU Burnin  
+`gpu-burnin` - Linux data
+
+**In plain words.** A stress test for the graphics card, the GPU counterpart of CPU Burnin. It
+keeps the GPU fully busy with large matrix multiplications for as long as you choose and checks
+every result: the first multiplication is the reference and every later one must match it
+exactly. **0 errors = PASS.** Use it to check a GPU overclock or undervolt, the cooling and the
+power supply. Inspired by gpu-burn (Ville Timonen); the code is SRS's own.
+
+**Back ends.** The same test can run through four ways of talking to the GPU:
+
+| Back end | What it is |
+|---|---|
+| Vulkan | the graphics and compute interface every modern GPU driver on Linux offers (AMD, Intel, NVIDIA); the default |
+| ROCm / HIP | AMD's compute platform (needs ROCm installed) |
+| CUDA | NVIDIA's compute platform (needs the NVIDIA driver); "CUDA (ZLUDA)" when the CUDA library is really ZLUDA running on an AMD GPU |
+| OpenCL | the older cross-vendor compute interface; each installed OpenCL driver (ROCm, Mesa Rusticl, NVIDIA, PoCL ...) is its own entry |
+| Auto | Vulkan when it has a GPU, else the first back end that has one |
+
+All four are loaded at run time: a back end that is not installed says "not installed" with a
+one-line hint, and the others still work. HIP, CUDA and OpenCL use SRS's own kernel when their
+compiler is there (hipRTC, NVRTC, the OpenCL driver), else the vendor's matrix library (hipBLAS,
+cuBLAS, CLBlast).
+
+**What you see.** While it runs, per GPU: the time, the **errors** (green 0, red otherwise),
+GFLOPS now and on average, multiplications per second and the matrix size, the **edge**,
+**hotspot / junction** and **memory temperatures**, **power**, **GPU clock** and **fan speed**
+with the highest values ("not available" when the card or driver does not report one). At the
+end: PASS / FAIL / Stopped / Ended early, errors found, multiplications, average speed, the
+highest temperatures, power, clock and fan, the back end, driver / runtime, matrix size and
+precision.
+
+| Setting | Choices |
+|---|---|
+| Back end | Auto (Vulkan), Vulkan, ROCm / HIP, CUDA, OpenCL (those not installed say so) |
+| GPU | The first GPU, All GPUs, or one from the list (read when you open it; for HIP, CUDA and OpenCL this starts that runtime) |
+| Precision | FP32 (default) or FP64 |
+| Seconds | 1 to 86,400 (24 hours), default 60 |
+| Stop at °C | 50-120, default 100 |
+
+**Safety.**
+- It asks before it starts (No is the default answer), saying that the GPU draws a lot of power
+  and gets hot, that a bad overclock or undervolt can crash the PC or the display driver, and that
+  a weak power supply or poor cooling can make the PC shut down.
+- It **ends by itself** when the GPU reaches the temperature limit (hotspot / junction when the
+  card reports one, else edge), on any driver error, when the GPU stops answering ("device
+  lost"), or when one piece of work takes more than 2 s (each piece should take about 20 ms).
+  Stop works at any time. The work is cut into small pieces so the desktop stays usable.
+- It **never changes clocks, voltages or fans**.
+- It does not start while CPU Burnin / Stress or another benchmark runs, and CPU Burnin does not
+  start while it runs.
+
+**Healthy / typical values.** 0 errors, always. Temperatures: most graphics cards slow down by
+themselves before their limit (AMD hotspot about 100-110 °C, NVIDIA about 83-90 °C edge); a
+card that sits at its limit needs better cooling or airflow. Speeds depend on the card; compare
+only with your own earlier runs on the same driver.
+
+**Unusual values and what they suggest.**
+- Any errors: too much overclock or undervolt, too high a temperature, a weak or overloaded power
+  supply, or a faulty card or video memory. Undo the overclock / undervolt and run again.
+- Ended early on a driver error or "device lost": the GPU crashed or was reset by the driver -
+  usually an unstable overclock or undervolt, or the power supply.
+- GFLOPS that fall over a run while the temperature rises: the card slows down when hot.
+- "not available" sensors: the driver does not report them (NVIDIA's own driver reports no
+  temperature to Linux's hwmon, for example), or a software renderer.
+
+**Where Linux gets it.** Built in: Vulkan (`libvulkan.so.1`), ROCm / HIP (`libamdhip64`,
+`libhiprtc`, `libhipblas`), CUDA (`libcuda.so.1`, `libnvrtc`, `libcublas`) and OpenCL
+(`libOpenCL.so.1`, `libclblast`) are opened at run time with `dlopen`. The sensors come from
+the card's hwmon folder in `/sys/bus/pci/devices/<address>/hwmon` (amdgpu: all of them; i915, xe
+and nouveau: what they offer). Stored in `~/.cache/srs/bench-gpuburn.txt`; each run is added to
+the [Benchmark history](#benchmark-history).
 
 ---
 ## SRS Pi  

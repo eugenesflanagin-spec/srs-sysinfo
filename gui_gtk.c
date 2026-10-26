@@ -23,6 +23,7 @@
 #include "bench_work.h"
 #include "bench_net.h"
 #include "bench_gpu.h"
+#include "bench_gpuburn.h"
 #include "power.h"
 #include "tblsort.h"
 #include "gui_startup.h"
@@ -65,7 +66,7 @@ static int g_classic_session;  /* this run started in the classic (SIV-style) ma
 static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortable Tables") */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
-enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_GPU, BK_LAST = BK_GPU };
+enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_GPU, BK_GPUBURN, BK_LAST = BK_GPUBURN };
 /* --gui-open / menu / launcher names of the 2.2 benchmark windows (the older ones are listed where they are used) */
 static int bench_tool_sub(const char *t)
 {
@@ -74,6 +75,7 @@ static int bench_tool_sub(const char *t)
     if (!strcmp(t, "work")) return BK_WORK;
     if (!strcmp(t, "netbench")) return BK_NET;
     if (!strcmp(t, "gpubench")) return BK_GPU;
+    if (!strcmp(t, "gpuburn")) return BK_GPUBURN;
     return -1;
 }
 
@@ -114,6 +116,7 @@ typedef struct swin {
     GtkWidget *wk_grp[WK_NGROUP], *wk_lib[WK_NLIB], *wk_row;
     GtkWidget *nt_local, *nt_inet, *nt_ipv, *nt_info;
     GtkWidget *gp_dev, *gp_mem;   /* GPU windows: device list (filled when opened), GPU benchmark buffer size */
+    GtkWidget *gb_back, *gb_prec, *gb_limit;   /* GPU Burnin: back end, precision, temperature limit */
     int gp_filled;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
@@ -930,6 +933,7 @@ static void build_menu(GtkWidget *menu)
         { "Cache & _Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "_OS Latency...", "oslatency" },
         { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
         { "N_etwork Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
+        { "GPU B_urnin...", "gpuburn" },
         { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
     int g, i, n = srs_section_count();
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
@@ -1709,6 +1713,60 @@ static int gpu_cmd_ok(swin *w, const char *cmd)
 /* one benchmark at a time across all windows, and no burner while one runs: two loads at once
    would spoil each other's results */
 static int g_bench_busy;
+/* GPU Burnin: the latest live snapshot, written by the engine's callback on the worker thread */
+static GMutex g_gb_mu;
+static gpuburn_snap g_gb_snap;
+static int g_gb_have;
+static void gb_live_cb(const gpuburn_snap *s, void *ud)
+{
+    (void)ud;
+    g_mutex_lock(&g_gb_mu);
+    g_gb_snap = *s;
+    g_gb_have = 1;
+    g_mutex_unlock(&g_gb_mu);
+}
+static void gb_val(char *b, size_t n, double v, const char *fmt)
+{
+    if (v < 0) snprintf(b, n, "not available");
+    else snprintf(b, n, fmt, v);
+}
+/* the live page while GPU Burnin runs: per GPU speed, errors and sensors (-1 = not available) */
+static void gb_live_render(const gpuburn_snap *s, srs_out *o)
+{
+    static const int tabs[] = { 260 };
+    int i;
+    so_head(o, "GPU Burnin - running");
+    so_tabs(o, tabs, 1);
+    so_kvf(o, "Time", C_VALUE, "%.0f s of %.0f s", s->elapsed, s->total);
+    for (i = 0; i < s->ndev; i++) {
+        const gpuburn_dev *d = &s->dev[i];
+        char t[64], m[64];
+        so_par(o);
+        so_b(o, C_LABEL, d->device[0] ? d->device : "GPU");
+        so_par(o);
+        so_kvf(o, "Back end", C_VALUE, "%s", d->label);
+        so_kvf(o, "Errors", d->errors ? C_RED : C_GREEN, "%ld wrong result%s%s", d->errors, d->errors == 1 ? "" : "s",
+               d->errors ? " - the GPU computed something wrong" : "");
+        so_kvf(o, "Speed", C_VALUE, "%.1f GFLOPS now, %.1f GFLOPS average, %.1f multiplications/s (%d x %d)", d->gflops, d->gflops_avg,
+               d->iter_per_s, d->n, d->n);
+        gb_val(t, sizeof t, d->now.edge_c, "%.0f °C"); gb_val(m, sizeof m, d->max.edge_c, "%.0f °C");
+        so_kvf(o, "Temperature (edge)", C_VALUE, "%s (highest %s)", t, m);
+        gb_val(t, sizeof t, d->now.junction_c, "%.0f °C"); gb_val(m, sizeof m, d->max.junction_c, "%.0f °C");
+        so_kvf(o, "Hotspot / junction", C_VALUE, "%s (highest %s)", t, m);
+        gb_val(t, sizeof t, d->now.mem_c, "%.0f °C"); gb_val(m, sizeof m, d->max.mem_c, "%.0f °C");
+        so_kvf(o, "Memory temperature", C_VALUE, "%s (highest %s)", t, m);
+        gb_val(t, sizeof t, d->now.power_w, "%.0f W"); gb_val(m, sizeof m, d->max.power_w, "%.0f W");
+        so_kvf(o, "Power", C_VALUE, "%s (highest %s)", t, m);
+        gb_val(t, sizeof t, d->now.clock_mhz, "%.0f MHz");
+        so_kvf(o, "GPU clock", C_VALUE, "%s", t);
+        gb_val(t, sizeof t, d->now.fan_rpm, "%.0f RPM");
+        so_kvf(o, "Fan", C_VALUE, "%s", t);
+        if (d->note[0]) so_err(o, d->note);
+    }
+    so_par(o);
+    so_note(o, "Stop ends the run at once. SRS never changes clocks, voltages or fans. The full result is shown when the run ends.");
+}
+
 static int g_gpu_software_only;   /* SRS_GPU_SOFTWARE_ONLY=1 (tests): the GPU windows refuse every device that is not a software renderer */
 
 static void on_burn_start(GtkWidget *x, gpointer data)
@@ -1860,6 +1918,7 @@ typedef struct {
     unsigned groups, libs;                /* Everyday Work: test groups, compression libraries */
     int net_local, net_internet, ipv;     /* Network: loopback part, internet part (only after its own yes), IP version */
     int device;                           /* GPU windows: device index, -1 = default */
+    int backend, prec;                    /* GPU Burnin: GB_* or GPUBURN_AUTO, GP_FP32 / GP_FP64 */
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -1883,19 +1942,20 @@ static const char *bk_result(int sub, int mode)
     case BK_WORK: return "work";
     case BK_NET: return "net";
     case BK_GPU: return "gpu";
+    case BK_GPUBURN: return "gpuburn";
     default: return mode < 0 ? "benchmark" : bench_mode_id((bench_mode)mode);
     }
 }
 static const char *bk_title(int sub)
 {
     static const char *const t[] = { "Benchmark", "IPI Delay", "Latency", "SRS Pi", "Crypto Benchmark", "Prime Sieve", "Cache & Memory", "Storage Benchmark",
-                                       "OS Latency", "CPU Compute", "Everyday Work", "Network Benchmark", "GPU Benchmark" };
+                                       "OS Latency", "CPU Compute", "Everyday Work", "Network Benchmark", "GPU Benchmark", "GPU Burnin" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "Benchmark";
 }
 static const char *bk_item(int sub)
 {
     static const char *const t[] = { "benchmark", "ipi-delay", "latency", "srs-pi", "crypto-bench", "prime-sieve", "cache-memory", "storage-bench",
-                                       "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench" };
+                                       "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin" };
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "benchmark";
 }
 
@@ -1913,7 +1973,14 @@ static gboolean bench_done(gpointer data)
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
         gtk_widget_set_sensitive(w->bm_run, TRUE);
         if (w->bm_stop) gtk_widget_set_sensitive(w->bm_stop, FALSE);
-        if (j->sub == BK_GPU) {
+        if (w->commit_id) { g_source_remove(w->commit_id); w->commit_id = 0; }   /* a live refresh still waiting */
+        if (j->sub == BK_GPUBURN) {
+            char b[400];
+            snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "PASS - no compute errors" : j->rc == 1 ? "Stopped - no errors so far" :
+                                          j->rc == 2 ? "FAIL - compute errors found (see the result)" :
+                                          j->rc == -1 ? "Not started: " : "Ended early by a safety rule: ", j->rc < 0 ? j->why : "");
+            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
+        } else if (j->sub == BK_GPU) {
             char b[400];
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == 2 ? "Finished - a result was WRONG (see the table)" :
@@ -1934,13 +2001,13 @@ static gboolean bench_done(gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
-        if (j->sub == BK_GPU && j->rc == -1) {   /* not started: say why, then the last finished result */
+        if ((j->sub == BK_GPU || j->sub == BK_GPUBURN) && j->rc == -1) {   /* not started: say why, then the last finished result */
             char b[400];
             snprintf(b, sizeof b, "Not started: %s. The last finished result is below.", j->why);
             so_err(&o, b);
             so_par(&o);
             if (!bench_show_last(name, &o)) so_note(&o, "No finished run yet.");
-        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU) {
+        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU || j->sub == BK_GPUBURN) {
             if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
         } else if (j->rc == -4) {
             char b[400];
@@ -2027,6 +2094,20 @@ static gpointer bench_worker(gpointer data)
         c.mem_mib = j->size_mb;
         c.software_only = g_gpu_software_only;
         j->rc = bench_gpu(&c, NULL, &j->cancel, j->why, sizeof j->why);
+    } else if (j->sub == BK_GPUBURN) {
+        gpuburn_cfg c;
+        gpuburn_cfg_default(&c);
+        c.backend = j->backend;
+        c.device = j->device;
+        c.prec = j->prec;
+        c.seconds = j->secs;
+        c.limit_c = j->limit;
+        c.software_only = g_gpu_software_only;
+        c.cb = gb_live_cb;
+        g_mutex_lock(&g_gb_mu);
+        g_gb_have = 0;
+        g_mutex_unlock(&g_gb_mu);
+        j->rc = bench_gpuburn(&c, NULL, &j->cancel, j->why, sizeof j->why);
     }
     else bench_run((bench_mode)j->mode, j->secs, NULL);
     g_idle_add(bench_done, j);
@@ -2046,6 +2127,21 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_COMPUTE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cp_stage());
     else if (w->sub == BK_WORK) snprintf(b, sizeof b, "Running %.0f s: %s", el, wk_stage());
     else if (w->sub == BK_GPU) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpu_stage());
+    else if (w->sub == BK_GPUBURN) {
+        gpuburn_snap sn;
+        int have;
+        g_mutex_lock(&g_gb_mu);
+        have = g_gb_have;
+        if (have) sn = g_gb_snap;
+        g_mutex_unlock(&g_gb_mu);
+        snprintf(b, sizeof b, "Running %.0f s: %s", el, *gpuburn_stage() ? gpuburn_stage() : "starting");
+        if (have) {
+            srs_out o;
+            gctx g;
+            out_begin_live(w, &o, &g, NULL);
+            gb_live_render(&sn, &o);
+        }
+    }
     else if (w->sub == BK_NET) {
         double mb = net_live_mbps();
         if (mb > 0) snprintf(b, sizeof b, "Running %.0f s: %s - %.0f Mbit/s", el, net_stage(), mb);
@@ -2183,6 +2279,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         k = dev >= 0 ? dev : gpu_default_device(dv, n);
         d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
                                    "Start the GPU benchmark?");
+        gtk_window_set_title(GTK_WINDOW(d), "GPU Benchmark");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
             "It runs short compute kernels and memory copies on %s through Vulkan for about %.0f seconds "
             "(10 tests, %.1f s of GPU time each, in pieces of about 25 ms so the desktop stays usable). "
@@ -2198,6 +2295,53 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         j->device = dev;
         j->secs = secs;
         j->size_mb = mem;
+    } else
+    if (w->sub == BK_GPUBURN) {
+        GtkWidget *d;
+        char hint[300], devname[300], bk[80];
+        int ok, sel = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gp_dev)), back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
+        int dev = sel <= 0 ? -1 : sel == 1 ? GPUBURN_ALL : sel - 2, prec = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_prec)) == 1 ? GP_FP64 : GP_FP32;
+        double secs, limit;
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
+        secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+        limit = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->gb_limit));
+        if (back >= 0 && !gb_table[back]->available(hint, sizeof hint)) {   /* dlopen only */
+            char b[400];
+            snprintf(b, sizeof b, "Not available: %s %s", gb_name[back], hint);
+            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
+            return;
+        }
+        snprintf(bk, sizeof bk, "%s", back < 0 ? "Vulkan (or the first back end that has a GPU)" : gb_name[back]);
+        /* the device's name is known only when its list was opened; otherwise no runtime is started before Yes */
+        if (dev == GPUBURN_ALL) snprintf(devname, sizeof devname, "every GPU of that back end");
+        else if (sel >= 2) {
+            gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w->gp_dev));
+            snprintf(devname, sizeof devname, "%.250s", t ? t : "the chosen GPU");
+            g_free(t);
+        } else snprintf(devname, sizeof devname, "the first GPU");
+        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
+                                   "Start GPU Burnin?");
+        gtk_window_set_title(GTK_WINDOW(d), "GPU Burnin");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "GPU Burnin keeps %s fully busy through %s for %.0f %s with large %s matrix multiplications, and counts every wrong result.\n\n"
+            "The GPU draws a lot of power and gets hot: expect the highest temperatures and fan speeds it reaches, and close games "
+            "and other GPU programs first. A bad GPU overclock or undervolt can crash the PC or the display driver under this "
+            "load, and a weak power supply or poor cooling can make the PC shut down.\n\n"
+            "It stops by itself at %.0f °C (hotspot / junction when the card reports it, else edge), on a driver error, when the GPU "
+            "stops answering or a piece of work takes far too long, and when you press Stop. "
+            "SRS never changes clocks, voltages or fans.",
+            devname, bk, secs >= 120 ? secs / 60 : secs, secs >= 120 ? "minutes" : "seconds", prec == GP_FP64 ? "FP64" : "FP32", limit);
+        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+        if (!ok || w->running || g_bench_busy || burn_active()) return;
+        j = g_new0(benchjob, 1);
+        j->backend = back < 0 ? GPUBURN_AUTO : back;
+        j->device = dev;
+        j->prec = prec;
+        j->secs = secs;
+        j->limit = limit;
     } else
     if (w->sub == BK_NET) {
         GtkWidget *d;
@@ -2318,7 +2462,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     } else if (w->sub == BK_LAT) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max)) * 1024 * 1024;
-    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU) {
+    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN) {
         /* filled in above */
     } else if (w->sub == BK_OSLAT) {
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max));
@@ -2354,7 +2498,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU ? &j->cancel : NULL;
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
@@ -2429,6 +2573,21 @@ static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
     g_object_get(x, "popup-shown", &shown, NULL);
     if (w->gp_filled || !shown) return;
     w->gp_filled = 1;
+    if (w->sub == BK_GPUBURN) {   /* the chosen back end's own list (starts its runtime: only when the user opens the list) */
+        gb_info l[GB_LISTMAX];
+        int back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
+        n = gpuburn_list(back < 0 ? GB_VULKAN : back, l, GB_LISTMAX, why, sizeof why);
+        if (n <= 0) {
+            snprintf(b, sizeof b, "(no device: %s)", why[0] ? why : "none found");
+            gtk_widget_set_tooltip_text(w->gp_dev, b);
+            return;
+        }
+        for (i = 0; i < n; i++) {
+            snprintf(b, sizeof b, "%d: %.200s (%.60s, %.20s)", i, l[i].device, l[i].label, l[i].kind);
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), b);
+        }
+        return;
+    }
     n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
     if (n <= 0) {
         snprintf(b, sizeof b, "(no Vulkan device: %s)", why[0] ? why : "none found");
@@ -2440,13 +2599,28 @@ static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), b);
     }
 }
+static void gpu_device_defaults(swin *w)
+{
+    gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->gp_dev));
+    if (w->sub == BK_GPUBURN) {
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "The first GPU");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "All GPUs");
+    } else gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "Default (the first discrete GPU)");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(w->gp_dev), 0);
+    w->gp_filled = 0;
+}
+/* GPU Burnin: another back end has its own device list */
+static void on_gpu_back(GtkWidget *x, gpointer data)
+{
+    (void)x;
+    gpu_device_defaults(data);
+}
 static void gpu_device_combo(swin *w, GtkWidget *row)
 {
     gtk_box_pack_start(GTK_BOX(row), lbl("GPU"), FALSE, FALSE, 0);
     w->gp_dev = gtk_combo_box_text_new();
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "Default (the first discrete GPU)");
-    gtk_combo_box_set_active(GTK_COMBO_BOX(w->gp_dev), 0);
-    gtk_widget_set_tooltip_text(w->gp_dev, "Open the list to see the Vulkan devices of this PC.");
+    gpu_device_defaults(w);
+    gtk_widget_set_tooltip_text(w->gp_dev, "Open the list to see the devices of this PC (for HIP, CUDA and OpenCL this starts that runtime).");
     g_signal_connect(w->gp_dev, "notify::popup-shown", G_CALLBACK(on_gpu_devs), w);
     gtk_box_pack_start(GTK_BOX(row), w->gp_dev, FALSE, FALSE, 0);
 }
@@ -2646,6 +2820,44 @@ static void build_bench(swin *w, GtkWidget *vb)
         else snprintf(b, sizeof b, "Vulkan: %s", hint);
         gtk_box_pack_start(GTK_BOX(r2), lbl(b), FALSE, FALSE, 0);
         w->wk_row = r2;
+    } else if (w->sub == BK_GPUBURN) {
+        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        char hint[300], b[900];
+        int k;
+        gtk_box_pack_start(GTK_BOX(row), lbl("Back end"), FALSE, FALSE, 0);
+        w->gb_back = gtk_combo_box_text_new();
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), "Auto (Vulkan)");
+        b[0] = 0;
+        for (k = 0; k < GB_N; k++) {   /* dlopen only: no runtime is started by opening the window */
+            char e[120];
+            int av = gb_table[k]->available(hint, sizeof hint);
+            snprintf(e, sizeof e, "%s%s", gb_name[k], av ? "" : " (not installed)");
+            gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), e);
+            snprintf(b + strlen(b), sizeof b - strlen(b), "%s%s: %s", k ? ";  " : "", gb_name[k], av ? "installed" : hint);
+        }
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_back), 0);
+        gtk_widget_set_tooltip_text(w->gb_back, "Vulkan works with every modern GPU driver. ROCm / HIP is AMD's compute platform, CUDA NVIDIA's "
+                                                "(or ZLUDA on AMD), OpenCL the older cross-vendor one. Auto = Vulkan when it has a GPU.");
+        g_signal_connect(w->gb_back, "changed", G_CALLBACK(on_gpu_back), w);
+        gtk_box_pack_start(GTK_BOX(row), w->gb_back, FALSE, FALSE, 0);
+        gpu_device_combo(w, row);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Precision"), FALSE, FALSE, 0);
+        w->gb_prec = gtk_combo_box_text_new();
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP32");
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP64");
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_prec), 0);
+        gtk_widget_set_tooltip_text(w->gb_prec, "FP32 (single precision) loads most GPUs hardest. FP64 checks the double-precision units, slow on most gaming cards.");
+        gtk_box_pack_start(GTK_BOX(row), w->gb_prec, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds"), FALSE, FALSE, 0);
+        w->bm_secs = spin(1, 86400, 10, 60);
+        gtk_widget_set_tooltip_text(w->bm_secs, "How long to run. 60 s is a quick check; 10-30 minutes (600-1800 s) checks an overclock or undervolt properly.");
+        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(row), lbl("Stop at °C"), FALSE, FALSE, 0);
+        w->gb_limit = spin(50, 120, 1, 100);
+        gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge).");
+        gtk_box_pack_start(GTK_BOX(row), w->gb_limit, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), lbl(b), FALSE, FALSE, 0);
+        w->wk_row = r2;
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -2664,7 +2876,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
     if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET ||
-        w->sub == BK_GPU) {
+        w->sub == BK_GPU || w->sub == BK_GPUBURN) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -2674,6 +2886,7 @@ static void build_bench(swin *w, GtkWidget *vb)
                        w->sub == BK_OSLAT ? "Not run - press Run (asks first; one or two CPUs busy for about 6 seconds)" :
                        w->sub == BK_NET ? "Not run - press Run (asks first; the internet test asks separately)" :
                        w->sub == BK_GPU ? "Not run - press Run (asks first; the GPU works at full load for about 15 seconds)" :
+                       w->sub == BK_GPUBURN ? "Not run - press Run (asks first; full GPU load, high power and heat)" :
                        "Not run - press Run (the CPUs will be busy while it runs)");
     if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
@@ -3503,7 +3716,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -4304,7 +4517,7 @@ static int cat_of_id(const char *id)
                                 !strcmp(base, "srs-pi") || !strcmp(base, "crypto-bench") || !strcmp(base, "prime-sieve") ||
                                 !strcmp(base, "bench-history") || !strcmp(base, "cache-memory") || !strcmp(base, "storage-bench") ||
                                 !strcmp(base, "os-latency") || !strcmp(base, "cpu-compute") || !strcmp(base, "everyday-work") ||
-                                !strcmp(base, "net-bench") || !strcmp(base, "gpu-bench") ||
+                                !strcmp(base, "net-bench") || !strcmp(base, "gpu-bench") || !strcmp(base, "gpu-burnin") ||
                                 !strcmp(base, "burnin") || !strcmp(base, "cpu-stress"))) return CAT_BENCH;
     return CAT_TOOLS;
 }
@@ -4893,6 +5106,12 @@ static GtkWidget *build_cat_page(int cat)
                 "Uses Vulkan; every result is checked.",
                 "The GPU works at full load for about 15 seconds. Asks before it starts. Needs a Vulkan driver.",
                 "_GPU Benchmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("GPU Burnin", "Keeps the graphics card fully busy with large matrix multiplications and counts every wrong "
+                "result - the way to check a GPU overclock or undervolt, the cooling and the power supply. Live temperature, power, clock and fan. "
+                "Vulkan, ROCm / HIP, CUDA or OpenCL.",
+                "Full GPU load, high power and heat, for as long as you choose (default 1 minute). Asks first; stops by itself at the "
+                "temperature limit (default 100 °C) or on a driver error. Never changes clocks, voltages or fans.",
+                "GPU B_urnin...", "gpuburn", "Open the GPU Burnin window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run."));

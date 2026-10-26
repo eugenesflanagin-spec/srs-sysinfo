@@ -43,6 +43,10 @@ optdepends=(
   'xz: xz rows of the Everyday Work benchmark (loaded at run time)'
   'curl: libcurl for the optional internet speed test of the Network benchmark (loaded at run time)'
   "vulkan-icd-loader: the GPU benchmarks (Vulkan loader, loaded at run time; plus your GPU's Vulkan driver)"
+  'rocm-hip-runtime: ROCm / HIP back end of GPU Burnin and the GPU Compute comparison (loaded at run time; hipblas for the library rows)'
+  'opencl-icd-loader: OpenCL back end of GPU Burnin and the GPU Compute comparison (loaded at run time; plus an OpenCL driver)'
+  'clblast: OpenCL matrix library rows of the GPU benchmarks (loaded at run time)'
+  'cuda: CUDA back end of GPU Burnin and the GPU Compute comparison (NVIDIA; loaded at run time)'
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')   # set by build-arch.sh

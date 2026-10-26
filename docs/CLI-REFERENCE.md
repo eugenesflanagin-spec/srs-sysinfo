@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net` and `gpu`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu` and `gpu-burn`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -52,6 +52,7 @@ sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -69,7 +70,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -137,10 +138,16 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory
         read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
         ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
+  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]
+           [--limit C] [--list] [--yes]
+        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted
+        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
+        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
+        or fans (default 60 s); asks first, --yes starts at once
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -679,7 +686,45 @@ $ sysreport-search gpu --only fp32,read,upload --seconds 0.5
 
 See [tools.md](SECTIONS/tools.md#gpu-benchmark).
 
-Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `gpu-burn` - GPU Burnin
+
+```
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]
+                          [--fp32|--fp64] [--limit C] [--list] [--yes]
+```
+
+Keeps the GPU fully busy with large matrix multiplications and counts every result that differs
+from the first one (0 = PASS). On a terminal a live line shows the time, GFLOPS, the error count,
+edge and hotspot temperature, power and clock; the full result follows at the end. It **asks
+first** (the GPU, the back end, the time, high power and heat, the overclock / undervolt warning,
+the temperature limit); `--yes` (`-y`) starts at once; without a terminal and without `--yes` it
+does not start (exit code 2). Before you say yes it starts no HIP, CUDA or OpenCL runtime. It ends
+by itself at the temperature limit, on a driver error, when the GPU stops answering or when a piece
+of work takes more than 2 s; Ctrl+C stops it. **It never changes clocks, voltages or fans.**
+
+| Option | Meaning |
+|---|---|
+| `--seconds N` | How long, 1-86400 (default 60) |
+| `--backend B` | `vulkan`, `hip` (ROCm), `cuda`, `opencl` or `auto` (default: Vulkan when it has a GPU, else the first back end that has one) |
+| `--device N` | The device number in that back end's list (see `--list`), or `all` (default: the first) |
+| `--fp32` / `--fp64` | Precision of the multiplications (default FP32) |
+| `--limit C` | Stop at this GPU temperature in °C, 50-120 (default 100; hotspot / junction when the card reports it, else edge). `--limit-c` is the same |
+| `--list` | List the devices of each installed back end (or only `--backend`'s) and exit. This starts each runtime but runs no work |
+| `--yes` | Start without asking |
+
+Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early by a safety rule, 2 = not
+started (bad option, not confirmed, back end not installed, no device, CPU Burnin running).
+Examples:
+
+```
+$ sysreport-search gpu-burn --list
+$ sysreport-search gpu-burn --seconds 600 --limit 95
+$ sysreport-search gpu-burn --backend hip --fp64 --seconds 120
+```
+
+See [tools.md](SECTIONS/tools.md#gpu-burnin).
+
+Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -715,6 +760,7 @@ or one of these tool names:
 | `work` | Everyday Work |
 | `netbench` | Network benchmark (`network` alone is the Network page's item) |
 | `gpubench` | GPU Benchmark |
+| `gpuburn` | GPU Burnin |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
@@ -726,7 +772,7 @@ The environment variable `SRS_OPEN=sensors,burnin` does the same.
 The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
 `burnin`, `stress`, `bench`, `cachemem`, `storagebench`, `oslatency`, `compute`, `work`,
-`netbench`, `gpubench`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
+`netbench`, `gpubench`, `gpuburn`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
 
 ---
 
@@ -793,5 +839,6 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_DATA_DIR` | Folder holding `power-zip-rates.tsv` for the offline US ZIP price lookup (default: next to the program, then `/usr/share/srs-sysinfo`) |
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
 | `SRS_VULKAN_LIB` | GPU benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |
+| `SRS_HIP_LIB`, `SRS_CUDA_LIB`, `SRS_OPENCL_LIB` | GPU Burnin and the GPU Compute comparison: open this file instead of the ROCm / HIP, CUDA or OpenCL library (a name that does not exist = "not installed"; for tests) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

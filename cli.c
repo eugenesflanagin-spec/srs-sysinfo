@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -88,11 +88,17 @@ static const char *HELP =
     "        GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory\n"
     "        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;\n"
     "        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once\n"
+    "  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]\n"
+    "           [--limit C] [--list] [--yes]\n"
+    "        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted\n"
+    "        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default\n"
+    "        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages\n"
+    "        or fans (default 60 s); asks first, --yes starts at once\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -332,7 +338,7 @@ static int cmd_burn(int argc, char **argv)
     }
     signal(SIGINT, on_int);
     burn_tick(&st);                      /* prime the CPU-usage counters */
-    if (burn_start(&c)) { fprintf(stderr, "burn: nothing to run (no CPUs selected or already running)\n"); return 2; }
+    if (burn_start(&c)) { fprintf(stderr, "burn: nothing to run (no CPUs selected, already running, or a GPU burn-in / benchmark is running)\n"); return 2; }
     burn_tick(&st);
     printf("%s, %s mode, %.0f s burn, limit %.0f C\n", st.status, c.mode == BURN_SWAP ? "swap" : "same", c.burn_s, c.temp_limit_c);
     while (burn_active()) {
@@ -905,6 +911,137 @@ static int cmd_gpu(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_gpuburn.h"
+
+static volatile int g_gpu_cancel;
+static void on_int_gpu(int s) { (void)s; g_gpu_cancel = 1; }
+
+/* "-" when the sensor is not available, else "47 C" */
+static const char *gb_c(char *b, size_t n, double v, const char *unit)
+{
+    if (v < 0) snprintf(b, n, "-");
+    else snprintf(b, n, "%.0f %s", v, unit);
+    return b;
+}
+
+/* live line on a terminal, about twice a second (called on the thread that runs bench_gpuburn) */
+static void gpuburn_live(const gpuburn_snap *s, void *ud)
+{
+    char t[24], j[24], p[24], c[24];
+    long err = 0;
+    int i;
+    const gpuburn_dev *d = &s->dev[0];
+    (void)ud;
+    if (!s->ndev) return;
+    for (i = 0; i < s->ndev; i++) err += s->dev[i].errors;
+    fprintf(stderr, "\r%5.0f / %.0f s  %s%s: %7.1f GFLOPS  %ld error%s  edge %s  hotspot %s  %s  %s   ",
+            s->elapsed, s->total, d->label, s->ndev > 1 ? " (+ more)" : "", d->gflops, err, err == 1 ? "" : "s",
+            gb_c(t, sizeof t, d->now.edge_c, "C"), gb_c(j, sizeof j, d->now.junction_c, "C"),
+            gb_c(p, sizeof p, d->now.power_w, "W"), gb_c(c, sizeof c, d->now.clock_mhz, "MHz"));
+    fflush(stderr);
+}
+
+/* gpu-burn [--seconds N] [--backend ...] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes] */
+static int cmd_gpu_burn(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]\n"
+        "                                 [--fp32|--fp64] [--limit C] [--list] [--yes]\n"
+        "  --seconds N   how long, 1..86400 (default 60)\n"
+        "  --backend B   vulkan, hip (ROCm), cuda, opencl or auto (default: Vulkan when it has a GPU)\n"
+        "  --device N    the device number of that back end (see --list), or all (default: the first)\n"
+        "  --fp32/--fp64 the precision of the matrix multiplications (default fp32)\n"
+        "  --limit C     stop when the GPU reaches this temperature in C, 50..120 (default 100;\n"
+        "                hotspot / junction when the card reports it, else edge)\n"
+        "  --list        list the devices of each installed back end and exit (starts each runtime;\n"
+        "                runs no work on a GPU)\n"
+        "  --yes         start without asking\n"
+        "GPU Burnin never changes clocks, voltages or fans. Ctrl+C stops it.";
+    srs_out o;
+    gpuburn_cfg c;
+    char why[300], what[1200], dev[300], bk[80];
+    int i, yes = 0, list = 0, rc;
+    gpuburn_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--seconds") || !strcmp(a, "--backend") || !strcmp(a, "--device") || !strcmp(a, "--limit") ||
+                   !strcmp(a, "--limit-c");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (need && !v) { fprintf(stderr, "gpu-burn: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--limit") || !strcmp(a, "--limit-c")) c.limit_c = atof(v);
+        else if (!strcmp(a, "--fp32")) c.prec = GP_FP32;
+        else if (!strcmp(a, "--fp64")) c.prec = GP_FP64;
+        else if (!strcmp(a, "--list")) list = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--device")) {
+            if (!strcmp(v, "all")) c.device = GPUBURN_ALL;
+            else if (!gpu_parse_device("gpu-burn", v, &c.device)) return 2;
+        } else if (!strcmp(a, "--backend")) {
+            int k;
+            if (!strcmp(v, "auto")) c.backend = GPUBURN_AUTO;
+            else {
+                for (k = 0; k < GB_N && strcmp(v, gb_id[k]); k++) ;
+                if (k == GB_N) { fprintf(stderr, "gpu-burn: unknown --backend '%s' (valid: vulkan, hip, cuda, opencl, auto)\n", v); return 2; }
+                c.backend = k;
+            }
+        } else { fprintf(stderr, "gpu-burn: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.seconds < 1 || c.seconds > 86400) return usage_error("gpu-burn: --seconds must be 1..86400");
+    if (c.limit_c < 50 || c.limit_c > 120) return usage_error("gpu-burn: --limit must be 50..120 (C)");
+    gpu_quiet_layers();
+    if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    if (list) {
+        for (i = 0; i < GB_N; i++) {
+            gb_info l[GB_LISTMAX];
+            int n, k;
+            if (c.backend != GPUBURN_AUTO && c.backend != i) continue;
+            n = gpuburn_list(i, l, GB_LISTMAX, why, sizeof why);
+            printf("%s:", gb_name[i]);
+            if (n < 0) { printf(" %s\n", why); continue; }
+            if (n == 0) { printf(" no device%s%s\n", why[0] ? " - " : "", why); continue; }
+            putchar('\n');
+            for (k = 0; k < n; k++)
+                printf("  %d  %s  (%s, %s%s%s)\n", k, l[k].device, l[k].label, l[k].kind, l[k].runtime[0] ? ", " : "", l[k].runtime);
+        }
+        return 0;
+    }
+    /* name the device without starting a HIP / CUDA / OpenCL runtime before the user said yes:
+       only the Vulkan device list (no work is sent) is read here */
+    snprintf(bk, sizeof bk, "%s", c.backend == GPUBURN_AUTO ? "Vulkan (or the first back end that has a GPU)" : gb_name[c.backend]);
+    if (c.device == GPUBURN_ALL) snprintf(dev, sizeof dev, "every GPU of that back end");
+    else if (c.device >= 0) snprintf(dev, sizeof dev, "device %d", c.device);
+    else snprintf(dev, sizeof dev, "the first GPU");
+    if (c.backend == GB_VULKAN || c.backend == GPUBURN_AUTO) {
+        gpu_dev d[GPU_MAXDEV];
+        int n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
+        if (n > 0 && c.device >= 0 && c.device < n) snprintf(dev, sizeof dev, "%.250s", d[c.device].name);
+        else if (n > 0 && c.device == -1) snprintf(dev, sizeof dev, "%.250s", d[0].name);
+        else if (n <= 0 && c.backend == GB_VULKAN) {
+            fprintf(stderr, "gpu-burn: not started - no Vulkan device: %s\n", why[0] ? why : "none found");
+            return 2;
+        }
+    }
+    snprintf(what, sizeof what,
+             "GPU Burnin on %s via %s for %.0f s: keeps the GPU fully busy with large %s matrix multiplications\n"
+             "(high power draw and heat; the fans will speed up) and counts compute errors.\n"
+             "It stops by itself at %.0f C, on a driver error, when the GPU stops answering, or on Ctrl+C.\n"
+             "It never changes clocks, voltages or fans. A bad GPU overclock or undervolt can crash the PC under this load,\n"
+             "and a weak power supply or poor cooling can make it shut down.",
+             dev, bk, c.seconds, c.prec == GP_FP64 ? "FP64" : "FP32", c.limit_c);
+    if (!yes && !ask_start("gpu-burn", what)) return 2;
+    if (isatty(2)) c.cb = gpuburn_live;
+    signal(SIGINT, on_int_gpu);
+    why[0] = 0;
+    rc = bench_gpuburn(&c, &o, &g_gpu_cancel, why, sizeof why);
+    signal(SIGINT, SIG_DFL);
+    if (c.cb) fputc('\n', stderr);
+    if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);
+    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -1024,6 +1161,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "work")) return cmd_work(argc, argv);
     if (!strcmp(cmd, "net")) return cmd_net(argc, argv);
     if (!strcmp(cmd, "gpu")) return cmd_gpu(argc, argv);
+    if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

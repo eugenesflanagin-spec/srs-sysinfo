@@ -3,7 +3,7 @@
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR,\fBgpu\-burn\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -76,8 +76,11 @@ Network benchmark. Without options: loopback TCP / UDP throughput, loss and roun
 .TP
 \fBgpu\fR [\fB\-\-device\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fItests\fR] [\fB\-\-mem\-mib\fR \fIM\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
 GPU benchmark through Vulkan: FP32, FP16, FP64 and INT32 multiply\-add (GFLOPS / GIOPS), video memory read, write and copy, upload and download (GB/s) and dispatch latency (µs), every result checked. The Vulkan loader is opened at run time (optional). \fB\-\-list\fR lists the Vulkan devices and runs nothing. Asks first unless \fB\-\-yes\fR; exit code 2 when it did not start. \fItests\fR: fp32, fp16, fp64, int32, read, write, copy, upload, download, latency.
+.TP
+\fBgpu\-burn\fR [\fB\-\-seconds\fR \fIN\fR] [\fB\-\-backend\fR \fBvulkan\fR|\fBhip\fR|\fBcuda\fR|\fBopencl\fR|\fBauto\fR] [\fB\-\-device\fR \fIN\fR|\fBall\fR] [\fB\-\-fp32\fR|\fB\-\-fp64\fR] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
+GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Ends by itself at the temperature limit (default 100 C), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans. Default 60 s. Asks first unless \fB\-\-yes\fR. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR and \fBgpu\fR load the CPU, the drive, the network or the GPU and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR and \fBgpu\fR also ask before they start unless \fB\-\-yes\fR is given.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR and \fBgpu\-burn\fR load the CPU, the drive, the network or the GPU and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR and \fBgpu\-burn\fR also ask before they start unless \fB\-\-yes\fR is given.
 Run
 .B sysreport-search \-\-help
 for the full option list.

@@ -194,6 +194,7 @@
 { "gpu-apps", "sections-graphics--gpu-applications" },
 { "gpu-bench", "sections-tools--gpu-benchmark" },
 { "gpu-bios", "sections-graphics--gpu-vbios-status" },
+{ "gpu-burnin", "sections-tools--gpu-burnin" },
 { "gpu-clocks", "sections-graphics--gpu-clock-speeds" },
 { "gpu-cuda", "sections-graphics--cuda-information" },
 { "gpu-d3d", "sections-graphics--gpu-d3d-status" },

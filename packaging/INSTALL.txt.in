@@ -27,7 +27,8 @@ Needed at run time
     (loaded at run time; a missing one only skips its rows); libcurl (libcurl4 / curl)
     for the Network benchmark's optional internet speed test; the Vulkan loader
     (libvulkan1 / vulkan-icd-loader / vulkan-loader) and a Vulkan driver for the
-    GPU benchmarks
+    GPU benchmarks; ROCm (HIP), CUDA or an OpenCL loader + driver (and CLBlast) only
+    for those back ends of GPU Burnin and the GPU Compute comparison
 
 Try it without installing
   ./usr/bin/srs-gui

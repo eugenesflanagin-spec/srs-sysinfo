@@ -45,6 +45,7 @@ cat > "$TMP/harness.c" <<'C'
 #include "bench_gpu.h"
 #include "bench_gpuburn.h"
 #include "bench_gpucompare.h"
+#include "burner.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,6 +112,19 @@ int main(int argc, char **argv)
         gb_info l[4];
         rc = gb_opencl.list(l, 4, why, sizeof why);
         printf("OCL|%d|%s\n", rc, why);
+        return 0;
+    }
+    if (!strcmp(m, "cpuburn")) {   /* the CPU burner refuses while a GPU test holds the claim (one CPU only, stopped at once if it starts) */
+        const char *who = NULL;
+        burn_cfg b;
+        burn_cfg_default(&b);
+        for (i = 0; i < b.ncpu; i++) b.enabled[i] = i == 0;
+        b.burn_s = 1;
+        if (!gpu_claim("GPU Burnin", &who)) { printf("CLAIM|failed\n"); return 1; }
+        rc = burn_start(&b);
+        if (rc == 0) burn_stop();
+        gpu_release();
+        printf("CPUBURN|%d\n", rc);
         return 0;
     }
     only_lavapipe();
@@ -201,6 +215,10 @@ while IFS='|' read -r _ id rc detail; do
     esac
 done < <(grep '^BIND|' <<<"$out")
 
+echo "== CPU Burnin refuses while a GPU test runs"
+out=$("$H" cpuburn 2>&1)
+grep -q '^CPUBURN|-1' <<<"$out" && ok "burn_start refused while the GPU claim is held" || bad "cpuburn: $out"
+
 echo "== lavapipe only"
 out=$(VK_LOADER_DEBUG=driver "$H" list 2>&1)
 grep -q '^LAVAPIPE|ok' <<<"$out" && ok "every Vulkan device is llvmpipe" || bad "device check: $out"
@@ -267,6 +285,24 @@ if grep -q . <<<"$out" && ! grep -v llvmpipe <<<"$out" | grep -q '^[0-9]'; then
     [ $rc = 0 ] && grep -q "FP32 multiply-add" <<<"$out" && ok "gpu --yes on lavapipe: exit 0, result printed" || bad "gpu --yes: $rc $(tail -3 <<<"$out")"
 else
     bad "gpu --list shows a device that is not llvmpipe - the command-line runs are skipped: $out"
+fi
+
+"$BIN" gpu-burn --help | grep -q "usage: sysreport-search gpu-burn" && ok "gpu-burn --help" || bad "gpu-burn --help"
+"$BIN" gpu-burn --bogus >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-burn: unknown option -> exit 2" || bad "gpu-burn --bogus"
+"$BIN" gpu-burn --backend metal >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-burn: unknown back end -> exit 2" || bad "gpu-burn --backend metal"
+"$BIN" gpu-burn --seconds 0 >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-burn: --seconds 0 -> exit 2" || bad "gpu-burn --seconds 0"
+"$BIN" gpu-burn --limit 200 >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-burn: --limit 200 -> exit 2" || bad "gpu-burn --limit 200"
+out=$(SRS_HIP_LIB=/nonexistent/libhip.so "$BIN" gpu-burn --backend hip --seconds 1 --yes 2>&1); rc=$?
+[ $rc = 2 ] && grep -q "not installed" <<<"$out" && ok "gpu-burn --backend hip with no HIP: not started, says not installed" || bad "gpu-burn hip missing: $rc $out"
+out=$("$BIN" gpu-burn --list --backend vulkan 2>&1)
+if grep -q "^Vulkan:" <<<"$out" && ! grep '^  [0-9]' <<<"$out" | grep -vq llvmpipe; then
+    ok "gpu-burn --list --backend vulkan shows only llvmpipe"
+    out=$("$BIN" gpu-burn --backend vulkan --seconds 1 </dev/null 2>&1); rc=$?
+    [ $rc = 2 ] && grep -q "not started" <<<"$out" && ok "gpu-burn: no terminal and no --yes -> not started, exit 2" || bad "gpu-burn no tty: $rc $out"
+    out=$(nice "$BIN" gpu-burn --backend vulkan --seconds 1 --yes 2>&1); rc=$?; show "$out"
+    [ $rc = 0 ] && grep -q "PASS" <<<"$out" && ok "gpu-burn --yes on lavapipe: PASS, exit 0" || bad "gpu-burn --yes: $rc $(tail -4 <<<"$out")"
+else
+    bad "gpu-burn --list shows a device that is not llvmpipe - the command-line run is skipped: $out"
 fi
 fi
 

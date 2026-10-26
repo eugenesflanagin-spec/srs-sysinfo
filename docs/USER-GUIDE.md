@@ -141,6 +141,7 @@ similar names):
 | `wireplumber`, `libpulse` | Audio graph details |
 | `inxi`, `lshw`, `hwinfo` | Extra sections in the full system report |
 | `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
+| `rocm-hip-runtime` (and `hipblas`), `cuda` (or the NVIDIA driver), `opencl-icd-loader` with an OpenCL driver, `clblast` | The ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin ([9.18](#918-gpu-burnin)) and the GPU Compute comparison; only if you want them |
 
 ### 3.4 Any other distribution - generic tarball
 
@@ -1706,6 +1707,68 @@ such as MangoHud out of the run. Vulkan is loaded when needed: without it the wi
 available" and the rest of SRS works as before. The result is saved to
 `~/.cache/srs/bench-gpu.txt` and added to the [Benchmark history](#910-benchmark-history). Tested
 on a software GPU only - see the note at the start of this chapter.
+
+### 9.18 GPU Burnin
+
+**In plain words:** a stress test for the graphics card, like CPU Burnin is for the processor. It
+keeps the GPU as busy as it can be with large matrix multiplications (big blocks of sums) for as
+long as you choose, and checks every single result. A healthy card gets the same answer every
+time; a card that is pushed too far (overclocked, undervolted, too hot, short of power) sooner or
+later gets one wrong. **0 errors = PASS.** While it runs you see the temperatures, power, clock
+and fan speed live.
+Open: the **Benchmarks & stress** page -> **GPU Burnin...**, or Menu -> Tools -> GPU Burnin... in
+the classic view. Command line: `sysreport-search gpu-burn`.
+Controls: **Back end** (see below; Auto = Vulkan), **GPU** (the first GPU, All GPUs, or one from
+the list), **Precision** (FP32, or FP64 for the double-precision units), **Seconds** (default 60;
+600-1800 s, 10-30 minutes, checks an overclock or undervolt properly), **Stop at °C** (default
+100), **Run** (asks first), **Stop**. The line under the controls says which back ends are
+installed.
+
+**The four back ends, in plain words.** A program can talk to a GPU in several "languages". SRS
+can use four of them, and you choose which:
+
+- **Vulkan** - the modern graphics and compute interface that every current GPU driver on Linux
+  speaks (AMD, Intel and NVIDIA). Nothing extra to install. The default, and the right choice for
+  most people.
+- **ROCm / HIP** - AMD's own compute platform, used by AI and science programs on AMD cards. Only
+  there if you installed ROCm.
+- **CUDA** - NVIDIA's compute platform, used by most AI programs. Needs the NVIDIA driver. If your
+  "CUDA" is really **ZLUDA** (a translation layer that runs CUDA programs on an AMD card), SRS
+  notices and calls it **CUDA (ZLUDA)**.
+- **OpenCL** - the older compute interface that works across makers. Every OpenCL driver you have
+  (ROCm, Mesa Rusticl, NVIDIA, PoCL on the CPU ...) shows as its own choice.
+
+A back end that is not installed says "not installed" with a hint about what to install; the
+others still work. Testing through more than one back end tells you whether a problem is the
+card or one particular driver.
+
+**Reading the result.** **PASS** = no wrong result in the whole run. **FAIL** = at least one
+wrong result: errors usually mean too much overclock or undervolt, too high a temperature, a weak
+power supply, or a faulty card or video memory - undo the overclock or undervolt and run it again.
+**Ended early** = a safety rule stopped it (see below); the page says which. **Stopped** = you
+pressed Stop (no errors so far). The page also shows the highest edge, hotspot / junction and
+memory temperatures, power, clock and fan speed, the average speed in GFLOPS, the number of
+multiplications, the matrix size, the back end and the driver version. "not available" means the
+card or driver does not report that sensor (for example NVIDIA's own driver gives Linux no
+temperature).
+
+**Safety - what stops it by itself.** Run asks first, and **No** is the default answer. The
+question says that the GPU will draw a lot of power and get hot, that a bad overclock or undervolt
+can crash the PC or the display driver, and that a weak power supply or poor cooling can make the
+PC shut down. GPU Burnin then ends by itself when:
+
+- the GPU reaches the **temperature limit** (default 100 °C; the hotspot / junction temperature
+  when the card reports one, else the edge temperature);
+- the driver reports **any error**, or the GPU **stops answering** (device lost);
+- one piece of work takes **more than 2 seconds** (each should take about 20 ms);
+- you press **Stop**.
+
+**SRS never changes clocks, voltages or fans** - it only reads them. GPU Burnin does not start
+while CPU Burnin / Stress or another benchmark runs, and CPU Burnin waits until it has finished.
+The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
+[Benchmark history](#910-benchmark-history). The idea of comparing every result with the first
+one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on a software GPU only -
+see the note at the start of this chapter.
 
 ## 10. Options
 

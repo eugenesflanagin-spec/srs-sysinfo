@@ -129,6 +129,20 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   (the GPU, the time, full GPU load, overclock / undervolt warning); Stop works; one history line
   per run. Vulkan overlay layers such as MangoHud are kept out of the run. `--list` lists the
   Vulkan devices without running anything.
+- **GPU Burnin** (`sysreport-search gpu-burn`, Benchmarks & stress -> GPU Burnin,
+  `--gui-open=gpuburn`): keeps one GPU or all GPUs fully busy with repeated large matrix
+  multiplications (FP32 or FP64) and counts compute errors - the first result is the reference and
+  every later one is compared with it on the GPU (idea from gpu-burn by Ville Timonen; SRS's own
+  code); 0 errors = PASS. Back end Vulkan, ROCm / HIP, CUDA (labelled "CUDA (ZLUDA)" when the CUDA
+  library is ZLUDA) or OpenCL (each driver its own entry), or Auto; all loaded at run time, a
+  missing one says "not installed" with a hint. Own kernel through hipRTC / NVRTC / the OpenCL
+  compiler, else hipBLAS / cuBLAS / CLBlast. Live readout of GFLOPS, errors, edge / hotspot /
+  memory temperature, power, clock and fan (hwmon by PCI address; "not available" when not
+  reported). Ends by itself at the temperature limit (default 100 °C, hotspot when reported),
+  on any driver error, device lost, or a piece of work that takes more than 2 s; never changes
+  clocks, voltages or fans. Asks before it starts (No is the default in the window). Default 60 s,
+  up to 24 hours. One GPU test at a time, and CPU Burnin / Stress refuses to start while a GPU
+  test runs (and the other way round).
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -211,7 +225,10 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   renderer - with the GPU files built under AddressSanitizer + UBSan; Vulkan type layouts checked
   against the Khronos header for 64-bit and 32-bit; the pre-compiled shaders checked against their
   sources; Vulkan / driver missing paths; Stop; result file, history line; the CLI (help, unknown
-  option, no terminal, `--yes`).
+  option, no terminal, `--yes`). GPU Burnin: PASS with 0 errors, live callback, FP64, Stop, a
+  second run right after (lock released), CPU Burnin refused while a GPU test runs; HIP, CUDA and
+  OpenCL only as far as loading the libraries and finding every function (`dlopen` + `dlsym`;
+  no HIP, CUDA or OpenCL work is run) and the "not installed" / "no OpenCL platform" paths.
 
 ### Changed
 

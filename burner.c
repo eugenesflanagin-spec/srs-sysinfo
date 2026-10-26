@@ -1,6 +1,7 @@
 /* burner.c - CPU Stress / CPU Burnin engine (see burner.h). */
 #define _GNU_SOURCE
 #include "burner.h"
+#include "bench_gpu.h"   /* gpu_busy(): the CPU burner does not start while a GPU burn-in / benchmark runs */
 #include "sec.h"
 
 #include <errno.h>
@@ -473,6 +474,7 @@ int burn_start(const burn_cfg *c)
 {
     int i;
     if (g_active) return -1;
+    if (gpu_busy()) return -1;   /* not while a GPU burn-in / benchmark runs: both together are too much heat and power */
     g_cfg = *c;
     if (g_cfg.cycles < 1) g_cfg.cycles = 1;
     load_apic_map();

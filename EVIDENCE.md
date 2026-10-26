@@ -200,3 +200,10 @@ or result files were used or looked at for them. Public sources are credited in 
   for 64-bit and 32-bit by `tests/bench-gpu-test.sh` with `-DGVK_LAYOUT_CHECK`); the loader is
   opened with `dlopen`. The GLSL compute shaders were written for SRS and compiled with glslang;
   the generated SPIR-V is in `bench_gpu_spv.inc`. Developed and tested on lavapipe only.
+- **GPU Burnin** (`bench_gpuburn.c`, `gpu_backend.c`, `gpuburn_vk.c`, `gpuburn_rt.c`,
+  `gpuburn_cl.c`, `gpu_kernels.h`): the idea of comparing every matrix multiplication with the
+  first follows gpu-burn (Ville Timonen, BSD-2-Clause), from its README and its published
+  description, not its code; the HIP, CUDA, hipRTC, NVRTC, hipBLAS, cuBLAS, OpenCL and CLBlast
+  functions are declared in SRS from the vendors' public API documentation and opened with
+  `dlopen`; the sensors are the kernel's documented hwmon files. HIP, CUDA and OpenCL work was not
+  run by the author (only loading the libraries and finding their functions was tested).

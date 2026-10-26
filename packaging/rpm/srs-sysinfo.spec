@@ -60,6 +60,14 @@ Suggests:       libvulkan1
 %else
 Suggests:       vulkan-loader
 %endif
+# ROCm / HIP, OpenCL and CLBlast, loaded at run time by GPU Burnin and the GPU Compute comparison
+%if 0%{?suse_version}
+Suggests:       libOpenCL1
+%else
+Suggests:       ocl-icd
+Suggests:       rocm-hip
+Suggests:       clblast
+%endif
 %if 0%{?suse_version}
 Suggests:       libayatana-appindicator3-1
 %else
