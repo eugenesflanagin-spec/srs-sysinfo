@@ -2510,7 +2510,7 @@ static void setup_fill(void)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(G.s_off), G.off_w);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(G.s_int), G.interval);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(G.s_bg), bg_installed());
-    snprintf(s, sizeof s, "History: %s (one row per minute, about 30 MB a year; only you can read it).  Settings: %s", G.db_path, G.ini_path);
+    snprintf(s, sizeof s, "History: %s (one row per minute, about 40 MB a year; only you can read it).  Settings: %s", G.db_path, G.ini_path);
     gtk_label_set_text(GTK_LABEL(G.s_db), s);
     G.loading = 0;
     bg_status();

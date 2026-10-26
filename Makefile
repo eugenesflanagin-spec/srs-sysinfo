@@ -143,6 +143,7 @@ install-system: native
 	install -Dm644 README.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/README.md
 	install -Dm644 CHANGELOG.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHANGELOG.md
 	install -Dm644 EVIDENCE.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/EVIDENCE.md
+	install -Dm644 CREDITS.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CREDITS.md
 	install -Dm644 CHECKLIST.tsv $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHECKLIST.tsv
 	install -Dm644 LICENSE $(DESTDIR)$(SYSPREFIX)/share/licenses/srs-sysinfo/LICENSE
 	install -Dm644 srs-user-guide.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-user-guide.desktop

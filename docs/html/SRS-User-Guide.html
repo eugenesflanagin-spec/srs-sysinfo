@@ -499,10 +499,11 @@ root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
 <td><strong>Sidebar</strong> (left)</td>
 <td>The pages: Overview, Processor, Memory, Motherboard &amp; BIOS,
 Graphics &amp; audio, Storage, Network, Sensors, USB &amp; PCI devices,
-Operating system, Benchmarks &amp; stress, Tools. <strong>Alt+1</strong>
-... <strong>Alt+9</strong>, <strong>Alt+0</strong>,
-<strong>Alt+-</strong> and <strong>Alt+=</strong> jump straight to them.
-Below the list: <strong>Classic view</strong> and the SRS version.</td>
+Operating system, Benchmarks &amp; stress, Tools, and (new in 2.1) Power
+&amp; cost. <strong>Alt+1</strong> ... <strong>Alt+9</strong>,
+<strong>Alt+0</strong>, <strong>Alt+-</strong> and
+<strong>Alt+=</strong> jump straight to the first twelve. Below the
+list: <strong>Classic view</strong> and the SRS version.</td>
 </tr>
 <tr>
 <td><strong>Page</strong> (right)</td>
@@ -596,6 +597,12 @@ results)</td>
 <td><strong>Tools</strong></td>
 <td>Look-ups, reports and SRS's own items</td>
 <td>About SRS, Help</td>
+</tr>
+<tr>
+<td><strong>Power &amp; cost</strong></td>
+<td>How much power the PC uses, what it costs, history (estimates; see
+<a href="#user-guide--67-power--cost">6.7</a>)</td>
+<td>Now, History, Sessions, Price, Setup, Alarms, Sources</td>
 </tr>
 </tbody>
 </table>
@@ -1051,6 +1058,469 @@ hides to tray" is on, see <a href="#user-guide--11-system-tray">11</a>.)</td>
 </table>
 <p>Every button label has an underlined letter: press <strong>Alt + that
 letter</strong> to click it.</p>
+<h3 id="user-guide--67-power--cost">6.7 Power &amp; cost</h3>
+<blockquote>
+<p><strong>Estimates only. Please read.</strong> SRS shows how much
+power your computer <strong>probably</strong> uses and what it
+<strong>might</strong> cost. These numbers are
+<strong>estimates</strong>, not a meter reading and not a bill. Only
+some parts of a PC report their own power (usually the processor and the
+graphics card), and even those reports can be off. Everything else
+(motherboard, memory, drives, fans, lights, the power supply's own
+losses, and your screens) is <strong>guessed</strong> from typical
+values: that is why SRS shows a range. Prices come from what you type or
+from public tables that may be out of date or not match your plan. CO₂
+figures use grid averages. Alarms can be late, missed or wrong.
+<strong>Do not use SRS for billing, for safety decisions, or as proof of
+energy use.</strong> Always check your electricity bill and your
+supplier. SRS is free software provided "as is", without any warranty
+(GPL v2.0 or later, sections 11-12); Eugene Flanagin and the SRS
+contributors are not responsible for any errors, losses, costs or damage
+that come from using these estimates.</p>
+</blockquote>
+<p>SRS shows this note in full the first time you open the page (press
+<strong>I understand</strong>), then as a yellow banner at the top of
+the page (<strong>Read the note</strong> shows it again) and at the top
+of every CSV export.</p>
+<p><strong>In plain words:</strong> the page answers "how much power
+does this PC use, and what does that cost me?". The processor and the
+graphics card tell Linux how much power they use; SRS adds a low and a
+high guess for every other part, then allows for the power supply's own
+losses. The result is a centre figure with a likely range, for example
+<strong>about 160 W, likely between 116 W and 205 W at the
+wall</strong>. Recording keeps one line per minute, so you can see days,
+weeks and months, with the cost at your price.</p>
+<p>The page is the last one in the sidebar (<strong>Power &amp;
+cost</strong>; it has no Alt+number key, so every other page keeps its
+key). Open it from the command line with
+<code>srs-gui --gui-open=power-cost</code>.</p>
+<p><img src="../images/power-now.png"
+alt="Power &amp; cost, Now tab (this PC idling)" /></p>
+<h4 id="user-guide--now">Now</h4>
+<ul>
+<li><strong>The big number</strong> is the estimate at the wall, with
+the likely range under it and the cost per hour, day, month and year
+<strong>if the PC kept drawing this much</strong> at your price.</li>
+<li>The line under it says how each part is known:
+<strong>measured</strong> (zenergy, RAPL), <strong>reported by the
+driver</strong> (amdgpu), or <strong>estimated</strong>.</li>
+<li><strong>Recording:</strong> <strong>Off</strong> (nothing is saved;
+the live figure still works), <strong>For a set time</strong> (choose
+minutes, hours or days and press <strong>Start</strong>; it stops by
+itself), or <strong>Always (forever)</strong> (whenever SRS runs, also
+hidden in the tray; see the background recorder below for when SRS is
+closed).</li>
+<li><strong>The last 10 minutes:</strong> the line is the estimate, the
+shaded band the likely range.</li>
+<li><strong>Where the watts go:</strong> every part with its watts and
+where the figure comes from, the power supply's losses, and the total at
+the wall.</li>
+</ul>
+<h4 id="user-guide--history">History</h4>
+<p>Pick a range (last 24 hours by hour; last 7 or 30 days by day; last
+12 weeks by week; last 12 months or everything by month) and
+<strong>Energy</strong> or <strong>Cost</strong>. Bars are the estimate,
+the whiskers the likely range. Hover over a bar for its numbers. The
+summary line gives the totals, how long SRS recorded and how long the PC
+slept, the gaps that were not recorded, CO₂ if you turned it on, and
+<strong>busy vs idle</strong>: the energy used while the processor or
+graphics card was busy (at or above the Sessions tab's level, 50 % by
+default) against the rest.</p>
+<ul>
+<li><strong>Export CSV...</strong> writes the history for a spreadsheet:
+one row per minute, hour, day, week, month or year, the shown range or
+everything, with a decimal point or a decimal comma (then columns are
+split by <code>;</code>). The file starts with <code>#</code> lines: the
+note above, your power supply, parts list and price. Columns:
+<code>period</code>, <code>start_utc</code>, <code>kwh_estimate</code>,
+<code>kwh_low</code>, <code>kwh_high</code>,
+<code>cpu_kwh_measured</code>, <code>gpu_kwh_measured</code>,
+<code>cost_&lt;currency&gt;</code>, <code>avg_w</code>,
+<code>max_w</code>, <code>hours_recorded</code>,
+<code>hours_asleep</code>, <code>hours_busy</code>,
+<code>kwh_busy</code>.</li>
+<li><strong>Re-price...</strong> costs every recorded minute again with
+today's price settings. Normally each minute keeps the price that
+applied when it was recorded (so a time-of-use or tiered price is exact
+to the minute); use this after correcting a wrong price.</li>
+</ul>
+<p><img src="../images/power-history.png"
+alt="Power &amp; cost, History tab (example data)" /></p>
+<p><em>The history picture uses made-up example data.</em></p>
+<h4 id="user-guide--sessions">Sessions</h4>
+<p>A <strong>session</strong> is a stretch of heavy use, such as a game
+or a long render: the processor or the graphics card busy at or above a
+level (50 % by default) for 2 minutes, ending after 3 quiet minutes (all
+three adjustable). A short pause stays inside the session. Each session
+shows when it started, how long it lasted, its energy, cost, highest
+draw and CO₂. These are <strong>the whole PC's</strong> figures while
+the session lasted: Linux cannot split power by program.</p>
+<h4 id="user-guide--price">Price</h4>
+<ul>
+<li><strong>Currency:</strong> pick one (its usual symbol, placement and
+decimals follow), or <strong>Custom</strong> and type your own.</li>
+<li><strong>Your price:</strong>
+<ul>
+<li><strong>Flat:</strong> one price per kWh, from your bill.</li>
+<li><strong>Tiered:</strong> up to six tiers ("the first 500 kWh a month
+at A, then B"). Because the PC is only part of your home's use, you can
+say how much the rest of the home uses a month; SRS counts that first,
+so the PC lands in the tier it really adds to. 0 = count the PC
+first.</li>
+<li><strong>Time of use:</strong> four price levels (names and prices
+editable) and a grid of 24 hours for weekdays and weekends: click an
+hour to change its level. Each minute is priced at the level of its
+hour.</li>
+<li><strong>Taxes and levies</strong> (%) that are not in the price, and
+a <strong>standing charge</strong> per day. The standing charge is off
+in the totals by default, because the PC does not cause it.</li>
+</ul></li>
+<li><strong>Typical prices for your area (offline):</strong> if you
+don't know your price, pick your country and region; SRS fills in an
+average <strong>from tables built into SRS. Nothing is sent
+anywhere.</strong> The country is pre-selected from your time zone. For
+the United States, type a five-digit <strong>ZIP code</strong> and press
+Enter: SRS picks the state and shows the utility that probably serves it
+with its average residential price. <strong>Use this price</strong>
+copies it into "Your price". These are averages for an area, not your
+plan, and they may be out of date; the date of each table is shown. Your
+own bill's price is always better.</li>
+<li><strong>What if:</strong> the cost a year if the PC were left on
+24/7 at today's draw and at this month's recorded average, and this
+month's forecast from the recorded days.</li>
+<li><strong>CO₂ estimate:</strong> off, or a country's (or the world's)
+average grid emissions per kWh. Grid averages only; your supplier's mix
+may be very different.</li>
+</ul>
+<h4 id="user-guide--setup">Setup</h4>
+<ul>
+<li><strong>Power supply (PSU):</strong> pick yours or the nearest
+<strong>80 PLUS</strong> level at 115 V or 230 V, and type its rating in
+watts. <strong>I don't know my power supply</strong> uses a wide range.
+Experts can type an efficiency curve as <code>load %:efficiency %</code>
+pairs (for example from the PSU's Cybenetics report) and press
+<strong>Use curve</strong>. The line under it shows the load and
+efficiency right now.
+<ul>
+<li>The <strong>Montech CENTURY II 1200W</strong> preset is certified
+<strong>80 PLUS Gold</strong> and <strong>Cybenetics Platinum</strong>
+(two different test schemes). Its curve is <strong>derived, not
+measured</strong>: the 80 PLUS Gold minimums, lifted to the Cybenetics
+Platinum average that HWbusters' review found, and that review's note
+that efficiency falls <strong>under 70 % at 2 % load</strong> (about 24
+W). The exact percentages are only in the review's charts, so the range
+is kept wide.</li>
+<li>Below 20 % load (where most PCs idle) the 80 PLUS tests say nothing,
+so SRS widens the range there.</li>
+</ul></li>
+<li><strong>Parts that cannot be measured:</strong> SRS starts from what
+it finds on this PC (memory sticks, NVMe drives, hard disks, spinning
+fans, monitors, the motherboard) with typical low and high watts.
+Double-click a value to change it, untick a row to leave it out,
+<strong>Add a part...</strong> for typical parts (case fans, AIO cooler
+and pump, fan hub with lighting, LED strips, monitors, ...),
+<strong>Reset to SRS's guess...</strong> to start again. <strong>Counts
+as:</strong>
+<ul>
+<li><em>Watts each</em>: low and high watts, times the number.</li>
+<li><em>% of CPU power</em> / <em>% of GPU power</em>: the processor's
+power stage losses (8-12 %) and the rest of the graphics card (5-30 %:
+the driver's number leaves out fans, memory and power stages).</li>
+<li><em>CPU / Graphics card (if not measured)</em>: used only when SRS
+cannot read that part.</li>
+<li><em>Beside the PC (at the wall)</em>: monitors and speakers; added
+to the wall figure, not through the PSU. Monitors are off by default;
+the energy label's "on mode" power is the best figure.</li>
+<li>A fan hub on one motherboard header can drive several fans: SRS only
+sees one header, so set the number of fans yourself.</li>
+</ul></li>
+<li><strong>Sleep, off and recording:</strong> the watts the PC draws
+asleep (default 3 W) and switched off (default 1 W), counted while
+recording; how often to read the sensors (every 2 s by default; the
+energy counters keep exact totals, so 1-10 s is plenty); <strong>Keep
+recording when SRS is closed</strong> (below); where the files are;
+<strong>Delete all history...</strong>.</li>
+</ul>
+<h4 id="user-guide--alarms">Alarms</h4>
+<p><strong>Add an alarm...</strong> offers: power right now over a limit
+for some seconds, the average over some minutes over a limit, energy or
+cost today or this month reaching a limit, and this month heading over a
+budget (a forecast from the days so far). Limits can be in W, kW or
+BTU/h (power) or in Wh, kWh, MWh, kJ or MJ (energy); the line under the
+settings shows the same limit in the other units. An alarm fires
+<strong>once</strong>: power alarms again only after the power drops
+clearly (5 %) below the limit, day and month alarms once per day or
+month. They show as desktop notifications (through the desktop's
+notification service; no sound from SRS), and on the tab. Energy and
+cost alarms need Recording on. <strong>Test notification</strong> shows
+what one looks like.</p>
+<h4 id="user-guide--sources">Sources</h4>
+<p>What SRS can measure on this PC, in plain words, and the raw
+readings. <strong>SRS never changes who may read these
+files.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>What it is</th>
+<th>Who can read it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>zenergy driver (<code>Esocket</code>)</td>
+<td>AMD's RAPL energy counter for the CPU package</td>
+<td>normal users, by design (the driver limits how often it
+updates)</td>
+</tr>
+<tr>
+<td>amd_energy driver</td>
+<td>the same counter (older driver)</td>
+<td>normal users</td>
+</tr>
+<tr>
+<td>powercap RAPL (<code>/sys/class/powercap/intel-rapl:*</code>)</td>
+<td>the CPU package counter, Intel and AMD</td>
+<td><strong>root only since Linux 5.10</strong>: energy readings can
+leak secrets (PLATYPUS, CVE-2020-8694/8695/12912). SRS uses it only if
+it is readable.</td>
+</tr>
+<tr>
+<td>amdgpu <code>power1_average</code> (PPT)</td>
+<td>the graphics chip's power as the driver reports it</td>
+<td>normal users</td>
+</tr>
+<tr>
+<td>Intel i915 / xe <code>energy1_input</code>, nouveau
+<code>power1_input</code></td>
+<td>graphics card energy or power</td>
+<td>normal users</td>
+</tr>
+<tr>
+<td>NVIDIA (proprietary driver)</td>
+<td>not read yet: the graphics card row of the parts list is used</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>If the CPU cannot be measured, install the <strong>zenergy</strong>
+driver (AMD), or run SRS as root for a quick check; SRS does not ship a
+rule that opens RAPL to everyone. On AMD the counter is a model inside
+the chip, not a meter: good for changes, and it may read lower than a
+wall meter.</p>
+<h4 id="user-guide--recording-sleep-and-restarts">Recording, sleep and restarts</h4>
+<ul>
+<li>Recording writes one row per minute: seconds recorded, estimate with
+its low and high, the measured CPU and GPU energy, the cost at the price
+in force, the highest draw and the busy time. About 40 MB a year.</li>
+<li>Energy counters run round like an odometer (RAPL here after about 65
+kJ: about 23 minutes at 47 W). SRS reads them every few seconds and
+<strong>unwraps</strong> them; a reading after a gap too long to tell
+one wrap from two is skipped, not guessed. A counter that goes down
+without wrapping (a driver reload) starts a new baseline.</li>
+<li><strong>Sleep</strong> is noticed from the clocks (Linux's boot-time
+clock keeps counting while asleep, the monotonic clock does not); the
+time asleep is counted at the "asleep" watts. <strong>Shut-down to the
+next start</strong> is noticed from the boot ID and counted at the "off"
+watts (up to 31 days). Time when SRS was not running is a
+<strong>gap</strong>, never made-up data.</li>
+<li><strong>Keep recording when SRS is closed</strong> writes
+<code>~/.config/systemd/user/srs-power-recorder.service</code> and
+enables it: it runs <code>srs-gui --power-recorder</code> as you (not as
+root) and records only while Recording is <strong>For a set
+time</strong> or <strong>Always</strong>. Unticking it stops and removes
+the service. Only one SRS records at a time (a lock file next to the
+database); the other shows the same history.</li>
+</ul>
+<h4 id="user-guide--files">Files</h4>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.local/share/srs/power.db</code></td>
+<td>The history (SQLite; readable only by you).
+<code>power.db.lock</code> beside it.</td>
+</tr>
+<tr>
+<td><code>~/.config/srs/power.ini</code></td>
+<td>The page's settings: recording, power supply, parts, price, alarms,
+sessions.</td>
+</tr>
+<tr>
+<td><code>~/.config/systemd/user/srs-power-recorder.service</code></td>
+<td>Only when <strong>Keep recording when SRS is closed</strong> is
+on.</td>
+</tr>
+<tr>
+<td><code>/usr/share/srs-sysinfo/power-zip-rates.tsv</code></td>
+<td>The US ZIP code to utility table.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="user-guide--where-the-built-in-figures-come-from">Where the built-in figures
+come from</h4>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>Source</th>
+<th>Date in SRS 2.1.0</th>
+<th>Licence / terms</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>US average price by state</td>
+<td>U.S. Energy Information Administration, <em>Electric Power
+Monthly</em>, Table 5.6.B (residential, year to date)</td>
+<td>August 2026 YTD</td>
+<td>U.S. government work (public domain); credit EIA</td>
+</tr>
+<tr>
+<td>US utility by ZIP code, with its average residential price</td>
+<td>NREL, <em>U.S. Electric Utility Companies and Rates: Look-up by Zip
+Code (2024)</em>, from EIA-861 data</td>
+<td>2024</td>
+<td>Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by
+SRS</td>
+</tr>
+<tr>
+<td>Europe, price by country</td>
+<td>Eurostat, <code>nrg_pc_204</code> (households, 2 500-4 999 kWh a
+year, all taxes and levies)</td>
+<td>2026-S1</td>
+<td>Reuse with the source acknowledged (Eurostat copyright notice). SRS
+shows the figures unchanged. Eurostat is not responsible for SRS's use
+of them.</td>
+</tr>
+<tr>
+<td>Great Britain, price cap</td>
+<td>Ofgem, energy price cap (GB average, Direct Debit), unit rate and
+daily standing charge</td>
+<td>1 October to 31 December 2026</td>
+<td>Published figures, credited to Ofgem</td>
+</tr>
+<tr>
+<td>CO₂ per kWh by country</td>
+<td>Ember, <em>Yearly electricity data</em> (emissions intensity)</td>
+<td>up to 2025</td>
+<td>CC BY 4.0</td>
+</tr>
+<tr>
+<td>80 PLUS efficiency levels</td>
+<td>Wikipedia, "80 Plus" (citing CLEAResult, the certifier)</td>
+<td></td>
+<td>Facts, credited</td>
+</tr>
+<tr>
+<td>Montech CENTURY II 1200W</td>
+<td>HWbusters review (Cybenetics Platinum average, under 70 % at 2 %
+load); PCPartPicker (80 PLUS Gold)</td>
+<td>2026-10</td>
+<td>Facts, credited</td>
+</tr>
+</tbody>
+</table>
+<p>The tables are made by <code>tools/gen_power_rates.py</code> from the
+downloaded files (their addresses are in the script); SRS itself never
+goes online for them. Australia (AER Default Market Offer) is not
+included yet: type your price.</p>
+<h4 id="user-guide--words-used-on-this-page">Words used on this page</h4>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>Plain meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>W (watt)</strong></td>
+<td>How fast power is being used <em>right now</em>. A 100 W PC uses 100
+watts at this moment.</td>
+</tr>
+<tr>
+<td><strong>kW (kilowatt)</strong></td>
+<td>1,000 W.</td>
+</tr>
+<tr>
+<td><strong>Wh (watt-hour)</strong></td>
+<td>Energy used <em>over time</em>: 100 W for one hour = 100 Wh.</td>
+</tr>
+<tr>
+<td><strong>kWh (kilowatt-hour)</strong></td>
+<td>1,000 Wh: 1,000 W for an hour, or 100 W for ten hours. <strong>Your
+bill counts kWh.</strong></td>
+</tr>
+<tr>
+<td><strong>J, kJ, MJ (joule)</strong></td>
+<td>Another energy unit: 3,600 J = 1 Wh, 3.6 MJ = 1 kWh. Linux counters
+count microjoules.</td>
+</tr>
+<tr>
+<td><strong>BTU/h</strong></td>
+<td>Heat per hour: 1 W ≈ 3.412 BTU/h. All the power a PC uses ends up as
+heat in the room.</td>
+</tr>
+<tr>
+<td><strong>At the wall</strong></td>
+<td>What the PC draws from the socket, including the power supply's
+losses. This is what you pay for.</td>
+</tr>
+<tr>
+<td><strong>Inside the PC (DC)</strong></td>
+<td>Power after the power supply, used by the parts. Always less than at
+the wall.</td>
+</tr>
+<tr>
+<td><strong>PSU efficiency</strong></td>
+<td>The share of the wall power that reaches the parts: 90 % means 10 %
+becomes heat in the PSU.</td>
+</tr>
+<tr>
+<td><strong>80 PLUS / Cybenetics</strong></td>
+<td>Two certifications of PSU efficiency. 80 PLUS tests at 20, 50 and
+100 % load (Titanium also 10 %); Cybenetics tests many loads, light ones
+too.</td>
+</tr>
+<tr>
+<td><strong>RAPL</strong></td>
+<td>The processor's built-in energy counter ("Running Average Power
+Limit"). Intel measures; AMD models.</td>
+</tr>
+<tr>
+<td><strong>PPT</strong></td>
+<td>AMD's "Package Power Tracking": the chip's own power figure. For a
+graphics card it is not the whole card.</td>
+</tr>
+<tr>
+<td><strong>Wrap-around</strong></td>
+<td>A counter reaching its top and starting again from zero, like an old
+car's odometer.</td>
+</tr>
+<tr>
+<td><strong>Tiered price</strong></td>
+<td>The price per kWh changes after so many kWh a month.</td>
+</tr>
+<tr>
+<td><strong>Time of use</strong></td>
+<td>The price per kWh depends on the hour and the day.</td>
+</tr>
+<tr>
+<td><strong>Standing charge</strong></td>
+<td>What you pay per day whatever you use.</td>
+</tr>
+<tr>
+<td><strong>Carbon intensity</strong></td>
+<td>Grams of CO₂ released per kWh on your grid, on average.</td>
+</tr>
+</tbody>
+</table>
 <h2 id="user-guide--7-the-panels-and-their-buttons">7. The panels and their
 buttons</h2>
 <p>In the classic view (<a
@@ -2221,6 +2691,12 @@ this guide as <code>SRS-User-Guide.pdf</code>,
 <td><code>/usr/share/applications/srs-user-guide.desktop</code></td>
 <td>The <strong>SRS User Guide (PDF)</strong> menu entry.</td>
 </tr>
+<tr>
+<td><code>~/.local/share/srs/power.db</code>,
+<code>~/.config/srs/power.ini</code></td>
+<td><strong>Power &amp; cost</strong> history and settings (<a
+href="#user-guide--67-power--cost">6.7</a>).</td>
+</tr>
 </tbody>
 </table>
 <p><code>SRSDEF.ini</code> keys (section <code>[SRSDEF]</code>). You
@@ -2478,6 +2954,10 @@ addresses keep their vendor half (<code>04:7c:16:XX:XX:XX</code>), which
 is useful for telling network chips apart. The report's first line ends
 with <code>(identifiers redacted)</code>. Published constants such as
 GPT partition-type GUIDs are not masked.</p>
+<p>The <strong>Power &amp; cost</strong> history
+(<code>~/.local/share/srs/power.db</code>) is not part of any report; it
+says when the PC was in use, so think before sharing an export of it.
+Nothing on that page goes online.</p>
 <p>Not masked: <strong>IP addresses</strong> and <strong>Wi-Fi network
 names</strong>. Look for them (or use Find) before you post. Or save
 only the items you need:
@@ -29603,6 +30083,7 @@ sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
+srs-gui --power-recorder
 srs-root [--user NAME]
 srs-sysreport</code></pre>
 <hr />
@@ -29646,7 +30127,8 @@ Benchmarks and stress (load the CPU; run only when you ask):
 
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
-        --gui-classic start in the classic SIV-style main window, --gui-new in the new one</code></pre>
+        --gui-classic start in the classic SIV-style main window, --gui-new in the new one
+        --gui-open=power-cost the Power &amp; cost page; --power-recorder record its history with no window</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
 <pre><code>sysreport-search 2.0.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
@@ -30130,6 +30612,15 @@ every item in its own panel (as in SRS 1.1).</td>
 in classic view</strong> is on.</td>
 </tr>
 <tr>
+<td><code>--power-recorder</code></td>
+<td>Record <strong>Power &amp; cost</strong> history with no window,
+following the page's Recording setting (Off / For a set time / Always).
+Used by the optional systemd user service that <strong>Power &amp; cost
+-&gt; Setup -&gt; Keep recording when SRS is closed</strong> writes.
+Only one process records at a time (a lock file beside the database);
+stop it with Ctrl+C or SIGTERM.</td>
+</tr>
+<tr>
 <td>any other argument</td>
 <td>Run as the command line (<code>srs-gui -save</code> =
 <code>sysreport-search -save</code>).</td>
@@ -30178,6 +30669,11 @@ in classic view</strong> is on.</td>
 <tr>
 <td><code>menu</code></td>
 <td>Pops up the Menu</td>
+</tr>
+<tr>
+<td><code>power-cost</code></td>
+<td>Shows the Power &amp; cost page (the item <code>power</code> is the
+expert Power status tab on Sensors)</td>
 </tr>
 </tbody>
 </table>
@@ -30280,6 +30776,18 @@ to run</td>
 <td>Same as <code>--gui-open=</code></td>
 </tr>
 <tr>
+<td><code>SRS_POWER_DB</code>, <code>SRS_POWER_INI</code></td>
+<td>Power &amp; cost: use another history database / settings file
+instead of <code>~/.local/share/srs/power.db</code> and
+<code>~/.config/srs/power.ini</code> (for tests)</td>
+</tr>
+<tr>
+<td><code>SRS_DATA_DIR</code></td>
+<td>Folder holding <code>power-zip-rates.tsv</code> for the offline US
+ZIP price lookup (default: next to the program, then
+<code>/usr/share/srs-sysinfo</code>)</td>
+</tr>
+<tr>
 <td><code>SRS_DOC_DIR</code></td>
 <td>Folder holding <code>SRS-User-Guide.pdf</code> / <code>html/</code>
 for <code>guide</code>, F1 and the Guide button (default
@@ -30373,6 +30881,10 @@ given piece of memory may be stored; more ways means fewer collisions.
 <li><strong>ATA</strong> - AT Attachment: the command set used by SATA
 (and older IDE/PATA) hard disks and SSDs. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>At the wall</strong> - what the PC draws from the socket,
+including the power supply's own losses; what the electricity meter
+counts and you pay for. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>AUR (Arch User Repository)</strong> - community build
 recipes for Arch-based systems. Packages built from it show as "foreign"
 in pacman. <em>See: <a
@@ -30443,6 +30955,10 @@ href="#sections-network">network</a>.</em></li>
 <li><strong>btrfs</strong> - A Linux copy-on-write filesystem with
 checksums, subvolumes, snapshots, compression and built-in multi-disk
 support. <em>See: <a href="#sections-storage">storage</a>.</em></li>
+<li><strong>BTU/h (British thermal units per hour)</strong> - a unit of
+heat flow: 1 W is about 3.412 BTU/h. All the power a PC uses ends up as
+heat in the room. <em>See: <a href="#user-guide--67-power--cost">User
+Guide 6.7</a>.</em></li>
 <li><strong>Built-in driver</strong> - a driver compiled into the kernel
 file itself. It is always present and never appears in
 <code>/proc/modules</code>. <em>See: <a
@@ -30453,6 +30969,9 @@ href="#sections-buses-2">buses-2</a>.</em></li>
 </ul>
 <h2 id="glossary--c">C</h2>
 <ul>
+<li><strong>Carbon intensity</strong> - grams of CO2 released per kWh of
+electricity on a grid, on average over a year. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>C-state</strong> - an idle power level of a CPU core; C0 is
 running, deeper states (C1, C2, C3) save more power but take longer to
 wake. <em>See: <a
@@ -30578,6 +31097,10 @@ href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--d">D</h2>
 <ul>
+<li><strong>DC power (inside the PC)</strong> - the power after the
+power supply, used by the parts; always less than the power at the wall.
+<em>See: <a href="#user-guide--67-power--cost">User Guide
+6.7</a>.</em></li>
 <li><strong>D-states</strong> - device power states: D0 fully on, D3hot
 off but powered, D3cold power removed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -31068,6 +31591,9 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>JEDEC</strong> - the standards body for memory; the JEDEC
 speed is a stick's standard base speed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Joule (J)</strong> - a unit of energy: 3,600 J = 1 Wh. Linux
+energy counters count microjoules (millionths of a joule). <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Junction temperature</strong> - the hottest point measured
 on a graphics chip, usually higher than its "edge" temperature. <em>See:
 <a href="#sections-tools">tools</a>.</em></li>
@@ -31093,6 +31619,8 @@ href="#sections-processors">processors</a>.</em></li>
 <li><strong>kWh (kilowatt-hour)</strong> - 1000 watts used for one hour;
 the unit electricity is billed in. <em>See: <a
 href="#sections-sensors">sensors</a>.</em></li>
+<li><strong>kW (kilowatt)</strong> - 1,000 watts. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 </ul>
 <h2 id="glossary--l">L</h2>
 <ul>
@@ -31370,6 +31898,11 @@ power tuning. On Linux it appears as <code>pp_od_clk_voltage</code>.
 <ul>
 <li><strong>P-core</strong> - Performance core, a big, fast core on a
 hybrid CPU. <em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>PLATYPUS</strong> - a 2020 attack that used CPU energy
+readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since
+Linux 5.10 the powercap RAPL counters are root-only because of it.
+<em>See: <a href="#user-guide--67-power--cost">User Guide
+6.7</a>.</em></li>
 <li><strong>P-state</strong> - a performance state: a running speed and
 voltage level of the CPU. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
@@ -31509,6 +32042,11 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>PSS (Proportional Set Size)</strong> - a process's RAM use
 with shared pages split fairly among the processes sharing them.
 <em>See: <a href="#sections-linux-os">linux-os</a>.</em></li>
+<li><strong>PSU efficiency (80 PLUS, Cybenetics)</strong> - the share of
+the wall power that reaches the parts; 90 % means 10 % turns into heat
+in the power supply. 80 PLUS and Cybenetics certify it at set loads.
+<em>See: <a href="#user-guide--67-power--cost">User Guide
+6.7</a>.</em></li>
 <li><strong>PTP (Picture Transfer Protocol)</strong> - the older camera
 file-transfer protocol that MTP is built on; uses USB class 06 (Still
 Image). <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
@@ -31635,6 +32173,10 @@ href="#sections-graphics">graphics</a>.</em></li>
 loaders and kernels signed with trusted keys. <em>See: <a
 href="#sections-linux-os">linux-os</a>, <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Session (busy session)</strong> - in Power &amp; cost, a
+stretch of heavy use (a game, a render) found from the CPU and graphics
+load; its energy is the whole PC's while it lasted. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Setup Mode</strong> - UEFI Secure Boot state with no
 Platform Key installed, in which keys can be changed freely. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -31713,6 +32255,9 @@ href="#sections-machine">machine</a>.</em></li>
 run faster; flaws in it (Spectre, Meltdown) can leak data and are closed
 by mitigations. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
+<li><strong>SQLite</strong> - a small database kept in one file; SRS
+keeps the Power &amp; cost history in one. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>srs-root</strong> - the SRS root helper, started from Menu
 &gt; Run as root; it saves root-only data (such as real resource
 addresses) for SRS to read. <em>See: <a
@@ -31730,6 +32275,9 @@ name. <em>See: <a href="#sections-network">network</a>.</em></li>
 it as hex plus letters P (present), E (enabled), S (shown), F
 (functioning). <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Standing charge</strong> - what an electricity supplier
+charges per day whatever you use. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>statvfs</strong> - The system call that returns a mounted
 filesystem's size, free space and block size. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -31829,6 +32377,12 @@ href="#sections-tools">tools</a>.</em></li>
 <li><strong>Thunderbolt</strong> - Intel's high-speed port that carries
 PCI Express, DisplayPort and USB over one cable; USB4 is based on it.
 <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>Tiered price</strong> - an electricity price that changes
+after so many kWh a month. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
+<li><strong>Time-of-use price</strong> - an electricity price that
+depends on the hour and the day. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Tjmax</strong> - the highest temperature a CPU allows before
 it throttles itself. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
@@ -31974,6 +32528,9 @@ units. <em>See: <a href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>Whetstone</strong> - a classic floating-point (decimal
 maths) CPU benchmark. Its score is given in MWIPS. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
+<li><strong>Wh (watt-hour)</strong> - energy used over time: 100 W for
+one hour is 100 Wh; 1,000 Wh is 1 kWh. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Wine</strong> - A compatibility layer that runs Windows
 programs on Linux. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -31993,12 +32550,19 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>WPD (Windows Portable Devices)</strong> - the Windows name
 for MTP/PTP devices such as phones and cameras. <em>See: <a
 href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>Wrap-around (counter)</strong> - a counter reaching its
+highest value and starting again from zero, like an odometer; SRS
+unwraps the CPU energy counter. <em>See: <a
+href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Write-back cache</strong> - A drive feature that confirms a
 write once it is in the drive's own fast memory. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
 <li><strong>WS-Discovery (Web Services Discovery)</strong> - the method
 modern Windows uses to find other PCs and printers on the LAN. <em>See:
 <a href="#sections-network">network</a>.</em></li>
+<li><strong>W (watt)</strong> - how fast power is being used right now.
+<em>See: <a href="#user-guide--67-power--cost">User Guide
+6.7</a>.</em></li>
 <li><strong>WWN</strong> - World Wide Name: a globally unique ID some
 drives report, used for stable device names. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>

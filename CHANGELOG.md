@@ -4,6 +4,51 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.1.0 - 2026-10-26
+
+### Added
+- **Power & cost: how much power the PC uses and what it costs.** A new page at the end of the
+  sidebar. **Estimates only, not a meter reading and not a bill**: the page says so in full the
+  first time it opens, then in a banner and at the top of every export.
+  - **Now:** the whole PC's power at the wall with its likely range (for example "about 160 W,
+    likely between 116 W and 205 W"), the cost per hour, day, month and year at your price, a
+    10-minute graph with the range as a band, and where the watts go. The processor is measured
+    (zenergy, amd_energy, or the RAPL counter when it is readable), the graphics card as its
+    driver reports it (amdgpu, Intel, nouveau); everything else is estimated from a parts list
+    and the power supply's efficiency.
+  - **Recording:** off, for a set time, or always, one row per minute in a local SQLite file
+    (`~/.local/share/srs/power.db`, readable only by you). Energy counters that run round are
+    unwrapped; sleep (from the clocks) and shut-downs (from the boot ID) are noticed and counted
+    at the "asleep" and "off" watts you set; time SRS was not running is a gap, never made-up
+    data. Optional **background recorder** (a systemd user service running
+    `srs-gui --power-recorder`) for when SRS is closed.
+  - **History:** energy or cost by hour, day, week or month with the likely range, the busy vs
+    idle split, a table, **CSV export** (any resolution, decimal point or comma) and re-pricing.
+  - **Sessions:** stretches of heavy use such as games or renders, with length, energy, cost,
+    peak and CO2.
+  - **Price:** any currency; flat, tiered (with the rest of the home's use counted first) or
+    time-of-use (a 24-hour weekday/weekend grid); taxes and an optional standing charge.
+    **Typical prices for your area, offline:** US state averages (EIA), the utility for a US ZIP
+    code (NREL), European countries (Eurostat), the GB price cap (Ofgem). Nothing is sent
+    anywhere. What-ifs (left on 24/7, this month's forecast) and an optional CO2 estimate from
+    grid averages (Ember).
+  - **Setup:** the power supply (presets for the 80 PLUS levels at 115 V and 230 V, and the
+    Montech CENTURY II 1200W; or type a curve from a Cybenetics report), the parts list SRS
+    detects on this PC, editable, with typical parts to add; sleep and off watts; how often to read.
+  - **Alarms:** power now or on average over a limit, energy or cost per day or month, and month
+    forecasts, as desktop notifications; limits in W, kW, BTU/h, Wh, kWh, MWh, kJ or MJ with the
+    conversions shown.
+  - **Sources:** what can be measured on this PC and why. SRS never loosens the RAPL permission
+    that Linux 5.10 made root-only (PLATYPUS).
+  - Guide section 6.7 explains all of it in plain words, with a glossary of W, Wh, kWh and the
+    rest; [CREDITS.md](CREDITS.md) lists the data sources and their licences.
+- `make test-power`: unit tests of the estimate, counter unwrapping, sleep/reboot handling,
+  prices, sessions, alarms and the history database with synthetic counter data; the Debian and
+  RPM builds run them.
+
+### Changed
+- `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
+
 ## 2.0.0 - 2026-10-26
 
 This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per
