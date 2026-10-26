@@ -1969,6 +1969,8 @@ static void open_main(int as_main)
     GtkWidget *vb;
     char title[400];
     if (!as_main && g_classic) { gtk_window_present(GTK_WINDOW(g_classic->win)); return; }
+    /* a classic-only session already has its classic main window */
+    if (!as_main && g_main && g_main->kind == W_SECTION) { gtk_window_present(GTK_WINDOW(g_main->win)); return; }
     w = g_new0(swin, 1);
     w->kind = W_SECTION;
     w->is_main = as_main;
@@ -2423,6 +2425,7 @@ static double cpu_limit(const char **source)
         { "Ryzen [3579] 5[5-8]00X3D", 90 },                   /* 5500X3D - 5800X3D */
         { "Ryzen [3579] [79]\\d\\d\\d(X|F)?( |$)", 95 },      /* Ryzen 7000 / 9000 desktop */
         { "Ryzen [3579] 5\\d\\d\\dG(E|T)?( |$)", 95 },        /* Ryzen 5000 G (APU) */
+        { "Ryzen 5 5600X( |$)", 95 },                       /* the one Ryzen 5000 desktop part rated 95 °C */
         { "Ryzen [3579] 5\\d\\d\\dXT?( |$)", 90 },            /* Ryzen 5000 desktop */
         { "Ryzen [3579] 5\\d\\d\\d( |$)", 90 },
     };
@@ -2816,8 +2819,7 @@ static void checks_collect(check *c)
     hwsum h;
     errsum e;
     long thr = throttle_count();
-    cap *mem = cap_get("memory", 5000);
-    GPtrArray *mr = cap_row(mem, "System Physical Memory");
+    GPtrArray *mr;
     int i;
     memset(c, 0, sizeof(check) * NCHECK);
     for (i = 0; i < NCHECK; i++) { c[i].show = 1; c[i].level = LV_UNK; }
@@ -2911,12 +2913,14 @@ static void checks_collect(check *c)
     snprintf(c[5].tip, sizeof c[5].tip, "The file system mounted at /. Low from 90 %% used, critical from 97 %%.");
 
     c[6].name = "Memory in use"; c[6].item = "memory";
+    /* fetched here, not earlier: other checks call cap_get() and may refresh the cached "memory" item */
+    mr = cap_row(cap_get("memory", 5000), "System Physical Memory");
     if (mr) {
         double l = atof(cell(mr, 4));
         c[6].level = l >= 95 ? LV_BAD : l >= 90 ? LV_WARN : LV_OK;
         snprintf(c[6].text, sizeof c[6].text, "%.0f %% (%s of %s)%s", l, cell(mr, 1), cell(mr, 3),
                  l >= 90 ? " - nearly full; programs may slow down or be closed." : "");
-    }
+    } else snprintf(c[6].text, sizeof c[6].text, "Could not read the memory figures");
     snprintf(c[6].tip, sizeof c[6].tip, "Memory used by programs. Nearly full from 90 %%.");
 
     hw_sum(&h);
@@ -3265,7 +3269,7 @@ static void facts_update(int cat)
 static void ov_update(void)
 {
     check c[NCHECK];
-    int i, warn = 0, bad = 0, k;
+    int i, warn = 0, bad = 0, unk = 0, k;
     char s[600], up[64], *pn;
     time_t now = time(NULL);
     struct tm tm;
@@ -3280,6 +3284,7 @@ static void ov_update(void)
         if (!c[i].show) continue;
         if (c[i].level == LV_WARN) warn++;
         if (c[i].level == LV_BAD) bad++;
+        if (c[i].level == LV_UNK) unk++;
         set_level_class(u->dot, c[i].level);
         gtk_label_set_text(GTK_LABEL(u->dot), c[i].level == LV_UNK ? "○" : "●");
         gtk_label_set_text(GTK_LABEL(u->name), c[i].name);
@@ -3289,12 +3294,13 @@ static void ov_update(void)
         gtk_widget_set_tooltip_text(u->dot, c[i].tip);
         g_object_set_data(G_OBJECT(u->btn), "item", (gpointer)c[i].item);
     }
-    if (bad + warn == 0) snprintf(s, sizeof s, "Everything looks fine");
+    if (bad + warn == 0 && unk) snprintf(s, sizeof s, "Nothing wrong found (%d check%s could not be made)", unk, unk > 1 ? "s" : "");
+    else if (bad + warn == 0) snprintf(s, sizeof s, "Everything looks fine");
     else snprintf(s, sizeof s, "%d thing%s to look at", bad + warn, bad + warn > 1 ? "s" : "");
     gtk_label_set_text(GTK_LABEL(g_home->ov_verdict), s);
     gtk_image_set_from_icon_name(GTK_IMAGE(g_home->ov_icon), bad ? icon_pick("dialog-error-symbolic") : warn ? icon_pick("dialog-warning-symbolic")
                                  : icon_pick("emblem-ok-symbolic|object-select-symbolic"), GTK_ICON_SIZE_DIALOG);
-    set_level_class(g_home->ov_icon, bad ? LV_BAD : warn ? LV_WARN : LV_OK);
+    set_level_class(g_home->ov_icon, bad ? LV_BAD : warn ? LV_WARN : unk ? LV_UNK : LV_OK);
     localtime_r(&now, &tm);
     strftime(up, sizeof up, "%H:%M:%S", &tm);
     snprintf(s, sizeof s, "Checked at %s from the sensors, the drives' SMART data and the kernel's error counters. Hover over a line for the limits.", up);
