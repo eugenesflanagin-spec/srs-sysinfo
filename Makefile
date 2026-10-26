@@ -77,12 +77,23 @@ $(DIST)/win/SRS64X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs64.res.o
 $(DIST)/win/SRS32X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs32.res.o
 	$(MINGW32) $(BASE) -DSRS_NO_MAIN -o $@ $(WINSRC) $(DIST)/win/srs32.res.o $(PE32) $(WINLIBS)
 
-# native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine)
-GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0)
-GTKLIBS  := $(shell pkg-config --libs gtk+-3.0)
-$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+# native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine).
+# The Power & cost page (power*.c) is GUI-only and the only user of SQLite, so the CLI images and
+# their i686 / aarch64 cross builds keep linking libm alone.
+GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0 sqlite3)
+GTKLIBS  := $(shell pkg-config --libs gtk+-3.0 sqlite3)
+POWER    := power.c power_src.c power_model.c power_db.c power_rates.c
+POWERHDR := power.h power_src.h power_model.h power_db.h power_rates.h power_rates_data.inc
+$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+
+# unit tests of the power arithmetic and history database, with synthetic counter data
+test-power: $(DIST)/test/test_power
+	$(DIST)/test/test_power
+$(DIST)/test/test_power: tests/test_power.c power_model.c power_db.c power_model.h power_db.h
+	@mkdir -p $(@D)
+	$(CC) $(BASE) -D_DEFAULT_SOURCE $(shell pkg-config --cflags sqlite3) -o $@ tests/test_power.c power_model.c power_db.c $(shell pkg-config --libs sqlite3) -lm
 
 # ship the open data files beside the Windows images, the way SIV ships PCIDEVS.txt
 data: $(DIST)/win/pci.ids $(DIST)/win/usb.ids
@@ -112,9 +123,9 @@ $(NATIVE)/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm
 
-$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
 
 install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui
@@ -154,4 +165,4 @@ headers: win64 win32
 clean:
 	rm -rf $(DIST)
 
-.PHONY: guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
+.PHONY: test-power guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
