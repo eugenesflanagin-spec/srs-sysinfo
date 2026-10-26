@@ -21,6 +21,7 @@
 #include "gui_startup.h"
 
 #include <dlfcn.h>
+#include <signal.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -121,6 +122,7 @@ static void open_tool(wkind k, int sub);
 static void tabs_options(GtkWidget *menu);   /* gui_tabs.inc */
 static void lineup_menu(GtkWidget *m);
 static int scan_empty_main(void);
+static void empty_scan(int force);
 
 /* ======================================================================
  * GTK text backend for srs_out
@@ -972,6 +974,7 @@ static void root_done(GPid pid, gint status, gpointer data)
     }
     for (i = 0; i < g_wins->len; i++) { swin *w = g_ptr_array_index(g_wins, i); if (w->kind == W_SECTION) render(w); }
     home_refresh_data();
+    if (status == 0 && g_home_open) empty_scan(1);   /* items that were empty only for want of root data */
     if (g_main) {
         GtkWidget *m = gtk_message_dialog_new(GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL, status == 0 ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING,
                                               GTK_BUTTONS_OK, "%s", status == 0 ? "Root data collected into ~/.cache/srs/root"

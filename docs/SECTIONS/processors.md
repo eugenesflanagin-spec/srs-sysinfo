@@ -591,6 +591,9 @@ under light load; HW Min 426MHz, HW Max 5.05GHz. Current can read a little above
 - HW Max equal to the base clock: boost off in the BIOS.
 - All columns `-`: no cpufreq driver (virtual machine, or the driver failed to load).
 
+Since 2.1 the same **Stock and in effect now** table as [CPU Clocks](#cpu-clocks) follows the
+per-CPU table (both items share one page).
+
 **Where Linux gets it.** `/sys/devices/system/cpu/cpuN/cpufreq/` (`scaling_*`, `cpuinfo_*`,
 `cpuinfo_avg_freq`) and `/sys/devices/system/cpu/cpufreq/boost`.
 

@@ -346,6 +346,7 @@ static int scan_empty_main(void)
         srs_out o;
         if (!s || !s->id || !s->fn || s->bucket != B_LINUX) continue;
         if (!strcmp(s->id, "ping")) continue;   /* sends packets: never run by itself */
+        if (s->needs_root && !so_root_file("collected.txt")) continue;   /* empty only for want of root data: keep it (and its Run as root button) */
         e.first = g_string_new(NULL);
         memset(&o, 0, sizeof o);
         o.text = em_text; o.tab = em_tab; o.par = em_par; o.tabs = em_tabs;
@@ -405,13 +406,25 @@ static void scan_done(GPid pid, gint status, gpointer d)
     }
 }
 
-typedef struct { GString *acc; GIOChannel *ch; int exited; GPid pid; } scanjob;
+typedef struct { GString *acc; GIOChannel *ch; int exited; GPid pid; guint watch, timer; } scanjob;
 static void scan_finish(scanjob *j)
 {
     char *out = g_string_free(j->acc, FALSE);
+    if (j->timer) g_source_remove(j->timer);
     g_io_channel_unref(j->ch);
     scan_done(j->pid, 0, out);
     g_free(j);
+}
+/* a section that hangs must not keep the scan "running" for the whole session: stop our own child
+   after two minutes and keep what it found (the rest counts as not empty) */
+static gboolean scan_timeout(gpointer d)
+{
+    scanjob *j = d;
+    j->timer = 0;
+    kill(j->pid, SIGTERM);
+    if (j->watch) g_source_remove(j->watch);
+    scan_finish(j);
+    return G_SOURCE_REMOVE;
 }
 static gboolean scan_io(GIOChannel *ch, GIOCondition cond, gpointer d)
 {
@@ -450,7 +463,8 @@ static void empty_scan(int force)
             j->ch = g_io_channel_unix_new(fd);
             g_io_channel_set_close_on_unref(j->ch, TRUE);
             g_io_channel_set_encoding(j->ch, NULL, NULL);
-            g_io_add_watch(j->ch, G_IO_IN | G_IO_HUP | G_IO_ERR, scan_io, j);
+            j->watch = g_io_add_watch(j->ch, G_IO_IN | G_IO_HUP | G_IO_ERR, scan_io, j);
+            j->timer = g_timeout_add_seconds(120, scan_timeout, j);
             g_child_watch_add(pid, scan_child, NULL);
             g_scan_running = 1;
         }
@@ -584,7 +598,16 @@ static void on_strip_btn(GtkToggleButton *b, gpointer d)
 {
     swin *t = d;
     int at;
-    if (g_tabs_busy || !gtk_toggle_button_get_active(b)) return;
+    if (g_tabs_busy) return;
+    if (!gtk_toggle_button_get_active(b)) {   /* the tab in view stays pressed */
+        int cur;
+        if (tab_find(t->cat, t->id, &at) && at == (cur = gtk_notebook_get_current_page(GTK_NOTEBOOK(g_home->nb[t->cat])))) {
+            g_tabs_busy++;
+            gtk_toggle_button_set_active(b, TRUE);
+            g_tabs_busy--;
+        }
+        return;
+    }
     if (tab_find(t->cat, t->id, &at)) gtk_notebook_set_current_page(GTK_NOTEBOOK(g_home->nb[t->cat]), at);
 }
 
@@ -996,16 +1019,16 @@ static void tab_menu(swin *t, GdkEvent *ev)
     tabm_add(m, t->temp ? "_Keep this tab" : "_Keep this tab (it is kept)", "keep", t, t->temp);
     tabm_add(m, "_Replace with...", "replace", t, TRUE);
     tabm_add(m, "Move _left", "left", t, at > 0);
-    tabm_add(m, "Move _right", "right", t, at < n - 1);
+    tabm_add(m, "Move ri_ght", "right", t, at < n - 1);
     tabm_add(m, "_Close tab (Ctrl+W)", "close", t, TRUE);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     tabm_add(m, "_Add a tab...", "add", t, TRUE);
     tabm_add(m, "_Tabs on this page...", "page", t, TRUE);
-    tabm_add(m, "Reset this page's tabs to the _lineup", "reset", t, TRUE);
+    tabm_add(m, "Reset this page's tabs to the line_up", "reset", t, TRUE);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     sub = gtk_menu_new();
     lineup_menu(sub);
-    it = gtk_menu_item_new_with_mnemonic("Line_up");
+    it = gtk_menu_item_new_with_mnemonic("Li_neup");
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
     gtk_widget_show_all(m);
