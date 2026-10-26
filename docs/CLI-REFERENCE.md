@@ -45,6 +45,7 @@ sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
+srs-gui --power-recorder
 srs-root [--user NAME]
 srs-sysreport
 ```
@@ -94,6 +95,7 @@ Benchmarks and stress (load the CPU; run only when you ask):
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
+        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
 ```
 
 ### `--version`
@@ -383,6 +385,7 @@ block size, nanoseconds per read and the cache level. See
 | `--gui-tray` | Start hidden in the system tray (used by the autostart entry). |
 | `--gui-classic` | Start in the classic view: SIV's main window with its button row, every item in its own panel (as in SRS 1.1). |
 | `--gui-new` | Start in the main window with the sidebar, even when **Start in classic view** is on. |
+| `--power-recorder` | Record **Power & cost** history with no window, following the page's Recording setting (Off / For a set time / Always). Used by the optional systemd user service that **Power & cost -> Setup -> Keep recording when SRS is closed** writes. Only one process records at a time (a lock file beside the database); stop it with Ctrl+C or SIGTERM. |
 | any other argument | Run as the command line (`srs-gui -save` = `sysreport-search -save`). |
 
 `WHAT` can be any item id from `--list` (e.g. `sensors`, `processors`, `pci-bus`, `processor:4`),
@@ -398,6 +401,7 @@ or one of these tool names:
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
+| `power-cost` | Shows the Power & cost page (the item `power` is the expert Power status tab on Sensors) |
 
 Opening a tool **never starts it**. Example: `srs-gui --gui-open=sensors,burnin`.
 The environment variable `SRS_OPEN=sensors,burnin` does the same.
@@ -467,5 +471,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_SMART_USB=1` | `srs-root`: include USB disks in SMART |
 | `SRS_KWH_COST`, `SRS_CURRENCY` | Price per kWh and currency symbol for the kWh Cost item (default `$` 0.15) |
 | `SRS_OPEN` | Same as `--gui-open=` |
+| `SRS_POWER_DB`, `SRS_POWER_INI` | Power & cost: use another history database / settings file instead of `~/.local/share/srs/power.db` and `~/.config/srs/power.ini` (for tests) |
+| `SRS_DATA_DIR` | Folder holding `power-zip-rates.tsv` for the offline US ZIP price lookup (default: next to the program, then `/usr/share/srs-sysinfo`) |
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

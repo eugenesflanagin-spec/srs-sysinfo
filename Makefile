@@ -111,6 +111,7 @@ install: cli-x86_64 gui win64 win32 data
 	install -Dm644 $(DIST)/win/pci.ids $(PREFIX)/lib/srs/win/pci.ids
 	install -Dm644 $(DIST)/win/usb.ids $(PREFIX)/lib/srs/win/usb.ids
 	install -Dm644 srs.png $(PREFIX)/share/icons/hicolor/256x256/apps/srs.png
+	install -Dm644 data/power-zip-rates.tsv $(PREFIX)/share/srs-sysinfo/power-zip-rates.tsv
 	install -d $(PREFIX)/share/applications
 	sed 's|^Exec=srs-gui|Exec=$(PREFIX)/bin/srs-gui|' srs-gui.desktop > $(PREFIX)/share/applications/srs-gui.desktop
 
@@ -134,6 +135,7 @@ install-system: native
 	install -Dm644 srs-root@.service $(DESTDIR)$(SYSPREFIX)/lib/systemd/system/srs-root@.service
 	install -Dm755 sysreport.sh $(DESTDIR)$(SYSPREFIX)/bin/srs-sysreport
 	install -Dm644 srs.png $(DESTDIR)$(SYSPREFIX)/share/icons/hicolor/256x256/apps/srs.png
+	install -Dm644 data/power-zip-rates.tsv $(DESTDIR)$(SYSPREFIX)/share/srs-sysinfo/power-zip-rates.tsv
 	install -Dm644 srs-gui.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-gui.desktop
 	install -Dm644 srs-burnin.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-burnin.desktop
 	install -Dm644 srs-benchmark.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-benchmark.desktop

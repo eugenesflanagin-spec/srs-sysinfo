@@ -6,6 +6,9 @@ srs-gui \- SRS system information viewer (GTK 3)
 [\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR] [\fB\-\-gui\-classic\fR | \fB\-\-gui\-new\fR]
 .br
 .B srs-gui
+\fB\-\-power\-recorder\fR
+.br
+.B srs-gui
 \fB\-\-help\fR | \fB\-\-version\fR
 .SH DESCRIPTION
 .B srs-gui
@@ -18,11 +21,19 @@ SRS is not affiliated with or endorsed by RH Software.
 .PP
 The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
 Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices,
-Operating system, Benchmarks & stress and Tools. The Overview answers "Is my PC OK?" with a
+Operating system, Benchmarks & stress, Tools and Power & cost. The Overview answers "Is my PC OK?" with a
 status light per check (temperatures against each sensor's own limit, drive health, hardware
 errors, free disk space, memory in use, sensor alarms) and cards with the key facts. Each other
 page shows key facts and the items as tabs; "All N items" lists every item of the page. The
 search box (\fBCtrl+F\fR) finds any item by name or id.
+.PP
+\fBPower & cost\fR (new in 2.1) estimates how much power the whole PC draws at the wall, with a
+likely range: the processor (zenergy, amd_energy or a readable RAPL counter) and the graphics card
+(amdgpu, Intel, nouveau) are measured, everything else is estimated from an editable parts list and
+a power-supply efficiency curve. It shows the cost at your price (flat, tiered or time-of-use, any
+currency, or an offline area average), records one row per minute when asked (off, for a set time,
+or always), draws daily/weekly/monthly history, exports CSV and raises alarms as desktop
+notifications. \fBThese are estimates, not a meter reading or a bill.\fR
 .PP
 The classic view is the SIV-style interface of SRS 1.1: a main window with SIV's button row and
 every item in its own panel. Open it with Menu \(-> Classic View, or start in it with
@@ -48,6 +59,14 @@ start in the classic view: the SIV-style main window with its button row, every 
 start in the main window with the sidebar (Overview and one page per category), even when
 "Start in classic view" is set in the options.
 .TP
+.B \-\-gui\-open=power\-cost
+open the Power & cost page.
+.TP
+.B \-\-power\-recorder
+record Power & cost history with no window, following the recording setting on the page (used by
+the optional systemd user service ~/.config/systemd/user/srs-power-recorder.service, which the
+page's Setup tab writes and removes). Only one process records at a time.
+.TP
 .BR \-\-help ", " \-\-version
 Print the command-line help or the version and exit (these are shared with
 .BR sysreport-search (1)).
@@ -63,6 +82,12 @@ panels to open at start, as for \fB\-\-gui\-open\fR.
 .TP
 .B SRS_DOC_DIR
 directory holding the user guide (default /usr/share/doc/srs-sysinfo).
+.TP
+.BR SRS_POWER_DB ", " SRS_POWER_INI
+use another Power & cost history database or settings file (for tests).
+.TP
+.B SRS_DATA_DIR
+directory holding power-zip-rates.tsv (default: next to the program, then /usr/share/srs-sysinfo).
 .SH FILES
 .TP
 .I /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf, /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
@@ -76,6 +101,15 @@ root-only data collected by srs-root.
 .TP
 .I ~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
 the summary of each finished CPU Burnin / CPU Stress run.
+.TP
+.I ~/.local/share/srs/power.db
+Power & cost history (SQLite, one row per minute, mode 0600), with power.db.lock beside it.
+.TP
+.I ~/.config/srs/power.ini
+Power & cost settings: parts, power supply, price, recording, alarms.
+.TP
+.I /usr/share/srs-sysinfo/power-zip-rates.tsv
+US ZIP code to electric utility table (NREL, CC BY 4.0) for the offline price lookup.
 .TP
 .I /usr/share/hwdata/pci.ids, /usr/share/hwdata/usb.ids
 device name databases.

@@ -56,6 +56,7 @@ static const char *HELP =
     "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
+    "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
 #endif
     ;
 

@@ -53,8 +53,8 @@ echo "### toolchain"
 apt-get update -qq
 # libgtk-3-bin / libgdk-pixbuf2.0-bin / librsvg2-common: what linuxdeploy-plugin-gtk bundles
 # (IM modules, pixbuf loaders incl. SVG for icons);
-# libayatana-appindicator3-1: the optional tray icon (srs-gui dlopen()s it)
-apt-get install -y -q --no-install-recommends build-essential pkgconf libgtk-3-dev libgtk-3-bin \
+# libayatana-appindicator3-1: the optional tray icon (srs-gui dlopen()s it); libsqlite3-dev: Power & cost history
+apt-get install -y -q --no-install-recommends build-essential pkgconf libgtk-3-dev libgtk-3-bin libsqlite3-dev \
   libgdk-pixbuf2.0-bin librsvg2-common shared-mime-info \
   libayatana-appindicator3-1 \
   curl ca-certificates file binutils desktop-file-utils appstream >/tmp/toolchain.log 2>&1 \

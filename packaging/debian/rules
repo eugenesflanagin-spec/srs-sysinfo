@@ -22,6 +22,9 @@ override_dh_installchangelogs:
 override_dh_compress:
 	dh_compress -X.pdf -X.html -X.css -X.md -X.png -X.svg
 
+override_dh_auto_test:
+	$(MAKE) CC=gcc test-power
+
 override_dh_auto_clean:
 	$(MAKE) clean
 

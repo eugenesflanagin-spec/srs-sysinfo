@@ -16,7 +16,7 @@ pkgdesc="Linux system information viewer inspired by SIV64X (independent, not af
 arch=('x86_64')
 url="https://github.com/eugenesflanagin-spec/srs-sysinfo"
 license=('GPL-2.0-or-later')
-depends=('bash' 'gtk3' 'glib2' 'glibc' 'pango' 'cairo' 'hicolor-icon-theme' 'hwdata' 'systemd')
+depends=('bash' 'gtk3' 'glib2' 'glibc' 'pango' 'cairo' 'sqlite' 'hicolor-icon-theme' 'hwdata' 'systemd')
 optdepends=(
   'libayatana-appindicator: system tray icon (like the SIV Icon Tray)'
   'polkit: srs-root helper for root-only data (one pkexec prompt)'
@@ -44,6 +44,11 @@ sha256sums=('SKIP')   # set by build-arch.sh
 build() {
   cd "$pkgname-$pkgver"
   make CC=gcc native
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  make CC=gcc test-power
 }
 
 package() {
