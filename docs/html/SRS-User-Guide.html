@@ -282,6 +282,15 @@ install the <code>fuse3</code> package (or <code>fuse</code> on older
 systems), or run it with <code>--appimage-extract-and-run</code>.</li>
 <li><strong>Window theme:</strong> the AppImage uses GTK's own Adwaita
 theme, light or dark as your desktop asks.</li>
+<li><strong>Start with the desktop:</strong> an update gives the
+AppImage a new file name, so tick <strong>Options -&gt; Start with the
+desktop</strong> again after updating.</li>
+<li><strong>Licences:</strong> the libraries inside the AppImage (GTK
+and the rest) come from Ubuntu 22.04 packages. Their licence files are
+inside it in <code>usr/share/doc/&lt;package&gt;/copyright</code>, and
+<code>usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt</code> lists which
+library came from which package (see them with
+<code>./srs-sysinfo-2.0.0-x86_64.AppImage --appimage-extract</code>).</li>
 </ul>
 <h3 id="user-guide--36-build-from-source">3.6 Build from source</h3>
 <p>You need <code>gcc</code>, <code>make</code>, <code>pkg-config</code>

@@ -16,6 +16,8 @@ home=$(getent passwd "$uid" | cut -d: -f6)
 [ -n "$user" ] && [ -d "$home" ] || { echo "srs-root: cannot resolve the invoking user" >&2; exit 2; }
 out="$home/.cache/srs/root"
 mkdir -p "$out" || exit 2
+# ~/.cache/srs belongs to the user (srs-gui keeps its own files there too), only root/ is ours
+[ -d "$home/.cache/srs" ] && [ ! -L "$home/.cache/srs" ] && chown -h "$uid" "$home/.cache/srs" 2>/dev/null || true   # never follow a symlink as root
 cd "$out" || exit 2
 log() { echo "srs-root: $*"; }
 

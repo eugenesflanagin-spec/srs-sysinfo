@@ -1118,7 +1118,7 @@ static void s_monitors(srs_out *o)
         if (rd_all(pnp_ids(), &t) > 0) { const char *p = t; while ((p = strchr(p, '\n'))) { cnt++; p++; } }
         free(t);
         if (stat(pnp_ids(), &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
-        so_f(o, C_GRAY, "Monitor names from /usr/share/hwdata/pnp.ids Date %s (%d)", d, cnt);
+        so_f(o, C_GRAY, "Monitor names from %s Date %s (%d)", pnp_ids(), d, cnt);
         so_par(o);
     }
 }
@@ -1134,11 +1134,11 @@ static void s_mon_info(srs_out *o)
     conn_t c[16];
     int ng, i, j, nc;
     so_siv_header(o, "Monitor ID Database");
-    if (rd_all(pnp_ids(), &t) <= 0) { free(t); so_err(o, "/usr/share/hwdata/pnp.ids not found (package hwdata)"); return; }
+    if (rd_all(pnp_ids(), &t) <= 0) { free(t); so_err(o, "pnp.ids not found (package hwdata)"); return; }
     if (stat(pnp_ids(), &st) == 0) strftime(d, sizeof d, "%Y-%m-%d", localtime(&st.st_mtime));
     p = t; while ((p = strchr(p, '\n'))) { cnt++; p++; }
     so_tabs(o, tabs, 1);
-    so_f(o, C_VALUE, "Database /usr/share/hwdata/pnp.ids  Date %s  %d PnP vendor IDs", d, cnt); so_par(o); so_par(o);
+    so_f(o, C_VALUE, "Database %s  Date %s  %d PnP vendor IDs", pnp_ids(), d, cnt); so_par(o); so_par(o);
     so_b(o, C_LABEL, "Connected monitors"); so_par(o);
     ng = gpus(g, 8);
     for (i = 0; i < ng; i++) {

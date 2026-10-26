@@ -120,6 +120,30 @@ sed -i 's/^export GDK_BACKEND=x11\b/export GDK_BACKEND="${GDK_BACKEND:-x11}"/' $
 grep -q '^export GDK_BACKEND="${GDK_BACKEND:-x11}"' $A/apprun-hooks/linuxdeploy-plugin-gtk.sh \
   || { echo "FAIL: the gtk hook's GDK_BACKEND line has changed, check it" >&2; exit 1; }
 
+echo "### licences of the bundled libraries"
+# Each bundled library comes from an Ubuntu 22.04 package; ship that package's copyright file
+# (licence texts) and a list of which library came from which package and version.
+LIST=$A/usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt
+{
+  echo "Libraries bundled in this AppImage, the Ubuntu 22.04 package each came from, and its version."
+  echo "Each package's copyright and licence file is in usr/share/doc/<package>/copyright."
+  echo "Sources: https://packages.ubuntu.com/jammy/<package> (Ubuntu 22.04 source packages)."
+  echo
+} >"$LIST"
+for so in $A/usr/lib/*.so*; do
+  b=$(basename "$so")
+  pkg=$(dpkg -S "*/$b" 2>/dev/null | head -1 | cut -d: -f1) || true
+  [ -n "$pkg" ] || { echo "$b  (package not found)" >>"$LIST"; continue; }
+  ver=$(dpkg-query -W -f='${Version}' "$pkg" 2>/dev/null || echo "?")
+  printf '%-45s %-35s %s\n' "$b" "$pkg" "$ver" >>"$LIST"
+  if [ -f "/usr/share/doc/$pkg/copyright" ] && [ ! -f "$A/usr/share/doc/$pkg/copyright" ]; then
+    install -Dm644 "/usr/share/doc/$pkg/copyright" "$A/usr/share/doc/$pkg/copyright"
+  fi
+done
+n=$(find $A/usr/share/doc -name copyright | wc -l)
+[ "$n" -gt 10 ] || { echo "FAIL: only $n licence files collected" >&2; exit 1; }
+echo "$n licence files, list in usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt"
+
 echo "### appimagetool"
 OUTNAME=srs-sysinfo-$VER-x86_64.AppImage
 EPOCH=$(stat -c %Y "$SRC/CHANGELOG.md")   # git archive stamps files with the commit date
@@ -137,6 +161,7 @@ rm -rf squashfs-root && "/out/$OUTNAME" --appimage-extract >/dev/null
 for f in AppRun srs-gui.desktop srs.png usr/bin/srs-gui usr/bin/sysreport-search usr/bin/srs-root usr/bin/srs-sysreport \
          usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html \
          usr/share/hwdata/pci.ids usr/share/hwdata/usb.ids usr/share/man/man1/srs-gui.1 \
+         usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt \
          usr/share/metainfo/io.github.eugenesflanagin_spec.srs_sysinfo.metainfo.xml; do
   [ -e "squashfs-root/$f" ] || { echo "FAIL: $f missing from the AppImage" >&2; exit 1; }
 done
@@ -146,9 +171,9 @@ objcopy --dump-section .upd_info=/tmp/upd_info "/out/$OUTNAME" /tmp/objcopy.out
 got=$(tr -d '\0' </tmp/upd_info)
 [ "$got" = "$UPDATE_INFO" ] || { echo "FAIL: update information is '$got'" >&2; exit 1; }
 grep -q '^Filename: '"$OUTNAME"'$' "/out/$OUTNAME.zsync" || { echo "FAIL: .zsync names another file" >&2; exit 1; }
-"/out/$OUTNAME" --appimage-extract-and-run --version | head -1 | grep -q "^sysreport-search $VER " \
+grep -q "^sysreport-search $VER " <<<"$("/out/$OUTNAME" --appimage-extract-and-run --version)" \
   || { echo "FAIL: --version is not $VER" >&2; exit 1; }
-"/out/$OUTNAME" --appimage-extract-and-run sysreport-search --version | head -1 | grep -q "^sysreport-search $VER " \
+grep -q "^sysreport-search $VER " <<<"$("/out/$OUTNAME" --appimage-extract-and-run sysreport-search --version)" \
   || { echo "FAIL: 'sysreport-search --version' is not $VER" >&2; exit 1; }
 # lowest glibc it needs = the highest GLIBC_x.y symbol version of any program or library inside
 GLIBC=$(find squashfs-root -type f \( -name '*.so*' -o -perm -u+x \) -exec sh -c 'file -b "$1" | grep -q ELF && objdump -T "$1"' _ {} \; 2>/dev/null \

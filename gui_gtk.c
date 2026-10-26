@@ -1840,9 +1840,16 @@ static void autostart_set(int on)
         ssize_t l = readlink("/proc/self/exe", exe, sizeof exe - 1);
         if (l > 0) exe[l] = 0;
         if (g_getenv("APPIMAGE")) {   /* the AppImage file, not its mount folder, which changes every start */
-            char *q = g_shell_quote(g_getenv("APPIMAGE"));
-            snprintf(exe, sizeof exe, "%s", q);
-            g_free(q);
+            /* Desktop Entry Exec quoting: double quotes, with " ` $ \\ escaped by a backslash */
+            const char *in = g_getenv("APPIMAGE");
+            size_t o = 0;
+            exe[o++] = '"';
+            for (; *in && o < sizeof exe - 3; in++) {
+                if (strchr("\"`$\\", *in)) exe[o++] = '\\';
+                exe[o++] = *in;
+            }
+            exe[o++] = '"';
+            exe[o] = 0;
         }
         g_mkdir_with_parents(dir, 0755);
         txt = g_strdup_printf("[Desktop Entry]\nType=Application\nName=SRS System Information (tray)\n"

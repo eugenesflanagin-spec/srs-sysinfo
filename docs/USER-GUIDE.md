@@ -183,6 +183,12 @@ chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
 - **If it does not start** with a message about FUSE: install the `fuse3` package (or `fuse`
   on older systems), or run it with `--appimage-extract-and-run`.
 - **Window theme:** the AppImage uses GTK's own Adwaita theme, light or dark as your desktop asks.
+- **Start with the desktop:** an update gives the AppImage a new file name, so tick
+  **Options -> Start with the desktop** again after updating.
+- **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
+  packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
+  `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
+  (see them with `./srs-sysinfo-2.0.0-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 

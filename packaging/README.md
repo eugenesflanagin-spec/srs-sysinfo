@@ -140,11 +140,16 @@ How it is made:
    arguments, which is the window, or the CLI when there are arguments. It also
    remembers your desktop's own values of the variables the hook changes
    (`SRS_HOSTENV_*`), so the PDF viewer SRS opens for the guide gets them back.
-5. **appimagetool** packs it with the static type2 runtime and embeds the update
+5. **Licences:** for every bundled library, the Ubuntu package it came from is
+   looked up (`dpkg -S`) and that package's `copyright` file is copied to
+   `usr/share/doc/<package>/`. `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt`
+   lists library, package and version. The build stops if fewer than 10 licence
+   files were found.
+6. **appimagetool** packs it with the static type2 runtime and embeds the update
    information `gh-releases-zsync|eugenesflanagin-spec|srs-sysinfo|latest|srs-sysinfo-*x86_64.AppImage.zsync`,
    and writes the `.zsync` file. AppImageUpdate reads that, looks at the newest
    GitHub release and downloads only the changed blocks.
-6. A self-check extracts the result and checks the files, the update
+7. A self-check extracts the result and checks the files, the update
    information, `--version` and the glibc it needs.
 
 Containers have no FUSE, so every AppImage there runs with
