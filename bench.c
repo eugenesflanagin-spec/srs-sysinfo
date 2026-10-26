@@ -443,11 +443,12 @@ int bench_ask_text(const bench_ask *a, char *title, size_t tn, char *body, size_
     if (a->kind == BA_IPI) {
         int n = a->cpus > 0 && a->cpus < ncpu ? a->cpus : ncpu, rounds = a->rounds > 0 ? a->rounds : 20000;
         double pairs = n * (n - 1) / 2.0;
+        if (n < 2) return -1;   /* one CPU: no pair to measure, nothing is loaded */
         ask_time(pairs * (rounds * 3 * 80e-9 + 5e-4) + 0.2, t, sizeof t);
         snprintf(title, tn, "Start the CPU IPI Delay test?");
         snprintf(body, bn, "It measures how long two CPU threads take to pass a small piece of memory back and forth, for every "
-                 "pair of the first %d CPU threads (%.0f pairs, %d round trips each): %s. Two CPU threads are busy at a time "
-                 "(light load).\n\nClose other programs for steadier numbers.", n, pairs, rounds, t);
+                 "pair of the first %d CPU threads (%.0f pair%s, %d round trips each): %s. Two CPU threads are busy at a time "
+                 "(light load).\n\nClose other programs for steadier numbers.", n, pairs, pairs == 1 ? "" : "s", rounds, t);
         return 0;
     }
     if (a->kind == BA_LAT) {

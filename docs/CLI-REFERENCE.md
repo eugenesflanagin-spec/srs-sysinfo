@@ -461,7 +461,7 @@ starts at once. Prints a matrix of nanoseconds, one row and column per CPU. See
 sysreport-search latency [--max MB] [--yes]
 ```
 
-`--max MB` is the largest block, 1 to 4096 MB (default 256; the window too). It uses
+`--max MB` is the largest block, 1 to 4096 MB (default 256; the window allows the same range). It uses
 that much memory and one CPU thread, for about 3 seconds at the default. **Asks first**; `--yes`
 starts at once. Prints block size, nanoseconds per read and the cache level. See
 [tools.md](SECTIONS/tools.md#memory-latency).
