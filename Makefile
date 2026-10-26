@@ -80,9 +80,12 @@ $(DIST)/win/SRS32X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs32.res.o
 # native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine)
 GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0)
 GTKLIBS  := $(shell pkg-config --libs gtk+-3.0)
-$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+# the GTK GUI's own extra sources (main window: sortable tables, tab lineups, startup manager)
+GUIX     := tblsort.c
+GUIXHDRS := tblsort.h
+$(DIST)/linux-x86_64/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
 
 # ship the open data files beside the Windows images, the way SIV ships PCIDEVS.txt
 data: $(DIST)/win/pci.ids $(DIST)/win/usb.ids
@@ -112,9 +115,9 @@ $(NATIVE)/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm
 
-$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+$(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c $(GUIX) plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
 
 install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui
