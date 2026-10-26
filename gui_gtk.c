@@ -5410,11 +5410,12 @@ static GtkWidget *build_cat_page(int cat)
             gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
             gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sc), TRUE);
             gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(sc), 160);
+            gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(sc), 440);   /* the result tabs below keep most of the page */
             gtk_container_add(GTK_CONTAINER(sc), fb);
             gtk_box_pack_start(GTK_BOX(head), sc, TRUE, TRUE, 0);
         }
     }
-    gtk_box_pack_start(GTK_BOX(vb), head, cat == CAT_BENCH || cat == CAT_TOOLS, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
 
     nb = tabs_area(cat);
     page_fill(cat);
