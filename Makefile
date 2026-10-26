@@ -78,12 +78,23 @@ $(DIST)/win/SRS64X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs64.res.o
 $(DIST)/win/SRS32X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs32.res.o
 	$(MINGW32) $(BASE) -DSRS_NO_MAIN -o $@ $(WINSRC) $(DIST)/win/srs32.res.o $(PE32) $(WINLIBS)
 
-# native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine)
-GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0)
-GTKLIBS  := $(shell pkg-config --libs gtk+-3.0)
-$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+# native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine).
+# The Power & cost page (power*.c) is GUI-only and the only user of SQLite, so the CLI images and
+# their i686 / aarch64 cross builds keep linking libm alone.
+GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0 sqlite3)
+GTKLIBS  := $(shell pkg-config --libs gtk+-3.0 sqlite3)
+POWER    := power.c power_src.c power_model.c power_db.c power_rates.c
+POWERHDR := power.h power_src.h power_model.h power_db.h power_rates.h power_rates_data.inc
+$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+
+# unit tests of the power arithmetic and history database, with synthetic counter data
+test-power: $(DIST)/test/test_power
+	$(DIST)/test/test_power
+$(DIST)/test/test_power: tests/test_power.c power_model.c power_db.c power_model.h power_db.h
+	@mkdir -p $(@D)
+	$(CC) $(BASE) -D_DEFAULT_SOURCE $(shell pkg-config --cflags sqlite3) -o $@ tests/test_power.c power_model.c power_db.c $(shell pkg-config --libs sqlite3) -lm
 
 # ship the open data files beside the Windows images, the way SIV ships PCIDEVS.txt
 data: $(DIST)/win/pci.ids $(DIST)/win/usb.ids
@@ -101,6 +112,7 @@ install: cli-x86_64 gui win64 win32 data
 	install -Dm644 $(DIST)/win/pci.ids $(PREFIX)/lib/srs/win/pci.ids
 	install -Dm644 $(DIST)/win/usb.ids $(PREFIX)/lib/srs/win/usb.ids
 	install -Dm644 srs.png $(PREFIX)/share/icons/hicolor/256x256/apps/srs.png
+	install -Dm644 data/power-zip-rates.tsv $(PREFIX)/share/srs-sysinfo/power-zip-rates.tsv
 	install -d $(PREFIX)/share/applications
 	sed 's|^Exec=srs-gui|Exec=$(PREFIX)/bin/srs-gui|' srs-gui.desktop > $(PREFIX)/share/applications/srs-gui.desktop
 
@@ -113,9 +125,9 @@ $(NATIVE)/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm
 
-$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(CORE) $(SECS) $(HDRS) $(SECHDRS)
+$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
 
 install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui
@@ -124,6 +136,7 @@ install-system: native
 	install -Dm644 srs-root@.service $(DESTDIR)$(SYSPREFIX)/lib/systemd/system/srs-root@.service
 	install -Dm755 sysreport.sh $(DESTDIR)$(SYSPREFIX)/bin/srs-sysreport
 	install -Dm644 srs.png $(DESTDIR)$(SYSPREFIX)/share/icons/hicolor/256x256/apps/srs.png
+	install -Dm644 data/power-zip-rates.tsv $(DESTDIR)$(SYSPREFIX)/share/srs-sysinfo/power-zip-rates.tsv
 	install -Dm644 srs-gui.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-gui.desktop
 	install -Dm644 srs-burnin.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-burnin.desktop
 	install -Dm644 srs-benchmark.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-benchmark.desktop
@@ -131,6 +144,7 @@ install-system: native
 	install -Dm644 README.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/README.md
 	install -Dm644 CHANGELOG.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHANGELOG.md
 	install -Dm644 EVIDENCE.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/EVIDENCE.md
+	install -Dm644 CREDITS.md $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CREDITS.md
 	install -Dm644 CHECKLIST.tsv $(DESTDIR)$(SYSPREFIX)/share/doc/srs-sysinfo/CHECKLIST.tsv
 	install -Dm644 LICENSE $(DESTDIR)$(SYSPREFIX)/share/licenses/srs-sysinfo/LICENSE
 	install -Dm644 srs-user-guide.desktop $(DESTDIR)$(SYSPREFIX)/share/applications/srs-user-guide.desktop
@@ -155,4 +169,4 @@ headers: win64 win32
 clean:
 	rm -rf $(DIST)
 
-.PHONY: guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
+.PHONY: test-power guide check-guide native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean

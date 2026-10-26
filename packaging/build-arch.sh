@@ -8,7 +8,7 @@ set -euo pipefail
 VER=$1
 
 echo "### toolchain + build dependencies"
-pacman -Syu --noconfirm --needed gtk3 glib2 pango cairo hicolor-icon-theme hwdata systemd >/tmp/deps.log 2>&1 \
+pacman -Syu --noconfirm --needed gtk3 glib2 pango cairo sqlite hicolor-icon-theme hwdata systemd >/tmp/deps.log 2>&1 \
   || { tail -30 /tmp/deps.log; exit 1; }
 useradd -m builder
 mkdir -p /work && cp /pkg/arch/PKGBUILD /in/srs-sysinfo-$VER.tar.gz /work/

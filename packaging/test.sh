@@ -14,6 +14,7 @@ sysreport-search --version 2>&1 | head -1 | grep -q "^sysreport-search ${VER} " 
 run_cmd "srs-gui --help" srs-gui --help
 run_cmd "srs-gui --version" srs-gui --version
 ls -lL /usr/share/hwdata/pci.ids /usr/share/hwdata/usb.ids 2>&1
+[ -s /usr/share/srs-sysinfo/power-zip-rates.tsv ] && echo "OK power-zip-rates.tsv" || fail "missing /usr/share/srs-sysinfo/power-zip-rates.tsv"
 
 echo "--- user guide"
 D=/usr/share/doc/srs-sysinfo

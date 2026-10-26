@@ -318,7 +318,7 @@ From top to bottom:
 | Part | What it is |
 |---|---|
 | **Title bar** | **Refresh** (left; also **F5**) reads the page again. The **search box** finds any item or text ([6.4](#64-search)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Options, Run as root and more ([6.5](#65-the-menu)). |
-| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating system, Benchmarks & stress, Tools. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-** and **Alt+=** jump straight to them. Below the list: **Classic view** and the SRS version. |
+| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating system, Benchmarks & stress, Tools, and (new in 2.1) Power & cost. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-** and **Alt+=** jump straight to the first twelve. Below the list: **Classic view** and the SRS version. |
 | **Page** (right) | What you picked. The title bar's second line names it. |
 
 The window follows your desktop's light or dark theme (see **Options -> Theme** in [10](#10-options)).
@@ -342,6 +342,7 @@ as **Sensor status** or **SMART drives**; there are 551 of them.
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
 | **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, CPU IPI Delay, Memory Latency (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
+| **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.7](#67-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 
 The tabs are the items most people need. **All N items** at the right end of the tab row lists
 **every** item of the page, the expert ones included, in alphabetical order; "(not present)" and
@@ -533,6 +534,233 @@ and [machine.md](SECTIONS/machine.md).
 | **Menu** | The full menu of every item and tool ([section 8](#8-the-menu)). |
 
 Every button label has an underlined letter: press **Alt + that letter** to click it.
+
+### 6.7 Power & cost
+
+> **Estimates only. Please read.** SRS shows how much power your computer **probably** uses and
+> what it **might** cost. These numbers are **estimates**, not a meter reading and not a bill.
+> Only some parts of a PC report their own power (usually the processor and the graphics card),
+> and even those reports can be off. Everything else (motherboard, memory, drives, fans, lights,
+> the power supply's own losses, and your screens) is **guessed** from typical values: that is why
+> SRS shows a range. Prices come from what you type or from public tables that may be out of date
+> or not match your plan. CO₂ figures use grid averages. Alarms can be late, missed or wrong.
+> **Do not use SRS for billing, for safety decisions, or as proof of energy use.** Always check
+> your electricity bill and your supplier. SRS is free software provided "as is", without any
+> warranty (GPL v2.0 or later, sections 11-12); Eugene Flanagin and the SRS contributors are not
+> responsible for any errors, losses, costs or damage that come from using these estimates.
+
+SRS shows this note in full the first time you open the page (press **I understand**), then as a
+yellow banner at the top of the page (**Read the note** shows it again) and at the top of every
+CSV export.
+
+**In plain words:** the page answers "how much power does this PC use, and what does that cost
+me?". The processor and the graphics card tell Linux how much power they use; SRS adds a low and a
+high guess for every other part, then allows for the power supply's own losses. The result is a
+centre figure with a likely range, for example **about 160 W, likely between 116 W and 205 W at the
+wall**. Recording keeps one line per minute, so you can see days, weeks and months, with the cost
+at your price.
+
+The page is the last one in the sidebar (**Power & cost**; it has no Alt+number key, so every other
+page keeps its key). Open it from the command line with `srs-gui --gui-open=power-cost`.
+
+![Power & cost, Now tab (this PC idling)](images/power-now.png)
+
+#### Now
+
+- **The big number** is the estimate at the wall, with the likely range under it and the cost per
+  hour, day, month and year **if the PC kept drawing this much** at your price.
+- The line under it says how each part is known: **measured** (zenergy, RAPL), **reported by the
+  driver** (amdgpu), or **estimated**.
+- **Recording:** **Off** (nothing is saved; the live figure still works), **For a set time**
+  (choose minutes, hours or days and press **Start**; it stops by itself), or **Always (forever)**
+  (whenever SRS runs, also hidden in the tray; see the background recorder below for when SRS is
+  closed).
+- **The last 10 minutes:** the line is the estimate, the shaded band the likely range.
+- **Where the watts go:** every part with its watts and where the figure comes from, the power
+  supply's losses, and the total at the wall.
+
+#### History
+
+Pick a range (last 24 hours by hour; last 7 or 30 days by day; last 12 weeks by week; last 12
+months or everything by month) and **Energy** or **Cost**. Bars are the estimate, the whiskers the
+likely range. Hover over a bar for its numbers. The summary line gives the totals, how long SRS
+recorded and how long the PC slept, the gaps that were not recorded, CO₂ if you turned it on, and
+**busy vs idle**: the energy used while the processor or graphics card was busy (at or above the
+Sessions tab's level, 50 % by default) against the rest.
+
+- **Export CSV...** writes the history for a spreadsheet: one row per minute, hour, day, week,
+  month or year, the shown range or everything, with a decimal point or a decimal comma (then
+  columns are split by `;`). The file starts with `#` lines: the note above, your power supply,
+  parts list and price. Columns: `period`, `start_utc`, `kwh_estimate`, `kwh_low`, `kwh_high`,
+  `cpu_kwh_measured`, `gpu_kwh_measured`, `cost_<currency>`, `avg_w`, `max_w`, `hours_recorded`,
+  `hours_asleep`, `hours_busy`, `kwh_busy`.
+- **Re-price...** costs every recorded minute again with today's price settings. Normally each
+  minute keeps the price that applied when it was recorded (so a time-of-use or tiered price is
+  exact to the minute); use this after correcting a wrong price.
+
+![Power & cost, History tab (example data)](images/power-history.png)
+
+*The history picture uses made-up example data.*
+
+#### Sessions
+
+A **session** is a stretch of heavy use, such as a game or a long render: the processor or the
+graphics card busy at or above a level (50 % by default) for 2 minutes, ending after 3 quiet
+minutes (all three adjustable). A short pause stays inside the session. Each session shows when it
+started, how long it lasted, its energy, cost, highest draw and CO₂. These are **the whole PC's**
+figures while the session lasted: Linux cannot split power by program.
+
+#### Price
+
+- **Currency:** pick one (its usual symbol, placement and decimals follow), or **Custom** and
+  type your own.
+- **Your price:**
+  - **Flat:** one price per kWh, from your bill.
+  - **Tiered:** up to six tiers ("the first 500 kWh a month at A, then B"). Because the PC is only
+    part of your home's use, you can say how much the rest of the home uses a month; SRS counts
+    that first, so the PC lands in the tier it really adds to. 0 = count the PC first.
+  - **Time of use:** four price levels (names and prices editable) and a grid of 24 hours for
+    weekdays and weekends: click an hour to change its level. Each minute is priced at the level
+    of its hour.
+  - **Taxes and levies** (%) that are not in the price, and a **standing charge** per day. The
+    standing charge is off in the totals by default, because the PC does not cause it.
+- **Typical prices for your area (offline):** if you don't know your price, pick your country and
+  region; SRS fills in an average **from tables built into SRS. Nothing is sent anywhere.** The
+  country is pre-selected from your time zone. For the United States, type a five-digit **ZIP
+  code** and press Enter: SRS picks the state and shows the utility that probably serves it with its
+  average residential price. **Use this price** copies it into "Your price". These are averages for
+  an area, not your plan, and they may be out of date; the date of each table is shown. Your own
+  bill's price is always better.
+- **What if:** the cost a year if the PC were left on 24/7 at today's draw and at this month's
+  recorded average, and this month's forecast from the recorded days.
+- **CO₂ estimate:** off, or a country's (or the world's) average grid emissions per kWh. Grid
+  averages only; your supplier's mix may be very different.
+
+#### Setup
+
+- **Power supply (PSU):** pick yours or the nearest **80 PLUS** level at 115 V or 230 V, and type
+  its rating in watts. **I don't know my power supply** uses a wide range. Experts can type an
+  efficiency curve as `load %:efficiency %` pairs (for example from the PSU's Cybenetics report)
+  and press **Use curve**. The line under it shows the load and efficiency right now.
+  - The **Montech CENTURY II 1200W** preset is certified **80 PLUS Gold** and **Cybenetics
+    Platinum** (two different test schemes). Its curve is **derived, not measured**: the 80 PLUS
+    Gold minimums, lifted to the Cybenetics Platinum average that HWbusters' review found, and that
+    review's note that efficiency falls **under 70 % at 2 % load** (about 24 W). The exact
+    percentages are only in the review's charts, so the range is kept wide.
+  - Below 20 % load (where most PCs idle) the 80 PLUS tests say nothing, so SRS widens the range
+    there.
+- **Parts that cannot be measured:** SRS starts from what it finds on this PC (memory sticks,
+  NVMe drives, hard disks, spinning fans, monitors, the motherboard) with typical low and high
+  watts. Double-click a value to change it, untick a row to leave it out, **Add a part...** for
+  typical parts (case fans, AIO cooler and pump, fan hub with lighting, LED strips, monitors, ...),
+  **Reset to SRS's guess...** to start again. **Counts as:**
+  - *Watts each*: low and high watts, times the number.
+  - *% of CPU power* / *% of GPU power*: the processor's power stage losses (8-12 %) and the rest
+    of the graphics card (5-30 %: the driver's number leaves out fans, memory and power stages).
+  - *CPU / Graphics card (if not measured)*: used only when SRS cannot read that part.
+  - *Beside the PC (at the wall)*: monitors and speakers; added to the wall figure, not through the
+    PSU. Monitors are off by default; the energy label's "on mode" power is the best figure.
+  - A fan hub on one motherboard header can drive several fans: SRS only sees one header, so set
+    the number of fans yourself.
+- **Sleep, off and recording:** the watts the PC draws asleep (default 3 W) and switched off
+  (default 1 W), counted while recording; how often to read the sensors (every 2 s by default; the
+  energy counters keep exact totals, so 1-10 s is plenty); **Keep recording when SRS is closed**
+  (below); where the files are; **Delete all history...**.
+
+#### Alarms
+
+**Add an alarm...** offers: power right now over a limit for some seconds, the average over some
+minutes over a limit, energy or cost today or this month reaching a limit, and this month heading
+over a budget (a forecast from the days so far). Limits can be in W, kW or BTU/h (power) or in Wh,
+kWh, MWh, kJ or MJ (energy); the line under the settings shows the same limit in the other units.
+An alarm fires **once**: power alarms again only after the power drops clearly (5 %) below the
+limit, day and month alarms once per day or month. They show as desktop notifications (through the
+desktop's notification service; no sound from SRS), and on the tab. Energy and cost alarms need
+Recording on. **Test notification** shows what one looks like.
+
+#### Sources
+
+What SRS can measure on this PC, in plain words, and the raw readings. **SRS never changes who may
+read these files.**
+
+| Source | What it is | Who can read it |
+|---|---|---|
+| zenergy driver (`Esocket`) | AMD's RAPL energy counter for the CPU package | normal users, by design (the driver limits how often it updates) |
+| amd_energy driver | the same counter (older driver) | normal users |
+| powercap RAPL (`/sys/class/powercap/intel-rapl:*`) | the CPU package counter, Intel and AMD | **root only since Linux 5.10**: energy readings can leak secrets (PLATYPUS, CVE-2020-8694/8695/12912). SRS uses it only if it is readable. |
+| amdgpu `power1_average` (PPT) | the graphics chip's power as the driver reports it | normal users |
+| Intel i915 / xe `energy1_input`, nouveau `power1_input` | graphics card energy or power | normal users |
+| NVIDIA (proprietary driver) | not read yet: the graphics card row of the parts list is used | |
+
+If the CPU cannot be measured, install the **zenergy** driver (AMD), or run SRS as root for a quick
+check; SRS does not ship a rule that opens RAPL to everyone. On AMD the counter is a model inside
+the chip, not a meter: good for changes, and it may read lower than a wall meter.
+
+#### Recording, sleep and restarts
+
+- Recording writes one row per minute: seconds recorded, estimate with its low and high, the
+  measured CPU and GPU energy, the cost at the price in force, the highest draw and the busy time.
+  About 40 MB a year.
+- Energy counters run round like an odometer (RAPL here after about 65 kJ: about 23 minutes at
+  47 W). SRS reads them every few seconds and **unwraps** them; a reading after a gap too long to
+  tell one wrap from two is skipped, not guessed. A counter that goes down without wrapping (a
+  driver reload) starts a new baseline.
+- **Sleep** is noticed from the clocks (Linux's boot-time clock keeps counting while asleep, the
+  monotonic clock does not); the time asleep is counted at the "asleep" watts. **Shut-down to the
+  next start** is noticed from the boot ID and counted at the "off" watts (up to 31 days). Time when
+  SRS was not running is a **gap**, never made-up data.
+- **Keep recording when SRS is closed** writes `~/.config/systemd/user/srs-power-recorder.service`
+  and enables it: it runs `srs-gui --power-recorder` as you (not as root) and records only while
+  Recording is **For a set time** or **Always**. Unticking it stops and removes the service. Only
+  one SRS records at a time (a lock file next to the database); the other shows the same history.
+
+#### Files
+
+| Path | What |
+|---|---|
+| `~/.local/share/srs/power.db` | The history (SQLite; readable only by you). `power.db.lock` beside it. |
+| `~/.config/srs/power.ini` | The page's settings: recording, power supply, parts, price, alarms, sessions. |
+| `~/.config/systemd/user/srs-power-recorder.service` | Only when **Keep recording when SRS is closed** is on. |
+| `/usr/share/srs-sysinfo/power-zip-rates.tsv` | The US ZIP code to utility table. |
+
+#### Where the built-in figures come from
+
+| Data | Source | Date in SRS 2.1.0 | Licence / terms |
+|---|---|---|---|
+| US average price by state | U.S. Energy Information Administration, *Electric Power Monthly*, Table 5.6.B (residential, year to date) | August 2026 YTD | U.S. government work (public domain); credit EIA |
+| US utility by ZIP code, with its average residential price | NREL, *U.S. Electric Utility Companies and Rates: Look-up by Zip Code (2024)*, from EIA-861 data | 2024 | Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by SRS |
+| Europe, price by country | Eurostat, `nrg_pc_204` (households, 2 500-4 999 kWh a year, all taxes and levies) | 2026-S1 | Reuse with the source acknowledged (Eurostat copyright notice). SRS shows the figures unchanged. Eurostat is not responsible for SRS's use of them. |
+| Great Britain, price cap | Ofgem, energy price cap (GB average, Direct Debit), unit rate and daily standing charge | 1 October to 31 December 2026 | Published figures, credited to Ofgem |
+| CO₂ per kWh by country | Ember, *Yearly electricity data* (emissions intensity) | up to 2025 | CC BY 4.0 |
+| 80 PLUS efficiency levels | Wikipedia, "80 Plus" (citing CLEAResult, the certifier) | | Facts, credited |
+| Montech CENTURY II 1200W | HWbusters review (Cybenetics Platinum average, under 70 % at 2 % load); PCPartPicker (80 PLUS Gold) | 2026-10 | Facts, credited |
+
+The tables are made by `tools/gen_power_rates.py` from the downloaded files (their addresses are in
+the script); SRS itself never goes online for them. Australia (AER Default Market Offer) is not
+included yet: type your price.
+
+#### Words used on this page
+
+| Word | Plain meaning |
+|---|---|
+| **W (watt)** | How fast power is being used *right now*. A 100 W PC uses 100 watts at this moment. |
+| **kW (kilowatt)** | 1,000 W. |
+| **Wh (watt-hour)** | Energy used *over time*: 100 W for one hour = 100 Wh. |
+| **kWh (kilowatt-hour)** | 1,000 Wh: 1,000 W for an hour, or 100 W for ten hours. **Your bill counts kWh.** |
+| **J, kJ, MJ (joule)** | Another energy unit: 3,600 J = 1 Wh, 3.6 MJ = 1 kWh. Linux counters count microjoules. |
+| **BTU/h** | Heat per hour: 1 W ≈ 3.412 BTU/h. All the power a PC uses ends up as heat in the room. |
+| **At the wall** | What the PC draws from the socket, including the power supply's losses. This is what you pay for. |
+| **Inside the PC (DC)** | Power after the power supply, used by the parts. Always less than at the wall. |
+| **PSU efficiency** | The share of the wall power that reaches the parts: 90 % means 10 % becomes heat in the PSU. |
+| **80 PLUS / Cybenetics** | Two certifications of PSU efficiency. 80 PLUS tests at 20, 50 and 100 % load (Titanium also 10 %); Cybenetics tests many loads, light ones too. |
+| **RAPL** | The processor's built-in energy counter ("Running Average Power Limit"). Intel measures; AMD models. |
+| **PPT** | AMD's "Package Power Tracking": the chip's own power figure. For a graphics card it is not the whole card. |
+| **Wrap-around** | A counter reaching its top and starting again from zero, like an old car's odometer. |
+| **Tiered price** | The price per kWh changes after so many kWh a month. |
+| **Time of use** | The price per kWh depends on the hour and the day. |
+| **Standing charge** | What you pay per day whatever you use. |
+| **Carbon intensity** | Grams of CO₂ released per kWh on your grid, on average. |
+
 
 ## 7. The panels and their buttons
 
@@ -1276,6 +1504,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
 | `/usr/share/doc/srs-sysinfo/` | README, CHANGELOG, EVIDENCE, CHECKLIST.tsv (the full item list), this guide as `SRS-User-Guide.pdf`, `html/SRS-User-Guide.html` and the Markdown sources (`USER-GUIDE.md`, `CLI-REFERENCE.md`, `GLOSSARY.md`, `SECTIONS/`, `images/`). |
 | `/usr/share/applications/srs-user-guide.desktop` | The **SRS User Guide (PDF)** menu entry. |
+| `~/.local/share/srs/power.db`, `~/.config/srs/power.ini` | **Power & cost** history and settings ([6.7](#67-power--cost)). |
 
 `SRSDEF.ini` keys (section `[SRSDEF]`). You normally change these through the menus; editing by
 hand is fine while SRS is closed.
@@ -1400,6 +1629,9 @@ the host name become `XXXX` (same length, so columns stay aligned); MAC addresse
 vendor half (`04:7c:16:XX:XX:XX`), which is useful for telling network chips apart. The report's
 first line ends with `(identifiers redacted)`. Published constants such as GPT partition-type GUIDs
 are not masked.
+
+The **Power & cost** history (`~/.local/share/srs/power.db`) is not part of any report; it says when
+the PC was in use, so think before sharing an export of it. Nothing on that page goes online.
 
 Not masked: **IP addresses** and **Wi-Fi network names**. Look for them (or use Find) before you
 post. Or save only the items you need: `sysreport-search '-save=[processors][sensors]=for-forum.txt'`.

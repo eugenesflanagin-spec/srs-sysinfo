@@ -14,6 +14,7 @@ ExclusiveArch:  x86_64
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  pkgconfig(gtk+-3.0)
+BuildRequires:  pkgconfig(sqlite3)
 BuildRequires:  desktop-file-utils
 BuildRequires:  systemd-rpm-macros
 Requires:       hwdata
@@ -82,6 +83,7 @@ rm -rf %{buildroot}/usr/lib/systemd
 install -Dm644 -t %{buildroot}%{_mandir}/man1 %{SOURCE1} %{SOURCE2} %{SOURCE3} %{SOURCE4}
 
 %check
+make CC=gcc test-power
 for f in %{buildroot}%{_datadir}/applications/*.desktop; do desktop-file-validate "$f"; done
 
 # srs-root@.service is a per-user template; the GUI enables it on request,
@@ -103,6 +105,7 @@ for f in %{buildroot}%{_datadir}/applications/*.desktop; do desktop-file-validat
 %{_datadir}/applications/srs-sysreport.desktop
 %{_datadir}/applications/srs-user-guide.desktop
 %{_datadir}/icons/hicolor/256x256/apps/srs.png
+%{_datadir}/srs-sysinfo/
 %{_mandir}/man1/srs-gui.1*
 %{_mandir}/man1/sysreport-search.1*
 %{_mandir}/man1/srs-sysreport.1*

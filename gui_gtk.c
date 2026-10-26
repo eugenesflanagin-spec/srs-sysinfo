@@ -18,6 +18,7 @@
 #include "burner.h"
 #include "bench.h"
 #include "bench_cachemem.h"
+#include "power.h"
 
 #include <dlfcn.h>
 #include <math.h>
@@ -2593,7 +2594,7 @@ static void theme_apply(void)
  * Read-only like everything else: the summaries are parsed from the sections' own output.
  * ====================================================================== */
 enum { CAT_OVERVIEW, CAT_CPU, CAT_MEM, CAT_BOARD, CAT_GPU, CAT_STORAGE, CAT_NET, CAT_SENSORS, CAT_DEVICES, CAT_OS,
-       CAT_BENCH, CAT_TOOLS, CAT_N };
+       CAT_BENCH, CAT_TOOLS, CAT_POWER, CAT_N };
 
 typedef struct {
     const char *name, *title, *icons, *blurb;
@@ -2636,6 +2637,10 @@ static const catdef g_cats[CAT_N] = {
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
+    /* 2.1: its own page (power.c), not section tabs; appended last so the other pages keep their Alt+N keys */
+    { "power", "Power & cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
+      "How much power this PC uses, what it costs, and its history. Estimates: the CPU and graphics card are measured, the rest is guessed.",
+      { NULL } },
 };
 
 enum { LV_UNK = -1, LV_OK, LV_WARN, LV_BAD };
@@ -4400,8 +4405,9 @@ static void home_open(int as_main)
         char tip[300];
         gtk_box_pack_start(GTK_BOX(row), gtk_image_new_from_icon_name(icon_pick(g_cats[c].icons), GTK_ICON_SIZE_MENU), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), label_cls(g_cats[c].title, NULL, 0), FALSE, FALSE, 0);
-        static const char *const keyname[CAT_N] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=" };
-        snprintf(tip, sizeof tip, "%s\n(Alt+%s)", g_cats[c].blurb, keyname[c]);
+        static const char *const keyname[CAT_N] = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", NULL };
+        if (keyname[c]) snprintf(tip, sizeof tip, "%s\n(Alt+%s)", g_cats[c].blurb, keyname[c]);
+        else snprintf(tip, sizeof tip, "%s", g_cats[c].blurb);
         gtk_widget_set_tooltip_text(row, tip);
         gtk_list_box_insert(GTK_LIST_BOX(lb), row, -1);
     }
@@ -4426,7 +4432,8 @@ static void home_open(int as_main)
     g_home->stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(g_home->stack), GTK_STACK_TRANSITION_TYPE_NONE);
     gtk_stack_add_named(GTK_STACK(g_home->stack), build_overview(), g_cats[CAT_OVERVIEW].name);
-    for (c = 1; c < CAT_N; c++) gtk_stack_add_named(GTK_STACK(g_home->stack), build_cat_page(c), g_cats[c].name);
+    for (c = 1; c < CAT_N; c++)
+        gtk_stack_add_named(GTK_STACK(g_home->stack), c == CAT_POWER ? power_page_new(open_item) : build_cat_page(c), g_cats[c].name);
     gtk_box_pack_start(GTK_BOX(paned), g_home->stack, TRUE, TRUE, 0);
     gtk_container_add(GTK_CONTAINER(w->win), paned);
     if (as_main) {
@@ -4446,6 +4453,7 @@ int main(int argc, char **argv)
     char *base = g_path_get_basename(argv[0]);
     snprintf(g_image, sizeof g_image, "%s", base);
     g_free(base);
+    if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & cost, no window */
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
     gethostname(g_host, sizeof g_host);
     /* GTK_THEME (e.g. adw-gtk3-dark) would override the in-app theme choice: remember it for
@@ -4499,6 +4507,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
             else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);
+            else if (!strcmp(t, "power-cost") && g_home) home_go(CAT_POWER);
             else open_item(t);
         }
     }

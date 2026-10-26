@@ -11,6 +11,20 @@ Files: debian/*
 Copyright: 2026 Eugene Flanagin <eflanagin@pm.me>
 License: GPL-2+
 
+Files: data/power-zip-rates.tsv
+Copyright: National Renewable Energy Laboratory (NREL), U.S. Electric Utility Companies and Rates:
+ Look-up by Zip Code (2024), from U.S. EIA Form EIA-861 data; reformatted by SRS
+License: CC-BY-4.0
+ Creative Commons Attribution 4.0 International: https://creativecommons.org/licenses/by/4.0/
+ Source: https://catalog.data.gov/dataset/u-s-electric-utility-companies-and-rates-look-up-by-zip-code-2024
+
+Files: power_rates_data.inc
+Copyright: U.S. Energy Information Administration (public domain, U.S. government work);
+ Eurostat (reuse authorised with acknowledgement); Ofgem (published price cap figures);
+ Ember (CC BY 4.0) - average electricity prices and grid CO2 intensity, as published
+License: CC-BY-4.0
+ Sources and dates are listed at the top of the file and in the user guide, "Power & cost".
+
 License: GPL-2+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
