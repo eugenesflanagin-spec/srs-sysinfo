@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -51,9 +51,15 @@ static const char *HELP =
     "        core-to-core (cache-line ping-pong) latency matrix\n"
     "  latency [--max MB]\n"
     "        memory latency by block size, up to MB (1..4096, default 256)\n"
+    "  pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]\n"
+    "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked\n"
+    "  crypto [--threads N] [--seconds S]\n"
+    "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)\n"
+    "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
+    "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
 #endif
@@ -350,6 +356,76 @@ static int cmd_bench(int argc, char **argv)
         return bench_latency(mb * 1024 * 1024, &o) ? 1 : 0;
     }
 }
+
+/* "1m" -> 1000000, "128k" -> 128000, "1e9" -> 10^9, plain numbers as they are; 0 = not a number */
+static double parse_count(const char *s)
+{
+    char *e;
+    double v = strtod(s, &e);
+    if (e == s || v <= 0) return 0;
+    if (*e == 'k' || *e == 'K') { v *= 1e3; e++; }
+    else if (*e == 'm' || *e == 'M') { v *= 1e6; e++; }
+    else if (*e == 'g' || *e == 'G') { v *= 1e9; e++; }
+    return *e ? 0 : v;
+}
+
+/* pi | crypto | prime - explicit runs only */
+static int cmd_bench2(int argc, char **argv)
+{
+    srs_out o;
+    int i, threads = 0;
+    so_text_init(&o, stdout);
+    if (!strcmp(argv[1], "pi")) {
+        double digits = 1e6;
+        int method = PI_CHUDNOVSKY, rc;
+        const char *save = NULL;
+        char *d = NULL;
+        threads = 1;
+        for (i = 2; i < argc; i++) {
+            const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]"); return 0; }
+            if (!v) return usage_error("pi: option needs a value");
+            if (!strcmp(a, "--digits")) digits = parse_count(v);
+            else if (!strcmp(a, "--threads")) threads = atoi(v);
+            else if (!strcmp(a, "--method")) {
+                if (!strcmp(v, "agm") || !strcmp(v, "gauss-legendre")) method = PI_AGM;
+                else if (!strcmp(v, "chudnovsky")) method = PI_CHUDNOVSKY;
+                else return usage_error("pi: --method is chudnovsky or agm");
+            } else if (!strcmp(a, "--save-digits")) save = v;
+            else return usage_error("pi: unknown option");
+            i++;
+        }
+        if (digits < 100 || digits > PI_MAXDIGITS) return usage_error("pi: --digits must be 100..32m");
+        rc = bench_pi((size_t)digits, threads, method, &o, NULL, save ? &d : NULL);
+        if (rc == -3) fprintf(stderr, "pi: out of memory\n");
+        if (d && save) {
+            FILE *f = fopen(save, "w");
+            if (f) { fputs(d, f); fclose(f); } else fprintf(stderr, "pi: cannot write %s\n", save);
+        }
+        free(d);
+        return rc == 0 ? 0 : 1;
+    }
+    if (!strcmp(argv[1], "crypto")) {
+        double secs = 1;
+        for (i = 2; i + 1 < argc; i++) {
+            if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
+            else if (!strcmp(argv[i], "--seconds")) secs = atof(argv[++i]);
+        }
+        if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
+        return bench_crypto(threads, secs, &o) ? 1 : 0;
+    }
+    {
+        double lim = 1e9;
+        int rc;
+        for (i = 2; i + 1 < argc; i++) {
+            if (!strcmp(argv[i], "--limit")) lim = parse_count(argv[++i]);
+            else if (!strcmp(argv[i], "--threads")) threads = atoi(argv[++i]);
+        }
+        if (lim < 100 || lim > 1e11) return usage_error("prime: --limit must be 100..1e11");
+        rc = bench_prime((uint64_t)(lim + 0.5), threads, &o, NULL);
+        return rc == 0 ? 0 : 1;
+    }
+}
 #endif
 
 int srs_cli_main(int argc, char **argv)
@@ -394,6 +470,7 @@ int srs_cli_main(int argc, char **argv)
 #ifdef __linux__
     if (!strcmp(cmd, "burn")) return cmd_burn(argc, argv);
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
+    if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

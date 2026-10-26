@@ -36,6 +36,10 @@ shows the last stored result.
 - [IPI Dump](#ipi-dump) `ipi-dmp`
 - [IPI Plots](#ipi-plots) `ipi-plots`
 - [Memory Latency](#memory-latency) `latency`
+- [SRS Pi](#srs-pi) `srs-pi`
+- [Crypto benchmark](#crypto-benchmark) `crypto-bench`
+- [Prime sieve](#prime-sieve) `prime-sieve`
+- [Benchmark history](#benchmark-history) `bench-history`
 - [Lookup](#lookup) `lookup`
 - [Ping](#ping) `ping`
 - [Configuration Find](#configuration-find) `reg-find`
@@ -507,6 +511,120 @@ full delay. Lines are 64 bytes. A 200 ms busy spin first brings the core to full
 and fastest (tens of KB per core), L2 is bigger (about 1-2 MB per core), and L3 is shared by many
 cores (tens of MB). Data the CPU uses often stays close. Latency (waiting time) matters most for
 programs that jump around in memory, such as games and databases.
+
+---
+## SRS Pi  
+`srs-pi` - Linux data
+
+**In plain words.** SRS works out pi (3.14159...) to many decimal places - from 128 thousand up to
+32 million - and then checks every single digit. It is a classic CPU test: the time tells you how
+fast one core is at heavy number work, and a wrong digit means the computer made a mistake, which
+usually points to an unstable overclock, too little voltage or bad memory.
+
+**What you see.**
+
+| Line | Meaning | Why it matters |
+|---|---|---|
+| Digits | How many decimal places were worked out (after "3."). 1 million = 1,000,000. | Bigger takes longer and uses more memory. |
+| Method | Chudnovsky series (fast) or Gauss-Legendre / AGM (the method SuperPi uses). | Only compare runs made with the same method. |
+| Threads | 1 = single-thread score. Chudnovsky can split its work over more threads; AGM always uses one. | |
+| Time | Seconds from start to the last digit (the check is not counted). | Lower is faster. |
+| Check | "every digit right" when the SHA-256 checksum of all the digits matches the true digits. | Anything else means a wrong result: do not trust that PC's stability. |
+| Last 20 digits | The end of the result, for a quick look. | |
+| Build | Compiler and CPU code level the program was built for. | Results only compare between alike builds. |
+
+If never run, the item shows `Status Not run yet` and the command line.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, package build (generic x86-64, -O2), one thread:
+128 thousand digits 0.23 s, 1 million 3.1 s, 2 million 7.7 s, 4 million 17.7 s, 8 million 39.6 s.
+1 million on 4 threads: 1.4 s. Gauss-Legendre is about four times slower than Chudnovsky
+(1 million: 13.2 s). A build made for this CPU (`-march=native -O3`) did 1 million in 2.1 s.
+
+**Unusual values and what they suggest.**
+- Check says "wrong": the hardware made an error. Undo the last overclock or voltage change and run
+  it again; a wrong result at stock settings points to memory (run a memory tester).
+- Much slower than usual: another program is busy, the CPU is hot and throttling, or a power-saving
+  profile is active.
+- "Not enough memory": 32 million digits needs about 1-2 GB of free RAM (more with more threads).
+
+**Where Linux gets it.** Built in (no outside program): big numbers in base 10^8, multiplied with a
+number-theoretic transform; Newton steps for division and square roots. The true digits' SHA-256
+checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into SRS (computed once with the
+independent mpmath library). Stored in `~/.cache/srs/bench-pi.txt`; each run is added to the
+[Benchmark history](#benchmark-history).
+
+**Background.** SuperPi (1995) made "pi to 1 million digits" a famous overclocking test. SRS Pi is
+SRS's own program with its own name and timings; its times are **not** SuperPi times. Note that
+SuperPi's "1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly 1,000,000.
+
+---
+## Crypto benchmark  
+`crypto-bench` - Linux data
+
+**In plain words.** How fast the CPU can encrypt data (AES-128, used by disk encryption, VPNs and
+HTTPS) and make fingerprints of data (SHA-256, used by package checks, backups and git). Each is
+measured twice: with the CPU's own crypto instructions (AES-NI, SHA-NI) and in plain C without
+them, so you can see how much the hardware helps.
+
+**What you see.** A table in MB/s (1 MB = 1,000,000 bytes) with one column for one thread and one
+for the chosen number of threads (default: all), and a Check line.
+
+| Row | Meaning |
+|---|---|
+| AES-128-CTR, AES-NI | AES-128 in counter mode using the AES instructions, eight blocks at a time. |
+| AES-128-CTR, plain C | The same work with lookup tables in ordinary C code. |
+| SHA-256, SHA-NI | SHA-256 using the SHA extensions. |
+| SHA-256, plain C | SHA-256 in ordinary C code. |
+
+A row says "not available on this CPU" when the CPU lacks those instructions.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, one thread: AES-NI about 15,000 MB/s, plain C about
+180 MB/s; SHA-NI about 2,100 MB/s, plain C about 430 MB/s. With four threads the numbers grow about
+four times. For comparison, `openssl speed` on the same core: AES-128-CTR about 12,600 MB/s,
+SHA-256 about 2,400 MB/s.
+
+**Unusual values and what they suggest.** Check not "pass": the CPU gave a wrong answer - treat it
+like a failed stability test. AES-NI rows missing on a modern CPU: the instructions may be
+switched off in the BIOS or hidden by a virtual machine.
+
+**Where Linux gets it.** Built in, written from the standards FIPS 197 (AES) and FIPS 180-4
+(SHA-256). Before every run the official test vectors are checked, and the hardware results are
+compared with the plain C results. Stored in `~/.cache/srs/bench-crypto.txt`. Runs about
+8 seconds at the default of 1 second per measurement.
+
+---
+## Prime sieve  
+`prime-sieve` - Linux data
+
+**In plain words.** Counts all the prime numbers up to a limit (100 million to 100 billion) and
+checks the count against the known answer. It is simple integer and cache work that splits well
+over many threads.
+
+**What you see.** Limit, Threads, Time, Speed (million numbers per second), Primes found, and a
+Check line ("right" when the count matches the known value, for example 455,052,511 primes below
+10 billion).
+
+**Healthy / typical values.** Ryzen 7 7800X3D, up to 10 billion: 4.5 s on one thread, 1.15 s on
+four threads. The specialised `primesieve` program does the one-thread run in 0.75 s: SRS uses a
+plain, easy-to-read sieve, so compare SRS with SRS.
+
+**Where Linux gets it.** Built in: a segmented sieve of Eratosthenes over the odd numbers, in
+128 KB pieces that fit in the L2 cache, shared between threads. Stored in
+`~/.cache/srs/bench-prime.txt`.
+
+---
+## Benchmark history  
+`bench-history` - Linux data
+
+**In plain words.** A list of every SRS Pi, Crypto and Prime sieve run, newest first, so you can
+compare before and after a change (BIOS setting, kernel, cooler).
+
+**What you see.** When, Test, Settings (digits, threads, method), Result, and Build. Results in red
+were wrong.
+
+**Where Linux gets it.** `~/.cache/srs/bench-history.tsv`, a tab-separated text file (one line per
+run) that any spreadsheet opens. Only compare lines with the same settings and the same Build: a
+package built for every x86-64 CPU can be much slower than one built for this CPU.
 
 ---
 ## Lookup  

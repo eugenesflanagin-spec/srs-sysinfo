@@ -4,6 +4,29 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## Unreleased (branch 2x-bench, prototype - not released)
+
+### Added
+- **SRS Pi**: works out pi to 128 thousand, 1, 2, 4, 8, 16 or 32 million decimal places and checks
+  every digit against built-in SHA-256 checksums of the true digits. Two methods: Chudnovsky (fast,
+  can split its work over threads) and Gauss-Legendre / AGM (the method SuperPi uses, one thread).
+  Window with Digits, Method, Threads, Run and Stop, and a status line showing the current step;
+  command line `sysreport-search pi [--digits 1m] [--threads N] [--method chudnovsky|agm]
+  [--save-digits FILE]`. Times are SRS Pi times, not SuperPi times (SuperPi's "1M" is 1,048,576
+  digits). Example, Ryzen 7 7800X3D, package build, one thread: 1 million digits 3.1 s.
+- **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
+  AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
+  run. `sysreport-search crypto [--threads N] [--seconds S]`.
+- **Prime Sieve**: counts the primes up to 10^8 ... 10^11 on N threads and checks the count.
+  `sysreport-search prime [--limit 1e10] [--threads N]`.
+- **Benchmark history**: every SRS Pi, Crypto and Prime Sieve run adds a line to
+  `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
+  result carries a **Build** line (compiler, CPU code level), because a generic package build and a
+  `-march=native` build of the same version score differently.
+- Benchmarks & stress page: SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
+  (classic view); `--gui-open=pi|crypto|prime`.
+- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+
 ## 2.0.0 - 2026-10-26
 
 This is SRS 2.0, with a new main window: an Overview that answers "Is my PC OK?", one page per

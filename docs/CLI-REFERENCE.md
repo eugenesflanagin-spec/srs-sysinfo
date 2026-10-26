@@ -43,6 +43,9 @@ sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|sw
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
+sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search crypto [--threads N] [--seconds S]
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-root [--user NAME]
@@ -90,8 +93,14 @@ Benchmarks and stress (load the CPU; run only when you ask):
         core-to-core (cache-line ping-pong) latency matrix
   latency [--max MB]
         memory latency by block size, up to MB (1..4096, default 256)
+  pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked
+  crypto [--threads N] [--seconds S]
+        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+  prime [--limit 1e8|1e9|1e10|N] [--threads N]
+        count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
 ```
@@ -372,6 +381,43 @@ sysreport-search latency [--max MB]
 block size, nanoseconds per read and the cache level. See
 [tools.md](SECTIONS/tools.md#memory-latency).
 
+### `pi` - SRS Pi: pi to many digits, every digit checked
+
+```
+sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+```
+
+`--digits` is the number of decimal places (default `1m` = 1,000,000; `k` = thousand, `m` =
+million; 100 to 32m). The listed sizes are checked digit for digit with built-in SHA-256
+checksums; other sizes only have their first 100 digits checked. `--threads N` (default 1) splits
+the Chudnovsky series over N threads; `--method agm` uses Gauss-Legendre (always one thread).
+`--save-digits FILE` writes the digits (without "3.") to FILE. Exit code 0 when every checked digit
+is right, 1 when a digit is wrong or memory ran out, 2 for a bad option. See
+[tools.md](SECTIONS/tools.md#srs-pi).
+
+### `crypto` - AES-128 and SHA-256 speed
+
+```
+sysreport-search crypto [--threads N] [--seconds S]
+```
+
+Measures AES-128-CTR and SHA-256 in MB/s on one thread and on N threads (default all), with
+AES-NI / SHA-NI when the CPU has them and in plain C. `--seconds S` per measurement, 0.1 to 60
+(default 1). The FIPS test vectors are checked first; exit code 1 if they fail. See
+[tools.md](SECTIONS/tools.md#crypto-benchmark).
+
+### `prime` - count the primes up to a limit
+
+```
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+```
+
+Counts the primes up to `--limit` (default 1e9; 100 to 1e11) on N threads (default all) and checks
+the count for the powers of ten 1e7 to 1e11. Exit code 1 when the count is wrong. See
+[tools.md](SECTIONS/tools.md#prime-sieve).
+
+Every `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+
 ---
 
 ## `srs-gui` window options
@@ -395,6 +441,9 @@ or one of these tool names:
 | `bench` | Benchmark |
 | `ipi` | IPI Delay |
 | `latency` | Latency |
+| `pi` | SRS Pi |
+| `crypto` | Crypto benchmark |
+| `prime` | Prime Sieve |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

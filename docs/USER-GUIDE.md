@@ -981,6 +981,9 @@ time in ns, level) and a curve.
 For a full Cache & Memory **bandwidth** benchmark, see the sister project
 [lsa-sysinfo](https://github.com/eugenesflanagin-spec/lsa-sysinfo).
 
+The newer benchmarks - SRS Pi, Crypto, Prime Sieve and the Benchmark history - are in
+[9.7](#97-srs-pi) to [9.10](#910-benchmark-history).
+
 ### 9.5 Device ID Lookup
 
 **In plain words:** every PCI and USB device has a number pair: **vendor ID : device ID**
@@ -1034,6 +1037,47 @@ Controls:
 | **Lookup** | Open Device ID Lookup. |
 
 If there is no report yet, Find tells you to run SRS Full System Report first.
+
+### 9.7 SRS Pi
+
+**In plain words:** SRS works out pi to many decimal places and checks every digit. The time shows
+how fast one core does heavy number work; a wrong digit means the PC made a mistake (often an
+unstable overclock or memory).
+Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Tools -> SRS Pi... in the
+classic view. On the command line: `sysreport-search pi --digits 1m`.
+Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
+author's PC), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
+SuperPi uses, one thread), **Threads** (default 1, for a single-thread score), **Run** and **Stop**.
+While it runs the status line shows the time so far and the current step (series, division, square
+root). Closing the window also stops it.
+
+Times are **SRS Pi** times, not SuperPi times. SuperPi's "1M" is 1,048,576 digits; SRS's 1 million
+is 1,000,000. 32 million digits takes several minutes and 1-2 GB of memory.
+
+### 9.8 Crypto
+
+**In plain words:** how fast the CPU encrypts (AES-128) and fingerprints (SHA-256) data, with and
+without its built-in crypto instructions (AES-NI, SHA-NI).
+Open: the **Benchmarks & stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
+Controls: **Threads** (right-hand column; the left column is always one thread), **Seconds per
+measurement** (default 1; about 8 seconds in all), **Run**. The official FIPS test vectors are
+checked before every run.
+
+### 9.9 Prime Sieve
+
+**In plain words:** counts the prime numbers up to 100 million, 1 billion, 10 billion or
+100 billion and checks the count. Simple integer and cache work that scales with threads.
+Open: the **Benchmarks & stress** page -> **Prime Sieve...**. Command line:
+`sysreport-search prime --limit 1e10`.
+Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
+
+### 9.10 Benchmark history
+
+Every SRS Pi, Crypto and Prime Sieve run adds one line to `~/.cache/srs/bench-history.tsv`
+(time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
+page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
+package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
+own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.
 
 ## 10. Options
 
