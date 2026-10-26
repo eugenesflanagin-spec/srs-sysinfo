@@ -116,7 +116,8 @@ srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|pr
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
         (--gui-scan-empty is internal: the main window runs it in a child process to find
-        the items that have nothing to show on this PC)
+        the items that have nothing to show on this PC, only on Options > Check now or Check daily;
+        it never runs the network items or Ping)
 ```
 
 ### `--version`

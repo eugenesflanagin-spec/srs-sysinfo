@@ -16,12 +16,14 @@ is the graphical front end of SRS, a Linux system information viewer inspired by
 SIV64X (System Information Viewer by Ray Hinchliffe, RH Software) and built to improve on it.
 SRS is an independent project, not affiliated with SIV or its author. It shows CPU,
 memory, sensor, storage, bus, GPU, network and operating-system information,
-and includes a CPU burn-in / stress tester and benchmarks.
+and includes a CPU burn-in / stress tester and benchmarks (Dhrystone / Whetstone, Cache & Memory,
+Storage, SRS Pi, Crypto, Prime Sieve, IPI delay, memory latency).
 SRS is not affiliated with or endorsed by RH Software.
 .PP
 The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
-Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices,
-Operating system, Benchmarks & stress, Tools and Power & cost. The Overview answers "Is my PC OK?" with a
+Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, Power & cost, USB & PCI
+devices, Operating system, Benchmarks & stress and Tools; \fBAlt+1\fR ... \fBAlt+9\fR,
+\fBAlt+0\fR, \fBAlt+\-\fR, \fBAlt+=\fR and \fBAlt+Backspace\fR go to them in that order. The Overview answers "Is my PC OK?" with a
 status light per check (temperatures against each sensor's own limit, drive health, hardware
 errors, free disk space, memory in use, sensor alarms) and cards with the key facts. Each other
 page shows key facts and the items as tabs; "All N items" is a searchable list of every item of
@@ -31,12 +33,14 @@ Since 2.1 the tabs can be arranged: add (\fB+\fR, \fBCtrl+T\fR), close (\fBCtrl+
 move and keep them; each page's tabs and their order are remembered. Options set, per page, the
 standard tabs, chosen ones or every item, and the tab bar (one scrolling row, wrapped rows or a
 side list). Lineups save a whole arrangement: Basic, Enthusiast (the default), Expert and your
-own, with export and import. Items that cannot show anything on the PC are hidden unless
-"Show hidden items" is on. Click a table's column heading to sort it (numbers by value with their
+own, with export and import. Windows-only items and hardware the PC does not have are hidden
+unless "Show hidden items" is on; items that come out empty are hidden too after Options \(->
+"Check now" or the opt-in "Check daily" (off by default; it never runs the network items or Ping). Click a table's column heading to sort it (numbers by value with their
 units, dates by date); Reset view, Copy and Save Report keep the item's own order. CPU Clocks
 shows each clock at stock next to what is in effect (measured base clock, FCLK / UCLK / MCLK from
-the SMU). The Startup programs tab manages autostart entries and services without deleting
-anything (Undo, Restore default, Add to startup). A badge in the title bar says "Full access"
+the SMU). The Startup programs tab opens on its read-only Report; Manage, next to it, turns
+autostart entries and services off and on without deleting anything (Undo, Restore default, Add
+to startup). A badge in the title bar says "Full access"
 or "Limited (user)".
 .PP
 \fBPower & cost\fR (new in 2.1) estimates how much power the whole PC draws at the wall, with a
@@ -124,7 +128,8 @@ your own tab lineups (the same format as Export lineup).
 autostart files the Startup manager moved aside or changed (nothing is deleted).
 .TP
 .I ~/.cache/srs/empty-items.txt
-items that had nothing to show on this PC at the last check.
+items that had nothing to show on this PC at the last check (made only by Options > Check now or
+Check daily, which is off by default; the network items and Ping are never checked).
 .TP
 .I ~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
 the summary of each finished CPU Burnin / CPU Stress run.

@@ -43,8 +43,8 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 ![SRS 2.0 main window: the Overview page](docs/images/overview-light.png)
 
 - **Main window** (new in 2.0): a sidebar of pages - **Overview**, Processor, Memory,
-  Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating
-  system, Benchmarks & stress, Tools.
+  Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, **Power & cost** (2.1), USB &
+  PCI devices, Operating system, Benchmarks & stress, Tools.
   - **Overview** answers "Is my PC OK?": status lights for CPU and graphics temperature, drive
     health (SMART) and temperature, hardware errors (machine checks, ECC errors, faulty memory
     pages), free space on the system disk, memory in use and sensor alarms, each in plain words
@@ -58,12 +58,15 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     drag and keep tabs; SRS remembers each page's tabs and their order. Per page in Options: the
     standard tabs, the ones you tick, or every item; or every item as a tab on all pages. Tab bar:
     one scrolling row, wrapped rows or a side list. **Lineups** save a whole arrangement: Basic,
-    Enthusiast (default), Expert, and your own (save, export, import). Items that cannot show
-    anything on this PC (Windows-only, not present, empty) are hidden; **Show hidden items** lists them.
+    Enthusiast (default), Expert, and your own (save, export, import). Windows-only items and
+    hardware this PC does not have are hidden; **Options -> Check now** (or the opt-in **Check
+    daily**) also hides items that come out empty here, never running the network items;
+    **Show hidden items** lists them.
   - **Sortable tables** (2.1): click a column heading (first click ascending ▲, second descending ▼);
     numbers sort by value with their units (MB/GB, MHz, °C, RPM, %), dates by date. **Reset view**
     puts the item's order back; Copy and Save Report always keep it.
-  - **Startup manager** (2.1, Operating system -> Startup programs -> Manage): turn any autostart
+  - **Startup manager** (2.1, Operating system -> Startup programs; the tab opens on the read-only
+    **Report**, **Manage** is next to it): turn any autostart
     entry, user service or (after a warning, with pkexec) system service off and on again without
     deleting anything; Undo, Restore default, and **Add to startup** for a program or a command with
     an optional delay. Desktop essentials (Plasma, PipeWire, KWallet, portals, polkit agent) ask first.
@@ -76,7 +79,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **Menu**: Save Report, Save All Items, Copy This Tab, Lineup, Options, Run as root, Find in System
     Report, Device ID Lookup, Classic View, the full Classic Menu, User Guide, About SRS, Quit.
   - The tools below open from the **Benchmarks & stress** and **Tools** pages too.
-  - **Power & cost** (new in 2.1): an estimate of the whole PC's power at the wall with its likely
+  - **Power & cost** (new in 2.1, under Sensors, Alt+9): an estimate of the whole PC's power at the wall with its likely
     range (the CPU and graphics card measured, the rest from an editable parts list and the power
     supply's efficiency), the cost at your price (flat, tiered or time-of-use, any currency, or an
     offline area average), recording off / for a set time / always into a local SQLite history,
@@ -122,7 +125,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
 - Hot-keys (classic view): Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
-  the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page,
+  the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+-, Alt+= and Alt+Backspace jump to a page,
   Ctrl+T adds a tab, Ctrl+W closes the tab in view and Ctrl+PageUp / Ctrl+PageDown step through the tabs.
 
 ## System tray
@@ -223,8 +226,9 @@ AppImage). The boot-time refresh (**Refresh root data at boot**) needs the distr
     make install-system DESTDIR=... SYSPREFIX=/usr
     make install                # per-user install into ~/.local
     make all                    # also i686/aarch64 CLIs and the Windows images (needs mingw-w64)
+    make test-power             # unit tests of the Power & cost arithmetic and history database
 
-Dependencies: gtk3, glibc, hwdata, systemd (hwdb). Optional: libayatana-appindicator (tray icon), dmidecode, i2c-tools (decode-dimms),
+Dependencies: gtk3, sqlite (srs-gui only: the Power & cost history), glibc, hwdata, systemd (hwdb). Optional: libayatana-appindicator (tray icon), dmidecode, i2c-tools (decode-dimms),
 smartmontools, nvme-cli, pciutils, polkit (srs-root), vulkan-tools, clinfo, mesa-utils, iw,
 bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 

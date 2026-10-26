@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on the **Tools** page (Alt+=). Its tabs are About SRS and Help; **All N items** lists the rest. **Menu -> About SRS** opens About too. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on the **Tools** page (Alt+Backspace). Its tabs are About SRS and Help; **All N items** lists the rest. **Menu -> About SRS** opens About too. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the items that describe SRS itself rather than your hardware: its version and
 credits, help text, settings file, command-line options, program image, threads, and a set of

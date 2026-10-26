@@ -359,8 +359,9 @@ and **Cache levels CPU-n** for each CPU (SIV's CPU-n and Cache-n buttons).
 
 Items that cannot show anything on this PC are left out of the list and the tabs: SIV's
 Windows-only items, hardware SIV checks for that this PC does not have (for example RAID
-controllers), and items that came out empty here. The list says how many are hidden; **Options ->
-Show hidden items** lists them greyed, with the reason ("Windows-only", "not present", "nothing to
+controllers), and - only after you ask SRS to check (**Options -> Check now**, or **Check daily**,
+which is off unless you turn it on; [10](#10-options)) - items that came out empty here. The list
+says how many are hidden; **Options -> Show hidden items** lists them greyed, with the reason ("Windows-only", "not present", "nothing to
 show on this PC"), and you can still open them.
 
 ### 6.2 Overview: "Is my PC OK?"
@@ -632,9 +633,9 @@ The headings are underlined and the mouse pointer becomes a hand over them; hove
 
 ### 6.9 The Startup manager
 
-**Operating system -> Startup programs** opens on **Manage**: everything that starts when you log
-in or when the PC boots, with a switch per item. **Report** next to it shows the Startup programs
-item as text (what Copy and Save Report give).
+**Operating system -> Startup programs** opens on **Report**: the Startup programs item as text,
+read-only (what Copy and Save Report give). **Manage**, one click away next to it, is the manager:
+everything that starts when you log in or when the PC boots, with a switch per item.
 
 ![Startup manager](images/startup-manager.png)
 
@@ -711,8 +712,8 @@ centre figure with a likely range, for example **about 160 W, likely between 116
 wall**. Recording keeps one line per minute, so you can see days, weeks and months, with the cost
 at your price.
 
-The page is the last one in the sidebar (**Power & cost**; it has no Alt+number key, so every other
-page keeps its key). Open it from the command line with `srs-gui --gui-open=power-cost`.
+The page is in the sidebar right under **Sensors** (**Power & cost**, **Alt+9**). Open it from the
+command line with `srs-gui --gui-open=power-cost`. The classic view has no Power & cost page.
 
 ![Power & cost, Now tab (this PC idling)](images/power-now.png)
 
@@ -1515,7 +1516,8 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Tabs on each page...** | Per page: the standard tabs, the ticked ones, or every item. | standard |
 | **Show every item as a tab (all pages)** | Every item that can show something here gets a tab on its page. | off |
 | **Show hidden items** | List the items that cannot show anything on this PC (Windows-only, not present, empty), greyed, in All N items, and do not hide their tabs. | off |
-| **Check again which items have nothing to show** | SRS checks this in the background at most once a day; this checks now. | |
+| **Check daily which items have nothing to show** | On: once a day, in the background, SRS reads every item to find the ones with nothing to show on this PC and hides them. Off: only when you choose **Check now**. Windows-only items and hardware that is not present are hidden either way. The network items and Ping are never part of the check. | off |
+| **Check now which items have nothing to show** | Does that check once, now, in the background. | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
 Until you pick a Theme, the main window follows the desktop and the classic view starts light.
@@ -1542,7 +1544,7 @@ In the main window:
 
 | Keys | Action |
 |---|---|
-| **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=** | Go to page 1 to 12 (Overview ... Tools) |
+| **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=**, **Alt+Backspace** | Go to page 1 to 13, in sidebar order: Overview (Alt+1) ... Sensors (Alt+8), Power & cost (Alt+9), USB & PCI devices (Alt+0), Operating system (Alt+-), Benchmarks & stress (Alt+=), Tools (Alt+Backspace) |
 | **Ctrl+F** | Search box ([6.4](#64-search)) |
 | **Enter** in the search box | Find the text on the current tab |
 | **F3 / Shift+F3** | Next / previous match on the tab |
@@ -1657,7 +1659,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.config/autostart/srs-*.desktop` | Programs you added with **Add to startup** ([6.9](#69-the-startup-manager)); also the turned-off copies of system entries (same name as the system file). |
 | `~/.config/srs/startup-backup/` | Everything the Startup manager moved out of the way or changed: `NAME.desktop.YYYYMMDD-HHMMSS` and `NAME.desktop.orig`. Nothing there is used; copy a file back to `~/.config/autostart` to use it again. |
 | `~/.config/srs/lineups/*.srslineup` | Your own tab lineups ([6.7](#67-arranging-the-tabs-and-lineups)), the same format as Export lineup. |
-| `~/.cache/srs/empty-items.txt` | The items that had nothing to show on this PC at the last check (hidden from the tabs and lists). Delete it, or use Options -> Check again, to check now. |
+| `~/.cache/srs/empty-items.txt` | The items that had nothing to show on this PC at the last check (hidden from the tabs and lists). Made only by Options -> **Check now** or **Check daily** ([10](#10-options)); delete it to show those items again. |
 | `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`). |
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
@@ -1691,6 +1693,7 @@ hand is fine while SRS is closed.
 | `Sortable Tables` | `1` / `0` | Options -> Sortable tables in the main window |
 | `All Items As Tabs` | `true` / `false` | Options -> Show every item as a tab |
 | `Show Hidden Items` | `true` / `false` | Options -> Show hidden items |
+| `Check Empty Items` | `true` / `false` | Options -> Check daily which items have nothing to show (default `false`) |
 | `SIO Sensors` | e.g. `nct6799:AUXTIN1` | Super-I/O inputs the burner should treat as connected |
 
 Section `[Tabs]` holds the main window's tabs as they are now: `Lineup` (the lineup they came

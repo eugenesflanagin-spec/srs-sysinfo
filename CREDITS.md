@@ -30,3 +30,14 @@ the copies in SRS 2.1.0.
 | 80 PLUS efficiency levels (PSU presets) | Wikipedia, "80 Plus" (<https://en.wikipedia.org/wiki/80_Plus>), citing CLEAResult, the certifier (<https://www.clearesult.com/80plus/program-details>) | Facts, credited |
 | Montech CENTURY II 1200W preset | HWbusters review (<https://hwbusters.com/psus/montech-century-ii-1200w-atx-v3-1-psu-review/7/>, <https://hwbusters.com/psus/montech-century-ii-1200w-atx-v3-1-psu-review/11/>): Cybenetics Platinum average efficiency, under 70 % at 2 % load; PCPartPicker: 80 PLUS Gold certified | Facts, credited; the curve is derived, not copied |
 | Typical part figures (fans, drives, memory, chipset) | Samsung 980 PRO data sheet, Noctua NF-A12x25 specification, reseller spec sheets for the Seagate ST4000NM0033, published AMD Promontory 21 figures | Facts, credited here |
+
+## Benchmarks
+
+The benchmarks are SRS's own code, written from published sources.
+
+| What | Source | Licence / terms |
+|---|---|---|
+| SRS Pi | the Chudnovsky series (D. V. and G. V. Chudnovsky, 1988) and the Gauss-Legendre / Brent-Salamin AGM (1976); reference checksums computed once with [mpmath](https://mpmath.org) | published methods; mpmath (BSD licence) is not part of SRS |
+| Crypto | FIPS 197 (AES) and FIPS 180-4 (SHA-256), with their published test vectors | U.S. government standards |
+| Prime Sieve | the sieve of Eratosthenes; known prime counts pi(10^n) | published facts |
+| Cache & Memory | the measuring engine of Linux System Audit (LSA) 0.2.0, the author's own project (GPL-2.0-or-later), now part of SRS | GPL-2.0-or-later |

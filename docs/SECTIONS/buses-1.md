@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md) - [Part 2](buses-2.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+9). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus and Thunderbolt; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+0). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus and Thunderbolt; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group shows how the parts of your PC are wired together: the PCI Express (PCIe) bus that carries
 the graphics card and SSDs, the USB and HID (Human Interface Device) devices, the small management buses

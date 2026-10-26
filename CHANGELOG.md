@@ -6,7 +6,51 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ## 2.1.0 - 2026-10-26
 
+Power & cost, five new benchmarks, and a main window you can arrange: tab lineups, sortable tables,
+a Startup manager, CPU clocks at stock and in effect, and a badge that shows what SRS can read.
+
 ### Added
+
+**Power & cost**
+
+- **Power & cost: how much power the PC uses and what it costs.** A new page in the sidebar,
+  right under Sensors (Alt+9). **Estimates only, not a meter reading and not a bill**: the page
+  says so in full the first time it opens, then in a banner and at the top of every export.
+  - **Now:** the whole PC's power at the wall with its likely range (for example "about 160 W,
+    likely between 116 W and 205 W"), the cost per hour, day, month and year at your price, a
+    10-minute graph with the range as a band, and where the watts go. The processor is measured
+    (zenergy, amd_energy, or the RAPL counter when it is readable), the graphics card as its
+    driver reports it (amdgpu, Intel, nouveau); everything else is estimated from a parts list
+    and the power supply's efficiency.
+  - **Recording:** off, for a set time, or always, one row per minute in a local SQLite file
+    (`~/.local/share/srs/power.db`, readable only by you). Energy counters that run round are
+    unwrapped; sleep (from the clocks) and shut-downs (from the boot ID) are noticed and counted
+    at the "asleep" and "off" watts you set; time SRS was not running is a gap, never made-up
+    data. Optional **background recorder** (a systemd user service running
+    `srs-gui --power-recorder`) for when SRS is closed.
+  - **History:** energy or cost by hour, day, week or month with the likely range, the busy vs
+    idle split, a table, **CSV export** (any resolution, decimal point or comma) and re-pricing.
+  - **Sessions:** stretches of heavy use such as games or renders, with length, energy, cost,
+    peak and CO2.
+  - **Price:** any currency; flat, tiered (with the rest of the home's use counted first) or
+    time-of-use (a 24-hour weekday/weekend grid); taxes and an optional standing charge.
+    **Typical prices for your area, offline:** US state averages (EIA), the utility for a US ZIP
+    code (NREL), European countries (Eurostat), the GB price cap (Ofgem). Nothing is sent
+    anywhere. What-ifs (left on 24/7, this month's forecast) and an optional CO2 estimate from
+    grid averages (Ember).
+  - **Setup:** the power supply (presets for the 80 PLUS levels at 115 V and 230 V, and the
+    Montech CENTURY II 1200W; or type a curve from a Cybenetics report), the parts list SRS
+    detects on this PC, editable, with typical parts to add; sleep and off watts; how often to read.
+  - **Alarms:** power now or on average over a limit, energy or cost per day or month, and month
+    forecasts, as desktop notifications; limits in W, kW, BTU/h, Wh, kWh, MWh, kJ or MJ with the
+    conversions shown.
+  - **Sources:** what can be measured on this PC and why. SRS never loosens the RAPL permission
+    that Linux 5.10 made root-only (PLATYPUS).
+  - Guide section 6.11 explains all of it in plain words, with a glossary of W, Wh, kWh and the
+    rest; [CREDITS.md](CREDITS.md) lists the data sources and their licences.
+
+**Benchmarks**
+
 - **SRS Pi**: works out pi to 128 thousand, 1, 2, 4, 8, 16 or 32 million decimal places and checks
   every digit against built-in SHA-256 checksums of the true digits. Two methods: Chudnovsky (fast,
   can split its work over threads) and Gauss-Legendre / AGM (the method SuperPi uses, one thread).
@@ -44,63 +88,11 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
-- Benchmarks & stress page: SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
-  (classic view); `--gui-open=pi|crypto|prime`.
-- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+- Benchmarks & stress page: Cache & Memory, Storage, SRS Pi, Crypto and Prime Sieve buttons and
+  tabs; Menu -> Tools entries (classic view); `--gui-open=cachemem|storagebench|pi|crypto|prime`.
 
-### Changed
-- The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
-  memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).
+**Main window**
 
-### Fixed
-- Only one benchmark runs at a time across all windows (before, two benchmark windows could run at
-  once and spoil each other's results), and CPU Burnin / Stress will not start while a benchmark
-  runs. The window says why it did not start.
-- **Power & cost: how much power the PC uses and what it costs.** A new page at the end of the
-  sidebar. **Estimates only, not a meter reading and not a bill**: the page says so in full the
-  first time it opens, then in a banner and at the top of every export.
-  - **Now:** the whole PC's power at the wall with its likely range (for example "about 160 W,
-    likely between 116 W and 205 W"), the cost per hour, day, month and year at your price, a
-    10-minute graph with the range as a band, and where the watts go. The processor is measured
-    (zenergy, amd_energy, or the RAPL counter when it is readable), the graphics card as its
-    driver reports it (amdgpu, Intel, nouveau); everything else is estimated from a parts list
-    and the power supply's efficiency.
-  - **Recording:** off, for a set time, or always, one row per minute in a local SQLite file
-    (`~/.local/share/srs/power.db`, readable only by you). Energy counters that run round are
-    unwrapped; sleep (from the clocks) and shut-downs (from the boot ID) are noticed and counted
-    at the "asleep" and "off" watts you set; time SRS was not running is a gap, never made-up
-    data. Optional **background recorder** (a systemd user service running
-    `srs-gui --power-recorder`) for when SRS is closed.
-  - **History:** energy or cost by hour, day, week or month with the likely range, the busy vs
-    idle split, a table, **CSV export** (any resolution, decimal point or comma) and re-pricing.
-  - **Sessions:** stretches of heavy use such as games or renders, with length, energy, cost,
-    peak and CO2.
-  - **Price:** any currency; flat, tiered (with the rest of the home's use counted first) or
-    time-of-use (a 24-hour weekday/weekend grid); taxes and an optional standing charge.
-    **Typical prices for your area, offline:** US state averages (EIA), the utility for a US ZIP
-    code (NREL), European countries (Eurostat), the GB price cap (Ofgem). Nothing is sent
-    anywhere. What-ifs (left on 24/7, this month's forecast) and an optional CO2 estimate from
-    grid averages (Ember).
-  - **Setup:** the power supply (presets for the 80 PLUS levels at 115 V and 230 V, and the
-    Montech CENTURY II 1200W; or type a curve from a Cybenetics report), the parts list SRS
-    detects on this PC, editable, with typical parts to add; sleep and off watts; how often to read.
-  - **Alarms:** power now or on average over a limit, energy or cost per day or month, and month
-    forecasts, as desktop notifications; limits in W, kW, BTU/h, Wh, kWh, MWh, kJ or MJ with the
-    conversions shown.
-  - **Sources:** what can be measured on this PC and why. SRS never loosens the RAPL permission
-    that Linux 5.10 made root-only (PLATYPUS).
-  - Guide section 6.11 explains all of it in plain words, with a glossary of W, Wh, kWh and the
-    rest; [CREDITS.md](CREDITS.md) lists the data sources and their licences.
-- `make test-power`: unit tests of the estimate, counter unwrapping, sleep/reboot handling,
-  prices, sessions, alarms and the history database with synthetic counter data; the Debian and
-  RPM builds run them.
-
-### Changed
-- `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
-The main window becomes yours to arrange: tabs you can add, swap and keep, saved as lineups;
-tables you can sort; and a Startup manager.
-
-### Added
 - **Tabs you can arrange.** On every page: **+** (or Ctrl+T) adds a tab that stays; right-click a
   tab for **Keep this tab**, **Replace with...**, **Move left / right**, **Close tab**, **Tabs on
   this page...** and **Reset this page's tabs to the lineup**; drag to move; close with its x,
@@ -117,17 +109,19 @@ tables you can sort; and a Startup manager.
   (every item as a tab, side list). Save your own, save changes to it, export and import
   `.srslineup` files, reset to the default. Menu -> Lineup, Options -> Lineup, or a tab's
   right-click menu; the sidebar shows the lineup in use and "(changed)".
-- **Items that cannot show anything here are hidden**: SIV's Windows-only items, hardware that is
-  not present, and items that come out empty on this PC (checked in the background at most once a
-  day, in a separate process). **Options -> Show hidden items** lists them greyed with the reason.
+- **Items that cannot show anything here are hidden**: SIV's Windows-only items and hardware that
+  is not present, always. Items that come out empty on this PC are hidden too once SRS has checked:
+  **Options -> Check now** (in a separate process), or **Check daily**, which is off unless you turn
+  it on. The check never runs the network items or Ping. **Options -> Show hidden items** lists
+  them greyed with the reason.
 - **Sortable tables**: click a column heading in a tab's table to sort it, first click ascending
   (▲), second descending (▼). Numbers sort by value with their units (KB / MB / GB, MHz / GHz,
   °C, RPM, %, V, W, times), dates by date, process numbers by number, names naturally. **Reset
   view** (only on tabs with tables) puts the item's own order back. Copy and Save Report keep the
   item's own order. Options -> Sortable tables turns it off.
-- **Startup manager** on Operating system -> Startup programs (**Manage**; **Report** is the item
-  as before): every autostart entry, systemd user unit and, if you tick it, system service with a
-  switch. Nothing is deleted: a system autostart entry is turned off with a copy in your autostart
+- **Startup manager** on Operating system -> Startup programs. The tab opens on **Report** (the
+  item as text, read-only); **Manage**, one click away, lists every autostart entry, systemd user
+  unit and, if you tick it, system service with a switch. Nothing is deleted: a system autostart entry is turned off with a copy in your autostart
   folder that says Hidden=true, your own entries get Hidden=, and files SRS moves aside or changes
   are kept in `~/.config/srs/startup-backup`. **Undo**, **Restore default** (systemd: the
   distribution's preset) and **Add to startup...** for an installed program or a command, with an
@@ -143,14 +137,33 @@ tables you can sort; and a Startup manager.
   table (ryzen_smu, Zen 4 desktop layout, values checked) shown without a difference, because
   software cannot measure them. Also in Save Report and the command line.
 
+**Tests**
+
+- `make test-power`: unit tests of the estimate, counter unwrapping, sleep/reboot handling,
+  prices, sessions, alarms and the history database with synthetic counter data; the Debian and
+  RPM builds run them.
+- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+
 ### Changed
+
+- Page keys: the Alt keys follow the sidebar order with Power & cost under Sensors, so USB & PCI
+  devices moves to Alt+0, Operating system to Alt+-, Benchmarks & stress to Alt+= and Tools to
+  Alt+Backspace (Overview ... Sensors keep Alt+1 ... Alt+8; Power & cost is Alt+9).
+- `srs-gui` now needs SQLite (all packages and the AppImage). The command-line program does not.
+- The user guide's Tools chapter no longer sends readers to the separate lsa-sysinfo project for
+  memory bandwidth: the Cache & Memory benchmark is in SRS (9.11).
 - Every tab can be closed now, the standard ones too (All N items and Reset bring them back); the
   close button shows on the tab in view and on temporary tabs.
 - The Startup programs item reads `$XDG_CONFIG_HOME/autostart` when that is set (before: always
   `~/.config/autostart`).
 
 ### Fixed
+
+- Only one benchmark runs at a time across all windows (before, two benchmark windows could run at
+  once and spoil each other's results), and CPU Burnin / Stress will not start while a benchmark
+  runs. The window says why it did not start.
 - A live tab's refreshed line could take the colour of the text next to it.
+
 
 ## 2.0.0 - 2026-10-26
 

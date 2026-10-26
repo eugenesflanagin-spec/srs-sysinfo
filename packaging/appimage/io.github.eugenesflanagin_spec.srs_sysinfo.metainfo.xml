@@ -28,7 +28,9 @@
     </p>
     <p>Also included:</p>
     <ul>
-      <li>CPU burn-in and stress tests, Dhrystone and Whetstone benchmarks and a memory latency test</li>
+      <li>CPU burn-in and stress tests; Dhrystone, Whetstone, Cache &amp; Memory, Storage, SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
+      <li>Power &amp; cost: an estimate of the whole PC's power use and its cost, with recorded history (estimates, not a meter reading)</li>
+      <li>Tabs you can arrange and save as lineups, sortable tables and a startup manager</li>
       <li>Device ID lookup for PCI and USB devices</li>
       <li>Reports saved as text, and a command-line report search</li>
       <li>Optional root-only details (DMI, memory SPD, SMART, MSRs) collected with one password prompt</li>
@@ -68,9 +70,12 @@
   <releases>
     <release version="2.1.0" date="2026-10-26">
       <description>
-        <p>Tabs you can arrange and save as lineups, sortable tables, a Startup manager that turns
-        startup items off and on without deleting anything, a Full access / Limited badge, and
-        stock-versus-in-effect clocks on CPU Clocks.</p>
+        <p>A Power &amp; cost page that estimates the whole PC's power use and what it costs, with
+        history, sessions, alarms and offline price tables. New benchmarks: Cache &amp; Memory,
+        Storage, SRS Pi, Crypto and Prime Sieve, with a run history. Tabs you can arrange and save
+        as lineups, sortable tables, a Startup manager that turns startup items off and on without
+        deleting anything, a Full access / Limited badge, and stock-versus-in-effect clocks on CPU
+        Clocks.</p>
       </description>
     </release>
     <release version="2.0.0" date="2026-10-26">
