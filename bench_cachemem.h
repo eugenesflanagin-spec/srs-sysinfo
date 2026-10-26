@@ -1,6 +1,6 @@
 /* bench_cachemem.h - Cache & Memory benchmark engine (from Linux System Audit 0.2.0, the same author's
  * project, merged into SRS 2.1).
- * Clean-room: written from the published description of a cache & memory benchmark
+ * Written independently from the published description of a cache & memory benchmark
  * (Read / Write / Copy bandwidth and Latency of Memory, L1, L2, L3), not from any other
  * program's code. Bandwidth tests run one pinned thread per logical CPU; Latency is a
  * single-thread random pointer chase on 2 MB (transparent huge) pages. */
