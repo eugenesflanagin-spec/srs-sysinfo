@@ -14,8 +14,9 @@ Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmar
 Report.... The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
-normal user. Load tests and benchmarks never start by themselves. Saving a report (`-save`) only
-shows the last stored result.
+normal user. Load tests and benchmarks never start by themselves, and every benchmark asks before
+it starts: what it runs, about how long, how many CPU threads it keeps busy (and, for SRS Pi, the
+memory it needs). Saving a report (`-save`) only shows the last stored result.
 
 ## Contents
 - [CPU Benchmarks](#cpu-benchmarks) `benchmark`
@@ -65,7 +66,10 @@ shows the last stored result.
 `benchmark` - Linux data
 
 **In plain words.** A summary table of the ten benchmark modes. It shows the last total score of
-each mode, or "not run". It does not run anything.
+each mode, or "not run". It does not run anything. In the Benchmark window, **Run asks first**: the
+mode, about how long it takes and how many CPU threads are busy; the modes that load many threads
+at once (`ac`, `pc`, `lc`) warn about unstable overclocks and default to **No**. On the command
+line `sysreport-search bench MODE` asks the same; `--yes` starts at once.
 
 **What you see.**
 
@@ -405,7 +409,8 @@ CPU-5 -> CPU-3. If it has never been run, the item shows `Status Not run yet`, `
 Tools > IPI Delay, then Run) and `Command line srs-gui ipi [--cpus N] [--rounds R]`.
 
 The GUI window (Menu -> IPI Delay...) has a CPUs box (test only the first N CPUs), a Rounds per pair
-box, a Run button, and a heat map under the text. The heat map is coloured from green (fastest) to
+box, a Run button (it asks first: two CPU threads busy at a time, about a second at the defaults;
+`sysreport-search ipi` asks the same, `--yes` starts at once), and a heat map under the text. The heat map is coloured from green (fastest) to
 red (slowest), scaled to the largest value.
 
 **Healthy / typical values.** On the author's 7800X3D (one CCD, 8 cores, 50000 rounds):
@@ -490,8 +495,9 @@ with the smallest cache it fits in, and DRAM above the last level. Labels are in
 in the Latency column are the real boundaries (compare [Cache Levels](processors.md#cache-levels), `cache`). If never run, the item
 shows `Status Not run yet` and `Command line srs-gui latency [--max MB]`.
 
-The GUI window (Menu -> Latency...) has a "Largest block (MB)" box, a Run button and a line graph of
-latency against block size.
+The GUI window (Menu -> Latency...) has a "Largest block (MB)" box, a Run button (it asks first: one
+CPU thread and that much memory, about 3 seconds at 256 MB; `sysreport-search latency` asks the
+same, `--yes` starts at once) and a line graph of latency against block size.
 
 **Healthy / typical values.** On the author's 7800X3D (L1 data 32K, L2 1024K, L3 96 MB "3D V-Cache"),
 run up to 64MB:
@@ -1110,6 +1116,11 @@ If never run, the item shows `Status Not run yet` and the command line.
   profile is active.
 - "Not enough memory": 32 million digits needs about 1-2 GB of free RAM (more with more threads).
 
+**Safety.** It asks before it starts, with the expected time, the threads and the memory it needs.
+From 8 million digits, or with all threads, it warns that an unstable overclock or undervolt can
+crash the PC under this load, and **No** is the default answer. Stop (or closing the window) ends
+it at once. On the command line `sysreport-search pi` asks the same; `--yes` starts at once.
+
 **Where Linux gets it.** Built in (no outside program): big numbers in base 10^8, multiplied with a
 number-theoretic transform; Newton steps for division and square roots. The true digits' SHA-256
 checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into SRS (computed once with the
@@ -1154,6 +1165,10 @@ SHA-256 about 2,400 MB/s.
 like a failed stability test. AES-NI rows missing on a modern CPU: the instructions may be
 switched off in the BIOS or hidden by a virtual machine.
 
+**Safety.** It asks before it starts. With all threads (the default) every CPU thread is 100% busy,
+so it warns about unstable overclocks and **No** is the default answer. On the command line
+`sysreport-search crypto` asks the same; `--yes` starts at once.
+
 **Where Linux gets it.** Built in, written from the standards FIPS 197 (AES) and FIPS 180-4
 (SHA-256). Before every run the official test vectors are checked, and the hardware results are
 compared with the plain C results. Stored in `~/.cache/srs/bench-crypto.txt`. Runs about
@@ -1174,6 +1189,10 @@ Check line ("right" when the count matches the known value, for example 455,052,
 **Healthy / typical values.** Ryzen 7 7800X3D, up to 10 billion: 4.5 s on one thread, 1.15 s on
 four threads. The specialised `primesieve` program does the one-thread run in 0.75 s: SRS uses a
 plain, easy-to-read sieve, so compare SRS with SRS.
+
+**Safety.** It asks before it starts. From 10 billion, or with all threads (the defaults), it warns
+about unstable overclocks and **No** is the default answer. Stop ends it at once. On the command
+line `sysreport-search prime` asks the same; `--yes` starts at once.
 
 **Where Linux gets it.** Built in: a segmented sieve of Eratosthenes over the odd numbers, in
 128 KB pieces that fit in the L2 cache, shared between threads. Stored in

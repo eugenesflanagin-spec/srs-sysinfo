@@ -38,23 +38,23 @@ open the user guide at \fIITEM\fR's section (PDF viewer, else the HTML guide);
 CPU burn-in with a temperature limit (default 10 s, limit 90 C).
 The summary of each run is saved to \fI~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt\fR.
 .TP
-\fBbench\fR {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [\fB\-\-seconds\fR \fIS\fR]
-Dhrystone / Whetstone in a SIV benchmark mode (0.1..60 s per measurement).
+\fBbench\fR {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-yes\fR]
+Dhrystone / Whetstone in a SIV benchmark mode (0.1..60 s per measurement); asks first unless \fB\-\-yes\fR.
 .TP
-\fBipi\fR [\fB\-\-cpus\fR \fIN\fR] [\fB\-\-rounds\fR \fIR\fR]
-core-to-core (cache-line ping-pong) latency matrix.
+\fBipi\fR [\fB\-\-cpus\fR \fIN\fR] [\fB\-\-rounds\fR \fIR\fR] [\fB\-\-yes\fR]
+core-to-core (cache-line ping-pong) latency matrix (two CPUs busy at a time); asks first unless \fB\-\-yes\fR.
 .TP
-\fBlatency\fR [\fB\-\-max\fR \fIMB\fR]
-memory latency by block size, up to \fIMB\fR (1..4096, default 256).
+\fBlatency\fR [\fB\-\-max\fR \fIMB\fR] [\fB\-\-yes\fR]
+memory latency by block size, up to \fIMB\fR (1..4096, default 256; one CPU); asks first unless \fB\-\-yes\fR.
 .TP
-\fBpi\fR [\fB\-\-digits\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-method\fR \fBchudnovsky\fR|\fBagm\fR] [\fB\-\-save\-digits\fR \fIFILE\fR]
-SRS Pi: pi to \fIN\fR decimal places (128k..32m, or SuperPi sizes 16ki..32mi; default 1m, 1 thread); every digit is checked.
+\fBpi\fR [\fB\-\-digits\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-method\fR \fBchudnovsky\fR|\fBagm\fR] [\fB\-\-save\-digits\fR \fIFILE\fR] [\fB\-\-yes\fR]
+SRS Pi: pi to \fIN\fR decimal places (128k..32m, or SuperPi sizes 16ki..32mi; default 1m, 1 thread); every digit is checked. Asks first, with the time, the threads and the memory it needs (up to about 1.6 GB for 32mi), unless \fB\-\-yes\fR.
 .TP
-\fBcrypto\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR]
-AES\-128 and SHA\-256 speed in MB/s, with AES\-NI / SHA\-NI and in plain C.
+\fBcrypto\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-yes\fR]
+AES\-128 and SHA\-256 speed in MB/s, with AES\-NI / SHA\-NI and in plain C; asks first unless \fB\-\-yes\fR.
 .TP
-\fBprime\fR [\fB\-\-limit\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR]
-count the primes up to \fIN\fR (default 1e9), checked against the known count.
+\fBprime\fR [\fB\-\-limit\fR \fIN\fR] [\fB\-\-threads\fR \fIN\fR] [\fB\-\-yes\fR]
+count the primes up to \fIN\fR (default 1e9, all threads), checked against the known count; asks first unless \fB\-\-yes\fR.
 .TP
 \fBcachemem\fR [\fB\-\-threads\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fIlevels\fR] [\fB\-\-tests\fR \fItests\fR] [\fB\-\-mib\fR] [\fB\-\-mem\-write\fR \fImode\fR] [\fB\-\-yes\fR]
 Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1\-L3 (all threads, about 20 s; asks first unless \fB\-\-yes\fR).
@@ -83,7 +83,7 @@ GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROC
 \fBgpu\-compare\fR [\fB\-\-backends\fR \fIvulkan,hip,cuda,opencl\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-device\fR \fIN\fR] [\fB\-\-yes\fR]
 GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and the vendor library, multiply\-add, copy, upload, download, launch round trip) through every installed back end on the same GPU, side by side; fastest marked, percent of Vulkan; "CUDA (ZLUDA)" and one column per OpenCL driver. Asks first unless \fB\-\-yes\fR.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR also ask before they start unless \fB\-\-yes\fR is given.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked. All of them except \fBburn\fR (the burn\-in itself) also ask before they start, on stderr (\fBStart now? [y/N]\fR), unless \fB\-\-yes\fR is given; without a terminal and without \fB\-\-yes\fR they exit with 2 and start nothing. \fB\-\-help\fR after a command prints its usage; an unknown option exits with 2 without starting.
 Run
 .B sysreport-search \-\-help
 for the full option list.

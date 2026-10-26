@@ -165,9 +165,8 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and Prime Sieve buttons and tabs; Menu -> Tools entries
   (classic view); desktop-menu actions;
   `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|pi|crypto|prime`.
-  Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin
-  and GPU Compute comparison ask before they start, saying what they do, for how long and how much
-  load. 558 items in all.
+  Every benchmark asks before it starts, saying what it does, for how long and how much load (see
+  Changed). 558 items in all.
 
 **Main window**
 
@@ -220,7 +219,10 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 - `make test-power`: unit tests of the estimate, counter unwrapping, sleep/reboot handling,
   prices, sessions, alarms and the history database with synthetic counter data; the Debian and
   RPM builds run them.
-- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+- `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed), and
+  for `bench`, `ipi`, `latency`, `pi`, `crypto` and `prime`: asks first (no terminal and no `--yes`:
+  exit 2, nothing written), unknown option / missing value refused, `--help`, the `y` / `n` answer
+  on a terminal, and tiny `bench` / `ipi` / `latency` runs.
 - `tests/bench-os-test.sh`: OS Latency engine test (tiny runs, ordered statistics, Stop, no child
   process or temporary folder left, ask-first in the CLI). `make test-bench` runs all benchmark
   tests against `dist/native/sysreport-search`.
@@ -245,6 +247,18 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
 
 ### Changed
 
+- **Every benchmark now asks before it starts.** The Benchmark (Dhrystone / Whetstone), IPI Delay,
+  Latency, SRS Pi, Crypto and Prime Sieve windows used to start the moment you pressed Run; now Run
+  asks first, like the newer benchmarks, saying what runs, about how long, how many CPU threads are
+  busy and (SRS Pi) how much memory it needs. Heavy runs - SRS Pi from 8 million digits, Prime
+  Sieve from 10 billion, all-thread runs and the CPU Benchmark modes that load many threads at once
+  (`ac`, `pc`, `lc`) - warn about unstable overclocks and undervolts and have **No** as the default
+  answer. On the command line `bench`, `ipi`, `latency`, `pi`, `crypto` and `prime` ask the same
+  question (`Start now? [y/N]` on stderr); `--yes` (`-y`) starts at once; without a terminal and
+  without `--yes` they exit 2 and start nothing. `--help` prints the usage; an unknown option or a
+  missing value exits 2 without starting (`bench`, `ipi` and `latency` used to ignore unknown
+  options). The CPU Burnin and CPU Stress windows already asked and are unchanged; the `burn` command
+  is the burn-in itself and starts at once, as before.
 - Page keys: the Alt keys follow the sidebar order with Power & cost under Sensors, so USB & PCI
   devices moves to Alt+0, Operating system to Alt+-, Benchmarks & stress to Alt+= and Tools to
   Alt+Backspace (Overview ... Sensors keep Alt+1 ... Alt+8; Power & cost is Alt+9).

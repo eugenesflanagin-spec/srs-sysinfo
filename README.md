@@ -144,7 +144,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
     10^8 ... 10^11, checked against the known counts. Every run of these three is kept in a
     **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
-  - Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests ask before they start. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
+  - Every benchmark asks before it starts (the command line too; `--yes` skips the question). **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
     wired network): parts that need other hardware may have a bug or two - please report them on
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
@@ -222,8 +222,9 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui guide ITEM [--print]           open the user guide at ITEM's section
     srs-gui id 1002:7550 | find PATTERN | devices
     srs-gui burn --threads N --seconds S [--mode same|swap] [--limit C] [--cool S] [--cycles N]
-    srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
-    srs-gui ipi [--cpus N] [--rounds R]    srs-gui latency [--max MB]
+    srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
+    srs-gui ipi [--cpus N] [--rounds R] [--yes]    srs-gui latency [--max MB] [--yes]
+    srs-gui pi [--digits 1m] [--threads N] [--yes]    srs-gui crypto [--yes]    srs-gui prime [--limit 1e9] [--yes]
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
     srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes] [--yes-internet]
     srs-gui gpu [--device N] [--seconds S] [--only TESTS] [--list] [--yes]
@@ -241,7 +242,8 @@ the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SR
 Read-only by design: nothing is written to sysfs, devices or firmware. No i2c/SMBus/DDC access,
 no hidraw, no SMU commands, no network traffic apart from `ping` to the default gateway in the
 Ping item and the Network benchmark's internet speed test, which runs only after you say yes to
-its own question. Burner and benchmarks never start on their own (not from `-save` either). Root-only
+its own question. Burner and benchmarks never start on their own (not from `-save` either), and
+every benchmark asks before it starts. Root-only
 data comes only from `srs-root`'s cache in `~/.cache/srs/root`. The one thing that changes your
 system is the Startup manager, and only when you click a switch or a button there: it writes
 autostart files in `~/.config/autostart` (never deletes; old versions go to

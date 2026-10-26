@@ -39,12 +39,12 @@ sysreport-search id VVVV[:DDDD[:SSSS:ssss]][:RR] [--bus pci|usb] [--mode tree|sc
 sysreport-search find PATTERN [--report DIR] [-i] [-F] [--max N] [--color auto|always|never]
 sysreport-search devices [--bus pci|usb|all]
 sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
-sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
-sysreport-search ipi [--cpus N] [--rounds R]
-sysreport-search latency [--max MB]
-sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
-sysreport-search crypto [--threads N] [--seconds S]
-sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
+sysreport-search ipi [--cpus N] [--rounds R] [--yes]
+sysreport-search latency [--max MB] [--yes]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]
+sysreport-search crypto [--threads N] [--seconds S] [--yes]
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
 sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
@@ -96,17 +96,21 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
 Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):
   burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
-  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S]
-        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement)
-  ipi [--cpus N] [--rounds R]
-        core-to-core (cache-line ping-pong) latency matrix
-  latency [--max MB]
-        memory latency by block size, up to MB (1..4096, default 256)
+  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]
+        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);
+        asks first, --yes starts at once
+  ipi [--cpus N] [--rounds R] [--yes]
+        core-to-core (cache-line ping-pong) latency matrix; asks first, --yes starts at once
+  latency [--max MB] [--yes]
+        memory latency by block size, up to MB (1..4096, default 256); asks first, --yes starts at once
   pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+     [--yes]
         SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
-        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
-  crypto [--threads N] [--seconds S]
-        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
+        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432;
+        asks first (with the time and the memory it needs), --yes starts at once
+  crypto [--threads N] [--seconds S] [--yes]
+        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s);
+        asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
         Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
@@ -149,17 +153,19 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
         library, multiply-add, copy, upload / download, launch time) through every installed back end
         on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
-  prime [--limit 1e8|1e9|1e10|N] [--threads N]
-        count the primes up to the limit, checked against the known count (default 1e9, all threads)
+  prime [--limit 1e8|1e9|1e10|N] [--threads N] [--yes]
+        count the primes up to the limit, checked against the known count (default 1e9, all threads);
+        asks first, --yes starts at once
 
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
-        (--gui-scan-empty is internal: the main window runs it in a child process to find
-        the items that have nothing to show on this PC, only on Options > Check now or Check daily;
-        it never runs the network items or Ping)
 ```
+
+`--gui-scan-empty` (not listed) is internal: the main window runs it in a child process to find the
+items that have nothing to show on this PC, only on Options > Check now or Check daily; it never
+runs the network items or Ping.
 
 ### `--version`
 
@@ -357,8 +363,26 @@ Numbers on the left are line numbers in that section file. When a section has mo
 
 ## Load and benchmark commands (make the CPU busy)
 
-These **start immediately, without asking** (the window always asks first). Close other heavy
-programs first. Press **Ctrl+C** to stop. Never run them on a PC you are not allowed to load.
+`burn` starts at once: it is the burn-in itself, and you choose its threads, time and temperature
+limit on the command line. **Every benchmark asks first** - `bench`, `ipi`, `latency`, `pi`,
+`crypto`, `prime` and the ones below - on the terminal (stderr): what it runs, about how long, how
+many CPU threads it keeps busy and (SRS Pi) how much memory it needs, then `Start now? [y/N]`.
+Only `y` starts it. `--yes` (or `-y`) starts it without the question, for scripts. Without a
+terminal and without `--yes` it does not start and exits with 2. `--help` (`-h`) prints the
+command's usage and exits 0; an unknown option or a missing value exits 2 - neither starts
+anything. The windows ask the same question. Close other heavy programs first. Press **Ctrl+C** to
+stop. Never run them on a PC you are not allowed to load.
+
+```
+$ sysreport-search crypto --threads 1
+It checks the official AES and SHA-256 test vectors, then measures AES-128 encryption and SHA-256
+speed with the CPU's crypto instructions and in plain C, 1.0 s per measurement: about 8 seconds.
+Each test runs on one CPU thread (light load).
+
+Close other programs for accurate results.
+Start now? [y/N] n
+crypto: not started
+```
 
 ### `burn` - CPU Burnin from the command line
 
@@ -398,7 +422,7 @@ sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode
 ### `bench` - Dhrystone and Whetstone
 
 ```
-sysreport-search bench MODE [--seconds S]
+sysreport-search bench MODE [--seconds S] [--yes]
 ```
 
 | Mode | What runs |
@@ -411,65 +435,77 @@ sysreport-search bench MODE [--seconds S]
 | `lc` / `lp` | Logical (SMT sibling) threads concurrently / one at a time |
 | `pc` / `pp` | Performance (physical) cores, one thread per core, concurrently / one at a time (E-cores left out) |
 
-`--seconds S` is the time per measurement, 0.1 to 60 (default 1). The result is
+`--seconds S` is the time per measurement, 0.1 to 60 (default 1). **Asks first** (the mode, the
+time and how many CPU threads are busy; the modes that load many threads at once also warn about
+unstable overclocks); `--yes` starts at once. The result is
 stored and shown in the window and in `-save` reports. Results: DMIPS (Dhrystone) and MWIPS
 (Whetstone), per CPU and in total; see [tools.md](SECTIONS/tools.md#cpu-benchmarks).
 Exit code 0 when it ran, 1 when there is nothing to run in that mode on this CPU (for example
-`lc` without SMT), 2 for a bad mode.
+`ec` without efficiency cores; then there is no question either), 2 for a bad mode or option, or
+when it was not started.
 
 ### `ipi` - core-to-core delay
 
 ```
-sysreport-search ipi [--cpus N] [--rounds R]
+sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 ```
 
 `--cpus N` tests CPUs 0..N-1 (default all), `--rounds R` round trips per pair (default 20,000).
-Prints a matrix of nanoseconds, one row and column per CPU. See
+Two CPU threads are busy at a time, for about a second at the defaults. **Asks first**; `--yes`
+starts at once. Prints a matrix of nanoseconds, one row and column per CPU. See
 [tools.md](SECTIONS/tools.md#cpu-ipi-delay).
 
 ### `latency` - memory latency by block size
 
 ```
-sysreport-search latency [--max MB]
+sysreport-search latency [--max MB] [--yes]
 ```
 
-`--max MB` is the largest block, 1 to 4096 MB (default 256; the window allows up to 1024). Prints
-block size, nanoseconds per read and the cache level. See
+`--max MB` is the largest block, 1 to 4096 MB (default 256; the window too). It uses
+that much memory and one CPU thread, for about 3 seconds at the default. **Asks first**; `--yes`
+starts at once. Prints block size, nanoseconds per read and the cache level. See
 [tools.md](SECTIONS/tools.md#memory-latency).
 
 ### `pi` - SRS Pi: pi to many digits, every digit checked
 
 ```
-sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]
 ```
 
 `--digits` is the number of decimal places (default `1m` = 1,000,000; `k` = thousand, `m` =
 million; `ki` = 1,024 and `mi` = 1,048,576 for the **SuperPi sizes** 16ki ... 32mi; 100 to 32mi). The listed sizes are checked digit for digit with built-in SHA-256
 checksums; other sizes only have their first 100 digits checked. `--threads N` (default 1) splits
 the Chudnovsky series over N threads; `--method agm` uses Gauss-Legendre (always one thread).
-`--save-digits FILE` writes the digits (without "3.") to FILE. Exit code 0 when every checked digit
-is right, 1 when a digit is wrong or memory ran out, 2 for a bad option. See
+`--save-digits FILE` writes the digits (without "3.") to FILE. **Asks first**, with the time, the
+threads and the memory it needs (up to about 1.6 GB for 32mi digits); from 8 million digits, or
+with all threads, it also warns about unstable overclocks. `--yes` starts at once. Exit code 0
+when every checked digit is right, 1 when a digit is wrong or memory ran out, 2 for a bad option or
+when it was not started. See
 [tools.md](SECTIONS/tools.md#srs-pi).
 
 ### `crypto` - AES-128 and SHA-256 speed
 
 ```
-sysreport-search crypto [--threads N] [--seconds S]
+sysreport-search crypto [--threads N] [--seconds S] [--yes]
 ```
 
 Measures AES-128-CTR and SHA-256 in MB/s on one thread and on N threads (default all), with
 AES-NI / SHA-NI when the CPU has them and in plain C. `--seconds S` per measurement, 0.1 to 60
-(default 1). The FIPS test vectors are checked first; exit code 1 if they fail. See
+(default 1), about 8 measurements in all. **Asks first** (with all threads it warns that every CPU
+thread is 100% busy); `--yes` starts at once. The FIPS test vectors are checked first; exit code 1
+if they fail, 2 for a bad option or when it was not started. See
 [tools.md](SECTIONS/tools.md#crypto-benchmark).
 
 ### `prime` - count the primes up to a limit
 
 ```
-sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
+sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
 ```
 
 Counts the primes up to `--limit` (default 1e9; 100 to 1e11) on N threads (default all) and checks
-the count for the powers of ten 1e7 to 1e11. Exit code 1 when the count is wrong. See
+the count for the powers of ten 1e7 to 1e11. **Asks first** (from 1e10, or with all threads, it
+also warns about unstable overclocks); `--yes` starts at once. Exit code 1 when the count is wrong,
+2 for a bad option or when it was not started. See
 [tools.md](SECTIONS/tools.md#prime-sieve).
 
 ### `cachemem` - Cache & Memory benchmark
@@ -863,7 +899,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 |---|---|
 | 0 | Success; `find` found matches; `burn` passed |
 | 1 | `find` found no matches; lookup or benchmark failed; `burn` failed |
-| 2 | Usage error (missing or unknown argument, bad value); `find` found no report folder; `burn` had nothing to run |
+| 2 | Usage error (missing or unknown argument, bad value); `find` found no report folder; `burn` had nothing to run; a benchmark was not started (answered No, or no terminal and no `--yes`) |
 | 130 | `burn` stopped with Ctrl+C |
 
 ## Environment variables

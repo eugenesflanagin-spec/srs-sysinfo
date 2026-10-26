@@ -1079,11 +1079,14 @@ Classic Menu** in the main window. It has:
 ## 9. Tools
 
 Nothing in this section ever starts by itself: not at launch, not from the menu, and not from a
-saved report. You always press Start or Run. The CPU Burnin / Stress windows and the Cache &
-Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU
-Compute comparison benchmarks also ask before they
-start, saying what they do, for how long and how much of the PC they keep busy; the shorter
-Benchmark, IPI Delay, Latency, SRS Pi, Crypto and Prime Sieve windows start when you press Run.
+saved report. You always press Start or Run, and **every benchmark asks before it starts**,
+saying what it does, about how long it takes, how many CPU threads (or the GPU) it keeps busy and,
+for SRS Pi, how much memory it needs. For GPU Burnin, the internet speed test and the heavy runs
+of the CPU Benchmark, SRS Pi, Crypto and Prime Sieve (all CPU threads at once, SRS Pi from 8
+million digits, Prime Sieve from 10 billion) **No** is the default answer, so pressing Enter does
+not start them. On the command line the benchmarks ask the
+same question (`Start now? [y/N]`); `--yes` starts them without asking, for scripts
+([CLI reference](CLI-REFERENCE.md#load-and-benchmark-commands-make-the-cpu-busy)).
 
 **What has and has not been tested.** I build and test SRS on one PC (a Ryzen 7 7800X3D with a
 Radeon RX 9070 XT, on a wired connection), so anything that needs other hardware may have a bug or
@@ -1220,7 +1223,10 @@ Open: the **Benchmarks & stress** page -> **Benchmark...**, the menu entry "SRS 
 the classic view Processors -> Benchmark or Menu -> Tools. The page's **CPU Benchmarks** tab shows
 the last results.
 
-Controls: **Mode**, **Seconds per measurement** (0.1-10, default 1), **Run**.
+Controls: **Mode**, **Seconds per measurement** (0.1-60, default 1), **Run** (asks first: the
+mode, about how long it takes and how many CPU threads are busy; for the modes that load many
+threads at once - `ac`, `pc`, `lc` - **No** is the default answer). Command line:
+`sysreport-search bench ac` (asks first; `--yes` starts at once).
 The modes, as in SIV:
 
 | Mode | What runs |
@@ -1405,7 +1411,9 @@ red = slow). Cores that share a cache or a chip answer faster; cores on differen
 (for example two CCDs on a Ryzen 9) answer slower.
 Open: the **Benchmarks & stress** page -> **IPI Delay...**, or Menu -> Tools -> IPI Delay... in
 the classic view.
-Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run**.
+Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run** (asks first;
+two CPU threads are busy at a time, for about a second at the defaults). Command line:
+`sysreport-search ipi` (asks first; `--yes` starts at once).
 For a step-by-step reading of one real result (partner threads, the L3, what a two-CCD CPU
 looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922-reading-the-cpu-ipi-delay-table---a-worked-example).
 
@@ -1416,8 +1424,9 @@ blocks fit in L1 and answer in about 1 ns; as the block grows past each cache, t
 L2, L3, then RAM. The steps in the graph show you your cache sizes.
 Open: the **Benchmarks & stress** page -> **Latency...**, or Menu -> Tools -> Latency... in the
 classic view.
-Controls: **Largest block (MB)** (1-1024, default 256), **Run**. Results: a table (block size,
-time in ns, level) and a curve.
+Controls: **Largest block (MB)** (1-4096, default 256), **Run** (asks first; one CPU thread and
+that much memory, about 3 seconds at the default). Command line: `sysreport-search latency` (asks
+first; `--yes` starts at once). Results: a table (block size, time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
 The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
@@ -1489,6 +1498,9 @@ Controls: **Digits** (128 thousand to 32 million; each choice shows the time it 
 author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
 1M = 1,048,576 ... 32M = 33,554,432), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
 SuperPi uses, one thread), **Threads** (default 1, for a single-thread score), **Run** and **Stop**.
+**Run asks first**, with the expected time, the threads and the memory it needs; from 8 million
+digits, or with all threads, it warns about unstable overclocks and **No** is the default answer.
+On the command line it asks the same; `--yes` starts at once.
 While it runs the status line shows the time so far and the current step (series, division, square
 root). Closing the window also stops it.
 
@@ -1501,8 +1513,9 @@ is 1,000,000 - tick **SuperPi sizes** for the same digit counts as SuperPi. 32 m
 without its built-in crypto instructions (AES-NI, SHA-NI).
 Open: the **Benchmarks & stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
 Controls: **Threads** (right-hand column; the left column is always one thread), **Seconds per
-measurement** (default 1; about 8 seconds in all), **Run**. The official FIPS test vectors are
-checked before every run.
+measurement** (default 1; about 8 seconds in all), **Run** (asks first; with all threads - the
+default - every CPU thread is 100% busy, so **No** is the default answer). The official FIPS test
+vectors are checked before every run. On the command line it asks the same; `--yes` starts at once.
 
 ### 9.9 Prime Sieve
 
@@ -1510,7 +1523,9 @@ checked before every run.
 100 billion and checks the count. Simple integer and cache work that scales with threads.
 Open: the **Benchmarks & stress** page -> **Prime Sieve...**. Command line:
 `sysreport-search prime --limit 1e10`.
-Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
+Controls: **Count primes up to**, **Threads** (default all), **Run** (asks first; from 10 billion
+or with all threads - the defaults - it warns about unstable overclocks and **No** is the default
+answer), **Stop**. On the command line it asks the same; `--yes` starts at once.
 
 ### 9.10 Benchmark history
 
