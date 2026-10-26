@@ -1587,6 +1587,7 @@ static GtkWidget *build_history(void)
         GtkCellRenderer *rr = gtk_cell_renderer_text_new();
         GtkTreeViewColumn *c = gtk_tree_view_column_new_with_attributes(cols[i], rr, "text", i, NULL);
         if (i) g_object_set(rr, "xalign", 1.0, NULL);
+        if (!i) gtk_tree_view_column_set_expand(c, TRUE);
         gtk_tree_view_append_column(GTK_TREE_VIEW(tv), c);
     }
     sw = gtk_scrolled_window_new(NULL, NULL);
@@ -1680,10 +1681,13 @@ static GtkWidget *build_sessions(void)
     gtk_box_pack_start(GTK_BOX(hb), lbl("Busy means at least", NULL, 0), FALSE, FALSE, 0);
     G.x_thr = gtk_spin_button_new_with_range(5, 100, 5);
     gtk_box_pack_start(GTK_BOX(hb), G.x_thr, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hb), lbl("% CPU or graphics load; a session starts after", NULL, 0), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("% CPU or graphics load.", NULL, 0), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), hb, FALSE, FALSE, 0);
+    hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("A session starts after", NULL, 0), FALSE, FALSE, 0);
     G.x_start = gtk_spin_button_new_with_range(1, 60, 1);
     gtk_box_pack_start(GTK_BOX(hb), G.x_start, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hb), lbl("min and ends after", NULL, 0), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hb), lbl("min busy and ends after", NULL, 0), FALSE, FALSE, 0);
     G.x_end = gtk_spin_button_new_with_range(1, 60, 1);
     gtk_box_pack_start(GTK_BOX(hb), G.x_end, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hb), lbl("min below it.", NULL, 0), FALSE, FALSE, 0);
@@ -1709,8 +1713,11 @@ static GtkWidget *build_sessions(void)
     G.x_view = tv;
     for (i = 0; i < 6; i++) {
         GtkCellRenderer *rr = gtk_cell_renderer_text_new();
+        GtkTreeViewColumn *col;
         if (i) g_object_set(rr, "xalign", 1.0, NULL);
-        gtk_tree_view_append_column(GTK_TREE_VIEW(tv), gtk_tree_view_column_new_with_attributes(cols[i], rr, "text", i, NULL));
+        col = gtk_tree_view_column_new_with_attributes(cols[i], rr, "text", i, NULL);
+        if (!i) gtk_tree_view_column_set_expand(col, TRUE);
+        gtk_tree_view_append_column(GTK_TREE_VIEW(tv), col);
     }
     sw = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(sw), tv);
@@ -1996,6 +2003,7 @@ static GtkWidget *build_price(void)
             }
         }
         gtk_stack_add_named(GTK_STACK(st), g, "tou");
+        gtk_widget_show_all(st);   /* a stack only switches to a child that is already visible */
         gtk_box_pack_start(GTK_BOX(box), st, FALSE, FALSE, 0);
         g = gtk_grid_new();
         gtk_grid_set_column_spacing(GTK_GRID(g), 8);
