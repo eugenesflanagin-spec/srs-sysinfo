@@ -584,6 +584,7 @@ The groups are in the same order as SRS's Menu.
 | [Memory Latency](tools.md#memory-latency) | `latency` | Linux data |
 | [Cache & Memory benchmark](tools.md#cache--memory-benchmark) | `cache-memory` | Linux data |
 | [Storage benchmark](tools.md#storage-benchmark) | `storage-bench` | Linux data |
+| [OS latency benchmark](tools.md#os-latency-benchmark) | `os-latency` | Linux data |
 | [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
 | [Crypto benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
 | [Prime sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |

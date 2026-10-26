@@ -104,6 +104,13 @@ static void s_storage(srs_out *o)
             "srs-gui storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--yes]");
 }
 
+static void s_oslat(srs_out *o)
+{
+    if (bench_show_last("os-latency", o)) return;
+    so_siv_header(o, "OS latency");
+    not_run(o, "Benchmarks & stress > OS Latency, then Run", "srs-gui os-latency [--samples N] [--tick-seconds S] [--yes]");
+}
+
 static void s_crypto(srs_out *o)
 {
     if (bench_show_last("crypto", o)) return;
@@ -129,7 +136,7 @@ static void s_bench_history(srs_out *o)
     snprintf(path, sizeof path, "%s/.cache/srs/bench-history.tsv", h ? h : "");
     if (rd_all(path, &txt) < 0) {
         so_kv(o, "Status", C_ORANGE, "No runs yet");
-        so_note(o, "Every run of Cache & Memory, Storage, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
+        so_note(o, "Every run of Cache & Memory, Storage, OS Latency, SRS Pi, Crypto and Prime Sieve adds a line to ~/.cache/srs/bench-history.tsv.");
         return;
     }
     {
@@ -444,6 +451,7 @@ const srs_item sec_tools[] = {
     { "latency", "hardware", "Memory Latency", B_LINUX, 0, "built-in pointer chase", s_latency, 0, "tools" },
     { "cache-memory", "tools", "Cache & Memory benchmark", B_LINUX, 0, "built-in (bandwidth and latency of the RAM and L1-L3)", s_cachemem, 0, "tools" },
     { "storage-bench", "tools", "Storage benchmark", B_LINUX, 0, "built-in (temporary test file, O_DIRECT, Linux AIO)", s_storage, 0, "tools" },
+    { "os-latency", "tools", "OS latency benchmark", B_LINUX, 0, "built-in (system calls, context switches, wake-ups, timers, page faults, file metadata)", s_oslat, 0, "tools" },
     { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
     { "crypto-bench", "tools", "Crypto benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
     { "prime-sieve", "tools", "Prime sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },

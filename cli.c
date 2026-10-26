@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -63,11 +63,15 @@ static const char *HELP =
     "  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]\n"
     "        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,\n"
     "        5 s per test); never touches existing files; asks first, --yes starts at once\n"
+    "  os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]\n"
+    "        how quickly the OS answers: system calls, context switches, thread / process start, wake-ups,\n"
+    "        timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink\n"
+    "        (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads)\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -527,6 +531,72 @@ static int cmd_storage(int argc, char **argv)
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
+#include "bench_os.h"
+
+/* ask before a benchmark starts: 1 = yes. Without a terminal it does not start (pass --yes). */
+static int ask_start(const char *cmd, const char *what)
+{
+    char ans[16];
+    if (!isatty(0)) {
+        fprintf(stderr, "%s: not started - %s\n%*s  Run it from a terminal to be asked, or pass --yes to start without asking.\n",
+                cmd, what, (int)strlen(cmd), "");
+        return 0;
+    }
+    fprintf(stderr, "%s\nStart now? [y/N] ", what);
+    fflush(stderr);
+    if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "%s: not started\n", cmd); return 0; }
+    return 1;
+}
+
+/* os-latency [options] - OS latency benchmark; light (one or two CPUs, about 6 s); asks first unless --yes */
+static int cmd_os_latency(int argc, char **argv)
+{
+    srs_out o;
+    os_cfg c;
+    int i, rc, yes = 0;
+    char what[400];
+    os_cfg_default(&c);
+    so_text_init(&o, stdout);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int need = !strcmp(a, "--samples") || !strcmp(a, "--tick-seconds") || !strcmp(a, "--only");
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search os-latency [--samples N] [--tick-seconds S]\n"
+                 "                                   [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]");
+            return 0;
+        }
+        if (need && !v) { fprintf(stderr, "os-latency: %s needs a value\n", a); return 2; }
+        if (need) i++;
+        if (!strcmp(a, "--samples")) c.samples = atol(v);
+        else if (!strcmp(a, "--tick-seconds")) c.jitter_secs = atof(v);
+        else if (!strcmp(a, "--only")) {
+            char buf[256], *t, *sp;
+            snprintf(buf, sizeof buf, "%s", v);
+            for (t = strtok_r(buf, ",", &sp); t; t = strtok_r(NULL, ",", &sp)) {
+                int g;
+                for (g = 0; g < OS_NGROUP && strcmp(t, os_group_id(g)); g++) ;
+                if (g == OS_NGROUP) {
+                    fprintf(stderr, "os-latency: unknown --only value '%s' (valid: syscall, switch, spawn, wake, timer, memory, files)\n", t);
+                    return 2;
+                }
+                c.run_mask |= 1u << g;
+            }
+            if (!c.run_mask) return usage_error("os-latency: --only needs at least one test group");
+        } else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else { fprintf(stderr, "os-latency: unknown option '%s'\n", a); return 2; }
+    }
+    if (c.samples < 100 || c.samples > 1000000) return usage_error("os-latency: --samples must be 100..1000000");
+    if (c.jitter_secs < 0.1 || c.jitter_secs > 60) return usage_error("os-latency: --tick-seconds must be 0.1..60");
+    if (!os_available()) { bench_os(&c, NULL, &o, NULL); return 2; }
+    snprintf(what, sizeof what, "The OS latency benchmark times system calls, task switches, thread and program starts, wake-ups,\n"
+             "timers, page faults and small-file operations for about %.0f s on one or two CPUs (light load).\n"
+             "Nothing on the system is changed; the file test uses a temporary folder in ~/.cache/srs that is removed.",
+             1 + 2.4 * (double)c.samples / 20000 + (!c.run_mask || (c.run_mask >> OS_G_TIMER & 1) ? c.jitter_secs : 0));
+    if (!yes && !ask_start("os-latency", what)) return 2;
+    rc = bench_os(&c, NULL, &o, NULL);
+    return rc == 0 ? 0 : rc == 1 ? 1 : 2;
+}
+
 /* pi | crypto | prime - explicit runs only */
 static int cmd_bench2(int argc, char **argv)
 {
@@ -641,6 +711,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
     if (!strcmp(cmd, "cachemem")) return cmd_cachemem(argc, argv);
     if (!strcmp(cmd, "storage")) return cmd_storage(argc, argv);
+    if (!strcmp(cmd, "os-latency")) return cmd_os_latency(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

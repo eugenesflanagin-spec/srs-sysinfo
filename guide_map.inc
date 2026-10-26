@@ -322,6 +322,7 @@
 { "numa", "sections-processors--numa" },
 { "numa-speeds", "sections-processors--numa-memory-speed" },
 { "opencl", "sections-graphics--opencl" },
+{ "os-latency", "sections-tools--os-latency-benchmark" },
 { "overview", "sections-machine--overview" },
 { "paging", "sections-linux-os--paging-files" },
 { "partitions", "sections-storage--partitions" },

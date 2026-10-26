@@ -41,3 +41,4 @@ The benchmarks are SRS's own code, written from published sources.
 | Crypto | FIPS 197 (AES) and FIPS 180-4 (SHA-256), with their published test vectors | U.S. government standards |
 | Prime Sieve | the sieve of Eratosthenes; known prime counts pi(10^n) | published facts |
 | Cache & Memory | the measuring engine of Linux System Audit (LSA) 0.2.0, the author's own project (GPL-2.0-or-later), now part of SRS | GPL-2.0-or-later |
+| OS Latency | Linux and POSIX interfaces as documented in the Linux man-pages project (<https://man7.org/linux/man-pages/>) and the kernel documentation (<https://docs.kernel.org/>: sched_ext, transparent huge pages, clock sources); pipe ping-pong timing of context switches, a widely published method | public documentation; no code copied |

@@ -114,12 +114,19 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
   - **Storage** - sequential 1 MiB, 4K random (high queue depth) and 4K Q1T1 read / write speed,
     IOPS and response times of the drive under a folder you choose, on a temporary test file only
     (unlinked at once, O_DIRECT, Linux AIO); RAM / network folders refused, USB drives opt-in.
+  - **OS Latency** - how quickly the operating system answers: system calls, context switches,
+    thread / program start, wake-ups, timer lateness (with the CPU scheduler in use), page faults
+    and small-file operations, as median / 95% / 99% / worst; one or two CPUs, about 6 s.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
     10^8 ... 10^11, checked against the known counts. Every run of these three is kept in a
     **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
+  - Every benchmark asks before it starts. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
+    wired network): parts that need other hardware may have a bug or two - please report them on
+    [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
+    and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
     and **Find** (regex over a `srs-sysreport` folder, with highlighting and F3 navigation).
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
@@ -186,6 +193,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui burn --threads N --seconds S [--mode same|swap] [--limit C] [--cool S] [--cycles N]
     srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
     srs-gui ipi [--cpus N] [--rounds R]    srs-gui latency [--max MB]
+    srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
 
 `sysreport-search` takes the same commands. `--help` lists them all; the full reference is in
 the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SRS User Guide
@@ -242,8 +250,10 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `burner.c`, `bench.c` | CPU Burnin/Stress engine; Dhrystone, Whetstone, IPI, memory latency, run history |
 | `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
+| `bench_os.c` | OS Latency benchmark (system calls, context switches, wake-ups, timers, page faults, file metadata) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
+| `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
 | `gui_tabs.inc`, `tblsort.c`, `gui_startup.c` | main window: tab lineups and the item jump list; unit-aware table sorting; the Startup manager |

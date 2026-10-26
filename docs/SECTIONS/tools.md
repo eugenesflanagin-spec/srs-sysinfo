@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
@@ -38,6 +38,7 @@ shows the last stored result.
 - [Memory Latency](#memory-latency) `latency`
 - [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
 - [Storage benchmark](#storage-benchmark) `storage-bench`
+- [OS latency benchmark](#os-latency-benchmark) `os-latency`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto benchmark](#crypto-benchmark) `crypto-bench`
 - [Prime sieve](#prime-sieve) `prime-sieve`
@@ -616,6 +617,68 @@ for real queue depths, incompressible random data; the drive is found through
 `/proc/self/mountinfo` and `/sys/block` (device-mapper and RAID followed to the first member); the
 temperature from the drive's hwmon sensor. Drive health (SMART) is on the Storage page. Stored in
 `~/.cache/srs/bench-storage.txt`; each run is added to the [Benchmark history](#benchmark-history).
+
+---
+## OS latency benchmark  
+`os-latency` - Linux data
+
+**In plain words.** How quickly the operating system answers a program: how long a basic request
+to the kernel takes, how fast it switches between two programs, how long it takes to start a
+thread or a program, how soon a sleeping program wakes up, and what a new page of memory or a
+small file costs. Lower is better. Steady numbers (95% and 99% close to the median) mean a smooth,
+responsive desktop.
+
+**What you see.** One row per test with **Median** (typical), **95%** and **99%** (19 in 20 and 99
+in 100 samples were this fast or faster), **Worst**, **Best**, the number of samples and how it was
+measured. The groups are System calls, Context switches, Starting threads and processes, Wake-up
+latency, Timers, Memory mapping and page faults, and File metadata. Below the table: the CPU
+scheduler that is running (for example scx_lavd under sched_ext, BORE or EEVDF), the preemption
+mode, the timer tick (CONFIG_HZ), the clock source, the timer slack, transparent huge pages, the
+CPUs used and the file system of the test folder. Times are in ns, µs or ms.
+
+| Group (`--only` word) | Rows |
+|---|---|
+| System calls (`syscall`) | getpid() as a real system call; clock_gettime through the vDSO and as a system call; read() of 1 byte from /dev/zero; sched_yield() (each sample is a batch of 32, divided) |
+| Context switches (`switch`) | Pipe ping-pong between 2 threads and between 2 processes, on the same CPU and on two cores; the figure is half a round trip |
+| Starting threads and processes (`spawn`) | Thread create + join; fork() + wait (with the program's RAM use, which fork cost grows with); posix_spawn of /bin/true + wait |
+| Wake-up latency (`wake`) | Futex wake on two cores and not pinned; condition-variable signal on two cores; from the wake call until the sleeper runs |
+| Timers (`timer`) | How late a 50 µs and a 1 ms sleep end; how late a periodic 1 ms tick fires, with missed ticks counted |
+| Memory (`memory`) | First-write page fault on a 4 KiB page and on a 2 MiB transparent huge page (skipped when THP is `never`); mmap and munmap of 64 KiB |
+| File metadata (`files`) | Create a small file (open + 100-byte write + close), stat it, delete it |
+
+| Setting | Choices |
+|---|---|
+| Samples | 1,000-200,000 in the window (command line 100-1,000,000), default 20,000 |
+| Tick test | 1-30 s in the window (command line 0.1-60), default 3 |
+
+**Safety.** It asks before it starts. It only reads system settings: no root, and no scheduler,
+priority or timer change. At most two CPUs are busy at a time, for about 6 seconds at the
+defaults. CPU affinity follows the limits you set (taskset, cpusets). The file test works in its
+own temporary folder in `~/.cache/srs`, which is removed at the end, after Stop, and (for a
+killed run) on the next run; a folder that holds anything not made by SRS is left alone.
+
+**Healthy / typical values.** Ryzen 7 7800X3D, Linux 7.3 with scx_lavd (medians): system call
+35 ns, vDSO clock read 16 ns, pipe switch 1.1 µs on one CPU and 2.0 µs between two cores, thread
+start 10 µs, fork 59 µs, program start 142 µs, futex wake 1.9 µs, 4 KiB page fault 0.4 µs, 2 MiB
+page fault 19 µs, small file create 1.8 µs (tmpfs). Sleeps and the 1 ms tick run about 50 µs late,
+which is Linux's default timer slack.
+
+**Unusual values and what they suggest.**
+- Wake-ups, the 99% column or Worst in the hundreds of µs, or missed ticks: deep CPU power-saving
+  states (C-states), heavy background work or a busy scheduler. Outliers like this on idle cores
+  are real wake-up costs, not a fault in SRS.
+- Sleeps late by much more than 50 µs: a larger timer slack (some power-saving tools raise it).
+- A slow fork: a large program; the row shows its RAM use.
+- 2 MiB faults much slower than usual: the kernel had to compact memory to find a huge page; the
+  row says how many faults really got one.
+
+**Where Linux gets it.** Built in: system calls, pipes, futexes and clocks timed with
+`clock_gettime`; the scheduler from `/sys/kernel/sched_ext` (sched_ext ops such as scx_lavd),
+`/proc/sys/kernel/sched_bore`, the kernel config or the kernel version; preemption from `uname`
+and the kernel command line; CONFIG_HZ from `/boot/config-<release>` or the kernel headers' `.config`
+(not from `/proc/config.gz`); the clock source from `/sys/devices/system/clocksource`; THP from
+`/sys/kernel/mm/transparent_hugepage`. Stored in `~/.cache/srs/bench-os-latency.txt`; each run is
+added to the [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
 ## SRS Pi  

@@ -1076,7 +1076,20 @@ Classic Menu** in the main window. It has:
 ## 9. Tools
 
 Nothing in this section ever starts by itself: not at launch, not from the menu, and not from a
-saved report. You always press Start or Run.
+saved report. You always press Start or Run, and every benchmark window asks before it starts,
+saying what it does, for how long and how much of the PC it keeps busy.
+
+**What has and has not been tested.** I build and test SRS on one PC (a Ryzen 7 7800X3D with a
+Radeon RX 9070 XT, on a wired connection), so anything that needs other hardware may have a bug or
+two I haven't met yet. If you find one, please open an issue on
+[GitHub](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware and the
+report SRS made, and I'll fix it. Not tried on real hardware so far:
+
+<!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
+- ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
+- OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
+  recognised from the kernel's settings but were not run here.
+
 
 ### 9.1 CPU Burnin and CPU Stress
 
@@ -1363,8 +1376,8 @@ Controls: **Largest block (MB)** (1-1024, default 256), **Run**. Results: a tabl
 time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
-The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory and
-Storage - are in [9.7](#97-srs-pi) to [9.12](#912-storage).
+The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
+Storage and OS Latency - are in [9.7](#97-srs-pi) to [9.13](#913-os-latency).
 
 ### 9.5 Device ID Lookup
 
@@ -1456,7 +1469,8 @@ Controls: **Count primes up to**, **Threads** (default all), **Run**, **Stop**.
 
 ### 9.10 Benchmark history
 
-Every SRS Pi, Crypto and Prime Sieve run adds one line to `~/.cache/srs/bench-history.tsv`
+Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency run adds one line to
+`~/.cache/srs/bench-history.tsv`
 (time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
 package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
@@ -1494,6 +1508,38 @@ by default), **Run** (asks first), **Stop**.
 
 Folders in RAM (`/tmp` on many systems is RAM, not a drive), on the network or on FUSE are refused,
 as is a drive with too little free space. Drive health (SMART) is on the **Storage** page.
+
+### 9.13 OS Latency
+
+**In plain words:** how quickly the operating system answers a program: how long a basic request
+to the kernel takes (a *system call*), how fast it switches between two programs (a *context
+switch*), how long it takes to start a thread or a program, how soon a sleeping program wakes up,
+how late a timer fires, and what a new page of memory or a small file costs. **Lower is better.**
+Steady numbers (95% and 99% close to the median) mean a smooth, responsive desktop.
+Open: the **Benchmarks & stress** page -> **OS Latency...**, or Menu -> Tools -> OS Latency... in
+the classic view. Command line: `sysreport-search os-latency`.
+Controls: **Samples** (1,000-200,000, default 20,000; the slower tests use a tenth or less),
+**Tick test (s)** (1-30, default 3: how long a 1 ms timer is watched), **Run** (asks first),
+**Stop**. It takes about 6 seconds at the defaults and keeps only **one or two CPUs** busy, never
+all of them.
+
+**What the numbers mean.** Each row is one test, measured many times: **Median** is the typical
+time, **95%** and **99%** mean 19 in 20 and 99 in 100 tries were this fast or faster, **Worst** and
+**Best** are the extremes, and the sample count is shown. Times are in ns (billionths of a second),
+µs (millionths) and ms (thousandths). Below the table SRS names the **CPU scheduler** in use (for
+example scx_lavd under sched_ext, BORE or EEVDF), the preemption mode, the timer tick (CONFIG_HZ),
+the clock source, the timer slack, transparent huge pages, the CPUs used and the file system of
+the test folder. Typical values on a current desktop: a system call 35-70 ns, a switch between
+two programs 1-2 µs, starting a thread about 10 µs, starting a program about 150 µs, a wake-up
+about 2 µs. Sleeps and the 1 ms tick run about 50 µs late, which is Linux's default timer slack.
+Hundreds of µs or missed ticks point to deep power-saving states, heavy background work or a busy
+scheduler.
+
+**Safety:** it only reads system settings - no root, and no scheduler, priority or timer change.
+The file test works in its own temporary folder in `~/.cache/srs`, which is removed at the end,
+after Stop, and (if SRS was killed) on the next run. The result is saved to
+`~/.cache/srs/bench-os-latency.txt` and added to the [Benchmark history](#910-benchmark-history).
+Tested on one PC only - see the note at the start of this chapter.
 
 ## 10. Options
 
@@ -1668,8 +1714,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
-| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory and Storage. |
-| `~/.cache/srs/bench-history.tsv` | One line per SRS Pi, Crypto and Prime Sieve run (time, test, settings, result, build). |
+| `~/.cache/srs/bench-pi.txt`, `bench-crypto.txt`, `bench-prime.txt`, `bench-cachemem.txt`, `bench-storage.txt`, `bench-os-latency.txt` | The last result of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency. |
+| `~/.cache/srs/bench-history.tsv` | One line per run of SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage and OS Latency (time, test, settings, result, build). |
 | `~/sysreports/sysreport-*/` | Full system reports. |
 | `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` | Device name lists (from the hwdata package, not part of SRS). |
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |

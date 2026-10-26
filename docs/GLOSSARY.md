@@ -49,6 +49,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **BOINC** - Berkeley Open Infrastructure for Network Computing, a volunteer computing client. *See: [tools](SECTIONS/tools.md).*
 - **Boost (CPB / Turbo Boost)** - running above the base clock when power and temperature allow; CPB (Core Performance Boost) is AMD's name, Turbo Boost is Intel's. *See: [processors](SECTIONS/processors.md).*
 - **BootOrder** - the UEFI variable listing the boot entries (Boot####) in the order the firmware tries them. *See: [machine](SECTIONS/machine.md).*
+- **BORE (Burst-Oriented Response Enhancer)** - a change to Linux's EEVDF CPU scheduler that favours tasks which run in short bursts (typically interactive programs), shipped in some gaming kernels. *See: [tools](SECTIONS/tools.md).*
 - **Bridge (USB bridge)** - The chip in a USB enclosure, stick or card reader that converts USB to SATA, NVMe or flash commands. *See: [buses-1](SECTIONS/buses-1.md), [storage](SECTIONS/storage.md).*
 - **BSSID** - the radio (MAC) address of one Wi-Fi access point; one network name (SSID) can have several. *See: [network](SECTIONS/network.md).*
 - **btrfs** - A Linux copy-on-write filesystem with checksums, subvolumes, snapshots, compression and built-in multi-disk support. *See: [storage](SECTIONS/storage.md).*
@@ -82,6 +83,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Commit charge** - the total memory programs have reserved; it can exceed RAM when swap exists. *See: [machine](SECTIONS/machine.md).*
 - **Compute unit (CU)** - A block of shader cores inside the GPU. RDNA GPUs pair two CUs into a WGP. *See: [graphics](SECTIONS/graphics.md).*
 - **Congestion control** - the method TCP uses to guess how fast it can send without overloading the path. *See: [network](SECTIONS/network.md), [srs-items](SECTIONS/srs-items.md).*
+- **Context switch** - the kernel stopping one task on a CPU and starting another; the OS Latency benchmark times it with two threads or programs passing a byte back and forth through a pipe. *See: [tools](SECTIONS/tools.md).*
 - **Core dump** - a snapshot of a crashed program's memory, saved for debugging. *See: [linux-os](SECTIONS/linux-os.md).*
 - **CPPC** - Collaborative Processor Performance Control; an ACPI standard where the CPU offers a smooth scale of performance levels and the OS sets a target range. *See: [processors](SECTIONS/processors.md).*
 - **CPU affinity** - a rule that ties a thread to one or more chosen CPUs, so the scheduler does not move it elsewhere. *See: [tools](SECTIONS/tools.md).*
@@ -153,6 +155,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ECDT** - The ACPI Embedded Controller Boot Resources Table, an optional early description of the EC. *See: [buses-1](SECTIONS/buses-1.md).*
 - **EDAC** - Error Detection And Correction; the Linux subsystem that reports ECC memory errors. *See: [machine](SECTIONS/machine.md).*
 - **EDID (Extended Display Identification Data)** - A 128-byte block (plus extensions) stored in the monitor that describes its maker, model, size and supported modes. *See: [graphics](SECTIONS/graphics.md).*
+- **EEVDF (Earliest Eligible Virtual Deadline First)** - the standard Linux CPU scheduler since Linux 6.6 (it replaced CFS). *See: [tools](SECTIONS/tools.md).*
 - **EGL** - The interface that connects OpenGL and OpenGL ES to windows on Wayland or X11. *See: [graphics](SECTIONS/graphics.md).*
 - **ELD (EDID-Like Data)** - The audio part of a monitor's EDID, passed to the HDMI/DisplayPort sound driver. *See: [graphics](SECTIONS/graphics.md).*
 - **ELF (Executable and Linkable Format)** - the file format of Linux programs and shared libraries. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -187,6 +190,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **FSR (FidelityFX Super Resolution)** - AMD's upscaling technique: render at a lower resolution, then scale up and sharpen. *See: [graphics](SECTIONS/graphics.md).*
 - **fTPM** - firmware TPM; a TPM implemented inside the CPU's security processor instead of a separate chip. *See: [machine](SECTIONS/machine.md).*
 - **Function (PCI)** - One logical device inside a PCI chip. A GPU's audio part is function 1 (`03:00.1`). *See: [buses-1](SECTIONS/buses-1.md).*
+- **Futex** - "fast user-space mutex": the Linux building block that lets a waiting thread sleep and be woken by another; the OS Latency benchmark times the wake-up. *See: [tools](SECTIONS/tools.md).*
 
 ## G
 
@@ -369,6 +373,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## P
 
 - **P-core** - Performance core, a big, fast core on a hybrid CPU. *See: [tools](SECTIONS/tools.md).*
+- **Page fault** - what happens the first time a program touches a page of memory the kernel has not set up yet: the kernel stops the program for a moment and supplies the page. *See: [tools](SECTIONS/tools.md).*
 - **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **P-state** - a performance state: a running speed and voltage level of the CPU. *See: [processors](SECTIONS/processors.md).*
 - **PAC (proxy auto-config)** - a script that picks which proxy to use for each address. *See: [network](SECTIONS/network.md).*
@@ -502,6 +507,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Swappiness** - a kernel setting for how eagerly memory is moved to swap. *See: [srs-items](SECTIONS/srs-items.md).*
 - **sysctl** - a kernel setting you can read and change at run time, under `/proc/sys`. *See: [srs-items](SECTIONS/srs-items.md).*
 - **sysfs** - The `/sys` folder tree where the kernel shows devices and their settings as small text files. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
+- **System call** - a request from a program to the operating system kernel (open a file, read the clock, start a thread); the cost of crossing from the program into the kernel and back. *See: [tools](SECTIONS/tools.md).*
 - **systemd target** - a named group of systemd units that the system boots into, similar to a Windows boot mode. *See: [linux-os](SECTIONS/linux-os.md).*
 - **systemd unit** - a systemd configuration object (service, socket, timer...); a service unit is the Linux version of a Windows service. *See: [linux-os](SECTIONS/linux-os.md).*
 
@@ -522,9 +528,11 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Thunderbolt** - Intel's high-speed port that carries PCI Express, DisplayPort and USB over one cable; USB4 is based on it. *See: [buses-2](SECTIONS/buses-2.md).*
 - **Tiered price** - an electricity price that changes after so many kWh a month. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Time-of-use price** - an electricity price that depends on the hour and the day. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Timer slack** - how much later than asked Linux may wake a sleeping thread, so that wake-ups can be grouped to save power; 50 µs by default. *See: [tools](SECTIONS/tools.md).*
 - **Tjmax** - the highest temperature a CPU allows before it throttles itself. *See: [tools](SECTIONS/tools.md).*
 - **TLB shootdown** - an interrupt one CPU sends others to make them forget cached address translations after memory mappings change. *See: [buses-2](SECTIONS/buses-2.md).*
 - **TPM** - Trusted Platform Module; a security device that stores keys and measures the boot process. *See: [machine](SECTIONS/machine.md).*
+- **Transparent huge pages (THP)** - Linux handing out memory in 2 MiB pages instead of 4 KiB ones when it can, so the CPU needs fewer page-table look-ups. *See: [tools](SECTIONS/tools.md).*
 - **TRIM** - A command that tells an SSD which blocks no longer hold data, so it can erase them ahead of time. *See: [storage](SECTIONS/storage.md).*
 - **Trip point** - a temperature where the system acts: passive = slow down, critical = shut down. *See: [srs-items](SECTIONS/srs-items.md).*
 - **TSC (Time Stamp Counter)** - Time Stamp Counter; a CPU counter that rises at a fixed rate and is the fastest clock for the OS when stable. *See: [linux-os](SECTIONS/linux-os.md), [processors](SECTIONS/processors.md).*
@@ -555,6 +563,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **VBIOS** - The graphics card's own firmware chip. It starts the card at power-on and holds its power and clock tables. *See: [graphics](SECTIONS/graphics.md).*
 - **VCN / UVD** - AMD's video decode/encode engine. VCN is the current name; some chips still report it as UVD. *See: [graphics](SECTIONS/graphics.md).*
 - **Vcore** - the main supply voltage of the CPU cores, measured by the motherboard's sensor chip. *See: [processors](SECTIONS/processors.md).*
+- **vDSO** - a small piece of kernel code mapped into every program so that reading the clock does not need a real system call. *See: [tools](SECTIONS/tools.md).*
 - **Vendor ID** - The 16-bit number that names a chip maker, e.g. 1022 AMD, 1002 AMD/ATI, 10EC Realtek. *See: [buses-1](SECTIONS/buses-1.md).*
 - **VID** - Voltage Identification; the voltage the CPU requests from the regulator. *See: [processors](SECTIONS/processors.md).*
 - **VID / PID (Vendor ID / Product ID)** - the two 16-bit numbers that identify a USB device's maker and model, written VVVV:PPPP. *See: [buses-2](SECTIONS/buses-2.md).*

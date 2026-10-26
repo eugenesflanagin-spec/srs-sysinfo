@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem` and `storage`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage` and `os-latency`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -47,6 +47,7 @@ sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
 sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
+sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -64,7 +65,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -100,17 +101,21 @@ Benchmarks and stress (load the CPU; run only when you ask):
         ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
-  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
-        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
-        5 s per test); never touches existing files; asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
         Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
         ~20 s; asks first, --yes starts at once)
+  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
+        5 s per test); never touches existing files; asks first, --yes starts at once
+  os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
+        how quickly the OS answers: system calls, context switches, thread / process start, wake-ups,
+        timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink
+        (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -471,7 +476,39 @@ drives only with `--allow-usb`. **Asks first**; `--yes` starts at once. Exit cod
 1 when it was stopped or hit an I/O error, 2 when it did not start (the message says why). See
 [tools.md](SECTIONS/tools.md#storage-benchmark).
 
-Every `cachemem`, `storage`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
+### `os-latency` - how quickly the OS answers
+
+```
+sysreport-search os-latency [--samples N] [--tick-seconds S]
+                            [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
+```
+
+Times many single samples of system calls, pipe context switches (threads and processes, same CPU
+and two cores), thread create, fork and posix_spawn, futex and condition-variable wake-ups, sleep
+overshoot and a periodic 1 ms tick, page faults (4 KiB and 2 MiB), mmap / munmap, and small-file
+create / stat / unlink. Each row shows the median, 95%, 99%, worst and best. The CPU scheduler in
+use (sched_ext such as scx_lavd, BORE, EEVDF), the preemption mode, the timer tick, the clock
+source and the timer slack are shown with the result. It keeps one or two CPUs busy for about
+6 seconds at the defaults and **asks first**; `--yes` (`-y`) starts at once. Without a terminal and
+without `--yes` it does not start (exit code 2).
+
+| Option | Meaning |
+|---|---|
+| `--samples N` | Samples for the fast tests, 100-1,000,000 (default 20,000); the slow tests use a tenth to a fortieth |
+| `--tick-seconds S` | How long the 1 ms tick is watched, 0.1-60 (default 3) |
+| `--only` | Run only some groups, e.g. `--only syscall,switch` |
+
+Nothing on the system is changed. The file test uses a temporary folder in `~/.cache/srs` that
+is always removed. Exit code 0 when it ran, 1 when it was stopped, 2 when it did not start (bad
+option, not confirmed, not available). Example:
+
+```
+$ sysreport-search os-latency --only syscall,timer --yes
+```
+
+See [tools.md](SECTIONS/tools.md#os-latency-benchmark).
+
+Every `cachemem`, `storage`, `os-latency`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
 
@@ -502,6 +539,7 @@ or one of these tool names:
 | `prime` | Prime Sieve |
 | `cachemem` | Cache & Memory |
 | `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
+| `oslatency` | OS Latency |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |

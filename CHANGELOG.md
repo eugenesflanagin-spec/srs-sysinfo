@@ -6,7 +6,7 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ## 2.2.0 - 2026-10-26
 
-Power & cost, five new benchmarks, and a main window you can arrange: tab lineups, sortable tables,
+Power & cost, new benchmarks, and a main window you can arrange: tab lineups, sortable tables,
 a Startup manager, CPU clocks at stock and in effect, and a badge that shows what SRS can read.
 
 ### Added
@@ -79,6 +79,16 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   Linux native AIO for real queue depths. Refuses RAM (tmpfs), network and FUSE folders and too
   little free space; USB drives only when allowed; asks before it starts. Test file 256 MB - 16 GB,
   1-30 s per test. Command line `sysreport-search storage --dir FOLDER`.
+- **OS Latency benchmark** (`sysreport-search os-latency`, Benchmarks & stress -> OS Latency,
+  `--gui-open=oslatency`): how quickly the operating system answers a program - system calls
+  (getpid, vDSO and real clock_gettime, 1-byte read, sched_yield), pipe context switches between
+  threads and processes on one CPU and on two cores, thread create, fork and posix_spawn, futex and
+  condition-variable wake-ups, sleep overshoot and a periodic 1 ms tick (missed ticks counted),
+  4 KiB and 2 MiB page faults, mmap / munmap, and small-file create / stat / unlink, each as
+  median / 95% / 99% / worst / best. Shows the CPU scheduler in use (sched_ext ops such as
+  scx_lavd, BORE, EEVDF), preemption mode, CONFIG_HZ, clock source, timer slack and THP mode.
+  Light (one or two CPUs, about 6 s), changes no system setting, asks before it starts (`--yes`
+  skips the question), Stop works; its temporary file folder in `~/.cache/srs` is always removed.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.
@@ -88,8 +98,10 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   `~/.cache/srs/bench-history.tsv`, shown newest first on the new Benchmark history tab. Each
   result carries a **Build** line (compiler, CPU code level), because a generic package build and a
   `-march=native` build of the same version score differently.
-- Benchmarks & stress page: Cache & Memory, Storage, SRS Pi, Crypto and Prime Sieve buttons and
-  tabs; Menu -> Tools entries (classic view); `--gui-open=cachemem|storagebench|pi|crypto|prime`.
+- Benchmarks & stress page: Cache & Memory, Storage, OS Latency, SRS Pi, Crypto and Prime Sieve
+  buttons and tabs; Menu -> Tools entries (classic view); desktop-menu actions;
+  `--gui-open=cachemem|storagebench|oslatency|pi|crypto|prime`. Every one of these windows asks
+  before it starts, saying what it does, for how long and how much load.
 
 **Main window**
 
@@ -143,6 +155,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   prices, sessions, alarms and the history database with synthetic counter data; the Debian and
   RPM builds run them.
 - `tests/bench-test.sh`: correctness tests (digit for digit against mpmath when installed).
+- `tests/bench-os-test.sh`: OS Latency engine test (tiny runs, ordered statistics, Stop, no child
+  process or temporary folder left, ask-first in the CLI). `make test-bench` runs all benchmark
+  tests against `dist/native/sysreport-search`.
 
 ### Changed
 
@@ -159,6 +174,22 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   close button shows on the tab in view and on temporary tabs.
 - The Startup programs item reads `$XDG_CONFIG_HOME/autostart` when that is set (before: always
   `~/.config/autostart`).
+
+### Known limits
+
+**Tested on one PC.** I build and test SRS on a single machine: a Ryzen 7 7800X3D with a Radeon
+RX 9070 XT, on a wired connection. I've done everything I can for the rest (checks that don't need
+the hardware, careful reading of the docs, test builds), but I can't try what I don't own. So
+anything that needs other hardware, such as NVIDIA CUDA, Intel graphics, Wi-Fi or VPN network
+tests, or ARM and 32-bit builds, may have a bug or two I haven't met yet. If you find one, please
+tell me: open an issue on GitHub (https://github.com/eugenesflanagin-spec/srs-sysinfo/issues)
+with your hardware and the report SRS made, and I'll fix it. Not tried on real hardware so far:
+
+<!-- untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
+- ARM (aarch64) and 32-bit (i686) builds: compile-checked only (plus self-tests where a benchmark
+  says so), not used day to day.
+- OS Latency: run only on Linux 7.x with the scx_lavd scheduler; BORE, EEVDF and CFS are recognised
+  from the kernel's settings but were not run here.
 
 ### Fixed
 

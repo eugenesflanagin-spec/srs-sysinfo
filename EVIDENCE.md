@@ -169,3 +169,16 @@ written from published descriptions of how cache and memory bandwidth and latenc
 (Read / Write / Copy per cache level, random pointer-chase latency), not from any other program's
 code. SRS adds its own window, wording and system lines. The LSA repository keeps its own
 EVIDENCE.md and its releases, including the Windows build.
+
+## Benchmarks added in SRS 2.2 (OS Latency and later)
+
+These benchmarks are SRS's own code, written for SRS from the operating system's public
+interfaces and from published algorithm descriptions; no other benchmark program's code, binaries
+or result files were used or looked at for them. Public sources are credited in CREDITS.md.
+
+- **OS Latency** (`bench_os.c`): Linux system calls and POSIX interfaces as documented in the
+  man-pages project (`syscall(2)`, `clock_gettime(2)`, `futex(2)`, `pipe(2)`, `fork(2)`,
+  `posix_spawn(3)`, `clock_nanosleep(2)`, `mmap(2)`, `madvise(2)`), the kernel's sysfs / procfs
+  files for the scheduler, clock source and transparent huge pages, and the kernel documentation
+  for sched_ext. Timing a context switch by passing a byte back and forth through
+  a pipe is a long-standing, widely published method.
