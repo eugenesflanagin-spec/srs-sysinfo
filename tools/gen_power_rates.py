@@ -160,7 +160,7 @@ def main():
     o.append(" *  Ember, Yearly electricity data, emissions intensity (CC BY 4.0).")
     o.append(" *  NREL ZIP code table: data/power-zip-rates.tsv (CC BY 4.0). */")
     o.append("static const char *const g_tables_date = %s;" % c_str(
-        "US EIA %s; Eurostat %s; Ofgem %s; Ember up to %d" % (period, countries[0][4] if countries else "?", OFGEM["period"],
+        "US EIA %s; Eurostat %s; Ofgem %s; Ember up to %d" % (period, max(c[4] for c in countries) if countries else "?", OFGEM["period"],
                                                               max(c[1] for c in co2))))
     o.append("static const prt_row g_us[] = {")
     o.append("    { %s, %s, %.4f, 0 }," % (c_str("United States average"), c_str("US"), us))
@@ -172,12 +172,14 @@ def main():
     o.append("static const prt_row g_eu[] = {")
     if eu:
         o.append("    { %s, %s, %.4f, 0 }," % (c_str("European Union average"), c_str("EU27"), eu[0]))
+    newest = max(c[4] for c in countries) if countries else ""
     for label, geo, v, nac, t in countries:
-        o.append("    { %s, %s, %.4f, 0 }," % (c_str(label), c_str(geo), v))
+        name = label if t == newest else "%s (%s)" % (label, t)   # an older half-year says so
+        o.append("    { %s, %s, %.4f, 0 }," % (c_str(name), c_str(geo), v))
     o.append("};")
     o.append("static const char *const g_eu_note = %s;" % c_str(
-        "Eurostat nrg_pc_204, average household price (2 500-4 999 kWh a year), all taxes and levies included, %s, in EUR."
-        % (countries[0][4] if countries else "")))
+        "Eurostat nrg_pc_204, average household price (2 500-4 999 kWh a year), all taxes and levies included, %s "
+        "(older half-year shown after the name), in EUR." % (max(c[4] for c in countries) if countries else "")))
     o.append("static const prt_row g_uk[] = {")
     o.append("    { %s, %s, %.4f, %.4f }," % (c_str("Great Britain average (price cap, Direct Debit)"), c_str("GB"),
                                              OFGEM["p_kwh"] / 100, OFGEM["p_day"] / 100))

@@ -32,7 +32,8 @@ int pdb_is_open(void);
 const char *pdb_error(void);
 const char *pdb_path(void);
 
-int pdb_add(long minute, const pdb_row *r);   /* adds onto the minute's row (several writers per minute add up) */
+int pdb_add(long minute, const pdb_row *r);
+void pdb_row_scale(pdb_row *r, double frac);  /* every amount (seconds, energy, cost) times frac; w_max and flags kept */   /* adds onto the minute's row (several writers per minute add up) */
 int pdb_flush(void);                          /* commit what pdb_add wrote */
 int pdb_gap(long t0, long t1, int kind);
 int pdb_count_gaps(long from, long to);

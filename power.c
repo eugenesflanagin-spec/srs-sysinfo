@@ -462,8 +462,7 @@ static void add_minute(long m, double frac, void *ctx)
 {
     addctx *a = ctx;
     pdb_row x = a->r;
-    x.secs_on *= frac; x.secs_sleep *= frac; x.secs_off *= frac;
-    x.wh_mid *= frac; x.wh_lo *= frac; x.wh_hi *= frac; x.wh_cpu *= frac; x.wh_gpu *= frac; x.cost *= frac;
+    pdb_row_scale(&x, frac);
     pdb_add(m, &x);
 }
 

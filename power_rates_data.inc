@@ -103,7 +103,7 @@ static const prt_row g_eu[] = {
     { "Sweden", "SE", 0.3062, 0 },
     { "Türkiye", "TR", 0.0657, 0 },
 };
-static const char *const g_eu_note = "Eurostat nrg_pc_204, average household price (2 500-4 999 kWh a year), all taxes and levies included, 2026-S1, in EUR.";
+static const char *const g_eu_note = "Eurostat nrg_pc_204, average household price (2 500-4 999 kWh a year), all taxes and levies included, 2026-S1 (older half-year shown after the name), in EUR.";
 static const prt_row g_uk[] = {
     { "Great Britain average (price cap, Direct Debit)", "GB", 0.2632, 0.5483 },
 };

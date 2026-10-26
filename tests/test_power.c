@@ -307,6 +307,21 @@ static void t_db(void)
     total = 0;
     for (i = 0; i < n; i++) total += sums[i].wh_busy;
     CHECK(NEAR(total, 180, 1e-6), "busy energy adds up too: 180 Wh (got %g)", total);
+    {   /* a 2 s sample straddling a minute edge, split the way the recorder does it */
+        pdb_row y, z = r;
+        double tw = 0, tb = 0, ts = 0;
+        splitctx sp = { { 0 }, { 0 }, 0 };
+        int k;
+        long base = t0 + 500 * 60;
+        z.secs_on = 2; z.wh_mid = 0.09; z.secs_busy = 2; z.wh_busy = 0.09; z.cost = 0.0000135;
+        pm_split_minutes((double)base - 0.5, (double)base + 1.5, split_cb, &sp);
+        for (k = 0; k < sp.n; k++) { y = z; pdb_row_scale(&y, sp.frac[k]); pdb_add(sp.m[k], &y); }
+        pdb_flush();
+        n = pdb_group(PDB_HOUR, base - 3600, base + 3600, sums, 64);
+        for (k = 0; k < n; k++) { tw += sums[k].wh_mid; tb += sums[k].wh_busy; ts += sums[k].secs_busy; }
+        CHECK(sp.n == 2 && NEAR(tw, 0.09, 1e-12) && NEAR(tb, 0.09, 1e-12) && NEAR(ts, 2, 1e-12),
+              "a sample split over two minutes keeps its energy and busy time (%g Wh, %g busy Wh, %g busy s)", tw, tb, ts);
+    }
     CHECK(pdb_session(t0 + 60, t0 + 3600, 250, 0.04, 480) == 0, "store a session");
     {
         pdb_sess ss[4];

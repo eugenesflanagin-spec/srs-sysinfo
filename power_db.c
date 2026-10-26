@@ -157,6 +157,14 @@ int pdb_add(long minute, const pdb_row *r)
     return rc == SQLITE_DONE ? 0 : fail("add");
 }
 
+void pdb_row_scale(pdb_row *r, double frac)
+{
+    r->secs_on *= frac; r->secs_sleep *= frac; r->secs_off *= frac;
+    r->wh_mid *= frac; r->wh_lo *= frac; r->wh_hi *= frac; r->wh_cpu *= frac; r->wh_gpu *= frac;
+    r->cost *= frac;
+    r->secs_busy *= frac; r->wh_busy *= frac;
+}
+
 int pdb_gap(long t0, long t1, int kind)
 {
     sqlite3_stmt *s;
