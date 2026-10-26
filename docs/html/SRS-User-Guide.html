@@ -61,7 +61,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 551 items, field by
+<strong>Section Reference</strong>: every one of the 555 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -128,7 +128,7 @@ size (shows your cache levels).</li>
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (551 in total with SRS's own extras):</p>
+5.87's report items (555 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -529,7 +529,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 551 of them.</p>
+<strong>SMART drives</strong>; there are 555 of them.</p>
 <table>
 <thead>
 <tr>
@@ -607,8 +607,9 @@ Installed software, Environment, Users</td>
 <tr>
 <td><strong>Benchmarks &amp; stress</strong></td>
 <td>Measure or load the CPU and memory</td>
-<td>CPU Benchmarks, CPU IPI Delay, Memory Latency (the last
-results)</td>
+<td>CPU Benchmarks, Cache &amp; Memory, Storage, OS Latency, CPU
+Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, CPU IPI
+Delay, Memory Latency, Benchmark history (the last results)</td>
 </tr>
 <tr>
 <td><strong>Tools</strong></td>
@@ -853,8 +854,10 @@ sort it (<a href="#user-guide--68-sortable-tables">6.8</a>); right-click a tab f
 Keep, Replace with..., Move and Close (<a
 href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; stress</strong> page has buttons that
-open the CPU Benchmark, IPI Delay, Memory Latency, CPU Burnin and CPU
-Stress windows (<a href="#user-guide--9-tools">9</a>); nothing runs until you press
+open the CPU Benchmark, IPI Delay, Memory Latency, Cache &amp; Memory,
+Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi,
+Crypto, Prime Sieve, CPU Burnin and CPU Stress windows (<a
+href="#user-guide--9-tools">9</a>); nothing runs until you press
 <strong>Run</strong> or <strong>Start</strong> there. Its tabs show the
 last results. The <strong>Tools</strong> page opens Device ID Lookup,
 Find in a system report, Save Report, Run as root and the Classic
@@ -2024,8 +2027,12 @@ href="#user-guide--5-root-only-data-srs-root">section 5</a>).</p></li>
 <h2 id="user-guide--9-tools">9. Tools</h2>
 <p>Nothing in this section ever starts by itself: not at launch, not
 from the menu, and not from a saved report. You always press Start or
-Run, and every benchmark window asks before it starts, saying what it
-does, for how long and how much of the PC it keeps busy.</p>
+Run. The CPU Burnin / Stress windows and the Cache &amp; Memory,
+Storage, OS Latency, CPU Compute, Everyday Work and Network benchmarks
+also ask before they start, saying what they do, for how long and how
+much of the PC they keep busy; the shorter Benchmark, IPI Delay,
+Latency, SRS Pi, Crypto and Prime Sieve windows start when you press
+Run.</p>
 <p><strong>What has and has not been tested.</strong> I build and test
 SRS on one PC (a Ryzen 7 7800X3D with a Radeon RX 9070 XT, on a wired
 connection), so anything that needs other hardware may have a bug or two
@@ -3260,7 +3267,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-551 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+555 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -3635,7 +3642,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 551 items with the same text. The classic
+classic view show the same 555 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -3936,7 +3943,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 551 of them - one by one. For each item it says, in this order:</p>
+all 555 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -27528,13 +27535,16 @@ look-up and search tools (device ID lookup, report search, configuration
 search, ping). Open the items from <strong>Menu -&gt; Tools -&gt;
 item</strong> (each entry shows as "Title [id]"). The live tool windows
 sit at the top of the Menu itself: CPU Burnin..., CPU Stress...,
-Benchmark..., IPI Delay..., Latency..., Device ID Lookup... and Find in
-Report.... The Processors window also has CPU Stress, CPU Burnin and
-Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup)
-and Ctrl+D (ALL Devices) work in every window. None of these items needs
-root data (srs-root): everything here works as a normal user. Load tests
-and benchmarks never start by themselves. Saving a report
-(<code>-save</code>) only shows the last stored result.</p>
+Benchmark..., IPI Delay..., Latency..., SRS Pi..., Crypto Benchmark...,
+Prime Sieve..., Cache &amp; Memory..., Storage Benchmark..., OS
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark...,
+Device ID Lookup... and Find in Report.... The Processors window also
+has CPU Stress, CPU Burnin and Benchmark buttons, and the keys Ctrl+F
+(Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices) work in every
+window. None of these items needs root data (srs-root): everything here
+works as a normal user. Load tests and benchmarks never start by
+themselves. Saving a report (<code>-save</code>) only shows the last
+stored result.</p>
 <h2 id="sections-tools--contents">Contents</h2>
 <ul>
 <li><a href="#sections-tools--cpu-benchmarks">CPU Benchmarks</a>
@@ -32000,7 +32010,7 @@ Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (551 lines), one per line:</p>
+<p>Lists every item SRS knows (555 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
@@ -32933,8 +32943,11 @@ expert Power status tab on Sensors)</td>
 Burnin &amp; Stress), <code>--gui-open=bench,ipi,latency</code> (SRS
 Benchmark), and the jump-list actions <code>sensors</code>,
 <code>processors</code>, <code>burnin</code>, <code>stress</code>,
-<code>bench</code>, <code>idlookup</code>, <code>find</code>, and
-<strong>Classic View</strong> (<code>--gui-classic</code>).</p>
+<code>bench</code>, <code>cachemem</code>, <code>storagebench</code>,
+<code>oslatency</code>, <code>compute</code>, <code>work</code>,
+<code>netbench</code>, <code>pi</code>, <code>idlookup</code>,
+<code>find</code>, and <strong>Classic View</strong>
+(<code>--gui-classic</code>).</p>
 <hr />
 <h2 id="cli-reference--srs-root"><code>srs-root</code></h2>
 <pre><code>pkexec srs-root            # or: sudo srs-root

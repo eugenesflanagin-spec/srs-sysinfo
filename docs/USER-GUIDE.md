@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 551 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 555 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -73,7 +73,7 @@ It also has tools:
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (551 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (555 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -328,7 +328,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 551 of them.
+as **Sensor status** or **SMART drives**; there are 555 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -343,7 +343,7 @@ as **Sensor status** or **SMART drives**; there are 551 of them.
 | **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
-| **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, CPU IPI Delay, Memory Latency (the last results) |
+| **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
 The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
@@ -455,7 +455,8 @@ heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab fo
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
 The **Benchmarks & stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
-CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
+Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto, Prime
+Sieve, CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
 **Start** there. Its tabs show the last results. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
 
@@ -1076,8 +1077,10 @@ Classic Menu** in the main window. It has:
 ## 9. Tools
 
 Nothing in this section ever starts by itself: not at launch, not from the menu, and not from a
-saved report. You always press Start or Run, and every benchmark window asks before it starts,
-saying what it does, for how long and how much of the PC it keeps busy.
+saved report. You always press Start or Run. The CPU Burnin / Stress windows and the Cache &
+Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network benchmarks also ask before they
+start, saying what they do, for how long and how much of the PC they keep busy; the shorter
+Benchmark, IPI Delay, Latency, SRS Pi, Crypto and Prime Sieve windows start when you press Run.
 
 **What has and has not been tested.** I build and test SRS on one PC (a Ryzen 7 7800X3D with a
 Radeon RX 9070 XT, on a wired connection), so anything that needs other hardware may have a bug or
@@ -1754,7 +1757,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 551 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 555 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -1903,7 +1906,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 551 items with the
+- **Two views, same data.** The main window and the classic view show the same 555 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.

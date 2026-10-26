@@ -3,7 +3,7 @@
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe, RH Software (rh-software.com).
 ## How to use this reference
 
-This reference explains **every item SRS can show** - all 551 of them - one by one. For each item it
+This reference explains **every item SRS can show** - all 555 of them - one by one. For each item it
 says, in this order:
 
 1. **In plain words** - what it is, in one to three short sentences.

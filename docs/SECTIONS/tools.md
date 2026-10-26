@@ -9,7 +9,9 @@ the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory la
 look-up and search tools (device ID lookup, report search, configuration search, ping). Open the
 items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows sit at
 the top of the Menu itself: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency...,
-Device ID Lookup... and Find in Report.... The Processors window also has CPU Stress, CPU Burnin and
+SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark..., OS
+Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., Device ID Lookup... and Find in
+Report.... The Processors window also has CPU Stress, CPU Burnin and
 Benchmark buttons, and the keys Ctrl+F (Find), Ctrl+L (Device ID Lookup) and Ctrl+D (ALL Devices)
 work in every window. None of these items needs root data (srs-root): everything here works as a
 normal user. Load tests and benchmarks never start by themselves. Saving a report (`-save`) only

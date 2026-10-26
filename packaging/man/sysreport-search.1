@@ -74,7 +74,7 @@ Everyday work: compression with the system's zlib, zstd, lz4 and xz (loaded at r
 \fBnet\fR [\fB\-\-local\fR] [\fB\-\-internet\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-streams\fR \fIN\fR] [\fB\-\-samples\fR \fIN\fR] [\fB\-\-max\-mb\fR \fIMB\fR] [\fB\-4\fR|\fB\-6\fR] [\fB\-\-server\fR \fIURL\fR] [\fB\-\-hosts\fR \fIHOST\fR[:\fIPORT\fR],...] [\fB\-\-yes\fR] [\fB\-\-yes\-internet\fR]
 Network benchmark. Without options: loopback TCP / UDP throughput, loss and round trip time (nothing leaves the computer; asks first unless \fB\-\-yes\fR). \fB\-\-internet\fR adds DNS, connect, HTTPS, download and upload tests against https://speed.cloudflare.com; it prints what it contacts and the data use (up to about 4 x \fB\-\-max\-mb\fR, default 1000 MB) and asks its own question, which only \fB\-\-yes\-internet\fR skips. libcurl is optional (loaded at run time). No addresses or host names are shown or saved.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR and \fBnet\fR load the CPU, the drive or the network and only run when asked; the benchmarks ask before they start.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR and \fBnet\fR load the CPU, the drive or the network and only run when asked; \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR and \fBnet\fR also ask before they start unless \fB\-\-yes\fR is given.
 Run
 .B sysreport-search \-\-help
 for the full option list.

@@ -133,7 +133,7 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
     10^8 ... 10^11, checked against the known counts. Every run of these three is kept in a
     **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
-  - Every benchmark asks before it starts. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
+  - Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work and Network ask before they start. **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
     wired network): parts that need other hardware may have a bug or two - please report them on
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).

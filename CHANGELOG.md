@@ -128,8 +128,9 @@ a Startup manager, CPU clocks at stock and in effect, and a badge that shows wha
   `-march=native` build of the same version score differently.
 - Benchmarks & stress page: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi, Crypto and Prime Sieve
   buttons and tabs; Menu -> Tools entries (classic view); desktop-menu actions;
-  `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|pi|crypto|prime`. Every one of these windows asks
-  before it starts, saying what it does, for how long and how much load.
+  `--gui-open=cachemem|storagebench|oslatency|compute|work|netbench|pi|crypto|prime`. Cache & Memory, Storage, OS
+  Latency, CPU Compute, Everyday Work and Network ask before they start, saying what they do, for
+  how long and how much load.
 
 **Main window**
 

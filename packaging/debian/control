@@ -23,7 +23,7 @@ Description: Linux system information viewer inspired by SIV64X
  free for the Linux and open-source community. It is an independent project,
  not affiliated with SIV or its author, and contains no SIV code or data.
  .
- It provides a GTK 3 GUI (srs-gui) with 551 report items covering CPU,
+ It provides a GTK 3 GUI (srs-gui) with 555 report items covering CPU,
  memory, sensors, storage, buses, GPU, network and the operating system, a
  CPU burn-in / stress tester, Dhrystone/Whetstone and memory-latency
  benchmarks, a command-line report search (sysreport-search), a full text

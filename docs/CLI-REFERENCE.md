@@ -157,7 +157,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (551 lines), one per line:
+Lists every item SRS knows (555 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS
@@ -683,7 +683,8 @@ The environment variable `SRS_OPEN=sensors,burnin` does the same.
 
 The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
-`burnin`, `stress`, `bench`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
+`burnin`, `stress`, `bench`, `cachemem`, `storagebench`, `oslatency`, `compute`, `work`,
+`netbench`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).
 
 ---
 
