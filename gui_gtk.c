@@ -4818,6 +4818,7 @@ static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const c
     gtk_box_pack_start(GTK_BOX(hb), l, TRUE, TRUE, 0);
     gtk_widget_set_halign(hb, GTK_ALIGN_CENTER);
     gtk_container_add(GTK_CONTAINER(b), hb);
+    gtk_widget_show_all(hb);   /* the button may be hidden with no_show_all: its child must still be shown */
     gtk_widget_set_tooltip_text(b, tip);
     g_object_set_data(G_OBJECT(b), "target", (gpointer)target);
     g_signal_connect(b, "clicked", G_CALLBACK(on_tab_btn), t);

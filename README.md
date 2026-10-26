@@ -151,11 +151,7 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
     wired network): parts that need other hardware may have a bug or two - please report them on
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
-  - **GPU features and the hardware I can test them on.** I build and test SRS on a single machine:
-    a Ryzen 7 7800X3D with a Radeon RX 9070 XT. I can't try what I don't own, so GPU features for
-    other hardware, such as NVIDIA CUDA (and ZLUDA), Intel graphics, or any ROCm/HIP and OpenCL
-    setup other than mine, may have a bug or two I haven't met yet. If you find one, please open an
-    issue on GitHub with your GPU and the report SRS made, and I'll fix it. So far the Vulkan tests,
+  - **GPU features, what was and wasn't run.** The Vulkan tests,
     GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) only;
     for ROCm/HIP, CUDA and OpenCL I checked that the libraries load and that every function SRS
     needs is found, but did not run HIP, CUDA or OpenCL work on a GPU. GPU Burnin ends by itself on a
