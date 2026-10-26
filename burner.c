@@ -470,6 +470,8 @@ static void gpu_load(int on)
     }
 }
 
+static void finish(int state, const char *why);
+
 int burn_start(const burn_cfg *c)
 {
     int i;
@@ -505,6 +507,10 @@ int burn_start(const burn_cfg *c)
     g_t0 = g_phase_t0 = g_last_tick = now_s();
     g_state = BURN_RUNNING;
     g_active = 1;
+    if (gpu_busy()) {   /* a GPU test took the GPU at the same moment (it checks burn_active() after its claim): it wins */
+        finish(BURN_IDLE, "[CPU Burnin] not started: a GPU test is running");
+        return -1;
+    }
     gpu_load(1);
     snprintf(g_status, sizeof g_status, "[CPU Burnin] will use %d worker thread%s", g_nw, g_nw == 1 ? "" : "s");
     return 0;

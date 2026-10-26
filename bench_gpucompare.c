@@ -309,6 +309,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
     if (why && wn) why[0] = 0;
     if (burn_active()) { if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU comparison when it has finished"); return -1; }
     if (!gpu_claim("GPU Compute comparison", &who)) { if (why) snprintf(why, wn, "%s is running; wait for it to finish", who ? who : "another GPU test"); return -1; }
+    if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
     x = calloc(1, sizeof *x);
     r = res ? res : calloc(1, sizeof *r);
     if (!x || !r) { free(x); if (!res) free(r); if (why) snprintf(why, wn, "out of memory"); gpu_release(); return -1; }

@@ -415,6 +415,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     if (c.n_max < 32) c.n_max = 32;
     if (c.n_max > 16384) c.n_max = 16384;
     if (!gpu_claim("GPU Burnin", &who)) { if (why) snprintf(why, wn, "%s is running; wait for it to finish", who ? who : "another GPU test"); return -1; }
+    if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
     if ((backend = pick_backend(c.backend, c.software_only, lw, sizeof lw)) < 0) { if (why) snprintf(why, wn, "%s", lw); gpu_release(); return -1; }
     if (!gb_table[backend]->available(lw, sizeof lw)) { if (why) snprintf(why, wn, "%s: %s", gb_name[backend], lw); gpu_release(); return -1; }
     n = gb_table[backend]->list(list, GPUBURN_MAXDEV, lw, sizeof lw);
