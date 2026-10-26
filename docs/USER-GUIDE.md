@@ -83,7 +83,9 @@ It has all 538 of SIV 5.87's report items (551 in total with SRS's own extras):
   Windows Error Reporting -> `coredumpctl`).
 
 **SRS is read-only.** It never changes a setting, never writes to hardware or firmware, and makes
-no network traffic except one `ping` to your router when you open the Ping item.
+no network traffic except one `ping` to your router when you open the Ping item. The one place
+that changes something is the Startup manager ([6.9](#69-the-startup-manager)), and only when you
+click its switches or buttons: it turns startup items off and on, and never deletes anything.
 
 ## 2. Who it is for
 
@@ -317,8 +319,8 @@ From top to bottom:
 
 | Part | What it is |
 |---|---|
-| **Title bar** | **Refresh** (left; also **F5**) reads the page again. The **search box** finds any item or text ([6.4](#64-search)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Options, Run as root and more ([6.5](#65-the-menu)). |
-| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, USB & PCI devices, Operating system, Benchmarks & stress, Tools, and (new in 2.1) Power & cost. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-** and **Alt+=** jump straight to the first twelve. Below the list: **Classic view** and the SRS version. |
+| **Title bar** | **Refresh** (left; also **F5**) reads the page again. Next to it the **badge** says whether SRS can read everything: **Full access** or **Limited (user)** with a **Run as root...** button ([6.10](#610-full-access-or-limited-the-badge)). The **search box** finds any item or text ([6.4](#64-search)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Lineup, Options, Run as root and more ([6.5](#65-the-menu)). |
+| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, Power & cost, USB & PCI devices, Operating system, Benchmarks & stress, Tools. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=** and **Alt+Backspace** jump straight to them, in that order ([12](#12-keyboard-shortcuts)). Below the list: **Classic view**, the tab **lineup** in use ([6.7](#67-arranging-the-tabs-and-lineups)) and the SRS version. |
 | **Page** (right) | What you picked. The title bar's second line names it. |
 
 The window follows your desktop's light or dark theme (see **Options -> Theme** in [10](#10-options)).
@@ -338,17 +340,28 @@ as **Sensor status** or **SMART drives**; there are 551 of them.
 | **Storage** | Drives, file systems, drive health | Disk drives, Volumes, SMART drives, Partitions, Disk performance, USB disk drives |
 | **Network** | Adapters, addresses, Wi-Fi, Bluetooth, connections | Network adapters, IP address, Wi-Fi SSIDs, Bluetooth radios, Routing table, TCP V4 ports, TCP/IP counters |
 | **Sensors** | Temperatures, fans, voltages, power | Sensor status, Hardware status, Cooling status (fans), Power status |
+| **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
 | **Benchmarks & stress** | Measure or load the CPU and memory | CPU Benchmarks, CPU IPI Delay, Memory Latency (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
-| **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.7](#67-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 
-The tabs are the items most people need. **All N items** at the right end of the tab row lists
-**every** item of the page, the expert ones included, in alphabetical order; "(not present)" and
-"(Windows-only)" mark the ones SIV has but this PC or Linux does not. Picking one opens it as an
-extra tab with a close button (x, or **Ctrl+W**). On the Processor page the list also has **Each
-CPU** and **Cache levels of each CPU** (SIV's CPU-n and Cache-n buttons).
+The tabs above are the standard ones (the **Enthusiast** lineup, SRS's default). You can change
+them on any page at any time ([6.7](#67-arranging-the-tabs-and-lineups)).
+
+**All N items** at the right end of the tab row lists **every** item of the page, the expert ones
+included, in alphabetical order. It is a jump list: type a few letters to filter it (every word
+must match), then pick an item or press **Enter** for the first one. If the item already has a
+tab, SRS goes to it ("open" at the right of the row); otherwise it opens as a **temporary tab**
+(its name in *italics*), which is gone the next time SRS starts unless you keep it
+(right-click it > **Keep this tab**). On the Processor page the list ends with **Processor CPU-n**
+and **Cache levels CPU-n** for each CPU (SIV's CPU-n and Cache-n buttons).
+
+Items that cannot show anything on this PC are left out of the list and the tabs: SIV's
+Windows-only items, hardware SIV checks for that this PC does not have (for example RAID
+controllers), and items that came out empty here. The list says how many are hidden; **Options ->
+Show hidden items** lists them greyed, with the reason ("Windows-only", "not present", "nothing to
+show on this PC"), and you can still open them.
 
 ### 6.2 Overview: "Is my PC OK?"
 
@@ -407,8 +420,9 @@ Each page has three parts:
 
 ![Processor page](images/processor-page.png)
 
-*The Processor page: the heading, the key facts as tiles, then the tabs. **All 43 items** at the
-right end of the tab row lists every processor item.*
+*The Processor page: the heading, the key facts as tiles, then the tabs. **+** adds a tab, and
+**All 36 items** at the right end of the tab row lists every processor item that can show
+something on this PC.*
 
 1. **The heading:** the topic and one sentence about what it is.
 2. **Key facts** as tiles (for example Model, Cores, Speed now, Busy, Temperature on the Processor
@@ -424,7 +438,8 @@ right end of the tab row lists every processor item.*
 | **Live** switch | Live items (sensors, clocks, counters ...) refresh by themselves while shown. Turn it off to freeze this tab. **Options -> Update interval** sets the rate for all. |
 | **Zero**, **Hide unused** | Sensor status only: start minimum / maximum again; hide sensors that read nothing. |
 | **Refresh** | Read the item again (**F5**). |
-| **Copy** | Copy all the text. With **Options -> Redact** on, serials, UUIDs, MACs and the computer name are masked in the copy ([17](#17-privacy-before-you-share-a-report)). |
+| **Reset view** | Only on tabs with tables: puts the tables back in the item's own order ([6.8](#68-sortable-tables)). Greyed until you sort. |
+| **Copy** | Copy all the text, in the item's own order even when a table is sorted. With **Options -> Redact** on, serials, UUIDs, MACs and the computer name are masked in the copy ([17](#17-privacy-before-you-share-a-report)). |
 | **Guide** | This guide at the item's section (**F1**). |
 | **Open in window** | The item as a classic panel with its SIV-style button row. |
 
@@ -434,7 +449,9 @@ right end of the tab row lists every processor item.*
 classic Sensors panel, plus the Live switch and the Zero and Hide unused buttons.*
 
 Double-click a line with a PCI or USB ID to look it up (it opens as a tab on the Tools page).
-Right-click the text for Copy, Select All, the guide link and the Classic Menu.
+Right-click the text for Copy, Select All, the guide link and the Classic Menu. Click a column
+heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab for Keep, Replace
+with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
 The **Benchmarks & stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
 CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
@@ -469,6 +486,7 @@ To search a full text report on disk, use **Find in System Report** (**Ctrl+Shif
 |---|---|
 | **Save Report...** (Ctrl+S) / **Save All Items...** | Save a text report ([13.1](#131-save-report-and-save-all-items-siv-format-text)). |
 | **Copy This Tab** | Same as the tab's Copy button. |
+| **Lineup** | Switch between tab lineups, save, export or import one ([6.7](#67-arranging-the-tabs-and-lineups)). |
 | **Options** | See [10](#10-options). |
 | **Run as root (srs-root)...** | Collect the root-only data ([5](#5-root-only-data-srs-root)). |
 | **Find in System Report...** (Ctrl+Shift+F) / **Device ID Lookup...** (Ctrl+L) | The tools of [9.6](#96-find-search-a-full-system-report) and [9.5](#95-device-id-lookup). |
@@ -535,7 +553,140 @@ and [machine.md](SECTIONS/machine.md).
 
 Every button label has an underlined letter: press **Alt + that letter** to click it.
 
-### 6.7 Power & cost
+### 6.7 Arranging the tabs and lineups
+
+Each page's tabs are yours to arrange. Nothing you do here changes what SRS reads or shows inside
+a tab; it only decides which items have a tab and in what order.
+
+**On the fly:**
+
+| To | Do |
+|---|---|
+| Add a tab that stays | **+** at the right end of the tab row (or **Ctrl+T**), then pick the item |
+| Look at an item once | **All N items**: it opens as a temporary tab (*italic*), not kept |
+| Keep a temporary tab | Right-click it > **Keep this tab** |
+| Swap a tab for another item | Right-click it > **Replace with...** (same place in the row) |
+| Move a tab | Drag it, or right-click > **Move left** / **Move right** |
+| Close a tab | Its **x** (shown on the tab in view and on temporary tabs), **Ctrl+W**, a middle-click, or right-click > **Close tab**. The item stays in All N items. |
+| Go back to the lineup's tabs for this page | Right-click a tab > **Reset this page's tabs to the lineup** |
+
+SRS remembers each page's tabs and their order when it closes. Temporary tabs are not remembered.
+
+**Which tabs a page opens with:** **Options -> Tabs on each page...** (also right-click a tab >
+**Tabs on this page...**). Pick the page, then one of:
+
+- **The standard tabs only** - the tabs listed in [6.1](#61-the-pages-and-the-items-on-them);
+- **The tabs ticked below** - tick any items of the page (the filter box finds them); new ones go
+  at the end;
+- **Every item of the page** - one tab per item that can show something here.
+
+**Options -> Show every item as a tab (all pages)** does the last one for every page at once,
+whatever each page is set to. With many tabs the **All N items** jump list is still there, and
+the tab bar can take three shapes (**Options -> Tab bar**):
+
+| Tab bar | Looks like |
+|---|---|
+| **One row that scrolls** | The default: one row with arrows when the tabs do not fit (**Ctrl+PageUp / Ctrl+PageDown** step through them) |
+| **Wrapped rows** | Every tab visible, on as many rows as needed |
+| **Side list** | The tabs in a column on the left of the page, with a scroll bar when needed |
+
+![Wrapped tab rows](images/tabs-wrapped.png)
+
+*The Processor page with wrapped tab rows: every tab visible, + and All N items at the end.*
+
+**Lineups** are saved arrangements: which tabs each page has, their order and the tab bar.
+**Menu -> Lineup** (also in Options and a tab's right-click menu):
+
+| Lineup | Tabs |
+|---|---|
+| **Basic** | A few friendly tabs per page (for example Processor: CPU Summary, CPU Clocks, Cache Levels) |
+| **Enthusiast** | The standard tabs of [6.1](#61-the-pages-and-the-items-on-them). The default. |
+| **Expert** | Every item of every page as a tab, in a side list |
+| *Your own* | **Save as new lineup...** keeps the current tabs under a name you choose |
+
+Changes on the fly are allowed at any time without saving: the sidebar then says
+"Lineup: Enthusiast (changed)". **Save to this lineup** stores them in your own lineup (the three
+built-in ones stay as they are: use **Save as new lineup...**). **Export lineup...** writes a
+`.srslineup` file you can share or keep, **Import lineup...** reads one (it gets a new name if one
+of yours already has it), **Remove this lineup...** removes one of your own, and **Reset to the
+default lineup** goes back to Enthusiast.
+
+### 6.8 Sortable tables
+
+Tabs that show a table (a row of blue headings over rows of values, such as Processes, CPU Clocks,
+Drivers or Installed software) can be sorted: **click a heading**. The first click sorts by that
+column smallest or A first (**▲** after the heading), the second click largest or Z first (**▼**).
+The headings are underlined and the mouse pointer becomes a hand over them; hover for a hint.
+
+- Numbers sort by value with their units: 512MB comes before 1.5GB, 900 MHz before 4.41GHz,
+  9 °C before 45 °C, and RPM, %, V, W and times the same way. Dates sort by date (2026-10-26,
+  09/18/2026), `[1234]` process numbers by number, and names with numbers in them naturally
+  (CPU-2 before CPU-10).
+- Empty cells and `-` always go last.
+- Tabs that update by themselves keep the order while they refresh.
+- **Reset view** (above the text) puts the item's own order back.
+- **Copy** and **Save Report** always give the item's own order, so reports look the same as
+  before; only what you see on screen is sorted.
+- **Options -> Sortable tables** turns sorting off (the tables are then plain text, as in 2.0).
+  The classic panels never sort.
+
+### 6.9 The Startup manager
+
+**Operating system -> Startup programs** opens on **Manage**: everything that starts when you log
+in or when the PC boots, with a switch per item. **Report** next to it shows the Startup programs
+item as text (what Copy and Save Report give).
+
+![Startup manager](images/startup-manager.png)
+
+*The Startup manager: autostart entries with their switches, Undo, Restore default and Add to startup.*
+
+| Column | Meaning |
+|---|---|
+| **On** | Ticked = it starts. Click to turn it off or on. Greyed = it cannot be switched here (see Note). |
+| **Name** | The program's name. Hover for the file or unit and its command. |
+| **Kind** | **Autostart (system)** - `/etc/xdg/autostart`, for every user; **Autostart (yours)** - `~/.config/autostart`; **Service (user)** - a systemd user unit; **Service (system)** - a system service (only with **Show system services** ticked). |
+| **State** | on / off, or the unit's state (enabled, disabled, static, masked ...). |
+| **Note** | Why it is off or greyed (for example "only for other desktops"), "turned off by SRS (your copy)", "added by SRS", "desktop essential: ...", a unit's default (preset). |
+
+Click a column heading to sort; the filter box and the list next to it narrow the list down.
+
+**Nothing is ever deleted:**
+
+- A **system autostart entry** is turned off with a copy of it in your `~/.config/autostart` that
+  says `Hidden=true` (the desktop uses your copy instead of the system one). Turning it back on
+  moves that copy into `~/.config/srs/startup-backup`.
+- **Your own autostart entries** get `Hidden=true` or `Hidden=false`. The first time SRS changes
+  one, the original is kept in the backup folder.
+- **Services:** `systemctl --user enable` / `disable` for user units. System services ask first,
+  then use `pkexec systemctl enable` / `disable` (the administrator password); the change applies
+  from the next boot.
+- **Undo** puts back the last change made in this session (repeat it for earlier ones).
+- **Restore default** puts the selected item back to its default: a system entry loses your copy
+  (moved to the backup folder), your own entry gets its original file back, an entry SRS added is
+  taken out of the list (moved to the backup folder), and a service gets the distribution's
+  default (`systemctl preset`).
+- **Add to startup...** starts an installed program (pick it from the list) or any command (run
+  by `sh`) at every login, with an optional delay in seconds. It writes
+  `~/.config/autostart/srs-NAME.desktop`; turn it off or take it out again in this list.
+
+Parts of the desktop ask before they are turned off: Plasma, KWin, KWallet and other password
+storage, PipeWire and WirePlumber (sound), the desktop portals (file dialogs, screen sharing), the
+polkit agent (admin password prompts), D-Bus, accessibility and the login screen. You can still
+turn them off; SRS just says what may stop working. Changes take effect at the next login (system
+services at the next boot).
+
+### 6.10 Full access or Limited: the badge
+
+The badge left of the title says what SRS can read right now:
+
+| Badge | Means |
+|---|---|
+| **Full access** (green shield) | SRS runs as root, or the root-only data has been collected by srs-root ([5](#5-root-only-data-srs-root)). Hover for when it was collected. |
+| **Limited (user)** (grey shield) and a **Run as root...** button | SRS runs as you, without root data. Drive health (SMART), memory stick details (SPD), serial numbers and BIOS tables, ACPI tables, CPU registers (MSRs) and the kernel log need it; the tooltip lists them. **Run as root...** collects them once with one password prompt (read-only). |
+
+With **Options -> Refresh root data at boot** the badge says Full access from the start.
+
+### 6.11 Power & cost
 
 > **Estimates only. Please read.** SRS shows how much power your computer **probably** uses and
 > what it **might** cost. These numbers are **estimates**, not a meter reading and not a bill.
@@ -1358,6 +1509,13 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Refresh root data at boot** | See [5.3](#53-refresh-root-data-at-boot). | off |
 | **Redact identifiers in saved reports and copied text** | Save Report / Save All Items, the **Copy** button and right-click **Copy** / Ctrl+C mask serial numbers, UUIDs, MAC addresses (vendor half kept), boot / machine IDs and the host name - see [17](#17-privacy-before-you-share-a-report). The panels still show everything. | off |
 | **Start in classic view** | Start SRS in the SIV-style main window instead of the window with the sidebar ([6.6](#66-classic-view-the-siv-style-windows)). | off |
+| **Sortable tables in the main window** | Click a column heading to sort a table ([6.8](#68-sortable-tables)). Off: tables are plain text as in 2.0. | on |
+| **Tab bar** | **One row that scrolls**, **Wrapped rows** or **Side list** ([6.7](#67-arranging-the-tabs-and-lineups)). Main window only, like the next five. | One row |
+| **Lineup** | Basic, Enthusiast, Expert or your own; save, export, import ([6.7](#67-arranging-the-tabs-and-lineups)). | Enthusiast |
+| **Tabs on each page...** | Per page: the standard tabs, the ticked ones, or every item. | standard |
+| **Show every item as a tab (all pages)** | Every item that can show something here gets a tab on its page. | off |
+| **Show hidden items** | List the items that cannot show anything on this PC (Windows-only, not present, empty), greyed, in All N items, and do not hide their tabs. | off |
+| **Check again which items have nothing to show** | SRS checks this in the background at most once a day; this checks now. | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
 Until you pick a Theme, the main window follows the desktop and the classic view starts light.
@@ -1395,8 +1553,11 @@ In the main window:
 | **Ctrl+D** | ALL Devices tab |
 | **Ctrl+S** | Save Report |
 | **Ctrl+M** | Open the menu |
-| **Ctrl+W** | Close an extra tab |
-| **Ctrl+PageUp / Ctrl+PageDown** | Previous / next tab (when the tab row has the focus) |
+| **Ctrl+T** | Add a tab to this page (the **+** button) |
+| **Ctrl+W** | Close the tab in view (also a middle-click on a tab) |
+| **Ctrl+PageUp / Ctrl+PageDown** | Previous / next tab, in every tab-bar layout |
+| **Right-click a tab** | Keep, Replace with..., Move, Close, Tabs on this page, Lineup |
+| **Click a table heading** | Sort by that column (again: the other way) |
 | **F5** | Read the page again |
 | **F1** | User guide at the current tab's item (the Overview opens the start) |
 | **Shift+F1** | Help item |
@@ -1493,6 +1654,10 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 |---|---|
 | `~/.config/srs/SRSDEF.ini` | Settings (SRS's version of SIV's SIVDEF file). See below. |
 | `~/.config/autostart/srs-gui.desktop` | Only if "Start with the desktop" is on. |
+| `~/.config/autostart/srs-*.desktop` | Programs you added with **Add to startup** ([6.9](#69-the-startup-manager)); also the turned-off copies of system entries (same name as the system file). |
+| `~/.config/srs/startup-backup/` | Everything the Startup manager moved out of the way or changed: `NAME.desktop.YYYYMMDD-HHMMSS` and `NAME.desktop.orig`. Nothing there is used; copy a file back to `~/.config/autostart` to use it again. |
+| `~/.config/srs/lineups/*.srslineup` | Your own tab lineups ([6.7](#67-arranging-the-tabs-and-lineups)), the same format as Export lineup. |
+| `~/.cache/srs/empty-items.txt` | The items that had nothing to show on this PC at the last check (hidden from the tabs and lists). Delete it, or use Options -> Check again, to check now. |
 | `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`). |
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
@@ -1504,7 +1669,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
 | `/usr/share/doc/srs-sysinfo/` | README, CHANGELOG, EVIDENCE, CHECKLIST.tsv (the full item list), this guide as `SRS-User-Guide.pdf`, `html/SRS-User-Guide.html` and the Markdown sources (`USER-GUIDE.md`, `CLI-REFERENCE.md`, `GLOSSARY.md`, `SECTIONS/`, `images/`). |
 | `/usr/share/applications/srs-user-guide.desktop` | The **SRS User Guide (PDF)** menu entry. |
-| `~/.local/share/srs/power.db`, `~/.config/srs/power.ini` | **Power & cost** history and settings ([6.7](#67-power--cost)). |
+| `~/.local/share/srs/power.db`, `~/.config/srs/power.ini` | **Power & cost** history and settings ([6.11](#611-power--cost)). |
 
 `SRSDEF.ini` keys (section `[SRSDEF]`). You normally change these through the menus; editing by
 hand is fine while SRS is closed.
@@ -1523,7 +1688,15 @@ hand is fine while SRS is closed.
 | `Font Name` | text | Kept for SIV compatibility; not used for drawing |
 | `Redact Reports` | `1` / `0` | Options -> Redact identifiers in saved reports and copied text |
 | `Classic View` | `1` / `0` | Options -> Start in classic view |
+| `Sortable Tables` | `1` / `0` | Options -> Sortable tables in the main window |
+| `All Items As Tabs` | `true` / `false` | Options -> Show every item as a tab |
+| `Show Hidden Items` | `true` / `false` | Options -> Show hidden items |
 | `SIO Sensors` | e.g. `nct6799:AUXTIN1` | Super-I/O inputs the burner should treat as connected |
+
+Section `[Tabs]` holds the main window's tabs as they are now: `Lineup` (the lineup they came
+from), `Layout` (`row`, `wrap` or `side`), and per page `<page>=id;id;...` and `<page> Every=true`
+when the page shows every item. Page names: `processor`, `memory`, `board`, `graphics`, `storage`,
+`network`, `sensors`, `devices`, `os`, `bench`, `tools`.
 
 Environment variables:
 
@@ -1534,6 +1707,8 @@ Environment variables:
 | `SRS_OPEN=item,item` | Same as `--gui-open=` (open panels or tools at start). |
 | `SRS_DOC_DIR=folder` | Where the Guide button, F1 and `guide` look for `SRS-User-Guide.pdf` and `html/` (default `/usr/share/doc/srs-sysinfo`, then beside the program). |
 | `GTK_THEME` | Remembered for "Follow desktop"; the Theme option drives SRS's own look. |
+| `SRS_STARTUP_DRY_RUN=1` | The Startup manager never runs `systemctl` or `pkexec`: it only shows the command it would run (autostart files are still written). For trying it out safely. |
+| `SRS_RSMU_DIR=folder` | Read the ryzen_smu files (`pm_table`, `codename`, `pm_table_version`) from this folder instead of `/sys/kernel/ryzen_smu_drv` (tests). |
 
 ## 15. Reading results and comparing runs
 
@@ -1686,7 +1861,9 @@ root-only data for you.
 
 **Can it harm my PC?**
 The viewer is read-only. The burn-in and benchmarks load the CPU like any stress tool; they ask first,
-stop at a temperature limit (default 90 C) and stop when you close the window.
+stop at a temperature limit (default 90 C) and stop when you close the window. The Startup manager
+changes what starts with the PC only when you click it, asks before touching parts of the desktop,
+keeps every old file, and has Undo and Restore default.
 
 **Why are there items that say "not present"?**
 They are SIV items for hardware most PCs do not have (Itanium, IPMI, RAID cards...). SRS keeps them

@@ -684,6 +684,8 @@ static void s_cpuid0(srs_out *o)
 /* ======================================================================
  * clocks, speeds, timer, volts, microcode, speculation, boost, numa
  * ====================================================================== */
+static void clocks_vs_stock(srs_out *o);
+
 static void s_cpu_speeds(srs_out *o)
 {
     static const int tabs[] = { 70, 160, 250, 340, 430, 520, 620, 760 };
@@ -713,6 +715,7 @@ static void s_cpu_speeds(srs_out *o)
         for (k = 0; k < 9; k++) cells[k] = *c[k] ? c[k] : "-";
         so_row(o, 9, cells, (const int[]){ C_LABEL, C_BLACK, C_BLACK, C_GRAY, C_GRAY, C_TEAL, C_TEAL, C_ORANGE, C_ORANGE });
     }
+    clocks_vs_stock(o);
 }
 
 static double measure_tsc_mhz(void)
@@ -874,6 +877,128 @@ static void s_amd_smu(srs_out *o)
     }
     so_par(o);
     so_note(o, "Read-only: srs-gui never sends SMU commands (rsmu_cmd / mp1_smu_cmd / smn are not touched).");
+}
+
+/* ----------------------------------------------------------------------
+ * [cpu-clocks] second table (2.1): each clock at stock (the 100 MHz reference clock) next to what
+ * is in effect now, for a PC run with another base clock (BCLK / AM5 eCLK, e.g. 105 MHz).
+ * Base clock: measured, the way LSA does it - the invariant TSC runs at the nominal clock, and ACPI
+ * CPPC nominal_freq is that clock at a 100 MHz reference, so base = TSC x 100 / nominal_freq.
+ * Measured once per run (50 ms). Core clocks follow the base clock; cpufreq's limits are worked out
+ * at 100 MHz, so they are scaled by the measured ratio. FCLK / UCLK / MCLK: what the SMU reports in
+ * its PM table (ryzen_smu, read-only); software cannot measure them, so no difference is claimed.
+ * ---------------------------------------------------------------------- */
+static double base_clock_mhz(double *tsc_out, double *nom_out)
+{
+    static int done;
+    static double base, tsc, nom;
+    if (!done) {
+        long n = 0;
+        done = 1;
+        if (has_flag(flags(), "constant_tsc") && rd_long(SYSCPU "/cpu0/acpi_cppc/nominal_freq", &n) && n > 0) {
+            nom = (double)n;
+            tsc = measure_tsc_mhz();
+            base = tsc * 100.0 / nom;
+            if (base < 50 || base > 200) base = 0;
+        }
+    }
+    if (tsc_out) *tsc_out = tsc;
+    if (nom_out) *nom_out = nom;
+    return base;
+}
+
+/* FCLK / UCLK / MCLK in MHz from the PM table: 1 if this table layout is known and the values make
+   sense. Known: Zen 4 desktop (Raphael, ryzen_smu codename 20; PM table 0x5401xx): floats 70 / 74 / 78. */
+static int smu_fabric_clocks(double *fclk, double *uclk, double *mclk, char *why, size_t wn)
+{
+    const char *dir = getenv("SRS_RSMU_DIR");
+    char p[400], cn[32] = "";
+    unsigned ver = 0;
+    unsigned char raw[4];
+    float t[128];
+    size_t got;
+    FILE *f;
+    if (!dir || !*dir) dir = RSMU;
+    snprintf(p, sizeof p, "%s/pm_table", dir);
+    if (!path_exists(p)) { snprintf(why, wn, "needs the ryzen_smu driver (%s)", dir); return 0; }
+    snprintf(p, sizeof p, "%s/pm_table_version", dir);
+    if ((f = fopen(p, "rb"))) { if (fread(raw, 1, 4, f) == 4) memcpy(&ver, raw, 4); fclose(f); }
+    snprintf(p, sizeof p, "%s/codename", dir);
+    rd_str(p, cn, sizeof cn);
+    if (!((ver & 0xFFFF00u) == 0x540100u || (!ver && atoi(cn) == 20))) {
+        snprintf(why, wn, "PM table layout not known (codename %s, version 0x%06X)", *cn ? cn : "?", ver);
+        return 0;
+    }
+    snprintf(p, sizeof p, "%s/pm_table", dir);
+    if (!(f = fopen(p, "rb"))) { snprintf(why, wn, "pm_table not readable"); return 0; }
+    got = fread(t, 1, sizeof t, f);
+    fclose(f);
+    if (got < 79 * sizeof(float)) { snprintf(why, wn, "pm_table too short"); return 0; }
+    *fclk = t[70]; *uclk = t[74]; *mclk = t[78];
+    if (!(*fclk >= 400 && *fclk <= 4000 && *uclk >= 400 && *uclk <= 4000 && *mclk >= 400 && *mclk <= 4500 &&
+          (fabs(*uclk - *mclk) < 5 || fabs(*uclk * 2 - *mclk) < 5))) {
+        snprintf(why, wn, "PM table values out of range (layout differs)");
+        return 0;
+    }
+    return 1;
+}
+
+static void cv_row(srs_out *o, const char *name, double stock, double now, int measured, const char *how)
+{
+    char a[48] = "-", b[48] = "-", d[64] = "-";
+    if (stock > 0) snprintf(a, sizeof a, "%.1f MHz", stock);
+    if (now > 0) snprintf(b, sizeof b, "%.1f MHz", now);
+    if (stock > 0 && now > 0 && measured) snprintf(d, sizeof d, "%+.1f MHz  (%+.1f %%)", now - stock, (now / stock - 1) * 100.0);
+    else if (stock > 0 && now > 0) snprintf(d, sizeof d, "not measured");
+    so_row(o, 5, (const char *const[]){ name, a, b, d, how },
+           (const int[]){ C_LABEL, C_GRAY, C_BLACK, measured && fabs(now - stock) >= 0.5 ? C_ORANGE : C_GRAY, C_GRAY });
+}
+
+static void clocks_vs_stock(srs_out *o)
+{
+    static const int tabs[] = { 150, 270, 390, 560 };
+    double tsc = 0, nom = 0, base = base_clock_mhz(&tsc, &nom), r = base > 0 ? base / 100.0 : 0, f = 0, u = 0, m = 0;
+    long mx = 0, cur = 0, v;
+    char why[200] = "", how[200];
+    int i, smu = smu_fabric_clocks(&f, &u, &m, why, sizeof why);
+    for (i = 0; i < ncpu(); i++) {
+        char p[128];
+        snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/cpuinfo_max_freq", i);
+        if (rd_long(p, &v) && v > mx) mx = v;
+        snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/scaling_cur_freq", i);
+        if (rd_long(p, &v) && v > cur) cur = v;
+    }
+    so_par(o);
+    so_tabs(o, tabs, 4);
+    so_b(o, C_VALUE, "Stock and in effect now");
+    so_par(o);
+    so_row(o, 5, (const char *const[]){ "Clock", "Stock", "In effect now", "Difference", "How it is known" },
+           (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+    if (base > 0) snprintf(how, sizeof how, "measured: TSC %.1f MHz x 100 / CPPC nominal %.0f MHz", tsc, nom);
+    else snprintf(how, sizeof how, "not measured (needs an invariant TSC and ACPI CPPC nominal_freq)");
+    cv_row(o, "Base clock", 100.0, base, base > 0, how);
+    cv_row(o, "Core base", nom, nom * r, base > 0, "CPPC nominal frequency x base clock");
+    cv_row(o, "Core boost (max)", mx / 1000.0, mx / 1000.0 * r, base > 0, "cpufreq maximum (worked out at 100 MHz) x base clock");
+    cv_row(o, "Core now (fastest)", r > 0 ? cur / 1000.0 / r : 0, cur / 1000.0, base > 0, "cpufreq now (APERF/MPERF x the measured TSC rate, so real); stock = same multiplier at 100 MHz");
+    if (smu) {
+        char rat[64];
+        cv_row(o, "FCLK (fabric)", f, f, 0, "SMU PM table (ryzen_smu)");
+        cv_row(o, "UCLK (memory controller)", u, u, 0, "SMU PM table (ryzen_smu)");
+        cv_row(o, "MCLK (memory)", m, m, 0, "SMU PM table; DDR data rate = 2 x MCLK");
+        snprintf(rat, sizeof rat, "DDR-%.0f   UCLK:MCLK %s   FCLK %.0f MHz", m * 2, fabs(u - m) < 5 ? "1:1" : "1:2", f);
+        so_par(o);
+        so_kv(o, "Memory", C_TEAL, rat);
+    } else {
+        so_row(o, 5, (const char *const[]){ "FCLK / UCLK / MCLK", "-", "-", "-", why },
+               (const int[]){ C_LABEL, C_GRAY, C_GRAY, C_GRAY, C_GRAY });
+    }
+    so_par(o);
+    so_note(o, "Stock = at the standard 100 MHz reference clock. A base clock other than 100 MHz (BCLK, or eCLK on AM5) "
+               "speeds up the cores by the same factor.");
+    if (smu)
+        so_note(o, "FCLK, UCLK and MCLK are the SMU's own figures: software cannot measure them, so no difference is "
+                   "claimed. On AM5 an eCLK drives the cores; whether anything else follows it depends on the board's eCLK "
+                   "mode, so check these against the BIOS settings.");
 }
 
 /* [amd-pmt] PM table layout: version / size / value count (the values themselves are [amd-pmt-0]) */

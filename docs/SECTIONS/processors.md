@@ -374,10 +374,33 @@ that grows after a kernel update is normal: newly found issues get added.
 **In plain words.** The current, average and allowed clock speed of every CPU. Same page as
 [CPU Speeds](#cpu-speeds); it refreshes every second in the window.
 
-**What you see.** Exactly the same layout as [CPU Speeds](#cpu-speeds): the driver/boost line and the
-per-CPU table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor, EPP).
+**What you see.** The same layout as [CPU Speeds](#cpu-speeds): the driver/boost line and the
+per-CPU table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor, EPP). Below it, since
+2.1, **Stock and in effect now**: each clock at stock next to what it is now.
 
-**Where Linux gets it.** cpufreq files in `/sys/devices/system/cpu/cpuN/cpufreq/`.
+| Row | Stock | In effect now |
+|---|---|---|
+| Base clock | 100 MHz, the standard reference clock | Measured: the TSC rate x 100 / the CPU's nominal frequency from ACPI CPPC (once per run, 50 ms) |
+| Core base | The CPU's nominal frequency (CPPC) | Nominal x base clock / 100 |
+| Core boost (max) | cpufreq's maximum (the kernel works it out at 100 MHz) | Maximum x base clock / 100 |
+| Core now (fastest) | The same multiplier at 100 MHz | cpufreq's current clock of the fastest core (already real) |
+| FCLK, UCLK, MCLK | What the SMU reports | The same: these are shown, not measured |
+
+**Difference** gives MHz and percent where SRS measured. FCLK (Infinity Fabric), UCLK (memory
+controller) and MCLK (memory clock) come from the SMU's PM table through the ryzen_smu driver
+(read-only), for the Zen 4 desktop layout (Ryzen 7000, ryzen_smu codename 20) and only when the
+values make sense; elsewhere the row says why it is missing. Software cannot measure these clocks,
+so SRS does not claim a difference: on AM5 an eCLK drives the cores, and whether anything else
+follows it depends on the board's eCLK mode. The **Memory** line adds the DDR data rate (2 x MCLK),
+the UCLK:MCLK ratio (1:1 or 1:2) and FCLK.
+
+**Healthy / typical values.** With the normal 100 MHz base clock every difference is about 0.
+The author's PC runs a 105 MHz eCLK: base clock 105.0 MHz (+5 %), core base 4201 -> 4410 MHz,
+boost 5053 -> 5305 MHz, FCLK 2133 MHz, UCLK 1500 MHz, MCLK 3000 MHz (DDR5-6000 at 1:2).
+
+**Where Linux gets it.** cpufreq files in `/sys/devices/system/cpu/cpuN/cpufreq/`, the TSC (timed
+against the system clock), `/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq`, and
+`/sys/kernel/ryzen_smu_drv/pm_table` (floats 70, 74 and 78 of the Zen 4 desktop table).
 
 ---
 ## CPU Export  
@@ -567,6 +590,9 @@ under light load; HW Min 426MHz, HW Max 5.05GHz. Current can read a little above
   with `power` EPP.
 - HW Max equal to the base clock: boost off in the BIOS.
 - All columns `-`: no cpufreq driver (virtual machine, or the driver failed to load).
+
+Since 2.1 the same **Stock and in effect now** table as [CPU Clocks](#cpu-clocks) follows the
+per-CPU table (both items share one page).
 
 **Where Linux gets it.** `/sys/devices/system/cpu/cpuN/cpufreq/` (`scaling_*`, `cpuinfo_*`,
 `cpuinfo_avg_freq`) and `/sys/devices/system/cpu/cpufreq/boost`.

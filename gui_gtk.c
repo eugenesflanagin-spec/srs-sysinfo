@@ -19,8 +19,11 @@
 #include "bench.h"
 #include "bench_cachemem.h"
 #include "power.h"
+#include "tblsort.h"
+#include "gui_startup.h"
 
 #include <dlfcn.h>
+#include <signal.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +55,9 @@ static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start
 static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
 static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "Classic View") */
 static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
+
+#define TS_MAXBLK 16
+static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortable Tables") */
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
 enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE };
@@ -92,6 +98,15 @@ typedef struct swin {
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
+    /* sortable tables (main-window tabs, 2.1): the last render op by op, replayed in the chosen order */
+    GArray *rec;
+    char *plain;             /* the text in the item's own order: what Copy copies, so it stays as before */
+    int nblk, blk_line[TS_MAXBLK], blk_cols[TS_MAXBLK], sort_col[TS_MAXBLK], sort_dir[TS_MAXBLK];
+    char *blk_head[TS_MAXBLK];   /* header cells, tab-separated (tooltips) */
+    GtkWidget *reset_btn;
+    /* main-window tab (2.1): a temporary tab is not kept in the page's tab list */
+    int temp;
+    GtkWidget *tablbl, *tabtxt;
 } swin;
 
 static GPtrArray *g_wins;
@@ -110,6 +125,10 @@ static swin *open_section(const char *id);
 static void open_guide(swin *w);
 static void render(swin *w);
 static void open_tool(wkind k, int sub);
+static void tabs_options(GtkWidget *menu);   /* gui_tabs.inc */
+static void lineup_menu(GtkWidget *m);
+static int scan_empty_main(void);
+static void empty_scan(int force);
 
 /* ======================================================================
  * GTK text backend for srs_out
@@ -146,6 +165,7 @@ static void ensure_tags(GtkTextBuffer *b)
     gtk_text_buffer_create_tag(b, "b", "weight", PANGO_WEIGHT_BOLD, NULL);
     gtk_text_buffer_create_tag(b, "m", "family", "Courier New", NULL);
     gtk_text_buffer_create_tag(b, "hl", "background", g_findcol, NULL);
+    gtk_text_buffer_create_tag(b, "sorthdr", "underline", PANGO_UNDERLINE_SINGLE, NULL);
     theme_tags(b);
 }
 
@@ -244,7 +264,30 @@ static void swap_lines(GtkTextBuffer *v, int va, int vb, int nv, GtkTextBuffer *
     gtk_text_buffer_delete(v, &a, &b);
     line_iter(sc, &c, sa, ns);
     line_iter(sc, &d, sb, ns);
-    gtk_text_buffer_insert_range(v, &a, &c, &d);
+    {
+        /* insert the text, then give it exactly the scratch copy's tags: text inserted next to
+           tagged text can pick up its neighbour's colour, and a second colour tag wins over the
+           right one (a re-sorted or refreshed line came out grey) */
+        int off = gtk_text_iter_get_offset(&a), so = gtk_text_iter_get_offset(&c);
+        GtkTextIter x, y, it = c;
+        char *t = gtk_text_buffer_get_text(sc, &c, &d, FALSE);
+        gtk_text_buffer_insert(v, &a, t, -1);
+        g_free(t);
+        gtk_text_buffer_get_iter_at_offset(v, &x, off);
+        gtk_text_buffer_remove_all_tags(v, &x, &a);
+        while (gtk_text_iter_compare(&it, &d) < 0) {
+            GtkTextIter nx = it;
+            GSList *tags, *l;
+            if (!gtk_text_iter_forward_to_tag_toggle(&nx, NULL) || gtk_text_iter_compare(&nx, &d) > 0) nx = d;
+            tags = gtk_text_iter_get_tags(&it);
+            gtk_text_buffer_get_iter_at_offset(v, &x, off + gtk_text_iter_get_offset(&it) - so);
+            gtk_text_buffer_get_iter_at_offset(v, &y, off + gtk_text_iter_get_offset(&nx) - so);
+            for (l = tags; l; l = l->next) gtk_text_buffer_apply_tag(v, l->data, &x, &y);
+            g_slist_free(tags);
+            if (gtk_text_iter_equal(&nx, &it)) break;
+            it = nx;
+        }
+    }
 }
 
 /* Copy only what changed from the scratch buffer to the visible one, so a live
@@ -283,6 +326,338 @@ static void out_begin_live(swin *w, srs_out *o, gctx *g, const char *arg)
 }
 
 /* ======================================================================
+ * sortable tables (2.1). A main-window tab records its item's output op by op, finds the tables
+ * in it (a row of C_LABEL headings followed by rows on the same tab stops), and replays the ops
+ * with the rows of each table in the order the user picked by clicking a heading. The text view,
+ * its colours, Find, double-click lookup and the live refresh stay as they were; Copy copies the
+ * item's own order (w->plain), so it is the same text as before. Save never goes through here.
+ * ====================================================================== */
+enum { RO_TEXT, RO_TAB, RO_PAR, RO_TABS };
+typedef struct { int kind, c, b, m, n; char *s; int px[32]; } rop;
+
+static void rop_clear(gpointer p) { g_free(((rop *)p)->s); }
+static GArray *rec_new(void)
+{
+    GArray *a = g_array_new(FALSE, TRUE, sizeof(rop));
+    g_array_set_clear_func(a, rop_clear);
+    return a;
+}
+static void rc_text(srs_out *o, int c, int b, int m, const char *s) { rop r = { RO_TEXT, c, b, m, 0, g_strdup(s), { 0 } }; g_array_append_val((GArray *)o->ctx, r); }
+static void rc_tab(srs_out *o) { rop r = { RO_TAB, 0, 0, 0, 0, NULL, { 0 } }; g_array_append_val((GArray *)o->ctx, r); }
+static void rc_par(srs_out *o) { rop r = { RO_PAR, 0, 0, 0, 0, NULL, { 0 } }; g_array_append_val((GArray *)o->ctx, r); }
+static void rc_tabs(srs_out *o, const int *px, int n)
+{
+    rop r = { RO_TABS, 0, 0, 0, n < 0 ? 0 : n > 32 ? 32 : n, NULL, { 0 } };
+    memcpy(r.px, px, (size_t)r.n * sizeof(int));
+    g_array_append_val((GArray *)o->ctx, r);
+}
+
+typedef struct {
+    guint a, e;            /* ops [a, e): the row's ops, e = its RO_PAR (or the end) */
+    int ncell, nl, alllabel, nonempty, tabsig;
+    GPtrArray *cells;      /* cell texts */
+} trow;
+
+typedef struct { int first, last, idx; const char *key; int dir; } tgroup;   /* rows [first, last] */
+static int tgroup_cmp(const void *x, const void *y)
+{
+    const tgroup *a = x, *b = y;
+    int ma = ts_missing(a->key), mb = ts_missing(b->key), r;
+    if (ma != mb) return ma - mb;   /* empty and "-" stay last both ways */
+    r = ma ? 0 : ts_cmp(a->key, b->key) * a->dir;
+    return r ? r : a->idx - b->idx;   /* stable */
+}
+
+static void replay_op(srs_out *o, const rop *r)
+{
+    switch (r->kind) {
+    case RO_TEXT: o->text(o, r->c, r->b, r->m, r->s); break;
+    case RO_TAB: o->tab(o); break;
+    case RO_PAR: o->par(o); break;
+    default: o->tabs(o, r->px, r->n); break;
+    }
+}
+
+/* split the recorded ops into rows of cells */
+static GArray *rec_rows(GArray *rec)
+{
+    GArray *rows = g_array_new(FALSE, TRUE, sizeof(trow));
+    trow cur = { 0 };
+    GString *cell = g_string_new(NULL);
+    int sig = 0, cellcol = -1;
+    guint i;
+    cur.cells = g_ptr_array_new_with_free_func(g_free);
+    cur.alllabel = 1;
+    for (i = 0; i <= rec->len; i++) {
+        rop *r = i < rec->len ? &g_array_index(rec, rop, i) : NULL;
+        if (!r || r->kind == RO_TAB || r->kind == RO_PAR) {
+            char *t = g_strstrip(g_string_free(cell, FALSE));
+            if (*t) { cur.nonempty++; if (cellcol != C_LABEL) cur.alllabel = 0; }
+            g_ptr_array_add(cur.cells, t);
+            cell = g_string_new(NULL);
+            cellcol = -1;
+            cur.ncell++;
+        }
+        if (!r || r->kind == RO_PAR) {
+            cur.e = i;
+            cur.tabsig = sig;
+            g_array_append_val(rows, cur);
+            memset(&cur, 0, sizeof cur);
+            cur.a = i + 1;
+            cur.alllabel = 1;
+            cur.cells = g_ptr_array_new_with_free_func(g_free);
+            if (!r) break;
+            continue;
+        }
+        if (r->kind == RO_TEXT) {
+            if (strchr(r->s, '\n')) cur.nl = 1;
+            if (cellcol < 0 && *r->s && strspn(r->s, " ") != strlen(r->s)) cellcol = r->c;
+            g_string_append(cell, r->s);
+        } else if (r->kind == RO_TABS) {
+            int k;
+            sig = 17;
+            for (k = 0; k < r->n; k++) sig = sig * 31 + r->px[k];
+            if (!sig) sig = 1;
+        }
+    }
+    g_string_free(cell, TRUE);
+    if (cur.cells) g_ptr_array_free(cur.cells, TRUE);
+    return rows;
+}
+
+static void rows_free(GArray *rows)
+{
+    guint i;
+    for (i = 0; i < rows->len; i++) g_ptr_array_free(g_array_index(rows, trow, i).cells, TRUE);
+    g_array_free(rows, TRUE);
+}
+
+static int row_is_head(const trow *r) { return !r->nl && r->ncell >= 2 && r->nonempty >= 2 && r->alllabel; }
+
+/* Replay w->rec into the tab's view with each table in its chosen order. */
+static void tbl_replay(swin *w)
+{
+    GArray *rows;
+    srs_out o;
+    gctx g;
+    GString *plain = g_string_new(NULL);
+    int blk_first[TS_MAXBLK], blk_data[TS_MAXBLK], blk_end[TS_MAXBLK], nb = 0, line = 0, b;
+    guint i, j;
+    if (!w->rec) return;
+    rows = rec_rows(w->rec);
+    /* find the tables: heading row, optional blank row, then >= 2 rows on the same tab stops */
+    for (i = 0; i < rows->len && nb < TS_MAXBLK; i++) {
+        trow *h = &g_array_index(rows, trow, i);
+        guint d, k;
+        int groups = 0;
+        if (!row_is_head(h)) continue;
+        d = i + 1;
+        if (d < rows->len && g_array_index(rows, trow, d).ncell == 1 && !*(char *)g_ptr_array_index(g_array_index(rows, trow, d).cells, 0)) d++;
+        for (k = d; k < rows->len; k++) {
+            trow *r = &g_array_index(rows, trow, k);
+            const char *c0 = g_ptr_array_index(r->cells, 0);
+            if (r->nl || r->ncell < 2 || r->tabsig != h->tabsig || row_is_head(r) || !r->nonempty) break;
+            if (*c0 || !groups) groups++;
+        }
+        if (groups < 2) continue;
+        blk_first[nb] = (int)i;
+        blk_data[nb] = (int)d;
+        blk_end[nb] = (int)k;
+        nb++;
+        i = k - 1;
+    }
+    /* a different table shape than last time (another item state): forget the sort */
+    if (nb != w->nblk) for (b = 0; b < TS_MAXBLK; b++) w->sort_dir[b] = 0;
+    for (b = 0; b < w->nblk; b++) { g_free(w->blk_head[b]); w->blk_head[b] = NULL; }
+    w->nblk = nb;
+
+    out_begin_live(w, &o, &g, NULL);
+    b = 0;
+    for (i = 0; i < rows->len; i++) {
+        trow *r = &g_array_index(rows, trow, i);
+        int inblk = b < nb && (int)i == blk_first[b];
+        if (inblk) {
+            /* the heading, with an arrow after the sorted column */
+            int cellno = 0, sc = w->sort_dir[b] ? w->sort_col[b] : -1;
+            GString *hd = g_string_new(NULL);
+            for (j = 0; j < r->cells->len; j++) { if (j) g_string_append_c(hd, '\t'); g_string_append(hd, g_ptr_array_index(r->cells, j)); }
+            w->blk_head[b] = g_string_free(hd, FALSE);
+            w->blk_cols[b] = r->ncell;
+            w->blk_line[b] = line;
+            for (j = r->a; j <= r->e && j < w->rec->len; j++) {
+                rop *x = &g_array_index(w->rec, rop, j);
+                if ((x->kind == RO_TAB || x->kind == RO_PAR) && cellno == sc)
+                    o.text(&o, C_LABEL, 1, 0, w->sort_dir[b] > 0 ? " ▲" : " ▼");
+                if (x->kind == RO_TAB) cellno++;
+                replay_op(&o, x);
+            }
+            line++;
+            /* the rows between the heading and the data (a blank line), then the data in order */
+            for (j = i + 1; (int)j < blk_data[b]; j++) {
+                trow *y = &g_array_index(rows, trow, j);
+                guint q;
+                for (q = y->a; q <= y->e && q < w->rec->len; q++) replay_op(&o, &g_array_index(w->rec, rop, q));
+                line++;
+            }
+            {
+                int n = blk_end[b] - blk_data[b], ng = 0, k;
+                tgroup *gv = g_new0(tgroup, n);
+                for (k = blk_data[b]; k < blk_end[b]; k++) {
+                    trow *y = &g_array_index(rows, trow, k);
+                    const char *c0 = g_ptr_array_index(y->cells, 0);
+                    if (*c0 || !ng) {
+                        gv[ng].first = k;
+                        gv[ng].idx = ng;
+                        gv[ng].dir = w->sort_dir[b] < 0 ? -1 : 1;
+                        gv[ng].key = w->sort_dir[b] && w->sort_col[b] < (int)y->cells->len ? g_ptr_array_index(y->cells, w->sort_col[b]) : "";
+                        ng++;
+                    }
+                    gv[ng - 1].last = k;
+                }
+                if (w->sort_dir[b]) qsort(gv, (size_t)ng, sizeof *gv, tgroup_cmp);
+                for (k = 0; k < ng; k++) {
+                    int rr;
+                    for (rr = gv[k].first; rr <= gv[k].last; rr++) {
+                        trow *y = &g_array_index(rows, trow, rr);
+                        guint q;
+                        for (q = y->a; q <= y->e && q < w->rec->len; q++) replay_op(&o, &g_array_index(w->rec, rop, q));
+                        line++;
+                    }
+                }
+                g_free(gv);
+            }
+            i = (guint)blk_end[b] - 1;
+            b++;
+            continue;
+        }
+        for (j = r->a; j <= r->e && j < w->rec->len; j++) {
+            rop *x = &g_array_index(w->rec, rop, j);
+            replay_op(&o, x);
+            if (x->kind == RO_TEXT) { const char *p; for (p = x->s; (p = strchr(p, '\n')); p++) line++; }
+        }
+        if (r->e < w->rec->len) line++;
+    }
+    /* underline the headings so they look clickable */
+    for (b = 0; b < nb; b++) {
+        GtkTextIter s0, e0;
+        gtk_text_buffer_get_iter_at_line(g.buf, &s0, w->blk_line[b]);
+        e0 = s0;
+        gtk_text_iter_forward_to_line_end(&e0);
+        {   /* each heading's text, not the gaps between them */
+            GtkTextIter a0 = s0, c0;
+            while (gtk_text_iter_compare(&a0, &e0) < 0) {
+                while (gtk_text_iter_compare(&a0, &e0) < 0 && (gtk_text_iter_get_char(&a0) == '\t' || gtk_text_iter_get_char(&a0) == ' '))
+                    gtk_text_iter_forward_char(&a0);
+                c0 = a0;
+                while (gtk_text_iter_compare(&c0, &e0) < 0 && gtk_text_iter_get_char(&c0) != '\t') gtk_text_iter_forward_char(&c0);
+                if (gtk_text_iter_compare(&a0, &c0) < 0) gtk_text_buffer_apply_tag_by_name(g.buf, "sorthdr", &a0, &c0);
+                a0 = c0;
+            }
+        }
+    }
+    /* Copy: the item's own order, exactly as the view had it before sorting existed */
+    for (i = 0; i < w->rec->len; i++) {
+        rop *x = &g_array_index(w->rec, rop, i);
+        if (x->kind == RO_TEXT) { char *c = clean(x->s, -1); g_string_append(plain, c); g_free(c); }
+        else if (x->kind == RO_TAB) g_string_append_c(plain, '\t');
+        else if (x->kind == RO_PAR) g_string_append_c(plain, '\n');
+    }
+    g_free(w->plain);
+    w->plain = g_string_free(plain, FALSE);
+    rows_free(rows);
+    if (w->reset_btn) {
+        int sorted = 0;
+        for (b = 0; b < nb; b++) sorted |= w->sort_dir[b] != 0;
+        gtk_widget_set_visible(w->reset_btn, nb > 0);
+        gtk_widget_set_sensitive(w->reset_btn, sorted);
+    }
+    gtk_widget_set_has_tooltip(w->view, nb > 0);
+}
+
+/* the table heading under a point of the view: block index and column, -1 if none */
+static int tbl_hit(swin *w, int x, int y, int *colp)
+{
+    GtkTextIter it, ls;
+    int bx, by, line, b;
+    char *t;
+    if (!w->nblk || !w->view) return -1;
+    gtk_text_view_window_to_buffer_coords(GTK_TEXT_VIEW(w->view), GTK_TEXT_WINDOW_WIDGET, x, y, &bx, &by);
+    gtk_text_view_get_iter_at_location(GTK_TEXT_VIEW(w->view), &it, bx, by);
+    line = gtk_text_iter_get_line(&it);
+    for (b = 0; b < w->nblk; b++) if (w->blk_line[b] == line) break;
+    if (b == w->nblk) return -1;
+    {   /* below the last line the iter snaps to it: make sure the point is on the heading's row */
+        GdkRectangle r;
+        gtk_text_view_get_iter_location(GTK_TEXT_VIEW(w->view), &it, &r);
+        if (by < r.y || by > r.y + r.height) return -1;
+    }
+    ls = it;
+    gtk_text_iter_set_line_offset(&ls, 0);
+    t = gtk_text_buffer_get_text(w->buf, &ls, &it, FALSE);
+    {
+        int col = 0;
+        const char *p;
+        for (p = t; *p; p++) col += *p == '\t';
+        if (col >= w->blk_cols[b]) col = w->blk_cols[b] - 1;
+        *colp = col;
+    }
+    g_free(t);
+    return b;
+}
+
+static const char *tbl_head_name(swin *w, int b, int col, char *out, size_t n)
+{
+    const char *p = w->blk_head[b] ? w->blk_head[b] : "";
+    int k;
+    for (k = 0; k < col && p; k++) { p = strchr(p, '\t'); if (p) p++; }
+    snprintf(out, n, "%.*s", p ? (int)strcspn(p, "\t") : 0, p ? p : "");
+    return out;
+}
+
+static void tbl_click(swin *w, int b, int col)
+{
+    char name[120];
+    if (!*tbl_head_name(w, b, col, name, sizeof name)) return;   /* no heading over this column */
+    if (w->sort_dir[b] && w->sort_col[b] == col) w->sort_dir[b] = -w->sort_dir[b];
+    else { w->sort_col[b] = col; w->sort_dir[b] = 1; }
+    tbl_replay(w);
+}
+
+static void tbl_reset(swin *w)
+{
+    int b;
+    for (b = 0; b < TS_MAXBLK; b++) w->sort_dir[b] = 0;
+    if (w->rec) tbl_replay(w);
+}
+
+static gboolean on_view_motion(GtkWidget *v, GdkEventMotion *ev, gpointer d)
+{
+    swin *w = d;
+    int col, hit = tbl_hit(w, (int)ev->x, (int)ev->y, &col) >= 0;
+    GdkWindow *win = gtk_text_view_get_window(GTK_TEXT_VIEW(v), GTK_TEXT_WINDOW_TEXT);
+    GdkCursor *c;
+    if (!w->embedded || !win) return FALSE;
+    c = gdk_cursor_new_from_name(gtk_widget_get_display(v), hit ? "pointer" : "text");
+    gdk_window_set_cursor(win, c);
+    if (c) g_object_unref(c);
+    return FALSE;
+}
+
+static gboolean on_view_tooltip(GtkWidget *v, int x, int y, gboolean kb, GtkTooltip *tip, gpointer d)
+{
+    swin *w = d;
+    int col, b;
+    char name[120], s[500];
+    (void)v;
+    if (kb || (b = tbl_hit(w, x, y, &col)) < 0 || !*tbl_head_name(w, b, col, name, sizeof name)) return FALSE;
+    snprintf(s, sizeof s, "Click to sort by %s: smallest or A first (▲), click again for largest or Z first (▼).\n"
+             "Numbers sort by value with their units (MB / GB, MHz, °C, RPM, %%), dates by date.\n"
+             "Reset view puts the item's own order back.", name);
+    gtk_tooltip_set_text(tip, s);
+    return TRUE;
+}
+
+/* ======================================================================
  * settings (SIV keeps SIVDEF.txt; Linux: ~/.config/srs/SRSDEF.ini)
  * ====================================================================== */
 static void settings_load(void)
@@ -310,10 +685,10 @@ static void settings_load(void)
             g_free(th);
         }
         {
-            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports", "Classic View" };
-            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic };
+            static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports", "Classic View", "Sortable Tables" };
+            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic, &g_opt_sort };
             int k;
-            for (k = 0; k < 6; k++) {
+            for (k = 0; k < 7; k++) {
                 GError *e2 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
                 if (!e2) *vars[k] = v; else g_error_free(e2);
@@ -342,6 +717,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Redact Reports", g_opt_redact);
     g_key_file_set_integer(kf, "SRSDEF", "Classic View", g_opt_classic);
+    g_key_file_set_integer(kf, "SRSDEF", "Sortable Tables", g_opt_sort);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
     g_key_file_set_integer(kf, "SRSDEF", "Update Interval", g_update_ms);
     g_key_file_save_to_file(kf, g_ini, NULL);
@@ -452,6 +828,9 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     if (w->kind == W_BENCH && w->running && w->cancelp) *w->cancelp = 1;   /* closing the window stops the run */
     if (w->have_fr) srs_find_free(&w->fr);
     if (w->marks) g_ptr_array_free(w->marks, TRUE);
+    if (w->rec) g_array_free(w->rec, TRUE);
+    g_free(w->plain);
+    { int b; for (b = 0; b < TS_MAXBLK; b++) g_free(w->blk_head[b]); }
     g_ptr_array_remove(g_wins, w);
     if (w == g_classic) g_classic = NULL;
     if (w->kind == W_HOME) home_destroyed(w);
@@ -465,7 +844,8 @@ static void copy_all(swin *w)
     char *txt, *r;
     if (!w->buf) return;
     gtk_text_buffer_get_bounds(w->buf, &s, &e);
-    txt = gtk_text_buffer_get_text(w->buf, &s, &e, FALSE);
+    /* a sorted tab copies the item's own order: the same text as before sorting existed */
+    txt = w->plain ? g_strdup(w->plain) : gtk_text_buffer_get_text(w->buf, &s, &e, FALSE);
     srs_redact = g_opt_redact;   /* the copied text is masked like a saved report; the panel is not */
     r = srs_redact_text(txt);
     srs_redact = 0;
@@ -608,6 +988,7 @@ static void root_done(GPid pid, gint status, gpointer data)
     }
     for (i = 0; i < g_wins->len; i++) { swin *w = g_ptr_array_index(g_wins, i); if (w->kind == W_SECTION) render(w); }
     home_refresh_data();
+    if (status == 0 && g_home_open) empty_scan(1);   /* items that were empty only for want of root data */
     if (g_main) {
         GtkWidget *m = gtk_message_dialog_new(GTK_WINDOW(g_main->win), GTK_DIALOG_MODAL, status == 0 ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING,
                                               GTK_BUTTONS_OK, "%s", status == 0 ? "Root data collected into ~/.cache/srs/root"
@@ -706,8 +1087,22 @@ static void render(swin *w)
     const char *colon;
     if (w->kind != W_SECTION) return;
     colon = strchr(w->id, ':');
-    out_begin_live(w, &o, &g, colon ? colon + 1 : NULL);
     it = srs_section_find(w->id);
+    if (w->embedded && g_opt_sort && it) {   /* main-window tab: record, then replay with the tables sorted */
+        if (w->rec) g_array_free(w->rec, TRUE);
+        w->rec = rec_new();
+        memset(&o, 0, sizeof o);
+        o.text = rc_text; o.tab = rc_tab; o.par = rc_par; o.tabs = rc_tabs;
+        o.ctx = w->rec;
+        o.gui = 1;
+        o.arg = colon ? colon + 1 : NULL;
+        srs_section_render(it, &o);
+        tbl_replay(w);
+        return;
+    }
+    if (w->rec) { g_array_free(w->rec, TRUE); w->rec = NULL; g_free(w->plain); w->plain = NULL; w->nblk = 0;
+                  if (w->reset_btn) gtk_widget_hide(w->reset_btn); }
+    out_begin_live(w, &o, &g, colon ? colon + 1 : NULL);
     if (!it) { so_err(&o, "No such item"); return; }
     srs_section_render(it, &o);
 }
@@ -758,6 +1153,10 @@ static gboolean on_view_click(GtkWidget *view, GdkEventButton *ev, gpointer data
     GtkTextIter it, s, e, b0;
     int bx, by, usb;
     char *line, *above, *pu, *pp;
+    if (ev->type == GDK_BUTTON_PRESS && ev->button == 1 && w->nblk) {   /* a table heading: sort by it */
+        int col, b = tbl_hit(w, (int)ev->x, (int)ev->y, &col);
+        if (b >= 0) { tbl_click(w, b, col); return TRUE; }
+    }
     if (ev->type != GDK_2BUTTON_PRESS || ev->button != 1) return FALSE;
     gtk_text_view_window_to_buffer_coords(GTK_TEXT_VIEW(view), GTK_TEXT_WINDOW_WIDGET, (int)ev->x, (int)ev->y, &bx, &by);
     gtk_text_view_get_iter_at_location(GTK_TEXT_VIEW(view), &it, bx, by);
@@ -855,6 +1254,8 @@ static GtkWidget *make_view(swin *w)
     g_signal_connect(w->view, "button-press-event", G_CALLBACK(on_view_click), w);
     g_signal_connect(w->view, "populate-popup", G_CALLBACK(on_populate), w);
     g_signal_connect(w->view, "copy-clipboard", G_CALLBACK(on_copy_clip), w);
+    g_signal_connect(w->view, "motion-notify-event", G_CALLBACK(on_view_motion), w);
+    g_signal_connect(w->view, "query-tooltip", G_CALLBACK(on_view_tooltip), w);
     gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(sw), w->view);
     return sw;
@@ -2203,7 +2604,7 @@ static void autostart_set(int on)
     g_free(p);
 }
 
-enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC };
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC, OPT_SORT };
 /* "Refresh root data at boot": the packaged srs-root@<user>.service runs srs-root as root
  * once per boot, so the root-only panels are filled without a password prompt. */
 static char *bootroot_unit(void) { return g_strdup_printf("srs-root@%s.service", g_get_user_name()); }
@@ -2258,6 +2659,16 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
     case OPT_AUTOSTART: autostart_set(on); break;
     case OPT_REDACT: g_opt_redact = on; settings_save(); return;
     case OPT_CLASSIC: g_opt_classic = on; settings_save(); return;
+    case OPT_SORT: {
+        guint i;
+        g_opt_sort = on;
+        settings_save();
+        for (i = 0; i < g_wins->len; i++) {
+            swin *x = g_ptr_array_index(g_wins, i);
+            if (x->embedded && x->rendered) render(x);
+        }
+        return;
+    }
     }
     settings_save();
     tray_apply();   /* also rebuilds the tray menu so its check marks stay in sync */
@@ -2298,8 +2709,10 @@ static void build_options(GtkWidget *menu)
         { "Start with the _desktop (autostart)", OPT_AUTOSTART },
         { "Refresh _root data at boot (system service, asks for your password once)", OPT_BOOTROOT },
         { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT },
-        { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC }, { NULL, 0 } };
+        { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC },
+        { "Sortable ta_bles in the main window (click a column heading)", OPT_SORT }, { NULL, 0 } };
     int i, have = tray_available();
+    if (g_home_open) tabs_options(menu);   /* main window: tab bar, lineups, every item as a tab, hidden items */
     {
         static const char *const tl[] = { "_Light (SIV classic)", "_Dark", "_Follow desktop" };
         GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("T_heme");
@@ -2332,9 +2745,10 @@ static void build_options(GtkWidget *menu)
         GtkWidget *it = gtk_check_menu_item_new_with_mnemonic(opts[i].label);
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
               : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on()
-              : opts[i].id == OPT_REDACT ? g_opt_redact : opts[i].id == OPT_CLASSIC ? g_opt_classic : autostart_on();
+              : opts[i].id == OPT_REDACT ? g_opt_redact : opts[i].id == OPT_CLASSIC ? g_opt_classic
+              : opts[i].id == OPT_SORT ? g_opt_sort : autostart_on();
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
-        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC)
+        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC && opts[i].id != OPT_SORT)
             gtk_widget_set_sensitive(it, FALSE);
         if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) {
             gtk_widget_set_sensitive(it, FALSE);
@@ -2483,6 +2897,9 @@ static void load_css(void)
         ".srs-tabbar { padding: 4px 6px; border-bottom: 1px solid @borders; }"
         ".srs-tabbar button { padding: 2px 8px; }"
         "notebook.srs-nb > header { border-top: 1px solid @borders; }"
+        ".srs-strip { padding: 4px 6px; border-top: 1px solid @borders; border-bottom: 1px solid @borders; }"
+        ".srs-strip button { padding: 2px 10px; }"
+        "notebook.srs-nb > header.left tab { padding: 3px 10px; min-height: 0; }"
         ".srs-tool button { min-height: 0; }"
         ".srs-main #panel, .srs-main #panel text { font: 9pt Tahoma; }";
     GString *css = g_string_new(NULL);
@@ -2657,7 +3074,10 @@ typedef struct { GtkWidget *dot, *name, *text, *btn; } checkui;
 typedef struct {
     swin *w;
     GtkWidget *hb, *side, *stack, *search, *menubtn;
+    GtkWidget *badge, *badge_icon, *badge_lbl, *badge_root;   /* privilege badge (2.1) */
     GtkWidget *nb[CAT_N];
+    GtkWidget *strip[CAT_N], *ctl[CAT_N], *alllbl[CAT_N], *pagebox[CAT_N];   /* tab lineups (2.1, gui_tabs.inc) */
+    GtkWidget *lineup_lbl;
     factsui facts[CAT_N];
     GtkWidget *ov_sub, *ov_icon, *ov_verdict, *ov_vsub;
     checkui ck[NCHECK];
@@ -3438,13 +3858,6 @@ static int cat_of_id(const char *id)
     return CAT_TOOLS;
 }
 
-static int is_curated(int cat, const char *id)
-{
-    int i;
-    for (i = 0; g_cats[cat].tabs[i]; i++) if (!strcmp(id, g_cats[cat].tabs[i])) return 1;
-    return 0;
-}
-
 /* ---- section tabs (an embedded panel: same swin, text view and render() as a classic panel) ---- */
 /* a tab comes on screen: draw it the first time (live items every time), start its refresh timer */
 static void on_tab_map(GtkWidget *v, gpointer d)
@@ -3464,6 +3877,9 @@ static void on_tab_destroy(GtkWidget *p, gpointer d)
     if (t->timer) g_source_remove(t->timer);
     if (t->commit_id) g_source_remove(t->commit_id);
     if (t->scratch) g_object_unref(t->scratch);
+    if (t->rec) g_array_free(t->rec, TRUE);
+    g_free(t->plain);
+    { int b; for (b = 0; b < TS_MAXBLK; b++) g_free(t->blk_head[b]); }
     g_ptr_array_remove(g_wins, t);
     g_free(t);
 }
@@ -3473,6 +3889,13 @@ static void on_tab_btn(GtkButton *b, gpointer d)
     const char *tg = g_object_get_data(G_OBJECT(b), "target");
     if (!strcmp(tg, "!pop")) open_section(t->id);
     else if (!strcmp(tg, "!root")) run_root();
+    else if (!strcmp(tg, "!resetview")) tbl_reset(t);
+    else if (!strcmp(tg, "!copy") && !t->rendered) {   /* not drawn yet (Startup shows its manager first) */
+        render(t);
+        t->rendered = 1;
+        if (t->commit_id) { g_source_remove(t->commit_id); commit_idle(t); }
+        copy_all(t);
+    }
     else do_target(t, tg);
 }
 static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
@@ -3482,7 +3905,6 @@ static void on_tab_live(GObject *sw, GParamSpec *ps, gpointer d)
     t->paused = !gtk_switch_get_active(GTK_SWITCH(sw));
     live_start(t);
 }
-static void on_tab_close(GtkButton *b, gpointer d) { (void)b; gtk_widget_destroy(GTK_WIDGET(d)); }
 
 static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const char *target, const char *tip)
 {
@@ -3497,17 +3919,35 @@ static GtkWidget *tool_btn(swin *t, const char *icon, const char *label, const c
     return b;
 }
 
-static swin *tab_add(int cat, const char *id, int select)
+static GtkWidget *tab_label_new(swin *t);
+static void tabs_changed(int cat);
+static int g_tabs_busy;   /* pages being (re)built: don't treat it as the user's edit */
+
+/* the page's tab for an item, or NULL */
+static swin *tab_find(int cat, const char *id, int *index)
+{
+    GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    int i, n = gtk_notebook_get_n_pages(nb);
+    for (i = 0; i < n; i++) {
+        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
+        if (x && !strcmp(x->id, id)) { if (index) *index = i; return x; }
+    }
+    return NULL;
+}
+
+/* temp: opened from the item list, search, Details or a lookup (not kept); pos -1 = at the end */
+static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
 {
     GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
     const srs_item *it = srs_section_find(id);
-    GtkWidget *page, *bar, *src, *tl, *lab;
+    GtkWidget *page, *bar, *src;
     swin *t;
-    char title[200], s[600];
-    int i, n = gtk_notebook_get_n_pages(nb), closable = !is_curated(cat, id);
-    for (i = 0; i < n; i++) {
-        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
-        if (x && !strcmp(x->id, id)) { if (select) gtk_notebook_set_current_page(nb, i); return x; }
+    char s[600];
+    int i;
+    if ((t = tab_find(cat, id, &i))) {
+        if (!temp && t->temp) { t->temp = 0; tab_label_new(t); tabs_changed(cat); }   /* kept from now on */
+        if (select) gtk_notebook_set_current_page(nb, i);
+        return t;
     }
     t = g_new0(swin, 1);
     t->kind = W_SECTION;
@@ -3551,6 +3991,11 @@ static swin *tab_add(int cat, const char *id, int select)
         gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Zero", "!zero", "Start the minimum and maximum columns again from now"), FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, NULL, "_Hide unused", "!hide", "Hide or show sensors that read nothing (press again to show them)"), FALSE, FALSE, 0);
     }
+    t->reset_btn = tool_btn(t, "view-sort-ascending-symbolic", "Reset _view", "!resetview",
+                            "Put the tables back in the item's own order. Click a column heading to sort by it: "
+                            "first click smallest or A first (\u25B2), second click largest or Z first (\u25BC).");
+    gtk_widget_set_no_show_all(t->reset_btn, TRUE);
+    gtk_box_pack_start(GTK_BOX(bar), t->reset_btn, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "view-refresh-symbolic", "_Refresh", "!refresh", "Read this item again now (F5)"), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(bar), tool_btn(t, "edit-copy-symbolic", "_Copy", "!copy",
                        "Copy all of this text. With Options > Redact on, serials, UUIDs, MACs and the computer name are masked."), FALSE, FALSE, 0);
@@ -3561,7 +4006,17 @@ static swin *tab_add(int cat, const char *id, int select)
     {
         GtkWidget *sw = make_view(t);
         gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
-        gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
+        if (!strcmp(id, "startup")) {   /* Startup: the manager (switches, Undo, Add) and the report */
+            GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
+            gtk_stack_add_titled(GTK_STACK(st), startup_manager_new(), "manage", "Manage");
+            gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");
+            gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
+            gtk_widget_set_tooltip_text(ss, "Manage: turn startup items off and on, add one. Report: the Startup programs item as text "
+                                            "(what Copy and Save Report give)");
+            gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
+            gtk_box_reorder_child(GTK_BOX(bar), ss, 1);
+            gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
+        } else gtk_box_pack_start(GTK_BOX(page), sw, TRUE, TRUE, 0);
     }
     gtk_text_view_set_left_margin(GTK_TEXT_VIEW(t->view), 10);
     gtk_text_view_set_top_margin(GTK_TEXT_VIEW(t->view), 8);
@@ -3570,28 +4025,16 @@ static swin *tab_add(int cat, const char *id, int select)
     g_signal_connect(page, "destroy", G_CALLBACK(on_tab_destroy), t);
     g_ptr_array_add(g_wins, t);
 
-    if (it && strchr(id, ':')) snprintf(title, sizeof title, "%s %s", it->title, strchr(id, ':') + 1);
-    else snprintf(title, sizeof title, "%s", it ? it->title : id);
-    tl = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-    lab = gtk_label_new(title);
-    gtk_box_pack_start(GTK_BOX(tl), lab, FALSE, FALSE, 0);
-    snprintf(s, sizeof s, "%s  [%s]", it ? it->title : id, id);
-    gtk_widget_set_tooltip_text(tl, s);
-    if (closable) {
-        GtkWidget *x = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
-        gtk_button_set_relief(GTK_BUTTON(x), GTK_RELIEF_NONE);
-        gtk_widget_set_focus_on_click(x, FALSE);
-        gtk_widget_set_tooltip_text(x, "Close this tab (Ctrl+W)");
-        g_signal_connect(x, "clicked", G_CALLBACK(on_tab_close), page);
-        gtk_box_pack_start(GTK_BOX(tl), x, FALSE, FALSE, 0);
-    }
-    gtk_widget_show_all(tl);
+    t->temp = temp;
     gtk_widget_show_all(page);
-    i = gtk_notebook_append_page(nb, page, tl);
+    i = gtk_notebook_insert_page(nb, page, NULL, pos);
+    tab_label_new(t);
     gtk_notebook_set_tab_reorderable(nb, page, TRUE);
     if (select) gtk_notebook_set_current_page(nb, i);
     return t;
 }
+
+static swin *tab_add(int cat, const char *id, int select) { return tab_add_at(cat, id, select, 1, -1); }
 
 /* ---- navigation ---- */
 static void facts_update(int cat);
@@ -3636,7 +4079,6 @@ static void open_item(const char *id)
 }
 
 static void on_go_cat(GtkButton *b, gpointer d) { (void)b; home_go(GPOINTER_TO_INT(d)); }
-static void on_more_item(GtkMenuItem *mi, gpointer d) { (void)mi; open_item(d); }
 
 static void on_launch(GtkButton *b, gpointer d)
 {
@@ -3934,72 +4376,12 @@ static gint item_title_cmp(gconstpointer a, gconstpointer b)
     return g_ascii_strcasecmp(x->title, y->title);
 }
 
-/* show a menu's items (not the menu: showing it outside a popup maps an empty window) */
-static void menu_show_items(GtkWidget *m);
-static void menu_show_one(GtkWidget *it, gpointer d)
-{
-    GtkWidget *sub = GTK_IS_MENU_ITEM(it) ? gtk_menu_item_get_submenu(GTK_MENU_ITEM(it)) : NULL;
-    (void)d;
-    gtk_widget_show(it);
-    if (sub) menu_show_items(sub);
-}
-static void menu_show_items(GtkWidget *m) { gtk_container_foreach(GTK_CONTAINER(m), menu_show_one, NULL); }
-
-/* "All items": every item of the category (expert ones included), alphabetical */
-static GtkWidget *more_menu(int cat, int *count)
-{
-    GtkWidget *m = gtk_menu_new();
-    GPtrArray *v = g_ptr_array_new();
-    int i, n = srs_section_count();
-    guint k;
-    for (i = 0; i < n; i++) {
-        const srs_item *s = srs_section_at(i);
-        if (s && s->id && cat_of_id(s->id) == cat) g_ptr_array_add(v, (gpointer)s);
-    }
-    g_ptr_array_sort(v, item_title_cmp);
-    if (cat == CAT_CPU) {   /* SIV's CPU-n / Cache-n buttons: one entry per logical CPU */
-        static const char *const what[] = { "processor", "cache" };
-        static const char *const lab[] = { "_Each CPU (Processor CPU-n)", "Cache levels of _each CPU (Cache-n)" };
-        int w2;
-        for (w2 = 0; w2 < 2; w2++) {
-            GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic(lab[w2]);
-            int c;
-            for (c = 0; c < burn_ncpu(); c++) {
-                char id[40], l[40];
-                GtkWidget *it;
-                snprintf(id, sizeof id, "%s:%d", what[w2], c);
-                snprintf(l, sizeof l, "CPU-%d", c);
-                it = gtk_menu_item_new_with_label(l);
-                g_signal_connect_data(it, "activate", G_CALLBACK(on_more_item), g_strdup(id), (GClosureNotify)(void (*)(void))g_free, 0);
-                gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
-            }
-            gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
-            gtk_menu_shell_append(GTK_MENU_SHELL(m), top);
-        }
-        gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
-    }
-    for (k = 0; k < v->len; k++) {
-        const srs_item *s = g_ptr_array_index(v, k);
-        char lab[240];
-        GtkWidget *it;
-        snprintf(lab, sizeof lab, "%s  [%s]%s", s->title, s->id,
-                 s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
-        it = gtk_menu_item_new_with_label(lab);
-        g_signal_connect(it, "activate", G_CALLBACK(on_more_item), (gpointer)s->id);
-        gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
-    }
-    *count = (int)v->len;
-    g_ptr_array_free(v, TRUE);
-    menu_show_items(m);
-    return m;
-}
+#include "gui_tabs.inc"
 
 static GtkWidget *build_cat_page(int cat)
 {
     const catdef *d = &g_cats[cat];
-    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb, *mb, *bx;
-    char s[200];
-    int i, cnt = 0;
+    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb;
     gtk_widget_set_margin_start(head, 20);
     gtk_widget_set_margin_end(head, 20);
     gtk_widget_set_margin_top(head, 16);
@@ -4068,24 +4450,8 @@ static GtkWidget *build_cat_page(int cat)
     }
     gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
 
-    nb = gtk_notebook_new();
-    g_home->nb[cat] = nb;
-    gtk_style_context_add_class(gtk_widget_get_style_context(nb), "srs-nb");
-    gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
-    gtk_notebook_set_show_border(GTK_NOTEBOOK(nb), FALSE);
-    bx = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-    mb = gtk_menu_button_new();
-    gtk_menu_button_set_popup(GTK_MENU_BUTTON(mb), more_menu(cat, &cnt));
-    snprintf(s, sizeof s, "All %d items", cnt);
-    gtk_box_pack_start(GTK_BOX(bx), gtk_label_new(s), FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(bx), gtk_image_new_from_icon_name("pan-down-symbolic", GTK_ICON_SIZE_BUTTON), FALSE, FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(mb), bx);
-    gtk_button_set_relief(GTK_BUTTON(mb), GTK_RELIEF_NONE);
-    snprintf(s, sizeof s, "Every SRS item in %s, the expert ones too (opens as a new tab)", d->title);
-    gtk_widget_set_tooltip_text(mb, s);
-    gtk_widget_show_all(mb);
-    gtk_notebook_set_action_widget(GTK_NOTEBOOK(nb), mb, GTK_PACK_END);
-    for (i = 0; d->tabs[i]; i++) tab_add(cat, d->tabs[i], 0);
+    nb = tabs_area(cat);
+    page_fill(cat);
     gtk_box_pack_start(GTK_BOX(vb), nb, TRUE, TRUE, 0);
     return vb;
 }
@@ -4262,6 +4628,10 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     gtk_widget_set_sensitive(hmenu_add(m, "_Copy This Tab", "copy", 0, 0), home_cur_tab() != NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     sub = gtk_menu_new();
+    lineup_menu(sub);
+    it = hmenu_add(m, "_Lineup (tabs on each page)", NULL, 0, 0);
+    gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
+    sub = gtk_menu_new();
     build_options(sub);
     it = hmenu_add(m, "_Options", NULL, 0, 0);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
@@ -4284,11 +4654,59 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     gtk_menu_popup_at_widget(GTK_MENU(m), GTK_WIDGET(b), GDK_GRAVITY_SOUTH_EAST, GDK_GRAVITY_NORTH_EAST, NULL);
 }
 
+/* ---- privilege badge: what SRS can read right now ---- */
+/* euid 0 in the first user namespace (a user namespace's mapped "root" cannot read root data) */
+static int real_root(void)
+{
+    char b[128] = "";
+    unsigned a = 1, c = 1;
+    if (geteuid() != 0) return 0;
+    if (!rd_str("/proc/self/uid_map", b, sizeof b)) return 1;
+    return sscanf(b, "%u %u", &a, &c) == 2 && a == 0 && c == 0;
+}
+
+static void badge_update(void)
+{
+    const char *f;
+    char tip[900];
+    int root, full;
+    GStatBuf st;
+    if (!g_home || !g_home->badge) return;
+    root = real_root();
+    f = so_root_file("collected.txt");
+    full = root || f;
+    gtk_image_set_from_icon_name(GTK_IMAGE(g_home->badge_icon), icon_pick(full ? "security-high-symbolic|channel-secure-symbolic|emblem-ok-symbolic"
+                                                                                  : "security-low-symbolic|dialog-password-symbolic"), GTK_ICON_SIZE_BUTTON);
+    gtk_label_set_text(GTK_LABEL(g_home->badge_lbl), full ? "Full access" : "Limited (user)");
+    set_level_class(g_home->badge_icon, full ? LV_OK : LV_UNK);
+    if (root)
+        snprintf(tip, sizeof tip, "SRS is running as root: everything it shows is read directly, including drive health (SMART), "
+                                  "memory stick details (SPD), serial numbers and BIOS tables.");
+    else if (f && !g_stat(f, &st)) {
+        char when[64];
+        time_t now = time(NULL), m = st.st_mtime;
+        struct tm a, b;
+        localtime_r(&m, &a);
+        localtime_r(&now, &b);
+        strftime(when, sizeof when, a.tm_yday == b.tm_yday && a.tm_year == b.tm_year ? "at %H:%M" : "on %Y-%m-%d at %H:%M", &a);
+        snprintf(tip, sizeof tip, "Root data collected %s (srs-root, read-only). The items that need root - drive health (SMART), "
+                                  "memory stick details (SPD), serial numbers, BIOS and ACPI tables - show it.\n"
+                                  "Menu > Run as root collects it again; Options > Refresh root data at boot does it at every start.", when);
+    } else
+        snprintf(tip, sizeof tip, "SRS runs as your user. Some data can only be read as root: drive health (SMART), memory stick "
+                                  "details (SPD), serial numbers and BIOS tables (DMI), ACPI tables, CPU registers (MSRs) and the "
+                                  "kernel log.\nRun as root collects them once with one password prompt, read-only (srs-root); "
+                                  "Options > Refresh root data at boot does it at every start.");
+    gtk_widget_set_tooltip_text(g_home->badge, tip);
+    gtk_widget_set_visible(g_home->badge_root, !full);
+}
+
 /* ---- refresh, keys, lifetime ---- */
 static void home_refresh_data(void)
 {
     swin *t;
     if (!g_home) return;
+    badge_update();
     cap_flush();
     hs_update();
     if (g_home->cur == CAT_OVERVIEW) ov_update(); else facts_update(g_home->cur);
@@ -4333,7 +4751,15 @@ static int home_key(swin *w, GdkEventKey *ev)
         case GDK_KEY_m: on_menu_btn(GTK_BUTTON(g_home->menubtn), NULL); return TRUE;
         case GDK_KEY_d: open_item("all-dev"); return TRUE;
         case GDK_KEY_h: toggle_highlight(); return TRUE;
-        case GDK_KEY_w: if (t && !is_curated(t->cat, t->id)) gtk_widget_destroy(t->page); return TRUE;
+        case GDK_KEY_w: if (t) gtk_widget_destroy(t->page); return TRUE;
+        case GDK_KEY_t: if (g_home->cur != CAT_OVERVIEW) picker_open(g_home->ctl[g_home->cur], g_home->cur, PK_ADD, NULL); return TRUE;
+        case GDK_KEY_Page_Up: case GDK_KEY_Page_Down:   /* every tab-bar layout, wherever the focus is */
+            if (g_home->cur != CAT_OVERVIEW && g_home->nb[g_home->cur]) {
+                GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[g_home->cur]);
+                int n = gtk_notebook_get_n_pages(nb), c = gtk_notebook_get_current_page(nb);
+                if (n) gtk_notebook_set_current_page(nb, (c + (k == GDK_KEY_Page_Up ? n - 1 : 1)) % n);
+            }
+            return TRUE;
         default: break;
         }
     }
@@ -4389,6 +4815,23 @@ static void home_open(int as_main)
     gtk_widget_set_tooltip_text(b, "Read everything on this page again (F5)");
     g_signal_connect(b, "clicked", G_CALLBACK(on_refresh_btn), NULL);
     gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), b);
+    {   /* privilege badge: "Full access" with root data, else "Limited (user)" and a Run as root button */
+        GtkWidget *bx = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+        g_home->badge = gtk_event_box_new();
+        g_home->badge_icon = gtk_image_new();
+        g_home->badge_lbl = label_cls("", "srs-cap", 0);
+        gtk_box_pack_start(GTK_BOX(bx), g_home->badge_icon, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(bx), g_home->badge_lbl, FALSE, FALSE, 0);
+        gtk_container_add(GTK_CONTAINER(g_home->badge), bx);
+        gtk_widget_set_margin_start(g_home->badge, 8);
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), g_home->badge);
+        g_home->badge_root = gtk_button_new_with_label("Run as root...");
+        gtk_widget_set_tooltip_text(g_home->badge_root, "Collect the root-only data once with one password prompt (srs-root, read-only)");
+        gtk_widget_set_no_show_all(g_home->badge_root, TRUE);
+        gtk_widget_set_valign(g_home->badge_root, GTK_ALIGN_CENTER);
+        g_signal_connect(g_home->badge_root, "clicked", G_CALLBACK(on_launch), (gpointer)"root");
+        gtk_header_bar_pack_start(GTK_HEADER_BAR(hb), g_home->badge_root);
+    }
     gtk_window_set_titlebar(GTK_WINDOW(w->win), hb);
 
     paned = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
@@ -4420,6 +4863,9 @@ static void home_open(int as_main)
     gtk_widget_set_tooltip_text(b, "The SIV-style main window and panels, with every button row (Menu > Classic view)");
     g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)"classic");
     gtk_box_pack_start(GTK_BOX(box), b, FALSE, FALSE, 0);
+    g_home->lineup_lbl = label_cls("", "dim-label srs-cap", 0.5);
+    gtk_label_set_ellipsize(GTK_LABEL(g_home->lineup_lbl), PANGO_ELLIPSIZE_END);
+    gtk_box_pack_start(GTK_BOX(box), g_home->lineup_lbl, FALSE, FALSE, 2);
     {
         char v[64];
         snprintf(v, sizeof v, "SRS %s", SRS_VERSION);
@@ -4429,6 +4875,8 @@ static void home_open(int as_main)
     gtk_widget_set_size_request(side, 230, -1);
     gtk_box_pack_start(GTK_BOX(paned), side, FALSE, FALSE, 0);
 
+    tabs_state_load();
+    empty_load();
     g_home->stack = gtk_stack_new();
     gtk_stack_set_transition_type(GTK_STACK(g_home->stack), GTK_STACK_TRANSITION_TYPE_NONE);
     gtk_stack_add_named(GTK_STACK(g_home->stack), build_overview(), g_cats[CAT_OVERVIEW].name);
@@ -4441,7 +4889,11 @@ static void home_open(int as_main)
         g_signal_connect(w->win, "window-state-event", G_CALLBACK(on_main_state), NULL);
     }
     gtk_widget_show_all(w->win);
+    layout_apply();
+    lineup_label_update();
+    empty_scan(0);   /* in a child process, at most once a day: which items have nothing to show */
     home_go(CAT_OVERVIEW);
+    badge_update();
     ov_update();
     gtk_widget_grab_focus(lb);
     g_home->tick = g_timeout_add(3000, home_tick, NULL);
@@ -4455,6 +4907,7 @@ int main(int argc, char **argv)
     g_free(base);
     if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & cost, no window */
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
+    if (argc > 1 && !strcmp(argv[1], "--gui-scan-empty")) return scan_empty_main();   /* child of the main window */
     gethostname(g_host, sizeof g_host);
     /* GTK_THEME (e.g. adw-gtk3-dark) would override the in-app theme choice: remember it for
        "Follow desktop", then let the Theme option drive Adwaita light / dark for this process */

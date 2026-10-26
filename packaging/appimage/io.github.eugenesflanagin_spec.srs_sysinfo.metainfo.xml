@@ -66,6 +66,13 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.1.0" date="2026-10-26">
+      <description>
+        <p>Tabs you can arrange and save as lineups, sortable tables, a Startup manager that turns
+        startup items off and on without deleting anything, a Full access / Limited badge, and
+        stock-versus-in-effect clocks on CPU Clocks.</p>
+      </description>
+    </release>
     <release version="2.0.0" date="2026-10-26">
       <description>
         <p>A new main window with an Overview that answers "Is my PC OK?", one page per category,

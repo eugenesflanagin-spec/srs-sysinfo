@@ -61,7 +61,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 551 items, field by
+<strong>Section Reference</strong>: every one of the 545 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -128,7 +128,7 @@ size (shows your cache levels).</li>
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (551 in total with SRS's own extras):</p>
+5.87's report items (545 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -142,7 +142,11 @@ kernel modules, registry -&gt; <code>/etc</code> and
 </ul>
 <p><strong>SRS is read-only.</strong> It never changes a setting, never
 writes to hardware or firmware, and makes no network traffic except one
-<code>ping</code> to your router when you open the Ping item.</p>
+<code>ping</code> to your router when you open the Ping item. The one
+place that changes something is the Startup manager (<a
+href="#user-guide--69-the-startup-manager">6.9</a>), and only when you click its
+switches or buttons: it turns startup items off and on, and never
+deletes anything.</p>
 <h2 id="user-guide--2-who-it-is-for">2. Who it is for</h2>
 <ul>
 <li><strong>Beginners</strong> who want to know what hardware they have
@@ -490,20 +494,26 @@ away (<a href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</p>
 <tr>
 <td><strong>Title bar</strong></td>
 <td><strong>Refresh</strong> (left; also <strong>F5</strong>) reads the
-page again. The <strong>search box</strong> finds any item or text (<a
+page again. Next to it the <strong>badge</strong> says whether SRS can
+read everything: <strong>Full access</strong> or <strong>Limited
+(user)</strong> with a <strong>Run as root...</strong> button (<a
+href="#user-guide--610-full-access-or-limited-the-badge">6.10</a>). The
+<strong>search box</strong> finds any item or text (<a
 href="#user-guide--64-search">6.4</a>). The <strong>menu button</strong> (three
-lines; also <strong>Ctrl+M</strong>) has Save Report, Options, Run as
-root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
+lines; also <strong>Ctrl+M</strong>) has Save Report, Lineup, Options,
+Run as root and more (<a href="#user-guide--65-the-menu">6.5</a>).</td>
 </tr>
 <tr>
 <td><strong>Sidebar</strong> (left)</td>
 <td>The pages: Overview, Processor, Memory, Motherboard &amp; BIOS,
 Graphics &amp; audio, Storage, Network, Sensors, USB &amp; PCI devices,
-Operating system, Benchmarks &amp; stress, Tools, and (new in 2.1) Power
-&amp; cost. <strong>Alt+1</strong> ... <strong>Alt+9</strong>,
-<strong>Alt+0</strong>, <strong>Alt+-</strong> and
-<strong>Alt+=</strong> jump straight to the first twelve. Below the
-list: <strong>Classic view</strong> and the SRS version.</td>
+Operating system, Benchmarks &amp; stress, Tools. <strong>Alt+1</strong>
+... <strong>Alt+9</strong>, <strong>Alt+0</strong>,
+<strong>Alt+-</strong> and <strong>Alt+=</strong> jump straight to them.
+Below the list: <strong>Classic view</strong>, the tab
+<strong>lineup</strong> in use (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>) and the SRS
+version.</td>
 </tr>
 <tr>
 <td><strong>Page</strong> (right)</td>
@@ -518,7 +528,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 551 of them.</p>
+<strong>SMART drives</strong>; there are 545 of them.</p>
 <table>
 <thead>
 <tr>
@@ -598,22 +608,29 @@ results)</td>
 <td>Look-ups, reports and SRS's own items</td>
 <td>About SRS, Help</td>
 </tr>
-<tr>
-<td><strong>Power &amp; cost</strong></td>
-<td>How much power the PC uses, what it costs, history (estimates; see
-<a href="#user-guide--67-power--cost">6.7</a>)</td>
-<td>Now, History, Sessions, Price, Setup, Alarms, Sources</td>
-</tr>
 </tbody>
 </table>
-<p>The tabs are the items most people need. <strong>All N items</strong>
-at the right end of the tab row lists <strong>every</strong> item of the
-page, the expert ones included, in alphabetical order; "(not present)"
-and "(Windows-only)" mark the ones SIV has but this PC or Linux does
-not. Picking one opens it as an extra tab with a close button (x, or
-<strong>Ctrl+W</strong>). On the Processor page the list also has
-<strong>Each CPU</strong> and <strong>Cache levels of each CPU</strong>
-(SIV's CPU-n and Cache-n buttons).</p>
+<p>The tabs above are the standard ones (the <strong>Enthusiast</strong>
+lineup, SRS's default). You can change them on any page at any time (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
+<p><strong>All N items</strong> at the right end of the tab row lists
+<strong>every</strong> item of the page, the expert ones included, in
+alphabetical order. It is a jump list: type a few letters to filter it
+(every word must match), then pick an item or press
+<strong>Enter</strong> for the first one. If the item already has a tab,
+SRS goes to it ("open" at the right of the row); otherwise it opens as a
+<strong>temporary tab</strong> (its name in <em>italics</em>), which is
+gone the next time SRS starts unless you keep it (right-click it &gt;
+<strong>Keep this tab</strong>). On the Processor page the list ends
+with <strong>Processor CPU-n</strong> and <strong>Cache levels
+CPU-n</strong> for each CPU (SIV's CPU-n and Cache-n buttons).</p>
+<p>Items that cannot show anything on this PC are left out of the list
+and the tabs: SIV's Windows-only items, hardware SIV checks for that
+this PC does not have (for example RAID controllers), and items that
+came out empty here. The list says how many are hidden; <strong>Options
+-&gt; Show hidden items</strong> lists them greyed, with the reason
+("Windows-only", "not present", "nothing to show on this PC"), and you
+can still open them.</p>
 <h3 id="user-guide--62-overview-is-my-pc-ok">6.2 Overview: "Is my PC OK?"</h3>
 <p>The Overview starts with a line about the PC (board, Linux
 distribution, time since start-up), then <strong>Is my PC OK?</strong>:
@@ -744,8 +761,9 @@ opens its page.</p>
 <p>Each page has three parts:</p>
 <p><img src="../images/processor-page.png" alt="Processor page" /></p>
 <p><em>The Processor page: the heading, the key facts as tiles, then the
-tabs. <strong>All 43 items</strong> at the right end of the tab row
-lists every processor item.</em></p>
+tabs. <strong>+</strong> adds a tab, and <strong>All 36 items</strong>
+at the right end of the tab row lists every processor item that can show
+something on this PC.</em></p>
 <ol type="1">
 <li><strong>The heading:</strong> the topic and one sentence about what
 it is.</li>
@@ -790,9 +808,16 @@ read nothing.</td>
 <td>Read the item again (<strong>F5</strong>).</td>
 </tr>
 <tr>
+<td><strong>Reset view</strong></td>
+<td>Only on tabs with tables: puts the tables back in the item's own
+order (<a href="#user-guide--68-sortable-tables">6.8</a>). Greyed until you
+sort.</td>
+</tr>
+<tr>
 <td><strong>Copy</strong></td>
-<td>Copy all the text. With <strong>Options -&gt; Redact</strong> on,
-serials, UUIDs, MACs and the computer name are masked in the copy (<a
+<td>Copy all the text, in the item's own order even when a table is
+sorted. With <strong>Options -&gt; Redact</strong> on, serials, UUIDs,
+MACs and the computer name are masked in the copy (<a
 href="#user-guide--17-privacy-before-you-share-a-report">17</a>).</td>
 </tr>
 <tr>
@@ -812,7 +837,10 @@ the same text and colours as the classic Sensors panel, plus the Live
 switch and the Zero and Hide unused buttons.</em></p>
 <p>Double-click a line with a PCI or USB ID to look it up (it opens as a
 tab on the Tools page). Right-click the text for Copy, Select All, the
-guide link and the Classic Menu.</p>
+guide link and the Classic Menu. Click a column heading in a table to
+sort it (<a href="#user-guide--68-sortable-tables">6.8</a>); right-click a tab for
+Keep, Replace with..., Move and Close (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; stress</strong> page has buttons that
 open the CPU Benchmark, IPI Delay, Memory Latency, CPU Burnin and CPU
 Stress windows (<a href="#user-guide--9-tools">9</a>); nothing runs until you press
@@ -861,6 +889,11 @@ href="#user-guide--131-save-report-and-save-all-items-siv-format-text">13.1</a>)
 <tr>
 <td><strong>Copy This Tab</strong></td>
 <td>Same as the tab's Copy button.</td>
+</tr>
+<tr>
+<td><strong>Lineup</strong></td>
+<td>Switch between tab lineups, save, export or import one (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</td>
 </tr>
 <tr>
 <td><strong>Options</strong></td>
@@ -1058,469 +1091,282 @@ hides to tray" is on, see <a href="#user-guide--11-system-tray">11</a>.)</td>
 </table>
 <p>Every button label has an underlined letter: press <strong>Alt + that
 letter</strong> to click it.</p>
-<h3 id="user-guide--67-power--cost">6.7 Power &amp; cost</h3>
-<blockquote>
-<p><strong>Estimates only. Please read.</strong> SRS shows how much
-power your computer <strong>probably</strong> uses and what it
-<strong>might</strong> cost. These numbers are
-<strong>estimates</strong>, not a meter reading and not a bill. Only
-some parts of a PC report their own power (usually the processor and the
-graphics card), and even those reports can be off. Everything else
-(motherboard, memory, drives, fans, lights, the power supply's own
-losses, and your screens) is <strong>guessed</strong> from typical
-values: that is why SRS shows a range. Prices come from what you type or
-from public tables that may be out of date or not match your plan. CO₂
-figures use grid averages. Alarms can be late, missed or wrong.
-<strong>Do not use SRS for billing, for safety decisions, or as proof of
-energy use.</strong> Always check your electricity bill and your
-supplier. SRS is free software provided "as is", without any warranty
-(GPL v2.0 or later, sections 11-12); Eugene Flanagin and the SRS
-contributors are not responsible for any errors, losses, costs or damage
-that come from using these estimates.</p>
-</blockquote>
-<p>SRS shows this note in full the first time you open the page (press
-<strong>I understand</strong>), then as a yellow banner at the top of
-the page (<strong>Read the note</strong> shows it again) and at the top
-of every CSV export.</p>
-<p><strong>In plain words:</strong> the page answers "how much power
-does this PC use, and what does that cost me?". The processor and the
-graphics card tell Linux how much power they use; SRS adds a low and a
-high guess for every other part, then allows for the power supply's own
-losses. The result is a centre figure with a likely range, for example
-<strong>about 160 W, likely between 116 W and 205 W at the
-wall</strong>. Recording keeps one line per minute, so you can see days,
-weeks and months, with the cost at your price.</p>
-<p>The page is the last one in the sidebar (<strong>Power &amp;
-cost</strong>; it has no Alt+number key, so every other page keeps its
-key). Open it from the command line with
-<code>srs-gui --gui-open=power-cost</code>.</p>
-<p><img src="../images/power-now.png"
-alt="Power &amp; cost, Now tab (this PC idling)" /></p>
-<h4 id="user-guide--now">Now</h4>
-<ul>
-<li><strong>The big number</strong> is the estimate at the wall, with
-the likely range under it and the cost per hour, day, month and year
-<strong>if the PC kept drawing this much</strong> at your price.</li>
-<li>The line under it says how each part is known:
-<strong>measured</strong> (zenergy, RAPL), <strong>reported by the
-driver</strong> (amdgpu), or <strong>estimated</strong>.</li>
-<li><strong>Recording:</strong> <strong>Off</strong> (nothing is saved;
-the live figure still works), <strong>For a set time</strong> (choose
-minutes, hours or days and press <strong>Start</strong>; it stops by
-itself), or <strong>Always (forever)</strong> (whenever SRS runs, also
-hidden in the tray; see the background recorder below for when SRS is
-closed).</li>
-<li><strong>The last 10 minutes:</strong> the line is the estimate, the
-shaded band the likely range.</li>
-<li><strong>Where the watts go:</strong> every part with its watts and
-where the figure comes from, the power supply's losses, and the total at
-the wall.</li>
-</ul>
-<h4 id="user-guide--history">History</h4>
-<p>Pick a range (last 24 hours by hour; last 7 or 30 days by day; last
-12 weeks by week; last 12 months or everything by month) and
-<strong>Energy</strong> or <strong>Cost</strong>. Bars are the estimate,
-the whiskers the likely range. Hover over a bar for its numbers. The
-summary line gives the totals, how long SRS recorded and how long the PC
-slept, the gaps that were not recorded, CO₂ if you turned it on, and
-<strong>busy vs idle</strong>: the energy used while the processor or
-graphics card was busy (at or above the Sessions tab's level, 50 % by
-default) against the rest.</p>
-<ul>
-<li><strong>Export CSV...</strong> writes the history for a spreadsheet:
-one row per minute, hour, day, week, month or year, the shown range or
-everything, with a decimal point or a decimal comma (then columns are
-split by <code>;</code>). The file starts with <code>#</code> lines: the
-note above, your power supply, parts list and price. Columns:
-<code>period</code>, <code>start_utc</code>, <code>kwh_estimate</code>,
-<code>kwh_low</code>, <code>kwh_high</code>,
-<code>cpu_kwh_measured</code>, <code>gpu_kwh_measured</code>,
-<code>cost_&lt;currency&gt;</code>, <code>avg_w</code>,
-<code>max_w</code>, <code>hours_recorded</code>,
-<code>hours_asleep</code>, <code>hours_busy</code>,
-<code>kwh_busy</code>.</li>
-<li><strong>Re-price...</strong> costs every recorded minute again with
-today's price settings. Normally each minute keeps the price that
-applied when it was recorded (so a time-of-use or tiered price is exact
-to the minute); use this after correcting a wrong price.</li>
-</ul>
-<p><img src="../images/power-history.png"
-alt="Power &amp; cost, History tab (example data)" /></p>
-<p><em>The history picture uses made-up example data.</em></p>
-<h4 id="user-guide--sessions">Sessions</h4>
-<p>A <strong>session</strong> is a stretch of heavy use, such as a game
-or a long render: the processor or the graphics card busy at or above a
-level (50 % by default) for 2 minutes, ending after 3 quiet minutes (all
-three adjustable). A short pause stays inside the session. Each session
-shows when it started, how long it lasted, its energy, cost, highest
-draw and CO₂. These are <strong>the whole PC's</strong> figures while
-the session lasted: Linux cannot split power by program.</p>
-<h4 id="user-guide--price">Price</h4>
-<ul>
-<li><strong>Currency:</strong> pick one (its usual symbol, placement and
-decimals follow), or <strong>Custom</strong> and type your own.</li>
-<li><strong>Your price:</strong>
-<ul>
-<li><strong>Flat:</strong> one price per kWh, from your bill.</li>
-<li><strong>Tiered:</strong> up to six tiers ("the first 500 kWh a month
-at A, then B"). Because the PC is only part of your home's use, you can
-say how much the rest of the home uses a month; SRS counts that first,
-so the PC lands in the tier it really adds to. 0 = count the PC
-first.</li>
-<li><strong>Time of use:</strong> four price levels (names and prices
-editable) and a grid of 24 hours for weekdays and weekends: click an
-hour to change its level. Each minute is priced at the level of its
-hour.</li>
-<li><strong>Taxes and levies</strong> (%) that are not in the price, and
-a <strong>standing charge</strong> per day. The standing charge is off
-in the totals by default, because the PC does not cause it.</li>
-</ul></li>
-<li><strong>Typical prices for your area (offline):</strong> if you
-don't know your price, pick your country and region; SRS fills in an
-average <strong>from tables built into SRS. Nothing is sent
-anywhere.</strong> The country is pre-selected from your time zone. For
-the United States, type a five-digit <strong>ZIP code</strong> and press
-Enter: SRS picks the state and shows the utility that probably serves it
-with its average residential price. <strong>Use this price</strong>
-copies it into "Your price". These are averages for an area, not your
-plan, and they may be out of date; the date of each table is shown. Your
-own bill's price is always better.</li>
-<li><strong>What if:</strong> the cost a year if the PC were left on
-24/7 at today's draw and at this month's recorded average, and this
-month's forecast from the recorded days.</li>
-<li><strong>CO₂ estimate:</strong> off, or a country's (or the world's)
-average grid emissions per kWh. Grid averages only; your supplier's mix
-may be very different.</li>
-</ul>
-<h4 id="user-guide--setup">Setup</h4>
-<ul>
-<li><strong>Power supply (PSU):</strong> pick yours or the nearest
-<strong>80 PLUS</strong> level at 115 V or 230 V, and type its rating in
-watts. <strong>I don't know my power supply</strong> uses a wide range.
-Experts can type an efficiency curve as <code>load %:efficiency %</code>
-pairs (for example from the PSU's Cybenetics report) and press
-<strong>Use curve</strong>. The line under it shows the load and
-efficiency right now.
-<ul>
-<li>The <strong>Montech CENTURY II 1200W</strong> preset is certified
-<strong>80 PLUS Gold</strong> and <strong>Cybenetics Platinum</strong>
-(two different test schemes). Its curve is <strong>derived, not
-measured</strong>: the 80 PLUS Gold minimums, lifted to the Cybenetics
-Platinum average that HWbusters' review found, and that review's note
-that efficiency falls <strong>under 70 % at 2 % load</strong> (about 24
-W). The exact percentages are only in the review's charts, so the range
-is kept wide.</li>
-<li>Below 20 % load (where most PCs idle) the 80 PLUS tests say nothing,
-so SRS widens the range there.</li>
-</ul></li>
-<li><strong>Parts that cannot be measured:</strong> SRS starts from what
-it finds on this PC (memory sticks, NVMe drives, hard disks, spinning
-fans, monitors, the motherboard) with typical low and high watts.
-Double-click a value to change it, untick a row to leave it out,
-<strong>Add a part...</strong> for typical parts (case fans, AIO cooler
-and pump, fan hub with lighting, LED strips, monitors, ...),
-<strong>Reset to SRS's guess...</strong> to start again. <strong>Counts
-as:</strong>
-<ul>
-<li><em>Watts each</em>: low and high watts, times the number.</li>
-<li><em>% of CPU power</em> / <em>% of GPU power</em>: the processor's
-power stage losses (8-12 %) and the rest of the graphics card (5-30 %:
-the driver's number leaves out fans, memory and power stages).</li>
-<li><em>CPU / Graphics card (if not measured)</em>: used only when SRS
-cannot read that part.</li>
-<li><em>Beside the PC (at the wall)</em>: monitors and speakers; added
-to the wall figure, not through the PSU. Monitors are off by default;
-the energy label's "on mode" power is the best figure.</li>
-<li>A fan hub on one motherboard header can drive several fans: SRS only
-sees one header, so set the number of fans yourself.</li>
-</ul></li>
-<li><strong>Sleep, off and recording:</strong> the watts the PC draws
-asleep (default 3 W) and switched off (default 1 W), counted while
-recording; how often to read the sensors (every 2 s by default; the
-energy counters keep exact totals, so 1-10 s is plenty); <strong>Keep
-recording when SRS is closed</strong> (below); where the files are;
-<strong>Delete all history...</strong>.</li>
-</ul>
-<h4 id="user-guide--alarms">Alarms</h4>
-<p><strong>Add an alarm...</strong> offers: power right now over a limit
-for some seconds, the average over some minutes over a limit, energy or
-cost today or this month reaching a limit, and this month heading over a
-budget (a forecast from the days so far). Limits can be in W, kW or
-BTU/h (power) or in Wh, kWh, MWh, kJ or MJ (energy); the line under the
-settings shows the same limit in the other units. An alarm fires
-<strong>once</strong>: power alarms again only after the power drops
-clearly (5 %) below the limit, day and month alarms once per day or
-month. They show as desktop notifications (through the desktop's
-notification service; no sound from SRS), and on the tab. Energy and
-cost alarms need Recording on. <strong>Test notification</strong> shows
-what one looks like.</p>
-<h4 id="user-guide--sources">Sources</h4>
-<p>What SRS can measure on this PC, in plain words, and the raw
-readings. <strong>SRS never changes who may read these
-files.</strong></p>
+<h3 id="user-guide--67-arranging-the-tabs-and-lineups">6.7 Arranging the tabs and
+lineups</h3>
+<p>Each page's tabs are yours to arrange. Nothing you do here changes
+what SRS reads or shows inside a tab; it only decides which items have a
+tab and in what order.</p>
+<p><strong>On the fly:</strong></p>
 <table>
 <thead>
 <tr>
-<th>Source</th>
-<th>What it is</th>
-<th>Who can read it</th>
+<th>To</th>
+<th>Do</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>zenergy driver (<code>Esocket</code>)</td>
-<td>AMD's RAPL energy counter for the CPU package</td>
-<td>normal users, by design (the driver limits how often it
-updates)</td>
+<td>Add a tab that stays</td>
+<td><strong>+</strong> at the right end of the tab row (or
+<strong>Ctrl+T</strong>), then pick the item</td>
 </tr>
 <tr>
-<td>amd_energy driver</td>
-<td>the same counter (older driver)</td>
-<td>normal users</td>
+<td>Look at an item once</td>
+<td><strong>All N items</strong>: it opens as a temporary tab
+(<em>italic</em>), not kept</td>
 </tr>
 <tr>
-<td>powercap RAPL (<code>/sys/class/powercap/intel-rapl:*</code>)</td>
-<td>the CPU package counter, Intel and AMD</td>
-<td><strong>root only since Linux 5.10</strong>: energy readings can
-leak secrets (PLATYPUS, CVE-2020-8694/8695/12912). SRS uses it only if
-it is readable.</td>
+<td>Keep a temporary tab</td>
+<td>Right-click it &gt; <strong>Keep this tab</strong></td>
 </tr>
 <tr>
-<td>amdgpu <code>power1_average</code> (PPT)</td>
-<td>the graphics chip's power as the driver reports it</td>
-<td>normal users</td>
+<td>Swap a tab for another item</td>
+<td>Right-click it &gt; <strong>Replace with...</strong> (same place in
+the row)</td>
 </tr>
 <tr>
-<td>Intel i915 / xe <code>energy1_input</code>, nouveau
-<code>power1_input</code></td>
-<td>graphics card energy or power</td>
-<td>normal users</td>
+<td>Move a tab</td>
+<td>Drag it, or right-click &gt; <strong>Move left</strong> /
+<strong>Move right</strong></td>
 </tr>
 <tr>
-<td>NVIDIA (proprietary driver)</td>
-<td>not read yet: the graphics card row of the parts list is used</td>
-<td></td>
+<td>Close a tab</td>
+<td>Its <strong>x</strong> (shown on the tab in view and on temporary
+tabs), <strong>Ctrl+W</strong>, a middle-click, or right-click &gt;
+<strong>Close tab</strong>. The item stays in All N items.</td>
+</tr>
+<tr>
+<td>Go back to the lineup's tabs for this page</td>
+<td>Right-click a tab &gt; <strong>Reset this page's tabs to the
+lineup</strong></td>
 </tr>
 </tbody>
 </table>
-<p>If the CPU cannot be measured, install the <strong>zenergy</strong>
-driver (AMD), or run SRS as root for a quick check; SRS does not ship a
-rule that opens RAPL to everyone. On AMD the counter is a model inside
-the chip, not a meter: good for changes, and it may read lower than a
-wall meter.</p>
-<h4 id="user-guide--recording-sleep-and-restarts">Recording, sleep and restarts</h4>
+<p>SRS remembers each page's tabs and their order when it closes.
+Temporary tabs are not remembered.</p>
+<p><strong>Which tabs a page opens with:</strong> <strong>Options -&gt;
+Tabs on each page...</strong> (also right-click a tab &gt; <strong>Tabs
+on this page...</strong>). Pick the page, then one of:</p>
 <ul>
-<li>Recording writes one row per minute: seconds recorded, estimate with
-its low and high, the measured CPU and GPU energy, the cost at the price
-in force, the highest draw and the busy time. About 40 MB a year.</li>
-<li>Energy counters run round like an odometer (RAPL here after about 65
-kJ: about 23 minutes at 47 W). SRS reads them every few seconds and
-<strong>unwraps</strong> them; a reading after a gap too long to tell
-one wrap from two is skipped, not guessed. A counter that goes down
-without wrapping (a driver reload) starts a new baseline.</li>
-<li><strong>Sleep</strong> is noticed from the clocks (Linux's boot-time
-clock keeps counting while asleep, the monotonic clock does not); the
-time asleep is counted at the "asleep" watts. <strong>Shut-down to the
-next start</strong> is noticed from the boot ID and counted at the "off"
-watts (up to 31 days). Time when SRS was not running is a
-<strong>gap</strong>, never made-up data.</li>
-<li><strong>Keep recording when SRS is closed</strong> writes
-<code>~/.config/systemd/user/srs-power-recorder.service</code> and
-enables it: it runs <code>srs-gui --power-recorder</code> as you (not as
-root) and records only while Recording is <strong>For a set
-time</strong> or <strong>Always</strong>. Unticking it stops and removes
-the service. Only one SRS records at a time (a lock file next to the
-database); the other shows the same history.</li>
+<li><strong>The standard tabs only</strong> - the tabs listed in <a
+href="#user-guide--61-the-pages-and-the-items-on-them">6.1</a>;</li>
+<li><strong>The tabs ticked below</strong> - tick any items of the page
+(the filter box finds them); new ones go at the end;</li>
+<li><strong>Every item of the page</strong> - one tab per item that can
+show something here.</li>
 </ul>
-<h4 id="user-guide--files">Files</h4>
+<p><strong>Options -&gt; Show every item as a tab (all pages)</strong>
+does the last one for every page at once, whatever each page is set to.
+With many tabs the <strong>All N items</strong> jump list is still
+there, and the tab bar can take three shapes (<strong>Options -&gt; Tab
+bar</strong>):</p>
 <table>
 <thead>
 <tr>
-<th>Path</th>
-<th>What</th>
+<th>Tab bar</th>
+<th>Looks like</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>~/.local/share/srs/power.db</code></td>
-<td>The history (SQLite; readable only by you).
-<code>power.db.lock</code> beside it.</td>
+<td><strong>One row that scrolls</strong></td>
+<td>The default: one row with arrows when the tabs do not fit
+(<strong>Ctrl+PageUp / Ctrl+PageDown</strong> step through them)</td>
 </tr>
 <tr>
-<td><code>~/.config/srs/power.ini</code></td>
-<td>The page's settings: recording, power supply, parts, price, alarms,
-sessions.</td>
+<td><strong>Wrapped rows</strong></td>
+<td>Every tab visible, on as many rows as needed</td>
 </tr>
 <tr>
-<td><code>~/.config/systemd/user/srs-power-recorder.service</code></td>
-<td>Only when <strong>Keep recording when SRS is closed</strong> is
-on.</td>
-</tr>
-<tr>
-<td><code>/usr/share/srs-sysinfo/power-zip-rates.tsv</code></td>
-<td>The US ZIP code to utility table.</td>
+<td><strong>Side list</strong></td>
+<td>The tabs in a column on the left of the page, with a scroll bar when
+needed</td>
 </tr>
 </tbody>
 </table>
-<h4 id="user-guide--where-the-built-in-figures-come-from">Where the built-in figures
-come from</h4>
+<p><img src="../images/tabs-wrapped.png" alt="Wrapped tab rows" /></p>
+<p><em>The Processor page with wrapped tab rows: every tab visible, +
+and All N items at the end.</em></p>
+<p><strong>Lineups</strong> are saved arrangements: which tabs each page
+has, their order and the tab bar. <strong>Menu -&gt; Lineup</strong>
+(also in Options and a tab's right-click menu):</p>
 <table>
 <thead>
 <tr>
-<th>Data</th>
-<th>Source</th>
-<th>Date in SRS 2.1.0</th>
-<th>Licence / terms</th>
+<th>Lineup</th>
+<th>Tabs</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>US average price by state</td>
-<td>U.S. Energy Information Administration, <em>Electric Power
-Monthly</em>, Table 5.6.B (residential, year to date)</td>
-<td>August 2026 YTD</td>
-<td>U.S. government work (public domain); credit EIA</td>
+<td><strong>Basic</strong></td>
+<td>A few friendly tabs per page (for example Processor: CPU Summary,
+CPU Clocks, Cache Levels)</td>
 </tr>
 <tr>
-<td>US utility by ZIP code, with its average residential price</td>
-<td>NREL, <em>U.S. Electric Utility Companies and Rates: Look-up by Zip
-Code (2024)</em>, from EIA-861 data</td>
-<td>2024</td>
-<td>Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by
-SRS</td>
+<td><strong>Enthusiast</strong></td>
+<td>The standard tabs of <a
+href="#user-guide--61-the-pages-and-the-items-on-them">6.1</a>. The default.</td>
 </tr>
 <tr>
-<td>Europe, price by country</td>
-<td>Eurostat, <code>nrg_pc_204</code> (households, 2 500-4 999 kWh a
-year, all taxes and levies)</td>
-<td>2026-S1</td>
-<td>Reuse with the source acknowledged (Eurostat copyright notice). SRS
-shows the figures unchanged. Eurostat is not responsible for SRS's use
-of them.</td>
+<td><strong>Expert</strong></td>
+<td>Every item of every page as a tab, in a side list</td>
 </tr>
 <tr>
-<td>Great Britain, price cap</td>
-<td>Ofgem, energy price cap (GB average, Direct Debit), unit rate and
-daily standing charge</td>
-<td>1 October to 31 December 2026</td>
-<td>Published figures, credited to Ofgem</td>
-</tr>
-<tr>
-<td>CO₂ per kWh by country</td>
-<td>Ember, <em>Yearly electricity data</em> (emissions intensity)</td>
-<td>up to 2025</td>
-<td>CC BY 4.0</td>
-</tr>
-<tr>
-<td>80 PLUS efficiency levels</td>
-<td>Wikipedia, "80 Plus" (citing CLEAResult, the certifier)</td>
-<td></td>
-<td>Facts, credited</td>
-</tr>
-<tr>
-<td>Montech CENTURY II 1200W</td>
-<td>HWbusters review (Cybenetics Platinum average, under 70 % at 2 %
-load); PCPartPicker (80 PLUS Gold)</td>
-<td>2026-10</td>
-<td>Facts, credited</td>
+<td><em>Your own</em></td>
+<td><strong>Save as new lineup...</strong> keeps the current tabs under
+a name you choose</td>
 </tr>
 </tbody>
 </table>
-<p>The tables are made by <code>tools/gen_power_rates.py</code> from the
-downloaded files (their addresses are in the script); SRS itself never
-goes online for them. Australia (AER Default Market Offer) is not
-included yet: type your price.</p>
-<h4 id="user-guide--words-used-on-this-page">Words used on this page</h4>
+<p>Changes on the fly are allowed at any time without saving: the
+sidebar then says "Lineup: Enthusiast (changed)". <strong>Save to this
+lineup</strong> stores them in your own lineup (the three built-in ones
+stay as they are: use <strong>Save as new lineup...</strong>).
+<strong>Export lineup...</strong> writes a <code>.srslineup</code> file
+you can share or keep, <strong>Import lineup...</strong> reads one (it
+gets a new name if one of yours already has it), <strong>Remove this
+lineup...</strong> removes one of your own, and <strong>Reset to the
+default lineup</strong> goes back to Enthusiast.</p>
+<h3 id="user-guide--68-sortable-tables">6.8 Sortable tables</h3>
+<p>Tabs that show a table (a row of blue headings over rows of values,
+such as Processes, CPU Clocks, Drivers or Installed software) can be
+sorted: <strong>click a heading</strong>. The first click sorts by that
+column smallest or A first (<strong>▲</strong> after the heading), the
+second click largest or Z first (<strong>▼</strong>). The headings are
+underlined and the mouse pointer becomes a hand over them; hover for a
+hint.</p>
+<ul>
+<li>Numbers sort by value with their units: 512MB comes before 1.5GB,
+900 MHz before 4.41GHz, 9 °C before 45 °C, and RPM, %, V, W and times
+the same way. Dates sort by date (2026-10-26, 09/18/2026),
+<code>[1234]</code> process numbers by number, and names with numbers in
+them naturally (CPU-2 before CPU-10).</li>
+<li>Empty cells and <code>-</code> always go last.</li>
+<li>Tabs that update by themselves keep the order while they
+refresh.</li>
+<li><strong>Reset view</strong> (above the text) puts the item's own
+order back.</li>
+<li><strong>Copy</strong> and <strong>Save Report</strong> always give
+the item's own order, so reports look the same as before; only what you
+see on screen is sorted.</li>
+<li><strong>Options -&gt; Sortable tables</strong> turns sorting off
+(the tables are then plain text, as in 2.0). The classic panels never
+sort.</li>
+</ul>
+<h3 id="user-guide--69-the-startup-manager">6.9 The Startup manager</h3>
+<p><strong>Operating system -&gt; Startup programs</strong> opens on
+<strong>Manage</strong>: everything that starts when you log in or when
+the PC boots, with a switch per item. <strong>Report</strong> next to it
+shows the Startup programs item as text (what Copy and Save Report
+give).</p>
+<p><img src="../images/startup-manager.png" alt="Startup manager" /></p>
+<p><em>The Startup manager: autostart entries with their switches, Undo,
+Restore default and Add to startup.</em></p>
 <table>
 <thead>
 <tr>
-<th>Word</th>
-<th>Plain meaning</th>
+<th>Column</th>
+<th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>W (watt)</strong></td>
-<td>How fast power is being used <em>right now</em>. A 100 W PC uses 100
-watts at this moment.</td>
+<td><strong>On</strong></td>
+<td>Ticked = it starts. Click to turn it off or on. Greyed = it cannot
+be switched here (see Note).</td>
 </tr>
 <tr>
-<td><strong>kW (kilowatt)</strong></td>
-<td>1,000 W.</td>
+<td><strong>Name</strong></td>
+<td>The program's name. Hover for the file or unit and its command.</td>
 </tr>
 <tr>
-<td><strong>Wh (watt-hour)</strong></td>
-<td>Energy used <em>over time</em>: 100 W for one hour = 100 Wh.</td>
+<td><strong>Kind</strong></td>
+<td><strong>Autostart (system)</strong> -
+<code>/etc/xdg/autostart</code>, for every user; <strong>Autostart
+(yours)</strong> - <code>~/.config/autostart</code>; <strong>Service
+(user)</strong> - a systemd user unit; <strong>Service (system)</strong>
+- a system service (only with <strong>Show system services</strong>
+ticked).</td>
 </tr>
 <tr>
-<td><strong>kWh (kilowatt-hour)</strong></td>
-<td>1,000 Wh: 1,000 W for an hour, or 100 W for ten hours. <strong>Your
-bill counts kWh.</strong></td>
+<td><strong>State</strong></td>
+<td>on / off, or the unit's state (enabled, disabled, static, masked
+...).</td>
 </tr>
 <tr>
-<td><strong>J, kJ, MJ (joule)</strong></td>
-<td>Another energy unit: 3,600 J = 1 Wh, 3.6 MJ = 1 kWh. Linux counters
-count microjoules.</td>
-</tr>
-<tr>
-<td><strong>BTU/h</strong></td>
-<td>Heat per hour: 1 W ≈ 3.412 BTU/h. All the power a PC uses ends up as
-heat in the room.</td>
-</tr>
-<tr>
-<td><strong>At the wall</strong></td>
-<td>What the PC draws from the socket, including the power supply's
-losses. This is what you pay for.</td>
-</tr>
-<tr>
-<td><strong>Inside the PC (DC)</strong></td>
-<td>Power after the power supply, used by the parts. Always less than at
-the wall.</td>
-</tr>
-<tr>
-<td><strong>PSU efficiency</strong></td>
-<td>The share of the wall power that reaches the parts: 90 % means 10 %
-becomes heat in the PSU.</td>
-</tr>
-<tr>
-<td><strong>80 PLUS / Cybenetics</strong></td>
-<td>Two certifications of PSU efficiency. 80 PLUS tests at 20, 50 and
-100 % load (Titanium also 10 %); Cybenetics tests many loads, light ones
-too.</td>
-</tr>
-<tr>
-<td><strong>RAPL</strong></td>
-<td>The processor's built-in energy counter ("Running Average Power
-Limit"). Intel measures; AMD models.</td>
-</tr>
-<tr>
-<td><strong>PPT</strong></td>
-<td>AMD's "Package Power Tracking": the chip's own power figure. For a
-graphics card it is not the whole card.</td>
-</tr>
-<tr>
-<td><strong>Wrap-around</strong></td>
-<td>A counter reaching its top and starting again from zero, like an old
-car's odometer.</td>
-</tr>
-<tr>
-<td><strong>Tiered price</strong></td>
-<td>The price per kWh changes after so many kWh a month.</td>
-</tr>
-<tr>
-<td><strong>Time of use</strong></td>
-<td>The price per kWh depends on the hour and the day.</td>
-</tr>
-<tr>
-<td><strong>Standing charge</strong></td>
-<td>What you pay per day whatever you use.</td>
-</tr>
-<tr>
-<td><strong>Carbon intensity</strong></td>
-<td>Grams of CO₂ released per kWh on your grid, on average.</td>
+<td><strong>Note</strong></td>
+<td>Why it is off or greyed (for example "only for other desktops"),
+"turned off by SRS (your copy)", "added by SRS", "desktop essential:
+...", a unit's default (preset).</td>
 </tr>
 </tbody>
 </table>
+<p>Click a column heading to sort; the filter box and the list next to
+it narrow the list down.</p>
+<p><strong>Nothing is ever deleted:</strong></p>
+<ul>
+<li>A <strong>system autostart entry</strong> is turned off with a copy
+of it in your <code>~/.config/autostart</code> that says
+<code>Hidden=true</code> (the desktop uses your copy instead of the
+system one). Turning it back on moves that copy into
+<code>~/.config/srs/startup-backup</code>.</li>
+<li><strong>Your own autostart entries</strong> get
+<code>Hidden=true</code> or <code>Hidden=false</code>. The first time
+SRS changes one, the original is kept in the backup folder.</li>
+<li><strong>Services:</strong> <code>systemctl --user enable</code> /
+<code>disable</code> for user units. System services ask first, then use
+<code>pkexec systemctl enable</code> / <code>disable</code> (the
+administrator password); the change applies from the next boot.</li>
+<li><strong>Undo</strong> puts back the last change made in this session
+(repeat it for earlier ones).</li>
+<li><strong>Restore default</strong> puts the selected item back to its
+default: a system entry loses your copy (moved to the backup folder),
+your own entry gets its original file back, an entry SRS added is taken
+out of the list (moved to the backup folder), and a service gets the
+distribution's default (<code>systemctl preset</code>).</li>
+<li><strong>Add to startup...</strong> starts an installed program (pick
+it from the list) or any command (run by <code>sh</code>) at every
+login, with an optional delay in seconds. It writes
+<code>~/.config/autostart/srs-NAME.desktop</code>; turn it off or take
+it out again in this list.</li>
+</ul>
+<p>Parts of the desktop ask before they are turned off: Plasma, KWin,
+KWallet and other password storage, PipeWire and WirePlumber (sound),
+the desktop portals (file dialogs, screen sharing), the polkit agent
+(admin password prompts), D-Bus, accessibility and the login screen. You
+can still turn them off; SRS just says what may stop working. Changes
+take effect at the next login (system services at the next boot).</p>
+<h3 id="user-guide--610-full-access-or-limited-the-badge">6.10 Full access or
+Limited: the badge</h3>
+<p>The badge left of the title says what SRS can read right now:</p>
+<table>
+<thead>
+<tr>
+<th>Badge</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Full access</strong> (green shield)</td>
+<td>SRS runs as root, or the root-only data has been collected by
+srs-root (<a href="#user-guide--5-root-only-data-srs-root">5</a>). Hover for when it
+was collected.</td>
+</tr>
+<tr>
+<td><strong>Limited (user)</strong> (grey shield) and a <strong>Run as
+root...</strong> button</td>
+<td>SRS runs as you, without root data. Drive health (SMART), memory
+stick details (SPD), serial numbers and BIOS tables, ACPI tables, CPU
+registers (MSRs) and the kernel log need it; the tooltip lists them.
+<strong>Run as root...</strong> collects them once with one password
+prompt (read-only).</td>
+</tr>
+</tbody>
+</table>
+<p>With <strong>Options -&gt; Refresh root data at boot</strong> the
+badge says Full access from the start.</p>
 <h2 id="user-guide--7-the-panels-and-their-buttons">7. The panels and their
 buttons</h2>
 <p>In the classic view (<a
@@ -2171,11 +2017,9 @@ Open: the <strong>Benchmarks &amp; stress</strong> page -&gt;
 classic view. Controls: <strong>Largest block (MB)</strong> (1-1024,
 default 256), <strong>Run</strong>. Results: a table (block size, time
 in ns, level) and a curve.</p>
-<p>For the <strong>bandwidth</strong> of the RAM and the caches, see <a
-href="#user-guide--911-cache--memory">9.11 Cache &amp; Memory</a>. The newer
-benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache
-&amp; Memory and Storage - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
-href="#user-guide--912-storage">9.12</a>.</p>
+<p>For a full Cache &amp; Memory <strong>bandwidth</strong> benchmark,
+see the sister project <a
+href="https://github.com/eugenesflanagin-spec/lsa-sysinfo">lsa-sysinfo</a>.</p>
 <h3 id="user-guide--95-device-id-lookup">9.5 Device ID Lookup</h3>
 <p><strong>In plain words:</strong> every PCI and USB device has a
 number pair: <strong>vendor ID : device ID</strong> (for example
@@ -2282,98 +2126,6 @@ Shift+F3</strong>)</td>
 </table>
 <p>If there is no report yet, Find tells you to run SRS Full System
 Report first.</p>
-<h3 id="user-guide--97-srs-pi">9.7 SRS Pi</h3>
-<p><strong>In plain words:</strong> SRS works out pi to many decimal
-places and checks every digit. The time shows how fast one core does
-heavy number work; a wrong digit means the PC made a mistake (often an
-unstable overclock or memory). Open: the <strong>Benchmarks &amp;
-stress</strong> page -&gt; <strong>SRS Pi...</strong>, or Menu -&gt;
-Tools -&gt; SRS Pi... in the classic view. On the command line:
-<code>sysreport-search pi --digits 1m</code>. Controls:
-<strong>Digits</strong> (128 thousand to 32 million; each choice shows
-the time it took on the author's PC), <strong>SuperPi sizes</strong>
-(tick for SuperPi's power-of-two digit counts: 16K = 16,384 ... 1M =
-1,048,576 ... 32M = 33,554,432), <strong>Method</strong> (Chudnovsky =
-fast, can use threads; Gauss-Legendre / AGM = the method SuperPi uses,
-one thread), <strong>Threads</strong> (default 1, for a single-thread
-score), <strong>Run</strong> and <strong>Stop</strong>. While it runs
-the status line shows the time so far and the current step (series,
-division, square root). Closing the window also stops it.</p>
-<p>Times are <strong>SRS Pi</strong> times, not SuperPi times. SuperPi's
-"1M" is 1,048,576 digits; SRS's 1 million is 1,000,000 - tick
-<strong>SuperPi sizes</strong> for the same digit counts as SuperPi. 32
-million digits takes several minutes and 1-2 GB of memory.</p>
-<h3 id="user-guide--98-crypto">9.8 Crypto</h3>
-<p><strong>In plain words:</strong> how fast the CPU encrypts (AES-128)
-and fingerprints (SHA-256) data, with and without its built-in crypto
-instructions (AES-NI, SHA-NI). Open: the <strong>Benchmarks &amp;
-stress</strong> page -&gt; <strong>Crypto...</strong>. Command line:
-<code>sysreport-search crypto</code>. Controls: <strong>Threads</strong>
-(right-hand column; the left column is always one thread),
-<strong>Seconds per measurement</strong> (default 1; about 8 seconds in
-all), <strong>Run</strong>. The official FIPS test vectors are checked
-before every run.</p>
-<h3 id="user-guide--99-prime-sieve">9.9 Prime Sieve</h3>
-<p><strong>In plain words:</strong> counts the prime numbers up to 100
-million, 1 billion, 10 billion or 100 billion and checks the count.
-Simple integer and cache work that scales with threads. Open: the
-<strong>Benchmarks &amp; stress</strong> page -&gt; <strong>Prime
-Sieve...</strong>. Command line:
-<code>sysreport-search prime --limit 1e10</code>. Controls:
-<strong>Count primes up to</strong>, <strong>Threads</strong> (default
-all), <strong>Run</strong>, <strong>Stop</strong>.</p>
-<h3 id="user-guide--910-benchmark-history">9.10 Benchmark history</h3>
-<p>Every SRS Pi, Crypto and Prime Sieve run adds one line to
-<code>~/.cache/srs/bench-history.tsv</code> (time, test, settings,
-result, build). The <strong>Benchmark history</strong> tab on the
-Benchmarks &amp; stress page shows it, newest first. Compare only lines
-with the same settings and the same <strong>Build</strong>: a package
-built for any x86-64 CPU (<code>-march=x86-64 -O2</code>) can score well
-below a build made for your own CPU (<code>-march=native -O3</code>) -
-for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.</p>
-<h3 id="user-guide--911-cache--memory">9.11 Cache &amp; Memory</h3>
-<p><strong>In plain words:</strong> how fast the RAM and the L1, L2 and
-L3 caches read, write and copy, and how long they take to answer. Use it
-after a BIOS, EXPO/XMP or memory-timing change. Open: the
-<strong>Benchmarks &amp; stress</strong> page -&gt; <strong>Cache &amp;
-Memory...</strong>, or Menu -&gt; Tools -&gt; Cache &amp; Memory... in
-the classic view. Command line: <code>sysreport-search cachemem</code>.
-Controls: <strong>Threads</strong> (default all; the bandwidth results
-need all of them), <strong>Seconds per test</strong> (default 1),
-<strong>Run</strong> (asks first: every thread and the memory bus are
-busy for about 20 seconds), <strong>Stop</strong>. The status line names
-the value being measured. A stopped run shows the values it finished and
-says so.</p>
-<p>Close other programs first and <strong>never run another benchmark at
-the same time</strong> (SRS lets only one run; it cannot stop other
-programs). The base clock is measured, so boards with a raised reference
-clock (for example 105 MHz) show the real value; the Infinity Fabric
-clock needs the <code>ryzen_smu</code> driver (Ryzen 7000 desktop);
-memory speed and type need root data (Tools &gt; Collect root data). The
-engine is the one from Linux System Audit (LSA) 0.2.0, which is now part
-of SRS. x86-64 CPUs only.</p>
-<h3 id="user-guide--912-storage">9.12 Storage</h3>
-<p><strong>In plain words:</strong> how fast the drive that holds a
-folder you choose reads and writes - big files, many small pieces at
-once, and one small piece at a time (how snappy it feels) - plus the
-response time of single reads and writes. It uses its <strong>own
-temporary test file only</strong>; your files are never touched, and
-nothing is left behind, even if SRS is stopped or crashes. Open: the
-<strong>Benchmarks &amp; stress</strong> page -&gt;
-<strong>Storage...</strong>, or Menu -&gt; Tools -&gt; Storage
-Benchmark... in the classic view. Command line:
-<code>sysreport-search storage --dir FOLDER</code>. Controls:
-<strong>Folder</strong> (the line below it names the drive, its
-connection, the file system and the free space - never the serial
-number), <strong>Test file</strong> (256 MB, 1 GB, 4 GB, 16 GB),
-<strong>Seconds per test</strong> (default 5), <strong>Standard /
-Light</strong> (Light uses at most 4 threads), <strong>Allow USB
-drives</strong> (off by default), <strong>Run</strong> (asks first),
-<strong>Stop</strong>.</p>
-<p>Folders in RAM (<code>/tmp</code> on many systems is RAM, not a
-drive), on the network or on FUSE are refused, as is a drive with too
-little free space. Drive health (SMART) is on the
-<strong>Storage</strong> page.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -2466,6 +2218,50 @@ href="#user-guide--66-classic-view-the-siv-style-windows">6.6</a>).</td>
 <td>off</td>
 </tr>
 <tr>
+<td><strong>Sortable tables in the main window</strong></td>
+<td>Click a column heading to sort a table (<a
+href="#user-guide--68-sortable-tables">6.8</a>). Off: tables are plain text as in
+2.0.</td>
+<td>on</td>
+</tr>
+<tr>
+<td><strong>Tab bar</strong></td>
+<td><strong>One row that scrolls</strong>, <strong>Wrapped rows</strong>
+or <strong>Side list</strong> (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>). Main window only,
+like the next five.</td>
+<td>One row</td>
+</tr>
+<tr>
+<td><strong>Lineup</strong></td>
+<td>Basic, Enthusiast, Expert or your own; save, export, import (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</td>
+<td>Enthusiast</td>
+</tr>
+<tr>
+<td><strong>Tabs on each page...</strong></td>
+<td>Per page: the standard tabs, the ticked ones, or every item.</td>
+<td>standard</td>
+</tr>
+<tr>
+<td><strong>Show every item as a tab (all pages)</strong></td>
+<td>Every item that can show something here gets a tab on its page.</td>
+<td>off</td>
+</tr>
+<tr>
+<td><strong>Show hidden items</strong></td>
+<td>List the items that cannot show anything on this PC (Windows-only,
+not present, empty), greyed, in All N items, and do not hide their
+tabs.</td>
+<td>off</td>
+</tr>
+<tr>
+<td><strong>Check again which items have nothing to show</strong></td>
+<td>SRS checks this in the background at most once a day; this checks
+now.</td>
+<td></td>
+</tr>
+<tr>
 <td><strong>Hide to Tray</strong></td>
 <td>Hide all SRS windows now.</td>
 <td></td>
@@ -2550,12 +2346,24 @@ it cannot get lost.</li>
 <td>Open the menu</td>
 </tr>
 <tr>
+<td><strong>Ctrl+T</strong></td>
+<td>Add a tab to this page (the <strong>+</strong> button)</td>
+</tr>
+<tr>
 <td><strong>Ctrl+W</strong></td>
-<td>Close an extra tab</td>
+<td>Close the tab in view (also a middle-click on a tab)</td>
 </tr>
 <tr>
 <td><strong>Ctrl+PageUp / Ctrl+PageDown</strong></td>
-<td>Previous / next tab (when the tab row has the focus)</td>
+<td>Previous / next tab, in every tab-bar layout</td>
+</tr>
+<tr>
+<td><strong>Right-click a tab</strong></td>
+<td>Keep, Replace with..., Move, Close, Tabs on this page, Lineup</td>
+</tr>
+<tr>
+<td><strong>Click a table heading</strong></td>
+<td>Sort by that column (again: the other way)</td>
 </tr>
 <tr>
 <td><strong>F5</strong></td>
@@ -2663,7 +2471,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-551 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+545 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -2737,6 +2545,31 @@ href="#cli-reference">CLI-REFERENCE.md</a>.</p>
 <td>Only if "Start with the desktop" is on.</td>
 </tr>
 <tr>
+<td><code>~/.config/autostart/srs-*.desktop</code></td>
+<td>Programs you added with <strong>Add to startup</strong> (<a
+href="#user-guide--69-the-startup-manager">6.9</a>); also the turned-off copies of
+system entries (same name as the system file).</td>
+</tr>
+<tr>
+<td><code>~/.config/srs/startup-backup/</code></td>
+<td>Everything the Startup manager moved out of the way or changed:
+<code>NAME.desktop.YYYYMMDD-HHMMSS</code> and
+<code>NAME.desktop.orig</code>. Nothing there is used; copy a file back
+to <code>~/.config/autostart</code> to use it again.</td>
+</tr>
+<tr>
+<td><code>~/.config/srs/lineups/*.srslineup</code></td>
+<td>Your own tab lineups (<a
+href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>), the same format as
+Export lineup.</td>
+</tr>
+<tr>
+<td><code>~/.cache/srs/empty-items.txt</code></td>
+<td>The items that had nothing to show on this PC at the last check
+(hidden from the tabs and lists). Delete it, or use Options -&gt; Check
+again, to check now.</td>
+</tr>
+<tr>
 <td><code>~/.cache/srs/root/</code></td>
 <td>Root-only data from <code>srs-root</code>
 (<code>dmidecode.txt</code>, <code>spd.txt</code>,
@@ -2758,18 +2591,6 @@ run).</td>
 <tr>
 <td><code>~/.cache/srs/bench-&lt;mode&gt;.txt</code></td>
 <td>The last result of each benchmark mode, IPI Delay and Latency.</td>
-</tr>
-<tr>
-<td><code>~/.cache/srs/bench-pi.txt</code>,
-<code>bench-crypto.txt</code>, <code>bench-prime.txt</code>,
-<code>bench-cachemem.txt</code>, <code>bench-storage.txt</code></td>
-<td>The last result of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory
-and Storage.</td>
-</tr>
-<tr>
-<td><code>~/.cache/srs/bench-history.tsv</code></td>
-<td>One line per SRS Pi, Crypto and Prime Sieve run (time, test,
-settings, result, build).</td>
 </tr>
 <tr>
 <td><code>~/sysreports/sysreport-*/</code></td>
@@ -2796,12 +2617,6 @@ this guide as <code>SRS-User-Guide.pdf</code>,
 <tr>
 <td><code>/usr/share/applications/srs-user-guide.desktop</code></td>
 <td>The <strong>SRS User Guide (PDF)</strong> menu entry.</td>
-</tr>
-<tr>
-<td><code>~/.local/share/srs/power.db</code>,
-<code>~/.config/srs/power.ini</code></td>
-<td><strong>Power &amp; cost</strong> history and settings (<a
-href="#user-guide--67-power--cost">6.7</a>).</td>
 </tr>
 </tbody>
 </table>
@@ -2881,12 +2696,36 @@ text</td>
 <td>Options -&gt; Start in classic view</td>
 </tr>
 <tr>
+<td><code>Sortable Tables</code></td>
+<td><code>1</code> / <code>0</code></td>
+<td>Options -&gt; Sortable tables in the main window</td>
+</tr>
+<tr>
+<td><code>All Items As Tabs</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td>Options -&gt; Show every item as a tab</td>
+</tr>
+<tr>
+<td><code>Show Hidden Items</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td>Options -&gt; Show hidden items</td>
+</tr>
+<tr>
 <td><code>SIO Sensors</code></td>
 <td>e.g. <code>nct6799:AUXTIN1</code></td>
 <td>Super-I/O inputs the burner should treat as connected</td>
 </tr>
 </tbody>
 </table>
+<p>Section <code>[Tabs]</code> holds the main window's tabs as they are
+now: <code>Lineup</code> (the lineup they came from),
+<code>Layout</code> (<code>row</code>, <code>wrap</code> or
+<code>side</code>), and per page <code>&lt;page&gt;=id;id;...</code> and
+<code>&lt;page&gt; Every=true</code> when the page shows every item.
+Page names: <code>processor</code>, <code>memory</code>,
+<code>board</code>, <code>graphics</code>, <code>storage</code>,
+<code>network</code>, <code>sensors</code>, <code>devices</code>,
+<code>os</code>, <code>bench</code>, <code>tools</code>.</p>
 <p>Environment variables:</p>
 <table>
 <thead>
@@ -2921,6 +2760,18 @@ start).</td>
 <td><code>GTK_THEME</code></td>
 <td>Remembered for "Follow desktop"; the Theme option drives SRS's own
 look.</td>
+</tr>
+<tr>
+<td><code>SRS_STARTUP_DRY_RUN=1</code></td>
+<td>The Startup manager never runs <code>systemctl</code> or
+<code>pkexec</code>: it only shows the command it would run (autostart
+files are still written). For trying it out safely.</td>
+</tr>
+<tr>
+<td><code>SRS_RSMU_DIR=folder</code></td>
+<td>Read the ryzen_smu files (<code>pm_table</code>,
+<code>codename</code>, <code>pm_table_version</code>) from this folder
+instead of <code>/sys/kernel/ryzen_smu_drv</code> (tests).</td>
 </tr>
 </tbody>
 </table>
@@ -2967,7 +2818,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 551 items with the same text. The classic
+classic view show the same 545 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -3060,10 +2911,6 @@ addresses keep their vendor half (<code>04:7c:16:XX:XX:XX</code>), which
 is useful for telling network chips apart. The report's first line ends
 with <code>(identifiers redacted)</code>. Published constants such as
 GPT partition-type GUIDs are not masked.</p>
-<p>The <strong>Power &amp; cost</strong> history
-(<code>~/.local/share/srs/power.db</code>) is not part of any report; it
-says when the PC was in use, so think before sharing an export of it.
-Nothing on that page goes online.</p>
 <p>Not masked: <strong>IP addresses</strong> and <strong>Wi-Fi network
 names</strong>. Look for them (or use Find) before you post. Or save
 only the items you need:
@@ -3225,7 +3072,9 @@ save root-only data for you.</p>
 <p><strong>Can it harm my PC?</strong> The viewer is read-only. The
 burn-in and benchmarks load the CPU like any stress tool; they ask
 first, stop at a temperature limit (default 90 C) and stop when you
-close the window.</p>
+close the window. The Startup manager changes what starts with the PC
+only when you click it, asks before touching parts of the desktop, keeps
+every old file, and has Undo and Restore default.</p>
 <p><strong>Why are there items that say "not present"?</strong> They are
 SIV items for hardware most PCs do not have (Itanium, IPMI, RAID
 cards...). SRS keeps them so the item list matches SIV's.</p>
@@ -3266,7 +3115,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 551 of them - one by one. For each item it says, in this order:</p>
+all 545 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -3378,7 +3227,7 @@ buttons named in each group's introduction.</li>
 </tr>
 <tr>
 <td>Tools</td>
-<td>34</td>
+<td>28</td>
 <td><a href="#sections-tools">tools.md</a></td>
 <td>Benchmarks &amp; stress; Tools</td>
 </tr>
@@ -5983,37 +5832,6 @@ physical cores one at a time</a></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory
-benchmark</a></td>
-<td><code>cache-memory</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
-<td><a href="#sections-tools--storage-benchmark">Storage benchmark</a></td>
-<td><code>storage-bench</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
-<td><a href="#sections-tools--srs-pi">SRS Pi</a></td>
-<td><code>srs-pi</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
-<td><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a></td>
-<td><code>crypto-bench</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
-<td><a href="#sections-tools--prime-sieve">Prime sieve</a></td>
-<td><code>prime-sieve</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
-<td><a href="#sections-tools--benchmark-history">Benchmark history</a></td>
-<td><code>bench-history</code></td>
-<td>Linux data</td>
-</tr>
-<tr>
 <td><a href="#sections-tools--lookup">Lookup</a></td>
 <td><code>lookup</code></td>
 <td>Linux data</td>
@@ -6998,12 +6816,69 @@ found issues get added.</p>
 <p><strong>In plain words.</strong> The current, average and allowed
 clock speed of every CPU. Same page as <a href="#sections-processors--cpu-speeds">CPU
 Speeds</a>; it refreshes every second in the window.</p>
-<p><strong>What you see.</strong> Exactly the same layout as <a
+<p><strong>What you see.</strong> The same layout as <a
 href="#sections-processors--cpu-speeds">CPU Speeds</a>: the driver/boost line and the per-CPU
 table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor,
-EPP).</p>
+EPP). Below it, since 2.1, <strong>Stock and in effect now</strong>:
+each clock at stock next to what it is now.</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>Stock</th>
+<th>In effect now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Base clock</td>
+<td>100 MHz, the standard reference clock</td>
+<td>Measured: the TSC rate x 100 / the CPU's nominal frequency from ACPI
+CPPC (once per run, 50 ms)</td>
+</tr>
+<tr>
+<td>Core base</td>
+<td>The CPU's nominal frequency (CPPC)</td>
+<td>Nominal x base clock / 100</td>
+</tr>
+<tr>
+<td>Core boost (max)</td>
+<td>cpufreq's maximum (the kernel works it out at 100 MHz)</td>
+<td>Maximum x base clock / 100</td>
+</tr>
+<tr>
+<td>Core now (fastest)</td>
+<td>The same multiplier at 100 MHz</td>
+<td>cpufreq's current clock of the fastest core (already real)</td>
+</tr>
+<tr>
+<td>FCLK, UCLK, MCLK</td>
+<td>What the SMU reports</td>
+<td>The same: these are shown, not measured</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Difference</strong> gives MHz and percent where SRS measured.
+FCLK (Infinity Fabric), UCLK (memory controller) and MCLK (memory clock)
+come from the SMU's PM table through the ryzen_smu driver (read-only),
+for the Zen 4 desktop layout (Ryzen 7000, ryzen_smu codename 20) and
+only when the values make sense; elsewhere the row says why it is
+missing. Software cannot measure these clocks, so SRS does not claim a
+difference: on AM5 an eCLK drives the cores, and whether anything else
+follows it depends on the board's eCLK mode. The <strong>Memory</strong>
+line adds the DDR data rate (2 x MCLK), the UCLK:MCLK ratio (1:1 or 1:2)
+and FCLK.</p>
+<p><strong>Healthy / typical values.</strong> With the normal 100 MHz
+base clock every difference is about 0. The author's PC runs a 105 MHz
+eCLK: base clock 105.0 MHz (+5 %), core base 4201 -&gt; 4410 MHz, boost
+5053 -&gt; 5305 MHz, FCLK 2133 MHz, UCLK 1500 MHz, MCLK 3000 MHz
+(DDR5-6000 at 1:2).</p>
 <p><strong>Where Linux gets it.</strong> cpufreq files in
-<code>/sys/devices/system/cpu/cpuN/cpufreq/</code>.</p>
+<code>/sys/devices/system/cpu/cpuN/cpufreq/</code>, the TSC (timed
+against the system clock),
+<code>/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq</code>, and
+<code>/sys/kernel/ryzen_smu_drv/pm_table</code> (floats 70, 74 and 78 of
+the Zen 4 desktop table).</p>
 <hr />
 <h2 id="sections-processors--cpu-export">CPU Export</h2>
 <p><code>cpu-export</code> - Linux data</p>
@@ -7324,6 +7199,9 @@ EPP.</li>
 <li>All columns <code>-</code>: no cpufreq driver (virtual machine, or
 the driver failed to load).</li>
 </ul>
+<p>Since 2.1 the same <strong>Stock and in effect now</strong> table as
+<a href="#sections-processors--cpu-clocks">CPU Clocks</a> follows the per-CPU table (both
+items share one page).</p>
 <p><strong>Where Linux gets it.</strong>
 <code>/sys/devices/system/cpu/cpuN/cpufreq/</code>
 (<code>scaling_*</code>, <code>cpuinfo_*</code>,
@@ -19328,8 +19206,14 @@ you do not recognise: check its command. Malware and adware often hide
 in <code>~/.config/autostart</code>. Two entries starting the same tray
 app: you get two icons. Slow logins: look for
 <code>sleep N &amp;&amp;</code> commands and heavy apps here.</p>
+<p><strong>Turning items off and on (2.1).</strong> In the main window
+the Startup programs tab opens on <strong>Manage</strong>: every entry
+with a switch, Undo, Restore default and Add to startup. Nothing is
+deleted. See the user guide, section 6.9. <strong>Report</strong> shows
+this item as text, as above.</p>
 <p><strong>Where Linux gets it.</strong>
-<code>~/.config/autostart/*.desktop</code>,
+<code>~/.config/autostart/*.desktop</code> (or
+<code>$XDG_CONFIG_HOME/autostart</code>),
 <code>/etc/xdg/autostart/*.desktop</code>,
 <code>~/.config/plasma-workspace/env</code>,
 <code>systemctl list-unit-files --state=enabled</code> (and
@@ -26811,16 +26695,6 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <li><a href="#sections-tools--ipi-plots">IPI Plots</a> <code>ipi-plots</code></li>
 <li><a href="#sections-tools--memory-latency">Memory Latency</a>
 <code>latency</code></li>
-<li><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</a>
-<code>cache-memory</code></li>
-<li><a href="#sections-tools--storage-benchmark">Storage benchmark</a>
-<code>storage-bench</code></li>
-<li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
-<li><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a>
-<code>crypto-bench</code></li>
-<li><a href="#sections-tools--prime-sieve">Prime sieve</a> <code>prime-sieve</code></li>
-<li><a href="#sections-tools--benchmark-history">Benchmark history</a>
-<code>bench-history</code></li>
 <li><a href="#sections-tools--lookup">Lookup</a> <code>lookup</code></li>
 <li><a href="#sections-tools--ping">Ping</a> <code>ping</code></li>
 <li><a href="#sections-tools--configuration-find">Configuration Find</a>
@@ -27494,369 +27368,6 @@ core), L2 is bigger (about 1-2 MB per core), and L3 is shared by many
 cores (tens of MB). Data the CPU uses often stays close. Latency
 (waiting time) matters most for programs that jump around in memory,
 such as games and databases.</p>
-<hr />
-<h2 id="sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</h2>
-<p><code>cache-memory</code> - Linux data</p>
-<p><strong>In plain words.</strong> How fast the RAM and each cache
-level (L1, L2, L3) can <strong>read</strong>, <strong>write</strong> and
-<strong>copy</strong> data, and how long each takes to answer one
-request (<strong>latency</strong>). It shows whether the memory runs as
-fast as it should after a BIOS, EXPO/XMP or memory-timing change, and
-what each cache level gives you.</p>
-<p><strong>What you see.</strong> A table: rows Memory (RAM), L1 cache,
-L2 cache, L3 cache; columns Read, Write, Copy (MB/s for the RAM, GB/s
-for the caches; 1 MB = 1,000,000 bytes) and Latency (ns). Below it:
-threads and vector code used (AVX-512, AVX2 or SSE2), how the RAM write
-was measured, the processor, the measured clock during the run, the
-<strong>base clock</strong> (measured, so a board running 105 MHz shows
-105), the multiplier, the <strong>Infinity Fabric clock</strong> (AMD
-Ryzen 7000 desktop with the <code>ryzen_smu</code> driver), the memory
-type, speed and channels (from root data), the memory clock as a
-multiple of the base clock, and the cache sizes.</p>
-<table>
-<thead>
-<tr>
-<th>Value</th>
-<th>How it is measured</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Read / Write / Copy</td>
-<td>One thread pinned to every chosen logical CPU, each in its own block
-sized to stay inside that cache level (half of its share of L1 / L2 /
-L3), or for the RAM a block of at least 4 x L3 (at least 256 MB, default
-1 GB). Best of repeated 40-80 ms trials over the measuring time (default
-1 s per value). <strong>Copy counts the bytes read plus the bytes
-written.</strong></td>
-</tr>
-<tr>
-<td>RAM Write on AMD</td>
-<td>With CLZERO (whole zeroed cache lines written to memory), one thread
-per core, in 4 KB turns, over 256 MB or 2.5 x L3 - what the memory
-itself absorbs. Ordinary streaming stores stop at the core-to-memory
-link's write limit; <code>--mem-write stream</code> shows that figure.
-Other CPUs use streaming stores.</td>
-</tr>
-<tr>
-<td>Latency</td>
-<td>One thread, a random chain through every 64-byte line of a block.
-Caches on ordinary 4 KB pages (L1: half of L1d, L2: half of L2, L3: 8 x
-L2); the RAM on 2 MB pages over 8 x L3 (at least 256 MB, at most half of
-free RAM), so page-table walks and L3 hits do not distort it.</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, 2 x 16 GB
-DDR5-6000, FCLK 2000-2133, all 16 threads: RAM about 63,700 MB/s read,
-93,800 MB/s write (CLZERO), 63,600 MB/s copy, 80-82 ns; L1 about 2,300
-GB/s read and 0.8 ns; L2 about 1,200 GB/s and 3.7 ns; L3 about 700 GB/s
-and 11-12 ns. Results vary by a few % from run to run.</p>
-<p><strong>Unusual values and what they suggest.</strong></p>
-<ul>
-<li>RAM read far below the kit's rating (DDR5-6000 dual channel: roughly
-60,000+ MB/s): EXPO/XMP off, one stick in the wrong slot (single
-channel), or the memory controller at a lower ratio.</li>
-<li>RAM latency well over 90 ns on DDR5: loose timings, or UCLK at half
-the memory clock.</li>
-<li>Everything 10-50% low or jumping between runs: other programs are
-busy. Close them and run again; <strong>never run another benchmark (or
-a second copy of SRS) at the same time</strong> - both results are
-spoiled.</li>
-</ul>
-<p><strong>Where Linux gets it.</strong> Built in. The measuring engine
-comes unchanged from Linux System Audit (LSA) 0.2.0, the same author's
-project, now part of SRS. x86-64 CPUs only (it uses x86-64 vector code).
-The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal
-frequency; the Infinity Fabric clock is read (read-only) from the
-<code>ryzen_smu</code> driver's PM table, layout 0x540104 only; the
-memory sticks come from the root DMI data (Tools &gt; Collect root
-data). Stored in <code>~/.cache/srs/bench-cachemem.txt</code>; each run
-is added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>. It
-asks before it starts, and only one benchmark runs at a time in SRS.</p>
-<hr />
-<h2 id="sections-tools--storage-benchmark">Storage benchmark</h2>
-<p><code>storage-bench</code> - Linux data</p>
-<p><strong>In plain words.</strong> How fast the drive that holds a
-folder you choose can read and write: big files in one go (sequential),
-lots of small 4 KB pieces at once (like a busy system), and one small
-piece at a time (how snappy the PC feels). It works on its <strong>own
-temporary test file only</strong> - your files are never opened, changed
-or deleted.</p>
-<p><strong>What you see.</strong> Six rows - Sequential 1 MiB (Q8T1), 4K
-random (Q32T16; Q8T4 in the Light profile) and 4K random (Q1T1), each
-Read and Write - with <strong>Average</strong> (the whole test),
-<strong>Peak</strong> (the best quarter second) and
-<strong>IOPS</strong> (requests per second) for the 4K rows. Then the
-response time of single 4K reads and writes (mean, median, 95% and 99%
-under, slowest), the drive model and connection (NVMe, SATA, USB;
-<strong>never the serial number</strong>), the folder and file system,
-the test file size and I/O mode, and the drive temperature before and
-after (when the drive has a sensor). Q = requests in flight per thread,
-T = threads; Q x T requests are in flight at once.</p>
-<table>
-<thead>
-<tr>
-<th>Setting</th>
-<th>Choices</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Folder</td>
-<td>Any folder you can write to on the drive you want to test (default:
-your home folder)</td>
-</tr>
-<tr>
-<td>Test file</td>
-<td>256 MB, 1 GB (default), 4 GB, 16 GB</td>
-</tr>
-<tr>
-<td>Seconds per test</td>
-<td>1-30 (default 5)</td>
-</tr>
-<tr>
-<td>Profile</td>
-<td>Standard (4K random Q32T16 = 16 threads) or Light (Q8T4 = at most 4
-threads)</td>
-</tr>
-<tr>
-<td>Allow USB drives</td>
-<td>Off by default</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Safety.</strong></p>
-<ul>
-<li>The test file is created new (it can never be one of your files) and
-is <strong>unlinked at once</strong>: it has no name while the test runs
-and its space is freed the moment the test ends - also after Stop, a
-crash or a forced kill. Nothing is ever left behind.</li>
-<li>Refused: folders in RAM (tmpfs - <code>/tmp</code> on many systems),
-network and FUSE file systems, read-only media, and anything with less
-than twice the test size free (+0.5 GB). USB drives only when you tick
-<strong>Allow USB drives</strong> (some USB enclosures drop off under
-heavy load). Hard disks get a warning.</li>
-<li>It asks before it starts, showing the drive, the folder and how much
-it writes.</li>
-<li>Writes count only once they are on the drive (<code>fdatasync</code>
-is inside the timing).</li>
-</ul>
-<p><strong>Healthy / typical values.</strong> Samsung 980 PRO 1 TB (PCIe
-4.0 x4 NVMe), btrfs, 64 MB file, 1 s per test, Light profile: sequential
-read about 6,500 MB/s, write about 3,200 MB/s; 4K Q8T4 read about 1,400
-MB/s (350,000 IOPS); 4K Q1T1 read about 51 MB/s (median 72 us), write
-about 150 MB/s. A SATA SSD tops out near 550 MB/s sequential; a hard
-disk manages about 150-250 MB/s sequential and around 1 MB/s (100-200
-IOPS) at 4K Q1T1.</p>
-<p><strong>Unusual values and what they suggest.</strong></p>
-<ul>
-<li>NVMe sequential read far below its rating: the drive sits in a
-slower M.2 slot or PCIe lanes are shared (see the PCI pages for the link
-speed and width), or it is hot and throttling (watch the temperature
-line).</li>
-<li>Write much lower on a longer test than a short one: the drive's fast
-SLC write cache filled up; that is normal for consumer SSDs.</li>
-<li>Small test files (256 MB) can fit in the drive's own cache and read
-very fast; use 1 GB or more for figures to compare.</li>
-<li>"buffered I/O" in the Test file line: the file system refused direct
-I/O; the page cache was dropped before each read test, but results can
-still be a little high.</li>
-</ul>
-<p><strong>Where Linux gets it.</strong> Built in: <code>O_DIRECT</code>
-I/O with Linux native asynchronous I/O (<code>io_submit</code>) for real
-queue depths, incompressible random data; the drive is found through
-<code>/proc/self/mountinfo</code> and <code>/sys/block</code>
-(device-mapper and RAID followed to the first member); the temperature
-from the drive's hwmon sensor. Drive health (SMART) is on the Storage
-page. Stored in <code>~/.cache/srs/bench-storage.txt</code>; each run is
-added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
-<hr />
-<h2 id="sections-tools--srs-pi">SRS Pi</h2>
-<p><code>srs-pi</code> - Linux data</p>
-<p><strong>In plain words.</strong> SRS works out pi (3.14159...) to
-many decimal places - from 128 thousand up to 32 million - and then
-checks every single digit. It is a classic CPU test: the time tells you
-how fast one core is at heavy number work, and a wrong digit means the
-computer made a mistake, which usually points to an unstable overclock,
-too little voltage or bad memory.</p>
-<p><strong>What you see.</strong></p>
-<table>
-<thead>
-<tr>
-<th>Line</th>
-<th>Meaning</th>
-<th>Why it matters</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Digits</td>
-<td>How many decimal places were worked out (after "3."). 1 million =
-1,000,000. With <strong>SuperPi sizes</strong> ticked, powers of two: 1M
-= 1,048,576, marked "(SuperPi size 1M)".</td>
-<td>Bigger takes longer and uses more memory.</td>
-</tr>
-<tr>
-<td>Method</td>
-<td>Chudnovsky series (fast) or Gauss-Legendre / AGM (the method SuperPi
-uses).</td>
-<td>Only compare runs made with the same method.</td>
-</tr>
-<tr>
-<td>Threads</td>
-<td>1 = single-thread score. Chudnovsky can split its work over more
-threads; AGM always uses one.</td>
-<td></td>
-</tr>
-<tr>
-<td>Time</td>
-<td>Seconds from start to the last digit (the check is not
-counted).</td>
-<td>Lower is faster.</td>
-</tr>
-<tr>
-<td>Check</td>
-<td>"every digit right" when the SHA-256 checksum of all the digits
-matches the true digits.</td>
-<td>Anything else means a wrong result: do not trust that PC's
-stability.</td>
-</tr>
-<tr>
-<td>Last 20 digits</td>
-<td>The end of the result, for a quick look.</td>
-<td></td>
-</tr>
-<tr>
-<td>Build</td>
-<td>Compiler and CPU code level the program was built for.</td>
-<td>Results only compare between alike builds.</td>
-</tr>
-</tbody>
-</table>
-<p>If never run, the item shows <code>Status Not run yet</code> and the
-command line.</p>
-<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, package
-build (generic x86-64, -O2), one thread: 128 thousand digits 0.23 s, 1
-million 3.1 s, 2 million 7.7 s, 4 million 17.7 s, 8 million 39.6 s. 1
-million on 4 threads: 1.4 s. Gauss-Legendre is about four times slower
-than Chudnovsky (1 million: 13.2 s). A build made for this CPU
-(<code>-march=native -O3</code>) did 1 million in 2.1 s.</p>
-<p><strong>Unusual values and what they suggest.</strong></p>
-<ul>
-<li>Check says "wrong": the hardware made an error. Undo the last
-overclock or voltage change and run it again; a wrong result at stock
-settings points to memory (run a memory tester).</li>
-<li>Much slower than usual: another program is busy, the CPU is hot and
-throttling, or a power-saving profile is active.</li>
-<li>"Not enough memory": 32 million digits needs about 1-2 GB of free
-RAM (more with more threads).</li>
-</ul>
-<p><strong>Where Linux gets it.</strong> Built in (no outside program):
-big numbers in base 10^8, multiplied with a number-theoretic transform;
-Newton steps for division and square roots. The true digits' SHA-256
-checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into
-SRS (computed once with the independent mpmath library). Stored in
-<code>~/.cache/srs/bench-pi.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
-<p><strong>Background.</strong> SuperPi (1995) made "pi to 1 million
-digits" a famous overclocking test. SRS Pi is SRS's own program with its
-own name and timings; its times are <strong>not</strong> SuperPi times.
-SuperPi's "1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly
-1,000,000. Tick <strong>SuperPi sizes</strong> to work out the same
-digit counts SuperPi does (16K = 16,384 up to 32M = 33,554,432), so at
-least the amount of work matches; each of these sizes has its own
-built-in checksum too. 1M = 1,048,576 digits took 4.2 s on one thread on
-the 7800X3D (a little more than 5% over 1,000,000 digits, because the
-multiplications step up to the next power-of-two size).</p>
-<hr />
-<h2 id="sections-tools--crypto-benchmark">Crypto benchmark</h2>
-<p><code>crypto-bench</code> - Linux data</p>
-<p><strong>In plain words.</strong> How fast the CPU can encrypt data
-(AES-128, used by disk encryption, VPNs and HTTPS) and make fingerprints
-of data (SHA-256, used by package checks, backups and git). Each is
-measured twice: with the CPU's own crypto instructions (AES-NI, SHA-NI)
-and in plain C without them, so you can see how much the hardware
-helps.</p>
-<p><strong>What you see.</strong> A table in MB/s (1 MB = 1,000,000
-bytes) with one column for one thread and one for the chosen number of
-threads (default: all), and a Check line.</p>
-<table>
-<thead>
-<tr>
-<th>Row</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>AES-128-CTR, AES-NI</td>
-<td>AES-128 in counter mode using the AES instructions, eight blocks at
-a time.</td>
-</tr>
-<tr>
-<td>AES-128-CTR, plain C</td>
-<td>The same work with lookup tables in ordinary C code.</td>
-</tr>
-<tr>
-<td>SHA-256, SHA-NI</td>
-<td>SHA-256 using the SHA extensions.</td>
-</tr>
-<tr>
-<td>SHA-256, plain C</td>
-<td>SHA-256 in ordinary C code.</td>
-</tr>
-</tbody>
-</table>
-<p>A row says "not available on this CPU" when the CPU lacks those
-instructions.</p>
-<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, one
-thread: AES-NI about 15,000 MB/s, plain C about 180 MB/s; SHA-NI about
-2,100 MB/s, plain C about 430 MB/s. With four threads the numbers grow
-about four times. For comparison, <code>openssl speed</code> on the same
-core: AES-128-CTR about 12,600 MB/s, SHA-256 about 2,400 MB/s.</p>
-<p><strong>Unusual values and what they suggest.</strong> Check not
-"pass": the CPU gave a wrong answer - treat it like a failed stability
-test. AES-NI rows missing on a modern CPU: the instructions may be
-switched off in the BIOS or hidden by a virtual machine.</p>
-<p><strong>Where Linux gets it.</strong> Built in, written from the
-standards FIPS 197 (AES) and FIPS 180-4 (SHA-256). Before every run the
-official test vectors are checked, and the hardware results are compared
-with the plain C results. Stored in
-<code>~/.cache/srs/bench-crypto.txt</code>. Runs about 8 seconds at the
-default of 1 second per measurement.</p>
-<hr />
-<h2 id="sections-tools--prime-sieve">Prime sieve</h2>
-<p><code>prime-sieve</code> - Linux data</p>
-<p><strong>In plain words.</strong> Counts all the prime numbers up to a
-limit (100 million to 100 billion) and checks the count against the
-known answer. It is simple integer and cache work that splits well over
-many threads.</p>
-<p><strong>What you see.</strong> Limit, Threads, Time, Speed (million
-numbers per second), Primes found, and a Check line ("right" when the
-count matches the known value, for example 455,052,511 primes below 10
-billion).</p>
-<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, up to 10
-billion: 4.5 s on one thread, 1.15 s on four threads. The specialised
-<code>primesieve</code> program does the one-thread run in 0.75 s: SRS
-uses a plain, easy-to-read sieve, so compare SRS with SRS.</p>
-<p><strong>Where Linux gets it.</strong> Built in: a segmented sieve of
-Eratosthenes over the odd numbers, in 128 KB pieces that fit in the L2
-cache, shared between threads. Stored in
-<code>~/.cache/srs/bench-prime.txt</code>.</p>
-<hr />
-<h2 id="sections-tools--benchmark-history">Benchmark history</h2>
-<p><code>bench-history</code> - Linux data</p>
-<p><strong>In plain words.</strong> A list of every SRS Pi, Crypto and
-Prime sieve run, newest first, so you can compare before and after a
-change (BIOS setting, kernel, cooler).</p>
-<p><strong>What you see.</strong> When, Test, Settings (digits, threads,
-method), Result, and Build. Results in red were wrong.</p>
-<p><strong>Where Linux gets it.</strong>
-<code>~/.cache/srs/bench-history.tsv</code>, a tab-separated text file
-(one line per run) that any spreadsheet opens. Only compare lines with
-the same settings and the same Build: a package built for every x86-64
-CPU can be much slower than one built for this CPU.</p>
 <hr />
 <h2 id="sections-tools--lookup">Lookup</h2>
 <p><code>lookup</code> - Linux data</p>
@@ -30591,14 +30102,8 @@ sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|sw
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
-sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
-sysreport-search crypto [--threads N] [--seconds S]
-sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
-sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
-sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
-srs-gui --power-recorder
 srs-root [--user NAME]
 srs-sysreport</code></pre>
 <hr />
@@ -30639,25 +30144,12 @@ Benchmarks and stress (load the CPU; run only when you ask):
         core-to-core (cache-line ping-pong) latency matrix
   latency [--max MB]
         memory latency by block size, up to MB (1..4096, default 256)
-  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
-        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
-        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
-  crypto [--threads N] [--seconds S]
-        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
-  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
-        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
-        5 s per test); never touches existing files; asks first, --yes starts at once
-  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
-           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
-        Cache &amp; Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
-        ~20 s; asks first, --yes starts at once)
-  prime [--limit 1e8|1e9|1e10|N] [--threads N]
-        count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
-        --gui-open=power-cost the Power &amp; cost page; --power-recorder record its history with no window</code></pre>
+        (--gui-scan-empty is internal: the main window runs it in a child process to find
+        the items that have nothing to show on this PC)</code></pre>
 <h3 id="cli-reference----version"><code>--version</code></h3>
 <pre><code>sysreport-search 2.0.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
@@ -30666,7 +30158,7 @@ Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (551 lines), one per line:</p>
+<p>Lists every item SRS knows (545 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
@@ -31104,110 +30596,6 @@ memory latency by block size</h3>
 256; the window allows up to 1024). Prints block size, nanoseconds per
 read and the cache level. See <a
 href="#sections-tools--memory-latency">tools.md</a>.</p>
-<h3
-id="cli-reference--pi---srs-pi-pi-to-many-digits-every-digit-checked"><code>pi</code> -
-SRS Pi: pi to many digits, every digit checked</h3>
-<pre><code>sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]</code></pre>
-<p><code>--digits</code> is the number of decimal places (default
-<code>1m</code> = 1,000,000; <code>k</code> = thousand, <code>m</code> =
-million; <code>ki</code> = 1,024 and <code>mi</code> = 1,048,576 for the
-<strong>SuperPi sizes</strong> 16ki ... 32mi; 100 to 32mi). The listed
-sizes are checked digit for digit with built-in SHA-256 checksums; other
-sizes only have their first 100 digits checked. <code>--threads N</code>
-(default 1) splits the Chudnovsky series over N threads;
-<code>--method agm</code> uses Gauss-Legendre (always one thread).
-<code>--save-digits FILE</code> writes the digits (without "3.") to
-FILE. Exit code 0 when every checked digit is right, 1 when a digit is
-wrong or memory ran out, 2 for a bad option. See <a
-href="#sections-tools--srs-pi">tools.md</a>.</p>
-<h3 id="cli-reference--crypto---aes-128-and-sha-256-speed"><code>crypto</code> -
-AES-128 and SHA-256 speed</h3>
-<pre><code>sysreport-search crypto [--threads N] [--seconds S]</code></pre>
-<p>Measures AES-128-CTR and SHA-256 in MB/s on one thread and on N
-threads (default all), with AES-NI / SHA-NI when the CPU has them and in
-plain C. <code>--seconds S</code> per measurement, 0.1 to 60 (default
-1). The FIPS test vectors are checked first; exit code 1 if they fail.
-See <a href="#sections-tools--crypto-benchmark">tools.md</a>.</p>
-<h3 id="cli-reference--prime---count-the-primes-up-to-a-limit"><code>prime</code> -
-count the primes up to a limit</h3>
-<pre><code>sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]</code></pre>
-<p>Counts the primes up to <code>--limit</code> (default 1e9; 100 to
-1e11) on N threads (default all) and checks the count for the powers of
-ten 1e7 to 1e11. Exit code 1 when the count is wrong. See <a
-href="#sections-tools--prime-sieve">tools.md</a>.</p>
-<h3 id="cli-reference--cachemem---cache--memory-benchmark"><code>cachemem</code> -
-Cache &amp; Memory benchmark</h3>
-<pre><code>sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
-                          [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]
-                          [--mem-write auto|clzero|stream] [--yes]</code></pre>
-<p>Read / Write / Copy (MB/s, caches in GB/s) and Latency (ns) of the
-RAM and the L1, L2 and L3 caches. It loads every CPU thread and the
-memory bus for about 20 seconds and <strong>asks first</strong>;
-<code>--yes</code> (<code>-y</code>) starts at once (scripts). Without a
-terminal and without <code>--yes</code> it does not start (exit code
-2).</p>
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--threads N</code></td>
-<td>Threads for the bandwidth tests (default all logical CPUs)</td>
-</tr>
-<tr>
-<td><code>--seconds S</code></td>
-<td>Measuring time per value, 0.1-60 (default 1)</td>
-</tr>
-<tr>
-<td><code>--isa</code></td>
-<td>Force the vector code (default: the best the CPU has)</td>
-</tr>
-<tr>
-<td><code>--mem-mib M</code></td>
-<td>RAM block in MiB, all threads together (default 1024, at least 4 x
-L3)</td>
-</tr>
-<tr>
-<td><code>--only</code> / <code>--tests</code></td>
-<td>Run only some rows / columns, e.g.
-<code>--only l1 --tests read</code></td>
-</tr>
-<tr>
-<td><code>--mib</code></td>
-<td>Binary units (MiB/s, GiB/s)</td>
-</tr>
-<tr>
-<td><code>--mem-write</code></td>
-<td>RAM write method: <code>auto</code> (CLZERO on AMD CPUs that have
-it), <code>clzero</code>, <code>stream</code></td>
-</tr>
-</tbody>
-</table>
-<p>x86-64 only. Exit code 0 when it ran, 1 if memory could not be
-allocated, 2 for a bad option or no confirmation. See <a
-href="#sections-tools--cache--memory-benchmark">tools.md</a>.</p>
-<h3 id="cli-reference--storage---drive-read--write-speed"><code>storage</code> - drive
-read / write speed</h3>
-<pre><code>sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]</code></pre>
-<p>Tests the drive that holds FOLDER on a new temporary test file
-(<code>--size</code>, 16-65536 MB, default 1024) that is unlinked at
-once and gone when the test ends - existing files are never touched. Six
-tests of <code>--seconds S</code> each (0.5-60, default 5): sequential 1
-MiB Q8T1, 4K random Q32T16 (<code>--profile light</code>: Q8T4) and 4K
-random Q1T1, read and write; average, peak, IOPS and 4K Q1T1 response
-times. Refuses RAM (tmpfs), network and FUSE folders and too little free
-space; USB drives only with <code>--allow-usb</code>. <strong>Asks
-first</strong>; <code>--yes</code> starts at once. Exit code 0 when it
-ran, 1 when it was stopped or hit an I/O error, 2 when it did not start
-(the message says why). See <a
-href="#sections-tools--storage-benchmark">tools.md</a>.</p>
-<p>Every <code>cachemem</code>, <code>storage</code>, <code>pi</code>,
-<code>crypto</code> and <code>prime</code> run is added to
-<code>~/.cache/srs/bench-history.tsv</code>.</p>
 <hr />
 <h2 id="cli-reference--srs-gui-window-options"><code>srs-gui</code> window options</h2>
 <table>
@@ -31243,15 +30631,6 @@ every item in its own panel (as in SRS 1.1).</td>
 <td><code>--gui-new</code></td>
 <td>Start in the main window with the sidebar, even when <strong>Start
 in classic view</strong> is on.</td>
-</tr>
-<tr>
-<td><code>--power-recorder</code></td>
-<td>Record <strong>Power &amp; cost</strong> history with no window,
-following the page's Recording setting (Off / For a set time / Always).
-Used by the optional systemd user service that <strong>Power &amp; cost
--&gt; Setup -&gt; Keep recording when SRS is closed</strong> writes.
-Only one process records at a time (a lock file beside the database);
-stop it with Ctrl+C or SIGTERM.</td>
 </tr>
 <tr>
 <td>any other argument</td>
@@ -31292,27 +30671,6 @@ stop it with Ctrl+C or SIGTERM.</td>
 <td>Latency</td>
 </tr>
 <tr>
-<td><code>pi</code></td>
-<td>SRS Pi</td>
-</tr>
-<tr>
-<td><code>crypto</code></td>
-<td>Crypto benchmark</td>
-</tr>
-<tr>
-<td><code>prime</code></td>
-<td>Prime Sieve</td>
-</tr>
-<tr>
-<td><code>cachemem</code></td>
-<td>Cache &amp; Memory</td>
-</tr>
-<tr>
-<td><code>storagebench</code></td>
-<td>Storage benchmark (<code>storage</code> alone is the Storage page's
-item)</td>
-</tr>
-<tr>
 <td><code>idlookup</code></td>
 <td>Device ID Lookup</td>
 </tr>
@@ -31323,11 +30681,6 @@ item)</td>
 <tr>
 <td><code>menu</code></td>
 <td>Pops up the Menu</td>
-</tr>
-<tr>
-<td><code>power-cost</code></td>
-<td>Shows the Power &amp; cost page (the item <code>power</code> is the
-expert Power status tab on Sensors)</td>
 </tr>
 </tbody>
 </table>
@@ -31430,18 +30783,6 @@ to run</td>
 <td>Same as <code>--gui-open=</code></td>
 </tr>
 <tr>
-<td><code>SRS_POWER_DB</code>, <code>SRS_POWER_INI</code></td>
-<td>Power &amp; cost: use another history database / settings file
-instead of <code>~/.local/share/srs/power.db</code> and
-<code>~/.config/srs/power.ini</code> (for tests)</td>
-</tr>
-<tr>
-<td><code>SRS_DATA_DIR</code></td>
-<td>Folder holding <code>power-zip-rates.tsv</code> for the offline US
-ZIP price lookup (default: next to the program, then
-<code>/usr/share/srs-sysinfo</code>)</td>
-</tr>
-<tr>
 <td><code>SRS_DOC_DIR</code></td>
 <td>Folder holding <code>SRS-User-Guide.pdf</code> / <code>html/</code>
 for <code>guide</code>, F1 and the Guide button (default
@@ -31488,19 +30829,10 @@ feature that counts and reports link errors (correctable and
 uncorrectable) to the kernel. <em>See: <a
 href="#sections-buses-1">buses-1</a>, <a
 href="#sections-graphics">graphics</a>.</em></li>
-<li><strong>AES (Advanced Encryption Standard), AES-NI</strong> - the
-standard way to encrypt data (disk encryption, VPN, HTTPS). AES-NI are
-CPU instructions that do one AES round in hardware, many times faster
-than plain code. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>Affinity mask</strong> - a bit pattern, one bit per CPU,
 saying which CPUs a task may run on. <code>FFFF</code> = CPUs 0-15.
 <em>See: <a href="#sections-processors">processors</a>, <a
 href="#sections-srs-items">srs-items</a>.</em></li>
-<li><strong>AGM (arithmetic-geometric mean), Gauss-Legendre</strong> - a
-way to compute pi that doubles the number of correct digits at every
-step; the method SuperPi uses. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>AIO</strong> - All-In-One liquid cooler: a sealed pump,
 radiator and fans in one unit. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
@@ -31541,17 +30873,9 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>Associativity (ways)</strong> - how many places in a cache a
 given piece of memory may be stored; more ways means fewer collisions.
 <em>See: <a href="#sections-processors">processors</a>.</em></li>
-<li><strong>Asynchronous I/O (AIO)</strong> - handing the kernel several
-read or write requests at once and collecting the answers later; how the
-storage benchmark keeps Q requests in flight. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>ATA</strong> - AT Attachment: the command set used by SATA
 (and older IDE/PATA) hard disks and SSDs. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
-<li><strong>At the wall</strong> - what the PC draws from the socket,
-including the power supply's own losses; what the electricity meter
-counts and you pay for. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>AUR (Arch User Repository)</strong> - community build
 recipes for Arch-based systems. Packages built from it show as "foreign"
 in pacman. <em>See: <a
@@ -31592,10 +30916,6 @@ href="#sections-storage">storage</a>.</em></li>
 <li><strong>Binary MOF</strong> - a compressed description of a vendor's
 WMI classes, stored in the firmware. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
-<li><strong>Binary splitting</strong> - computing a long series by
-splitting it in halves again and again and joining the halves with big
-multiplications, so the work stays fast and can be shared between
-threads. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Bind mount</strong> - Attaching a folder of an existing
 filesystem at a second place in the folder tree. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -31626,10 +30946,6 @@ href="#sections-network">network</a>.</em></li>
 <li><strong>btrfs</strong> - A Linux copy-on-write filesystem with
 checksums, subvolumes, snapshots, compression and built-in multi-disk
 support. <em>See: <a href="#sections-storage">storage</a>.</em></li>
-<li><strong>BTU/h (British thermal units per hour)</strong> - a unit of
-heat flow: 1 W is about 3.412 BTU/h. All the power a PC uses ends up as
-heat in the room. <em>See: <a href="#user-guide--67-power--cost">User
-Guide 6.7</a>.</em></li>
 <li><strong>Built-in driver</strong> - a driver compiled into the kernel
 file itself. It is always present and never appears in
 <code>/proc/modules</code>. <em>See: <a
@@ -31640,9 +30956,6 @@ href="#sections-buses-2">buses-2</a>.</em></li>
 </ul>
 <h2 id="glossary--c">C</h2>
 <ul>
-<li><strong>Carbon intensity</strong> - grams of CO2 released per kWh of
-electricity on a grid, on average over a year. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>C-state</strong> - an idle power level of a CPU core; C0 is
 running, deeper states (C1, C2, C3) save more power but take longer to
 wake. <em>See: <a
@@ -31681,9 +30994,6 @@ href="#sections-linux-os">linux-os</a>.</em></li>
 addressing disk blocks, replaced by LBA. SRS shows the legacy 255-head,
 63-sector translation. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
-<li><strong>Chudnovsky series</strong> - a formula for pi that gives
-about 14 more digits for every term; the fastest way known to compute
-many digits. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Class code</strong> - The PCI number that says what kind of
 device it is, e.g. 0300 display, 0108 NVMe, 0604 PCI bridge. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
@@ -31696,10 +31006,6 @@ href="#sections-linux-os">linux-os</a>.</em></li>
 <li><strong>Cluster</strong> - The smallest unit of space a FAT, exFAT
 or NTFS filesystem hands out to a file. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
-<li><strong>CLZERO</strong> - an AMD instruction that writes a whole
-zeroed 64-byte cache line straight to memory; the Cache &amp; Memory
-benchmark uses it to measure how fast the RAM itself can take writes.
-<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>CMOS</strong> - the battery-backed clock chip and its small
 memory on the motherboard; the name comes from the chip technology.
 <em>See: <a href="#sections-machine">machine</a>.</em></li>
@@ -31775,10 +31081,6 @@ href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--d">D</h2>
 <ul>
-<li><strong>DC power (inside the PC)</strong> - the power after the
-power supply, used by the parts; always less than the power at the wall.
-<em>See: <a href="#user-guide--67-power--cost">User Guide
-6.7</a>.</em></li>
 <li><strong>D-states</strong> - device power states: D0 fully on, D3hot
 off but powered, D3cold power removed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -32232,9 +31534,6 @@ href="#sections-processors">processors</a>.</em></li>
 can isolate from each other. It matters for passing a device to a
 virtual machine. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
-<li><strong>IOPS</strong> - input/output operations per second: how many
-separate read or write requests a drive answers each second. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>IP block</strong> - A reusable hardware building block
 inside an AMD chip (graphics core, video engine, memory controller...),
 each with its own version. <em>See: <a
@@ -32272,9 +31571,6 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>JEDEC</strong> - the standards body for memory; the JEDEC
 speed is a stick's standard base speed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
-<li><strong>Joule (J)</strong> - a unit of energy: 3,600 J = 1 Wh. Linux
-energy counters count microjoules (millionths of a joule). <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Junction temperature</strong> - the hottest point measured
 on a graphics chip, usually higher than its "edge" temperature. <em>See:
 <a href="#sections-tools">tools</a>.</em></li>
@@ -32300,8 +31596,6 @@ href="#sections-processors">processors</a>.</em></li>
 <li><strong>kWh (kilowatt-hour)</strong> - 1000 watts used for one hour;
 the unit electricity is billed in. <em>See: <a
 href="#sections-sensors">sensors</a>.</em></li>
-<li><strong>kW (kilowatt)</strong> - 1,000 watts. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 </ul>
 <h2 id="glossary--l">L</h2>
 <ul>
@@ -32533,10 +31827,6 @@ href="#sections-storage">storage</a>.</em></li>
 <li><strong>NTP (Network Time Protocol)</strong> - the protocol that
 keeps the clock in sync with time servers over the network. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
-<li><strong>NTT (number-theoretic transform)</strong> - a relative of
-the FFT that works with whole numbers modulo a prime, used to multiply
-numbers with millions of digits quickly and exactly. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>NUMA</strong> - Non-Uniform Memory Access; a design where
 memory is attached to particular CPUs, so "far" memory is slower.
 <em>See: <a href="#sections-machine">machine</a>, <a
@@ -32559,10 +31849,6 @@ href="#sections-sensors">sensors</a>.</em></li>
 </ul>
 <h2 id="glossary--o">O</h2>
 <ul>
-<li><strong>O_DIRECT</strong> - opening a file so reads and writes go
-straight to the drive, past Linux's page cache in RAM; benchmarks use it
-so they measure the drive, not the RAM. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>OpenCL</strong> - An open standard for running general
 computing tasks on GPUs and other processors. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -32587,11 +31873,6 @@ power tuning. On Linux it appears as <code>pp_od_clk_voltage</code>.
 <ul>
 <li><strong>P-core</strong> - Performance core, a big, fast core on a
 hybrid CPU. <em>See: <a href="#sections-tools">tools</a>.</em></li>
-<li><strong>PLATYPUS</strong> - a 2020 attack that used CPU energy
-readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since
-Linux 5.10 the powercap RAPL counters are root-only because of it.
-<em>See: <a href="#user-guide--67-power--cost">User Guide
-6.7</a>.</em></li>
 <li><strong>P-state</strong> - a performance state: a running speed and
 voltage level of the CPU. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
@@ -32731,11 +32012,6 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>PSS (Proportional Set Size)</strong> - a process's RAM use
 with shared pages split fairly among the processes sharing them.
 <em>See: <a href="#sections-linux-os">linux-os</a>.</em></li>
-<li><strong>PSU efficiency (80 PLUS, Cybenetics)</strong> - the share of
-the wall power that reaches the parts; 90 % means 10 % turns into heat
-in the power supply. 80 PLUS and Cybenetics certify it at set loads.
-<em>See: <a href="#user-guide--67-power--cost">User Guide
-6.7</a>.</em></li>
 <li><strong>PTP (Picture Transfer Protocol)</strong> - the older camera
 file-transfer protocol that MTP is built on; uses USB class 06 (Still
 Image). <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
@@ -32753,10 +32029,6 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>QST (Quiet System Technology)</strong> - Intel fan control
 built into the management engine of some 2007-2010 desktop boards.
 <em>See: <a href="#sections-sensors">sensors</a>.</em></li>
-<li><strong>Queue depth (Q), threads (T)</strong> - Q = how many
-requests one thread keeps waiting at the drive at once, T = how many
-threads do so; "Q32T16" keeps 512 requests in flight. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>Quirk (USB)</strong> - a kernel workaround flag for a device
 that does not follow the USB standard exactly. <em>See: <a
 href="#sections-buses-2">buses-2</a>.</em></li>
@@ -32866,26 +32138,15 @@ href="#sections-graphics">graphics</a>.</em></li>
 loaders and kernels signed with trusted keys. <em>See: <a
 href="#sections-linux-os">linux-os</a>, <a
 href="#sections-machine">machine</a>.</em></li>
-<li><strong>Session (busy session)</strong> - in Power &amp; cost, a
-stretch of heavy use (a game, a render) found from the CPU and graphics
-load; its energy is the whole PC's while it lasted. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Setup Mode</strong> - UEFI Secure Boot state with no
 Platform Key installed, in which keys can be changed freely. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
 <li><strong>SEV</strong> - Secure Encrypted Virtualization; AMD server
 feature that encrypts virtual machine memory. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
-<li><strong>SHA-256, SHA-NI</strong> - SHA-256 makes a 256-bit
-"fingerprint" of data (package checks, backups, git); SHA-NI are CPU
-instructions that speed it up. <em>See: <a
-href="#sections-tools">tools</a>.</em></li>
 <li><strong>Shared library</strong> - a <code>.so</code> code file many
 programs use at once, such as <code>libc.so.6</code>. <em>See: <a
 href="#sections-srs-items">srs-items</a>.</em></li>
-<li><strong>Sieve of Eratosthenes</strong> - finding prime numbers by
-crossing out the multiples of each prime; what remains are the primes.
-<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Sink / source</strong> - In a sound server, a sink is where
 sound goes (speakers, HDMI); a source is where sound comes from
 (microphone, line in). <em>See: <a
@@ -32955,9 +32216,6 @@ href="#sections-machine">machine</a>.</em></li>
 run faster; flaws in it (Spectre, Meltdown) can leak data and are closed
 by mitigations. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
-<li><strong>SQLite</strong> - a small database kept in one file; SRS
-keeps the Power &amp; cost history in one. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>srs-root</strong> - the SRS root helper, started from Menu
 &gt; Run as root; it saves root-only data (such as real resource
 addresses) for SRS to read. <em>See: <a
@@ -32975,9 +32233,6 @@ name. <em>See: <a href="#sections-network">network</a>.</em></li>
 it as hex plus letters P (present), E (enabled), S (shown), F
 (functioning). <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
-<li><strong>Standing charge</strong> - what an electricity supplier
-charges per day whatever you use. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>statvfs</strong> - The system call that returns a mounted
 filesystem's size, free space and block size. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -33077,12 +32332,6 @@ href="#sections-tools">tools</a>.</em></li>
 <li><strong>Thunderbolt</strong> - Intel's high-speed port that carries
 PCI Express, DisplayPort and USB over one cable; USB4 is based on it.
 <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
-<li><strong>Tiered price</strong> - an electricity price that changes
-after so many kWh a month. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
-<li><strong>Time-of-use price</strong> - an electricity price that
-depends on the hour and the day. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Tjmax</strong> - the highest temperature a CPU allows before
 it throttles itself. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
@@ -33228,9 +32477,6 @@ units. <em>See: <a href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>Whetstone</strong> - a classic floating-point (decimal
 maths) CPU benchmark. Its score is given in MWIPS. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
-<li><strong>Wh (watt-hour)</strong> - energy used over time: 100 W for
-one hour is 100 Wh; 1,000 Wh is 1 kWh. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Wine</strong> - A compatibility layer that runs Windows
 programs on Linux. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -33250,19 +32496,12 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>WPD (Windows Portable Devices)</strong> - the Windows name
 for MTP/PTP devices such as phones and cameras. <em>See: <a
 href="#sections-buses-2">buses-2</a>.</em></li>
-<li><strong>Wrap-around (counter)</strong> - a counter reaching its
-highest value and starting again from zero, like an odometer; SRS
-unwraps the CPU energy counter. <em>See: <a
-href="#user-guide--67-power--cost">User Guide 6.7</a>.</em></li>
 <li><strong>Write-back cache</strong> - A drive feature that confirms a
 write once it is in the drive's own fast memory. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
 <li><strong>WS-Discovery (Web Services Discovery)</strong> - the method
 modern Windows uses to find other PCs and printers on the LAN. <em>See:
 <a href="#sections-network">network</a>.</em></li>
-<li><strong>W (watt)</strong> - how fast power is being used right now.
-<em>See: <a href="#user-guide--67-power--cost">User Guide
-6.7</a>.</em></li>
 <li><strong>WWN</strong> - World Wide Name: a globally unique ID some
 drives report, used for stable device names. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>

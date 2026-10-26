@@ -85,9 +85,12 @@ GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0 sqlite3)
 GTKLIBS  := $(shell pkg-config --libs gtk+-3.0 sqlite3)
 POWER    := power.c power_src.c power_model.c power_db.c power_rates.c
 POWERHDR := power.h power_src.h power_model.h power_db.h power_rates.h power_rates_data.inc
-$(DIST)/linux-x86_64/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
+# the GTK GUI's own extra sources (main window: sortable tables, tab lineups, startup manager)
+GUIX     := tblsort.c gui_startup.c
+GUIXHDRS := tblsort.h gui_tabs.inc gui_startup.h
+$(DIST)/linux-x86_64/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
 
 # unit tests of the power arithmetic and history database, with synthetic counter data
 test-power: $(DIST)/test/test_power
@@ -125,9 +128,9 @@ $(NATIVE)/sysreport-search: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) $(CPPFLAGS) $(LDFLAGS) -o $@ $(CORE) plat_posix.c $(SECS) -lm
 
-$(NATIVE)/srs-gui: gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(POWERHDR)
+$(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
-	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
+	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm
 
 install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui

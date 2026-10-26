@@ -52,11 +52,28 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
     memory, storage, operating system and motherboard.
   - **Each page** starts with a short explanation and the key facts, then the full panels as tabs
     (same text, colours and live updates as the classic panels) with Refresh, Copy, Guide (F1),
-    a Live switch and **Open in window**. **All N items** lists every item of the page, the
-    expert ones too.
+    a Live switch and **Open in window**. **All N items** is a searchable jump list of every item
+    of the page, the expert ones too.
+  - **Tabs your way** (2.1): add (**+**, Ctrl+T), close, replace (right-click > Replace with...),
+    drag and keep tabs; SRS remembers each page's tabs and their order. Per page in Options: the
+    standard tabs, the ones you tick, or every item; or every item as a tab on all pages. Tab bar:
+    one scrolling row, wrapped rows or a side list. **Lineups** save a whole arrangement: Basic,
+    Enthusiast (default), Expert, and your own (save, export, import). Items that cannot show
+    anything on this PC (Windows-only, not present, empty) are hidden; **Show hidden items** lists them.
+  - **Sortable tables** (2.1): click a column heading (first click ascending ▲, second descending ▼);
+    numbers sort by value with their units (MB/GB, MHz, °C, RPM, %), dates by date. **Reset view**
+    puts the item's order back; Copy and Save Report always keep it.
+  - **Startup manager** (2.1, Operating system -> Startup programs -> Manage): turn any autostart
+    entry, user service or (after a warning, with pkexec) system service off and on again without
+    deleting anything; Undo, Restore default, and **Add to startup** for a program or a command with
+    an optional delay. Desktop essentials (Plasma, PipeWire, KWallet, portals, polkit agent) ask first.
+  - **Badge** in the title bar: **Full access** when SRS runs as root or root data was collected
+    (hover for when), else **Limited (user)** with a **Run as root...** button.
+  - **CPU Clocks** (2.1) adds **Stock and in effect now**: the base clock measured (BCLK / eCLK),
+    core base / boost / now at stock and in effect, and FCLK / UCLK / MCLK from the SMU (ryzen_smu).
   - **Search** in the title bar (Ctrl+F) finds any item by name or id (`processor:3` works);
     Enter searches the text of the current tab, F3 for the next match.
-  - **Menu**: Save Report, Save All Items, Copy This Tab, Options, Run as root, Find in System
+  - **Menu**: Save Report, Save All Items, Copy This Tab, Lineup, Options, Run as root, Find in System
     Report, Device ID Lookup, Classic View, the full Classic Menu, User Guide, About SRS, Quit.
   - The tools below open from the **Benchmarks & stress** and **Tools** pages too.
   - **Power & cost** (new in 2.1): an estimate of the whole PC's power at the wall with its likely
@@ -105,8 +122,8 @@ drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> cored
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
 - Hot-keys (classic view): Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
-  the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page and
-  Ctrl+W closes an extra tab.
+  the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+- and Alt+= jump to a page,
+  Ctrl+T adds a tab, Ctrl+W closes the tab in view and Ctrl+PageUp / Ctrl+PageDown step through the tabs.
 
 ## System tray
 
@@ -176,7 +193,11 @@ the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SR
 Read-only by design: nothing is written to sysfs, devices or firmware. No i2c/SMBus/DDC access,
 no hidraw, no SMU commands, no network traffic apart from `ping` to the default gateway in the
 Ping item. Burner and benchmarks never start on their own (not from `-save` either). Root-only
-data comes only from `srs-root`'s cache in `~/.cache/srs/root`.
+data comes only from `srs-root`'s cache in `~/.cache/srs/root`. The one thing that changes your
+system is the Startup manager, and only when you click a switch or a button there: it writes
+autostart files in `~/.config/autostart` (never deletes; old versions go to
+`~/.config/srs/startup-backup`) and runs `systemctl --user` or, after a warning, `pkexec systemctl`
+for system services. `SRS_STARTUP_DRY_RUN=1` shows those commands instead of running them.
 
 ## Install
 
@@ -186,10 +207,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.0.0-x86_64.AppImage
-    ./srs-sysinfo-2.0.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.0.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.0.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.1.0-x86_64.AppImage
+    ./srs-sysinfo-2.1.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.1.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.1.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -221,6 +242,7 @@ bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors.
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
+| `gui_tabs.inc`, `tblsort.c`, `gui_startup.c` | main window: tab lineups and the item jump list; unit-aware table sorting; the Startup manager |
 | `gui.c`, `plat_win32.c`, `srs.rc` | optional Windows build (`SRS64X.exe` / `SRS32X.exe`, search features only) |
 | `guide.c`, `guide_map.inc` | Guide button / F1 / `guide`: item -> guide section (map generated by `docs/gen_guide_map.py`) |
 | `sync_checklist.py` | copies each item's bucket, root flag and source from the code into `CHECKLIST.tsv` |
@@ -241,4 +263,4 @@ The Power & cost page's built-in price and CO2 tables come from public data: U.S
 Information Administration (Electric Power Monthly; public domain), NREL utility rates by ZIP code
 (CC BY 4.0), Eurostat (`nrg_pc_204`; reuse with acknowledgement), Ofgem (energy price cap) and
 Ember (yearly electricity data; CC BY 4.0). These organisations are not responsible for SRS's use
-of their data. Details and dates: [CREDITS.md](CREDITS.md) and the user guide, section 6.7.
+of their data. Details and dates: [CREDITS.md](CREDITS.md) and the user guide, section 6.11.

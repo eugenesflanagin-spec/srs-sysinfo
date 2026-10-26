@@ -115,6 +115,8 @@ srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|pr
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
+        (--gui-scan-empty is internal: the main window runs it in a child process to find
+        the items that have nothing to show on this PC)
 ```
 
 ### `--version`

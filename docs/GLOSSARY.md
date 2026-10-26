@@ -28,7 +28,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Associativity (ways)** - how many places in a cache a given piece of memory may be stored; more ways means fewer collisions. *See: [processors](SECTIONS/processors.md).*
 - **Asynchronous I/O (AIO)** - handing the kernel several read or write requests at once and collecting the answers later; how the storage benchmark keeps Q requests in flight. *See: [tools](SECTIONS/tools.md).*
 - **ATA** - AT Attachment: the command set used by SATA (and older IDE/PATA) hard disks and SSDs. *See: [storage](SECTIONS/storage.md).*
-- **At the wall** - what the PC draws from the socket, including the power supply's own losses; what the electricity meter counts and you pay for. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **At the wall** - what the PC draws from the socket, including the power supply's own losses; what the electricity meter counts and you pay for. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **AUR (Arch User Repository)** - community build recipes for Arch-based systems. Packages built from it show as "foreign" in pacman. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Autosuspend** - the USB core's habit of putting an idle device to sleep after a set number of seconds; -1 turns it off. *See: [buses-2](SECTIONS/buses-2.md).*
 - **AUXTIN** - Auxiliary temperature inputs on a Nuvoton Super I/O chip. The board maker decides which are wired; unwired ones float and show fake values. *See: [sensors](SECTIONS/sensors.md).*
@@ -52,13 +52,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Bridge (USB bridge)** - The chip in a USB enclosure, stick or card reader that converts USB to SATA, NVMe or flash commands. *See: [buses-1](SECTIONS/buses-1.md), [storage](SECTIONS/storage.md).*
 - **BSSID** - the radio (MAC) address of one Wi-Fi access point; one network name (SSID) can have several. *See: [network](SECTIONS/network.md).*
 - **btrfs** - A Linux copy-on-write filesystem with checksums, subvolumes, snapshots, compression and built-in multi-disk support. *See: [storage](SECTIONS/storage.md).*
-- **BTU/h (British thermal units per hour)** - a unit of heat flow: 1 W is about 3.412 BTU/h. All the power a PC uses ends up as heat in the room. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **BTU/h (British thermal units per hour)** - a unit of heat flow: 1 W is about 3.412 BTU/h. All the power a PC uses ends up as heat in the room. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Built-in driver** - a driver compiled into the kernel file itself. It is always present and never appears in `/proc/modules`. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Bulk-Only Transport (BOT)** - the older, simpler USB mass-storage protocol (interface 08/06/50); slower than UAS. *See: [buses-2](SECTIONS/buses-2.md).*
 
 ## C
 
-- **Carbon intensity** - grams of CO2 released per kWh of electricity on a grid, on average over a year. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Carbon intensity** - grams of CO2 released per kWh of electricity on a grid, on average over a year. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **C-state** - an idle power level of a CPU core; C0 is running, deeper states (C1, C2, C3) save more power but take longer to wake. *See: [processors](SECTIONS/processors.md).*
 - **Cache** - small fast memory on the CPU that keeps copies of recently used RAM; L1 is smallest and fastest, L3 largest and shared. *See: [processors](SECTIONS/processors.md).*
 - **Cache level (L1, L2, L3)** - small, fast memories between the core and RAM. L1 is the smallest and fastest; L3 is the largest and is shared by many cores. *See: [tools](SECTIONS/tools.md).*
@@ -99,7 +99,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## D
 
-- **DC power (inside the PC)** - the power after the power supply, used by the parts; always less than the power at the wall. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **DC power (inside the PC)** - the power after the power supply, used by the parts; always less than the power at the wall. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **D-states** - device power states: D0 fully on, D3hot off but powered, D3cold power removed. *See: [machine](SECTIONS/machine.md).*
 - **D0 / D3hot / D3cold** - PCI power states. D0 is fully on; D3hot and D3cold are sleep states (D3cold removes power completely). *See: [graphics](SECTIONS/graphics.md).*
 - **DAD (Duplicate Address Detection)** - a check that no other device already uses an address before the PC starts using it. *See: [network](SECTIONS/network.md).*
@@ -258,7 +258,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## J
 
 - **JEDEC** - the standards body for memory; the JEDEC speed is a stick's standard base speed. *See: [machine](SECTIONS/machine.md).*
-- **Joule (J)** - a unit of energy: 3,600 J = 1 Wh. Linux energy counters count microjoules (millionths of a joule). *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Joule (J)** - a unit of energy: 3,600 J = 1 Wh. Linux energy counters count microjoules (millionths of a joule). *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Junction temperature** - the hottest point measured on a graphics chip, usually higher than its "edge" temperature. *See: [tools](SECTIONS/tools.md).*
 
 ## K
@@ -269,7 +269,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **KSM (Kernel Same-page Merging)** - the kernel finds identical memory pages and keeps only one copy. *See: [srs-items](SECTIONS/srs-items.md).*
 - **KVM** - Kernel-based Virtual Machine; Linux's built-in hypervisor, available through /dev/kvm. *See: [processors](SECTIONS/processors.md).*
 - **kWh (kilowatt-hour)** - 1000 watts used for one hour; the unit electricity is billed in. *See: [sensors](SECTIONS/sensors.md).*
-- **kW (kilowatt)** - 1,000 watts. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **kW (kilowatt)** - 1,000 watts. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 
 ## L
 
@@ -369,7 +369,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## P
 
 - **P-core** - Performance core, a big, fast core on a hybrid CPU. *See: [tools](SECTIONS/tools.md).*
-- **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **P-state** - a performance state: a running speed and voltage level of the CPU. *See: [processors](SECTIONS/processors.md).*
 - **PAC (proxy auto-config)** - a script that picks which proxy to use for each address. *See: [network](SECTIONS/network.md).*
 - **Page** - the unit the CPU and kernel use to manage memory, usually 4 KB on x86. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -412,7 +412,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Proxy** - a middle server that makes web requests on your behalf. *See: [network](SECTIONS/network.md).*
 - **PSP (Platform Security Processor)** - A small security processor inside AMD chips (the `MP0` block); it loads and checks other firmware. *See: [graphics](SECTIONS/graphics.md), [machine](SECTIONS/machine.md).*
 - **PSS (Proportional Set Size)** - a process's RAM use with shared pages split fairly among the processes sharing them. *See: [linux-os](SECTIONS/linux-os.md).*
-- **PSU efficiency (80 PLUS, Cybenetics)** - the share of the wall power that reaches the parts; 90 % means 10 % turns into heat in the power supply. 80 PLUS and Cybenetics certify it at set loads. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **PSU efficiency (80 PLUS, Cybenetics)** - the share of the wall power that reaches the parts; 90 % means 10 % turns into heat in the power supply. 80 PLUS and Cybenetics certify it at set loads. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **PTP (Picture Transfer Protocol)** - the older camera file-transfer protocol that MTP is built on; uses USB class 06 (Still Image). *See: [buses-2](SECTIONS/buses-2.md).*
 - **PWM (pulse-width modulation)** - A way to control fan speed by switching power on and off quickly; the duty cycle sets the speed. *See: [graphics](SECTIONS/graphics.md), [sensors](SECTIONS/sensors.md).*
 
@@ -459,7 +459,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SDMA (system DMA)** - The GPU's copy engines, which move data between memory areas without using the 3D engine. *See: [graphics](SECTIONS/graphics.md).*
 - **Section (ELF)** - one named part of a program file: `.text` code, `.data` variables, `.rodata` fixed data, `.bss` zeroed memory. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Secure Boot** - a UEFI feature that only starts boot loaders and kernels signed with trusted keys. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
-- **Session (busy session)** - in Power & cost, a stretch of heavy use (a game, a render) found from the CPU and graphics load; its energy is the whole PC's while it lasted. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Session (busy session)** - in Power & cost, a stretch of heavy use (a game, a render) found from the CPU and graphics load; its energy is the whole PC's while it lasted. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Setup Mode** - UEFI Secure Boot state with no Platform Key installed, in which keys can be changed freely. *See: [machine](SECTIONS/machine.md).*
 - **SEV** - Secure Encrypted Virtualization; AMD server feature that encrypts virtual machine memory. *See: [processors](SECTIONS/processors.md).*
 - **SHA-256, SHA-NI** - SHA-256 makes a 256-bit "fingerprint" of data (package checks, backups, git); SHA-NI are CPU instructions that speed it up. *See: [tools](SECTIONS/tools.md).*
@@ -482,13 +482,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SPD (Serial Presence Detect)** - Serial Presence Detect; the data on each memory stick describing its size, speeds, timings and profiles. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **spd5118** - the SPD hub chip on DDR5 sticks, and its Linux driver; it also provides a temperature sensor. *See: [machine](SECTIONS/machine.md).*
 - **Speculative execution** - the CPU guessing ahead to run faster; flaws in it (Spectre, Meltdown) can leak data and are closed by mitigations. *See: [processors](SECTIONS/processors.md).*
-- **SQLite** - a small database kept in one file; SRS keeps the Power & cost history in one. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **SQLite** - a small database kept in one file; SRS keeps the Power & cost history in one. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **srs-root** - the SRS root helper, started from Menu > Run as root; it saves root-only data (such as real resource addresses) for SRS to read. *See: [buses-2](SECTIONS/buses-2.md), [srs-items](SECTIONS/srs-items.md).*
 - **SSD** - Solid-state drive: storage on flash memory, with no moving parts. *See: [storage](SECTIONS/storage.md).*
 - **SSDT** - Secondary System Description Table; extra ACPI code tables, often one per firmware module. *See: [machine](SECTIONS/machine.md).*
 - **SSID (Service Set Identifier)** - a Wi-Fi network's name. *See: [network](SECTIONS/network.md).*
 - **_STA** - the ACPI status value of a device; SRS shows it as hex plus letters P (present), E (enabled), S (shown), F (functioning). *See: [machine](SECTIONS/machine.md).*
-- **Standing charge** - what an electricity supplier charges per day whatever you use. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Standing charge** - what an electricity supplier charges per day whatever you use. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **statvfs** - The system call that returns a mounted filesystem's size, free space and block size. *See: [storage](SECTIONS/storage.md).*
 - **Stratum (NTP)** - how many steps a time server is from a reference clock; stratum 1 is directly attached to one. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Subsystem ID** - The second PCI ID pair, which names the board or card maker and their product built around a chip. *See: [buses-1](SECTIONS/buses-1.md).*
@@ -520,8 +520,8 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Threshold** - The SMART failure line for an attribute; a normalised value at or below it means the attribute has failed. *See: [storage](SECTIONS/storage.md).*
 - **Throttling** - the CPU lowering its clock to stay under a temperature or power limit. *See: [tools](SECTIONS/tools.md).*
 - **Thunderbolt** - Intel's high-speed port that carries PCI Express, DisplayPort and USB over one cable; USB4 is based on it. *See: [buses-2](SECTIONS/buses-2.md).*
-- **Tiered price** - an electricity price that changes after so many kWh a month. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
-- **Time-of-use price** - an electricity price that depends on the hour and the day. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Tiered price** - an electricity price that changes after so many kWh a month. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Time-of-use price** - an electricity price that depends on the hour and the day. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Tjmax** - the highest temperature a CPU allows before it throttles itself. *See: [tools](SECTIONS/tools.md).*
 - **TLB shootdown** - an interrupt one CPU sends others to make them forget cached address translations after memory mappings change. *See: [buses-2](SECTIONS/buses-2.md).*
 - **TPM** - Trusted Platform Module; a security device that stores keys and measures the boot process. *See: [machine](SECTIONS/machine.md).*
@@ -573,17 +573,17 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **WAN (wide area network)** - the internet side of your router. *See: [network](SECTIONS/network.md).*
 - **WGP (work-group processor)** - Two compute units working as a pair on RDNA GPUs. ROCm OpenCL counts WGPs as compute units. *See: [graphics](SECTIONS/graphics.md).*
 - **Whetstone** - a classic floating-point (decimal maths) CPU benchmark. Its score is given in MWIPS. *See: [tools](SECTIONS/tools.md).*
-- **Wh (watt-hour)** - energy used over time: 100 W for one hour is 100 Wh; 1,000 Wh is 1 kWh. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Wh (watt-hour)** - energy used over time: 100 W for one hour is 100 Wh; 1,000 Wh is 1 kWh. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Wine** - A compatibility layer that runs Windows programs on Linux. *See: [graphics](SECTIONS/graphics.md).*
 - **WMI** - Windows Management Instrumentation; a way for firmware to offer vendor features through ACPI (PNP0C14 devices). *See: [machine](SECTIONS/machine.md), [sensors](SECTIONS/sensors.md).*
 - **WPA2 / WPA3** - Wi-Fi security standards; WPA3 is newer and stronger. *See: [network](SECTIONS/network.md).*
 - **WPAD** - Web Proxy Auto-Discovery, a way for a PC to find a PAC script automatically. *See: [network](SECTIONS/network.md).*
 - **WPBT** - Windows Platform Binary Table; lets firmware hand Windows a program to run at startup. *See: [machine](SECTIONS/machine.md).*
 - **WPD (Windows Portable Devices)** - the Windows name for MTP/PTP devices such as phones and cameras. *See: [buses-2](SECTIONS/buses-2.md).*
-- **Wrap-around (counter)** - a counter reaching its highest value and starting again from zero, like an odometer; SRS unwraps the CPU energy counter. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **Wrap-around (counter)** - a counter reaching its highest value and starting again from zero, like an odometer; SRS unwraps the CPU energy counter. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Write-back cache** - A drive feature that confirms a write once it is in the drive's own fast memory. *See: [storage](SECTIONS/storage.md).*
 - **WS-Discovery (Web Services Discovery)** - the method modern Windows uses to find other PCs and printers on the LAN. *See: [network](SECTIONS/network.md).*
-- **W (watt)** - how fast power is being used right now. *See: [User Guide 6.7](USER-GUIDE.md#67-power--cost).*
+- **W (watt)** - how fast power is being used right now. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **WWN** - World Wide Name: a globally unique ID some drives report, used for stable device names. *See: [storage](SECTIONS/storage.md).*
 
 ## X

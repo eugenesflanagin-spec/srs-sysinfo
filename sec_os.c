@@ -1769,6 +1769,16 @@ static void s_folders(srs_out *o)
 /* ======================================================================
  * [startup] [software] [setup] [pending] [esu-sts]
  * ====================================================================== */
+/* $XDG_CONFIG_HOME, else ~/.config (where the desktop and the Startup manager look) */
+static const char *user_config_dir(void)
+{
+    static char d[1024];
+    const char *x = getenv("XDG_CONFIG_HOME");
+    if (x && *x == '/') snprintf(d, sizeof d, "%s", x);
+    else snprintf(d, sizeof d, "%s/.config", getenv("HOME") ? getenv("HOME") : "");
+    return d;
+}
+
 static void autostart_dir(srs_out *o, const char *dir, int user)
 {
     char **e;
@@ -1801,7 +1811,7 @@ static void autostart_dir(srs_out *o, const char *dir, int user)
         }
         if (!user) {   /* overridden by a same-named user file? */
             char up[1024];
-            snprintf(up, sizeof up, "%s/.config/autostart/%s", getenv("HOME") ? getenv("HOME") : "", e[i]);
+            snprintf(up, sizeof up, "%s/autostart/%s", user_config_dir(), e[i]);
             if (path_exists(up)) { on = 0; snprintf(only, sizeof only, "overridden by user file"); }
         }
         so_check(o, on);
@@ -1825,7 +1835,7 @@ static void s_startup(srs_out *o)
     so_tabs(o, tabs, 2);
     so_b(o, C_VALUE, "XDG autostart (user)  ~/.config/autostart");
     so_par(o);
-    snprintf(p, sizeof p, "%s/.config/autostart", getenv("HOME") ? getenv("HOME") : "");
+    snprintf(p, sizeof p, "%s/autostart", user_config_dir());
     autostart_dir(o, p, 1);
     so_par(o);
     so_b(o, C_VALUE, "XDG autostart (system)  /etc/xdg/autostart");
