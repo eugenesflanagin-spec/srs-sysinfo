@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 2.1.0. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 2.2.0. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -175,7 +175,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-2.1.0-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-2.2.0-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -241,8 +241,8 @@ distribution - generic tarball</h3>
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
 an older distribution (Ubuntu 24.04) so it runs on most current ones
 (glibc 2.38 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-2.1.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.1.0-linux-x86_64
+<pre><code>tar xzf srs-sysinfo-2.2.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.2.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
@@ -261,14 +261,14 @@ program in one file, with GTK and everything else it needs inside.
 Nothing is installed; you just run the file. It is built on Ubuntu
 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or
 newer).</p>
-<pre><code>chmod +x srs-sysinfo-2.1.0-x86_64.AppImage
-./srs-sysinfo-2.1.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.1.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.1.0-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
+<pre><code>chmod +x srs-sysinfo-2.2.0-x86_64.AppImage
+./srs-sysinfo-2.2.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.2.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.2.0-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
 <ul>
 <li><strong>Command line:</strong> every <code>sysreport-search</code>
 command works with the AppImage, for example
-<code>./srs-sysinfo-2.1.0-x86_64.AppImage find smart</code>. A link
+<code>./srs-sysinfo-2.2.0-x86_64.AppImage find smart</code>. A link
 named <code>sysreport-search</code> that points to the AppImage behaves
 like the real <code>sysreport-search</code>.</li>
 <li><strong>Updates:</strong> the AppImage knows where its updates are.
@@ -294,7 +294,7 @@ and the rest) come from Ubuntu 22.04 packages. Their licence files are
 inside it in <code>usr/share/doc/&lt;package&gt;/copyright</code>, and
 <code>usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt</code> lists which
 library came from which package (see them with
-<code>./srs-sysinfo-2.1.0-x86_64.AppImage --appimage-extract</code>).</li>
+<code>./srs-sysinfo-2.2.0-x86_64.AppImage --appimage-extract</code>).</li>
 </ul>
 <h3 id="user-guide--36-build-from-source">3.6 Build from source</h3>
 <p>You need <code>gcc</code>, <code>make</code>, <code>pkg-config</code>
@@ -1243,7 +1243,7 @@ default lineup</strong> goes back to Expert.</p>
 <p>The first time SRS starts it asks which lineup you want (Basic,
 Enthusiast or Expert) and tells you where to change it later: the menu
 button (or <strong>Ctrl+M</strong>) -&gt; <strong>Lineup</strong>. It
-asks only once. If you used SRS before 2.1, your pages stay as they were
+asks only once. If you used SRS before 2.2, your pages stay as they were
 (the Enthusiast lineup, preselected as "your current tabs") unless you
 pick another one.</p>
 <h3 id="user-guide--68-sortable-tables">6.8 Sortable tables</h3>
@@ -1696,7 +1696,7 @@ come from</h4>
 <tr>
 <th>Data</th>
 <th>Source</th>
-<th>Date in SRS 2.1.0</th>
+<th>Date in SRS 2.2.0</th>
 <th>Licence / terms</th>
 </tr>
 </thead>
@@ -2024,7 +2024,35 @@ href="#user-guide--5-root-only-data-srs-root">section 5</a>).</p></li>
 <h2 id="user-guide--9-tools">9. Tools</h2>
 <p>Nothing in this section ever starts by itself: not at launch, not
 from the menu, and not from a saved report. You always press Start or
-Run.</p>
+Run, and every benchmark window asks before it starts, saying what it
+does, for how long and how much of the PC it keeps busy.</p>
+<p><strong>What has and has not been tested.</strong> I build and test
+SRS on one PC (a Ryzen 7 7800X3D with a Radeon RX 9070 XT, on a wired
+connection), so anything that needs other hardware may have a bug or two
+I haven't met yet. If you find one, please open an issue on <a
+href="https://github.com/eugenesflanagin-spec/srs-sysinfo/issues">GitHub</a>
+with your hardware and the report SRS made, and I'll fix it. Not tried
+on real hardware so far:</p>
+<!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
+
+<ul>
+<li>ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where
+noted, self-tested, not used day to day.</li>
+<li>OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other
+schedulers (BORE, EEVDF) are recognised from the kernel's settings but
+were not run here.</li>
+<li>CPU Compute: the AVX-512 code has only run on a Zen 4 CPU (Ryzen
+7000); the SSE2, AVX2 and plain C code was checked by forcing each one
+on that same CPU, not on older CPUs.</li>
+<li>Everyday Work: run with the compression libraries of one Arch Linux
+system (zlib-ng in zlib mode, zstd 1.5, lz4 1.10, xz 5.8); other
+versions should work but give different speeds. The CRC32C row that uses
+the CPU's own instruction is x86-64 only.</li>
+<li>Network: run on one wired Ethernet connection only; Wi-Fi, VPN and
+metered or mobile connections are untested. The internet speed test uses
+Cloudflare's public speed test server, which is not a documented API and
+may change.</li>
+</ul>
 <h3 id="user-guide--91-cpu-burnin-and-cpu-stress">9.1 CPU Burnin and CPU Stress</h3>
 <p><strong>In plain words:</strong> they make your CPU work at 100% so
 you can see whether it stays stable and how hot it gets. Use them after
@@ -2501,8 +2529,9 @@ in ns, level) and a curve.</p>
 <p>For the <strong>bandwidth</strong> of the RAM and the caches, see <a
 href="#user-guide--911-cache--memory">9.11 Cache &amp; Memory</a>. The newer
 benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache
-&amp; Memory and Storage - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
-href="#user-guide--912-storage">9.12</a>.</p>
+&amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work and
+Network - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
+href="#user-guide--916-network">9.16</a>.</p>
 <h3 id="user-guide--95-device-id-lookup">9.5 Device ID Lookup</h3>
 <p><strong>In plain words:</strong> every PCI and USB device has a
 number pair: <strong>vendor ID : device ID</strong> (for example
@@ -2650,7 +2679,8 @@ Sieve...</strong>. Command line:
 <strong>Count primes up to</strong>, <strong>Threads</strong> (default
 all), <strong>Run</strong>, <strong>Stop</strong>.</p>
 <h3 id="user-guide--910-benchmark-history">9.10 Benchmark history</h3>
-<p>Every SRS Pi, Crypto and Prime Sieve run adds one line to
+<p>Every SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory, Storage, OS
+Latency, CPU Compute, Everyday Work and Network run adds a line to
 <code>~/.cache/srs/bench-history.tsv</code> (time, test, settings,
 result, build). The <strong>Benchmark history</strong> tab on the
 Benchmarks &amp; stress page shows it, newest first. Compare only lines
@@ -2701,6 +2731,179 @@ drives</strong> (off by default), <strong>Run</strong> (asks first),
 drive), on the network or on FUSE are refused, as is a drive with too
 little free space. Drive health (SMART) is on the
 <strong>Storage</strong> page.</p>
+<h3 id="user-guide--913-os-latency">9.13 OS Latency</h3>
+<p><strong>In plain words:</strong> how quickly the operating system
+answers a program: how long a basic request to the kernel takes (a
+<em>system call</em>), how fast it switches between two programs (a
+<em>context switch</em>), how long it takes to start a thread or a
+program, how soon a sleeping program wakes up, how late a timer fires,
+and what a new page of memory or a small file costs. <strong>Lower is
+better.</strong> Steady numbers (95% and 99% close to the median) mean a
+smooth, responsive desktop. Open: the <strong>Benchmarks &amp;
+stress</strong> page -&gt; <strong>OS Latency...</strong>, or Menu -&gt;
+Tools -&gt; OS Latency... in the classic view. Command line:
+<code>sysreport-search os-latency</code>. Controls:
+<strong>Samples</strong> (1,000-200,000, default 20,000; the slower
+tests use a tenth or less), <strong>Tick test (s)</strong> (1-30,
+default 3: how long a 1 ms timer is watched), <strong>Run</strong> (asks
+first), <strong>Stop</strong>. It takes about 6 seconds at the defaults
+and keeps only <strong>one or two CPUs</strong> busy, never all of
+them.</p>
+<p><strong>What the numbers mean.</strong> Each row is one test,
+measured many times: <strong>Median</strong> is the typical time,
+<strong>95%</strong> and <strong>99%</strong> mean 19 in 20 and 99 in
+100 tries were this fast or faster, <strong>Worst</strong> and
+<strong>Best</strong> are the extremes, and the sample count is shown.
+Times are in ns (billionths of a second), µs (millionths) and ms
+(thousandths). Below the table SRS names the <strong>CPU
+scheduler</strong> in use (for example scx_lavd under sched_ext, BORE or
+EEVDF), the preemption mode, the timer tick (CONFIG_HZ), the clock
+source, the timer slack, transparent huge pages, the CPUs used and the
+file system of the test folder. Typical values on a current desktop: a
+system call 35-70 ns, a switch between two programs 1-2 µs, starting a
+thread about 10 µs, starting a program about 150 µs, a wake-up about 2
+µs. Sleeps and the 1 ms tick run about 50 µs late, which is Linux's
+default timer slack. Hundreds of µs or missed ticks point to deep
+power-saving states, heavy background work or a busy scheduler.</p>
+<p><strong>Safety:</strong> it only reads system settings - no root, and
+no scheduler, priority or timer change. The file test works in its own
+temporary folder in <code>~/.cache/srs</code>, which is removed at the
+end, after Stop, and (if SRS was killed) on the next run. The result is
+saved to <code>~/.cache/srs/bench-os-latency.txt</code> and added to the
+<a href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on one PC
+only - see the note at the start of this chapter.</p>
+<h3 id="user-guide--914-cpu-compute">9.14 CPU Compute</h3>
+<p><strong>In plain words:</strong> how fast the processor does
+floating-point number crunching - the kind of maths in 3D, video,
+science and AI programs. Six kinds of work: <strong>matrix
+multiply</strong> (SGEMM in single and DGEMM in double precision),
+<strong>peak multiply-add</strong> (the most sums the CPU can do),
+<strong>FFT</strong> (splitting a signal into frequencies),
+<strong>N-body</strong> (gravity between 1,024 stars),
+<strong>Mandelbrot</strong> (a fractal picture) and a small <strong>ray
+tracer</strong> (a picture with shadows and reflections). Each runs on
+one thread and then on all threads at once. <strong>Higher is
+better.</strong> Every answer is checked against a known result: a wrong
+answer is shown as <strong>WRONG</strong> in red instead of a score,
+which points to an unstable overclock or undervolt. Open: the
+<strong>Benchmarks &amp; stress</strong> page -&gt; <strong>CPU
+Compute...</strong>, or Menu -&gt; Tools -&gt; CPU Compute... in the
+classic view. Command line: <code>sysreport-search compute</code>.
+Controls: <strong>Threads</strong> (default all), <strong>Seconds per
+test</strong> (default 0.5), <strong>Code</strong> (the best instruction
+set the CPU has - SSE2, AVX2 or AVX-512 - or a chosen one), <strong>1
+thread only</strong> (skips the all-threads column: light load, half the
+time), <strong>Run</strong> (asks first), <strong>Stop</strong>. It
+takes about 10 seconds at the defaults.</p>
+<p><strong>What the numbers mean.</strong> <strong>GFLOPS</strong> =
+billions of floating-point operations per second (matrix multiply,
+multiply-add, FFT, N-body); <strong>Mpixels/s</strong> = millions of
+picture points per second (Mandelbrot, ray tracer). The left column is
+one thread, the right column all the chosen threads; the
+<strong>Code</strong> column says which instruction set was used. FFT
+and the ray tracer are plain C. The numbers compare PCs and settings
+with each other; they are lower than a tuned maths library (BLAS) would
+reach.</p>
+<p><strong>Safety:</strong> with all threads, every CPU is 100% busy and
+gets hot, and AVX-512 draws a lot of power: <strong>an unstable
+overclock or undervolt can crash the PC</strong> under this load. Tick
+<strong>1 thread only</strong> (command line <code>--single</code>) to
+keep it light. It will not start while CPU Burnin or Stress runs. The
+result is saved to <code>~/.cache/srs/bench-compute.txt</code> and added
+to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on
+one PC only - see the note at the start of this chapter.</p>
+<h3 id="user-guide--915-everyday-work">9.15 Everyday Work</h3>
+<p><strong>In plain words:</strong> how fast the PC does the work it
+does all day: <strong>compressing and unpacking files</strong> (with the
+zlib, zstd, lz4 and xz libraries your system has),
+<strong>sorting</strong> numbers and words, <strong>checksums and
+hashes</strong> (CRC32, CRC32C, xxHash64, FNV-1a - the fingerprints used
+to spot damaged files), <strong>searching and checking text</strong>
+(finding words, checking JSON and UTF-8 text) and <strong>running a
+small program in an interpreter</strong> (like a script language does).
+Each test runs on one thread and on all threads. <strong>Higher is
+better.</strong> Every result is checked (unpacked data must equal the
+original, sorted lists must be in order and complete, checksums must
+match known values), so a wrong answer is reported instead of a fast
+number. Open: the <strong>Benchmarks &amp; stress</strong> page -&gt;
+<strong>Everyday Work...</strong>, or Menu -&gt; Tools -&gt; Everyday
+Work... in the classic view. Command line:
+<code>sysreport-search work</code>. Controls: <strong>Threads</strong>
+(default all), <strong>Seconds per test</strong> (default 0.5),
+<strong>1 thread only</strong>, the test groups (Compression, Sorting,
+Checksums and hashes, Text processing, Bytecode interpreter) and the
+compression libraries (zlib, zstd, lz4, xz) as tick boxes,
+<strong>Run</strong> (asks first, with the expected time - about half a
+minute at the defaults), <strong>Stop</strong>.</p>
+<p><strong>What the numbers mean.</strong> <strong>MB/s</strong> for
+compression (million bytes of original data per second, 1 MB = 1,000,000
+bytes) with the <strong>ratio</strong> (2.5 = the data became 2.5 times
+smaller) on text-like, record-like and random data;
+<strong>Mkeys/s</strong> for sorting (million items per second);
+<strong>GB/s</strong> for checksums and text (billion bytes per second);
+<strong>Mops/s</strong> for the interpreter (million instructions per
+second). A library that is not installed shows "not installed"; the rest
+still runs.</p>
+<p><strong>Safety:</strong> the test data is generated by SRS from fixed
+seeds (every run and every PC does the same work); none of your files
+are read or written, only the result is saved. With all threads every
+CPU is 100% busy, and xz -6 and zstd -19 use about 100 MB of memory per
+thread (fewer threads are used, with a note, when memory is short). The
+result is saved to <code>~/.cache/srs/bench-work.txt</code>, and each
+test group adds a line to the <a href="#user-guide--910-benchmark-history">Benchmark
+history</a>. Tested on one PC only - see the note at the start of this
+chapter.</p>
+<h3 id="user-guide--916-network">9.16 Network</h3>
+<p><strong>In plain words:</strong> two separate tests. <strong>On this
+computer</strong> sends data between two programs on your own PC through
+the loopback connection (127.0.0.1): it shows how fast Linux and the CPU
+can move network data, and how long a message takes to go there and
+back. Nothing leaves the computer, and the network card is not involved.
+<strong>Internet speed test</strong> (optional) measures your real
+connection with Cloudflare's public speed test server
+(speed.cloudflare.com): how long a name lookup takes (DNS), how long it
+takes to connect, and your download and upload speed with one and with
+several connections at once. Open: the <strong>Benchmarks &amp;
+stress</strong> page -&gt; <strong>Network...</strong>, or Menu -&gt;
+Tools -&gt; Network Benchmark... in the classic view. Command line:
+<code>sysreport-search net</code> (loopback) and
+<code>sysreport-search net --internet</code>. Controls: <strong>On this
+computer (loopback)</strong> (ticked), <strong>Internet speed test (asks
+first)</strong> (not ticked), <strong>Streams</strong> (connections at
+once for the "N streams" tests, default 4), <strong>Seconds per
+test</strong> (default 5), <strong>IPv4 or IPv6 / IPv4 only / IPv6
+only</strong> (internet test), <strong>Run</strong>,
+<strong>Stop</strong>. The line under the controls names the connection
+(wired, Wi-Fi, VPN ...), its link speed and whether libcurl is installed
+- never an address.</p>
+<p><strong>Asking first.</strong> Run asks before the loopback test
+(about 20 seconds, a few CPUs busy). The internet test <strong>asks
+separately</strong>, with No as the default answer, and says which
+server it contacts, what it measures, how long it takes and <strong>how
+much data it may use - up to about 1000 MB</strong> with the standard
+settings (each of the four speed tests stops after 5 seconds or 250 MB;
+about 250 MB on a 100 Mbit/s line). <strong>Do not run it on a metered
+or mobile connection.</strong> The server sees your public IP address,
+as with any web page; SRS does not show or save it. It never runs
+without that Yes. The speed rows need libcurl (installed on almost every
+Linux system); without it only the lookup and connect times are
+measured.</p>
+<p><strong>What the numbers mean.</strong> <strong>Mbit/s</strong> =
+million bits per second (internet speeds are sold in Mbit/s; divide by 8
+for MB/s). <strong>Average</strong> counts from the first byte received;
+<strong>peak</strong> is the best half second. <strong>ms</strong> =
+thousandths of a second, <strong>µs</strong> = millionths.
+<strong>Median</strong> = the middle value, <strong>99% under</strong> =
+all but the slowest 1%, <strong>jitter</strong> = how much the time
+changes from one try to the next, <strong>lost</strong> = UDP packets
+that never arrived. Internet results vary with the time of day, Wi-Fi,
+other traffic and the server.</p>
+<p><strong>Safety and privacy:</strong> no IP address, MAC address,
+Wi-Fi network name or host name is shown or saved; only the IP version
+used. The result is saved to <code>~/.cache/srs/bench-net.txt</code> and
+added to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>.
+Tested on one PC on a wired connection only - see the note at the start
+of this chapter.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -3182,14 +3385,17 @@ run).</td>
 <tr>
 <td><code>~/.cache/srs/bench-pi.txt</code>,
 <code>bench-crypto.txt</code>, <code>bench-prime.txt</code>,
-<code>bench-cachemem.txt</code>, <code>bench-storage.txt</code></td>
-<td>The last result of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory
-and Storage.</td>
+<code>bench-cachemem.txt</code>, <code>bench-storage.txt</code>,
+<code>bench-os-latency.txt</code>, <code>bench-compute.txt</code>,
+<code>bench-work.txt</code>, <code>bench-net.txt</code></td>
+<td>The last result of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory,
+Storage, OS Latency, CPU Compute, Everyday Work and Network.</td>
 </tr>
 <tr>
 <td><code>~/.cache/srs/bench-history.tsv</code></td>
-<td>One line per SRS Pi, Crypto and Prime Sieve run (time, test,
-settings, result, build).</td>
+<td>One line per run of SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory,
+Storage, OS Latency, CPU Compute and Network, and one per test group of
+Everyday Work (time, test, settings, result, build).</td>
 </tr>
 <tr>
 <td><code>~/sysreports/sysreport-*/</code></td>
@@ -6458,6 +6664,29 @@ benchmark</a></td>
 <td>Linux data</td>
 </tr>
 <tr>
+<td><a href="#sections-tools--os-latency-benchmark">OS latency
+benchmark</a></td>
+<td><code>os-latency</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--cpu-compute-benchmark">CPU compute
+benchmark</a></td>
+<td><code>cpu-compute</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--everyday-work-benchmark">Everyday work
+benchmark</a></td>
+<td><code>everyday-work</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
+<td><a href="#sections-tools--network-benchmark">Network benchmark</a></td>
+<td><code>net-bench</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
 <td><a href="#sections-tools--srs-pi">SRS Pi</a></td>
 <td><code>srs-pi</code></td>
 <td>Linux data</td>
@@ -7465,7 +7694,7 @@ Speeds</a>; it refreshes every second in the window.</p>
 <p><strong>What you see.</strong> The same layout as <a
 href="#sections-processors--cpu-speeds">CPU Speeds</a>: the driver/boost line and the per-CPU
 table (Current, Average, Minimum, Maximum, HW Min, HW Max, Governor,
-EPP). Below it, since 2.1, <strong>Stock and in effect now</strong>:
+EPP). Below it, since 2.2, <strong>Stock and in effect now</strong>:
 each clock at stock next to what it is now.</p>
 <table>
 <thead>
@@ -7845,7 +8074,7 @@ EPP.</li>
 <li>All columns <code>-</code>: no cpufreq driver (virtual machine, or
 the driver failed to load).</li>
 </ul>
-<p>Since 2.1 the same <strong>Stock and in effect now</strong> table as
+<p>Since 2.2 the same <strong>Stock and in effect now</strong> table as
 <a href="#sections-processors--cpu-clocks">CPU Clocks</a> follows the per-CPU table (both
 items share one page).</p>
 <p><strong>Where Linux gets it.</strong>
@@ -19852,7 +20081,7 @@ you do not recognise: check its command. Malware and adware often hide
 in <code>~/.config/autostart</code>. Two entries starting the same tray
 app: you get two icons. Slow logins: look for
 <code>sleep N &amp;&amp;</code> commands and heavy apps here.</p>
-<p><strong>Turning items off and on (2.1).</strong> In the main window
+<p><strong>Turning items off and on (2.2).</strong> In the main window
 the Startup programs tab opens on <strong>Report</strong>: this item as
 text, as above. <strong>Manage</strong>, next to it, is every entry with
 a switch, Undo, Restore default and Add to startup. Nothing is deleted.
@@ -27281,14 +27510,15 @@ href="#glossary">Glossary</a></p>
 <p><strong>Where to find these items (SRS 2.0).</strong> In the main
 window they are on two pages. <strong>Benchmarks &amp; stress</strong>
 (Alt+=) has buttons that open the CPU Benchmark, Cache &amp; Memory,
-Storage, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU
-Burnin and CPU Stress windows, and tabs with the last results and the
-benchmark history. <strong>Tools</strong> (Alt+Backspace) has buttons
-for Device ID Lookup, Find in a system report, Save Report, Run as root
-and the Classic view; its <strong>All N items</strong> lists the other
-items of this group. In the main window <strong>Ctrl+F</strong> is the
-search box and <strong>Ctrl+Shift+F</strong> opens Find. You can also
-type an item's name or id into the search box (Ctrl+F). The rest of this
+Storage, OS Latency, CPU Compute, Everyday Work, Network, SRS Pi,
+Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU
+Stress windows, and tabs with the last results and the benchmark
+history. <strong>Tools</strong> (Alt+Backspace) has buttons for Device
+ID Lookup, Find in a system report, Save Report, Run as root and the
+Classic view; its <strong>All N items</strong> lists the other items of
+this group. In the main window <strong>Ctrl+F</strong> is the search box
+and <strong>Ctrl+Shift+F</strong> opens Find. You can also type an
+item's name or id into the search box (Ctrl+F). The rest of this
 introduction describes the classic view (Menu -&gt; Classic View), with
 its Menu and panel buttons.</p>
 <p>This group holds the things you <em>do</em> with SRS rather than the
@@ -27346,6 +27576,14 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <code>cache-memory</code></li>
 <li><a href="#sections-tools--storage-benchmark">Storage benchmark</a>
 <code>storage-bench</code></li>
+<li><a href="#sections-tools--os-latency-benchmark">OS latency benchmark</a>
+<code>os-latency</code></li>
+<li><a href="#sections-tools--cpu-compute-benchmark">CPU compute benchmark</a>
+<code>cpu-compute</code></li>
+<li><a href="#sections-tools--everyday-work-benchmark">Everyday work benchmark</a>
+<code>everyday-work</code></li>
+<li><a href="#sections-tools--network-benchmark">Network benchmark</a>
+<code>net-bench</code></li>
 <li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
 <li><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a>
 <code>crypto-bench</code></li>
@@ -28202,6 +28440,543 @@ queue depths, incompressible random data; the drive is found through
 from the drive's hwmon sensor. Drive health (SMART) is on the Storage
 page. Stored in <code>~/.cache/srs/bench-storage.txt</code>; each run is
 added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+<hr />
+<h2 id="sections-tools--os-latency-benchmark">OS latency benchmark</h2>
+<p><code>os-latency</code> - Linux data</p>
+<p><strong>In plain words.</strong> How quickly the operating system
+answers a program: how long a basic request to the kernel takes, how
+fast it switches between two programs, how long it takes to start a
+thread or a program, how soon a sleeping program wakes up, and what a
+new page of memory or a small file costs. Lower is better. Steady
+numbers (95% and 99% close to the median) mean a smooth, responsive
+desktop.</p>
+<p><strong>What you see.</strong> One row per test with
+<strong>Median</strong> (typical), <strong>95%</strong> and
+<strong>99%</strong> (19 in 20 and 99 in 100 samples were this fast or
+faster), <strong>Worst</strong>, <strong>Best</strong>, the number of
+samples and how it was measured. The groups are System calls, Context
+switches, Starting threads and processes, Wake-up latency, Timers,
+Memory mapping and page faults, and File metadata. Below the table: the
+CPU scheduler that is running (for example scx_lavd under sched_ext,
+BORE or EEVDF), the preemption mode, the timer tick (CONFIG_HZ), the
+clock source, the timer slack, transparent huge pages, the CPUs used and
+the file system of the test folder. Times are in ns, µs or ms.</p>
+<table>
+<thead>
+<tr>
+<th>Group (<code>--only</code> word)</th>
+<th>Rows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>System calls (<code>syscall</code>)</td>
+<td>getpid() as a real system call; clock_gettime through the vDSO and
+as a system call; read() of 1 byte from /dev/zero; sched_yield() (each
+sample is a batch of 32, divided)</td>
+</tr>
+<tr>
+<td>Context switches (<code>switch</code>)</td>
+<td>Pipe ping-pong between 2 threads and between 2 processes, on the
+same CPU and on two cores; the figure is half a round trip</td>
+</tr>
+<tr>
+<td>Starting threads and processes (<code>spawn</code>)</td>
+<td>Thread create + join; fork() + wait (with the program's RAM use,
+which fork cost grows with); posix_spawn of /bin/true + wait</td>
+</tr>
+<tr>
+<td>Wake-up latency (<code>wake</code>)</td>
+<td>Futex wake on two cores and not pinned; condition-variable signal on
+two cores; from the wake call until the sleeper runs</td>
+</tr>
+<tr>
+<td>Timers (<code>timer</code>)</td>
+<td>How late a 50 µs and a 1 ms sleep end; how late a periodic 1 ms tick
+fires, with missed ticks counted</td>
+</tr>
+<tr>
+<td>Memory (<code>memory</code>)</td>
+<td>First-write page fault on a 4 KiB page and on a 2 MiB transparent
+huge page (skipped when THP is <code>never</code>); mmap and munmap of
+64 KiB</td>
+</tr>
+<tr>
+<td>File metadata (<code>files</code>)</td>
+<td>Create a small file (open + 100-byte write + close), stat it, delete
+it</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Samples</td>
+<td>1,000-200,000 in the window (command line 100-1,000,000), default
+20,000</td>
+</tr>
+<tr>
+<td>Tick test</td>
+<td>1-30 s in the window (command line 0.1-60), default 3</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety.</strong> It asks before it starts. It only reads
+system settings: no root, and no scheduler, priority or timer change. At
+most two CPUs are busy at a time, for about 6 seconds at the defaults.
+CPU affinity follows the limits you set (taskset, cpusets). The file
+test works in its own temporary folder in <code>~/.cache/srs</code>,
+which is removed at the end, after Stop, and (for a killed run) on the
+next run; a folder that holds anything not made by SRS is left
+alone.</p>
+<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, Linux 7.3
+with scx_lavd (medians): system call 35 ns, vDSO clock read 16 ns, pipe
+switch 1.1 µs on one CPU and 2.0 µs between two cores, thread start 10
+µs, fork 59 µs, program start 142 µs, futex wake 1.9 µs, 4 KiB page
+fault 0.4 µs, 2 MiB page fault 19 µs, small file create 1.8 µs (tmpfs).
+Sleeps and the 1 ms tick run about 50 µs late, which is Linux's default
+timer slack.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>Wake-ups, the 99% column or Worst in the hundreds of µs, or missed
+ticks: deep CPU power-saving states (C-states), heavy background work or
+a busy scheduler. Outliers like this on idle cores are real wake-up
+costs, not a fault in SRS.</li>
+<li>Sleeps late by much more than 50 µs: a larger timer slack (some
+power-saving tools raise it).</li>
+<li>A slow fork: a large program; the row shows its RAM use.</li>
+<li>2 MiB faults much slower than usual: the kernel had to compact
+memory to find a huge page; the row says how many faults really got
+one.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: system calls, pipes,
+futexes and clocks timed with <code>clock_gettime</code>; the scheduler
+from <code>/sys/kernel/sched_ext</code> (sched_ext ops such as
+scx_lavd), <code>/proc/sys/kernel/sched_bore</code>, the kernel config
+or the kernel version; preemption from <code>uname</code> and the kernel
+command line; CONFIG_HZ from <code>/boot/config-&lt;release&gt;</code>
+or the kernel headers' <code>.config</code> (not from
+<code>/proc/config.gz</code>); the clock source from
+<code>/sys/devices/system/clocksource</code>; THP from
+<code>/sys/kernel/mm/transparent_hugepage</code>. Stored in
+<code>~/.cache/srs/bench-os-latency.txt</code>; each run is added to the
+<a href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark
+runs at a time in SRS.</p>
+<hr />
+<h2 id="sections-tools--cpu-compute-benchmark">CPU compute benchmark</h2>
+<p><code>cpu-compute</code> - Linux data</p>
+<p><strong>In plain words.</strong> How fast the processor does
+floating-point number crunching, the maths in 3D, video, science and AI
+programs. Higher is better. Every answer is checked: a wrong answer is
+shown as <strong>WRONG</strong> instead of a score.</p>
+<p><strong>What you see.</strong> One row per test with the result on
+<strong>1 thread</strong> and on <strong>N threads</strong> (default all
+logical CPUs, one pinned thread per CPU, each with its own copy of the
+work), the unit, the code path used (<strong>Code</strong>) and the
+check. Below: the self-test, the threads and the measuring time.</p>
+<table>
+<thead>
+<tr>
+<th>Test (<code>--tests</code> word)</th>
+<th>What it does</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matrix multiply, single / double (<code>sgemm</code>,
+<code>dgemm</code>)</td>
+<td>288 x 288 matrices, register-blocked</td>
+<td>GFLOPS (2 n³ per multiply)</td>
+</tr>
+<tr>
+<td>Peak multiply-add, single / double (<code>fma-sp</code>,
+<code>fma-dp</code>)</td>
+<td>12 independent chains of multiply-adds</td>
+<td>GFLOPS (a fused multiply-add counts 2)</td>
+</tr>
+<tr>
+<td>FFT, single / double (<code>fft-sp</code>, <code>fft-dp</code>)</td>
+<td>4096-point complex radix-2 transform</td>
+<td>GFLOPS (5 N log2 N per transform)</td>
+</tr>
+<tr>
+<td>N-body (<code>nbody</code>)</td>
+<td>gravity between 1,024 bodies, double precision</td>
+<td>GFLOPS (20 per pair)</td>
+</tr>
+<tr>
+<td>Mandelbrot (<code>mandelbrot</code>)</td>
+<td>640 x 480, up to 255 steps, double precision</td>
+<td>Mpixels/s</td>
+</tr>
+<tr>
+<td>Ray tracer (<code>raytrace</code>)</td>
+<td>320 x 240, 4 balls on a floor, shadows, 2 reflections, single
+precision</td>
+<td>Mpixels/s</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Threads</td>
+<td>1 to all logical CPUs (default all)</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>0.1-10 in the window (command line 0.1-60), default 0.5</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>best available (default), plain C, SSE2, AVX2 + FMA, AVX-512; a path
+the CPU lacks falls back to the best it has</td>
+</tr>
+<tr>
+<td>1 thread only</td>
+<td>skip the N-thread column</td>
+</tr>
+</tbody>
+</table>
+<p><strong>How the answers are checked.</strong> Matrix multiply uses
+inputs whose products and sums are exact, so the result must match an
+integer reference exactly on every code path. Multiply-add returns every
+value to its start exactly. The FFT is compared with a direct transform
+and an energy check (Parseval). N-body is compared with a separate
+double-precision reference. The Mandelbrot vector code must give the
+same picture as plain C. The ray tracer's single-precision picture is
+compared with a double-precision one. Every timed repeat must give the
+same output as the first. A failed check shows the row as WRONG (red),
+the history line says WRONG and the exit code is 1.</p>
+<p><strong>Safety.</strong> It asks before it starts. With N threads
+every CPU is 100% busy and gets hot, and AVX-512 draws a lot of power:
+an unstable overclock or undervolt may crash the PC. <strong>1 thread
+only</strong> keeps it light. It does not start while CPU Burnin or
+Stress runs.</p>
+<p><strong>Healthy / typical values.</strong> Ryzen 7 7800X3D, AVX-512,
+2 threads, 0.1 s (a short test run, not a full result): SGEMM about 145
+GFLOPS on 1 thread, DGEMM about 77, peak multiply-add single about 160,
+FFT single about 8, N-body about 29 GFLOPS, Mandelbrot about 44
+Mpixels/s, ray tracer about 28 Mpixels/s; the 2-thread column is about
+double. Plain C SGEMM on the same CPU is about 7 GFLOPS, SSE2 about 47,
+AVX2 about 121.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li><strong>WRONG</strong> in any row: the CPU gave a wrong answer - an
+unstable overclock, undervolt or memory setting. Go back to stock
+settings and run it again.</li>
+<li>The N-thread column far below threads x the 1-thread figure: thermal
+or power limits, or other programs are busy.</li>
+<li>AVX-512 not much faster than AVX2: normal on CPUs that run AVX-512
+at half width (Zen 4) or lower their clock under AVX-512 load.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: SRS's own code with
+Intel intrinsics, the code path chosen at run time with
+<code>__builtin_cpu_supports</code>, so a generic x86-64 package still
+uses AVX-512. On ARM (aarch64) only plain C runs. Stored in
+<code>~/.cache/srs/bench-compute.txt</code>; each run is added to the <a
+href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+at a time in SRS.</p>
+<hr />
+<h2 id="sections-tools--everyday-work-benchmark">Everyday work benchmark</h2>
+<p><code>everyday-work</code> - Linux data</p>
+<p><strong>In plain words.</strong> How fast the PC does the work it
+does all day long: compressing and unpacking files, sorting, checksums
+and hashes, searching and checking text, and running a small program in
+an interpreter. Higher is better. Every result is checked, so a wrong
+answer is reported instead of a fast number.</p>
+<p><strong>What you see.</strong> One row per test with the result on
+<strong>1 thread</strong> and on <strong>N threads</strong> (default all
+logical CPUs; one pinned thread per CPU, each with its own copy of the
+data) and the check. Compression rows also show the
+<strong>ratio</strong> on text-like, record-like and random data. Below:
+the library versions found, the self-test, the data size and the
+threads.</p>
+<table>
+<thead>
+<tr>
+<th>Group (<code>--only</code> word)</th>
+<th>Rows</th>
+<th>Unit</th>
+<th>How each result is checked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Compression (<code>compress</code>)</td>
+<td>zlib -1 / -6 / -9, zstd -1 / -3 / -19, lz4, xz -1 / -6; compress and
+decompress</td>
+<td>MB/s of original data</td>
+<td>full round trip: length and every byte equal the original</td>
+</tr>
+<tr>
+<td>Sorting (<code>sort</code>)</td>
+<td>64-bit integers: C library qsort, radix sort; strings: qsort,
+multikey quicksort</td>
+<td>Mkeys/s</td>
+<td>in order, and a sum / hash of the keys shows nothing was lost or
+doubled</td>
+</tr>
+<tr>
+<td>Checksums and hashes (<code>hash</code>)</td>
+<td>CRC32 (byte table, slicing-by-8), CRC32C (table, CPU instruction on
+x86-64), xxHash64, FNV-1a</td>
+<td>GB/s</td>
+<td>known-answer self-test, then every pass equals a value from the
+simple version</td>
+</tr>
+<tr>
+<td>Text processing (<code>text</code>)</td>
+<td>substring search (memmem, Boyer-Moore-Horspool), JSON check, UTF-8
+check</td>
+<td>GB/s</td>
+<td>match count, JSON token count and code point count equal what the
+generator wrote</td>
+</tr>
+<tr>
+<td>Bytecode interpreter (<code>interp</code>)</td>
+<td>switch dispatch, threaded dispatch</td>
+<td>Mops/s</td>
+<td>prime count and hash equal a plain C reference</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Threads</td>
+<td>1 to all logical CPUs (default all)</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>0.1-10 in the window (command line 0.1-60), default 0.5</td>
+</tr>
+<tr>
+<td>Test groups / libraries</td>
+<td>tick boxes (command line <code>--only</code>,
+<code>--libs</code>)</td>
+</tr>
+<tr>
+<td>1 thread only</td>
+<td>skip the N-thread column</td>
+</tr>
+<tr>
+<td>Data size</td>
+<td>1024 KB of each kind per thread (command line
+<code>--part-kib</code>, 64-16384)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Libraries.</strong> The compression libraries are the
+system's own - <code>libz.so.1</code>, <code>libzstd.so.1</code>,
+<code>liblz4.so.1</code>, <code>liblzma.so.5</code> - loaded when the
+test runs; SRS needs none of them to start. A missing one shows "not
+installed" and its rows are skipped.</p>
+<p><strong>Safety.</strong> It asks before it starts, with the expected
+time (about half a minute at the defaults; the estimate is rough). The
+data is generated by SRS from fixed seeds, so every run and every PC
+does the same work; your files are never read or written. With N threads
+every CPU is 100% busy; xz -6 and zstd -19 use about 100 MB of memory
+per thread, and fewer threads are used (with a note) when free memory is
+short. It does not start while CPU Burnin or Stress runs.</p>
+<p><strong>Healthy / typical values.</strong> Depend strongly on the CPU
+and the library versions; compare runs on the same PC and SRS build.
+Ryzen 7 7800X3D, one thread, generic package build (a short run): lz4
+about 1,000 MB/s compress and 7,400 MB/s unpack; zstd -1 about 650 /
+2,200 MB/s; zlib -6 about 74 / 1,800 MB/s; zstd -19 and xz -6 about 6-7
+MB/s compress; radix sort about 110 Mkeys/s against 17 for qsort; CRC32C
+with the CPU instruction about 14 GB/s, xxHash64 about 15 GB/s, CRC32
+slicing-by-8 about 3 GB/s; the interpreter about 1,250-1,500 Mops/s.
+Random data does not shrink (ratio about 1.0); text and records shrink
+about 1.8-4.8 times.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>A row marked as failed: a wrong result - an unstable overclock,
+undervolt or memory setting.</li>
+<li>"not installed": the library is missing; install it
+(<code>zstd</code>, <code>lz4</code>, <code>xz</code> /
+<code>liblzma</code> packages) to get those rows.</li>
+<li>N-thread figures far below threads x the 1-thread figure: memory
+bandwidth, thermal or power limits, or other programs are busy.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: SRS's own sorting,
+checksum, text and interpreter code; the compression libraries through
+<code>dlopen</code>; threads pinned with <code>sched_setaffinity</code>.
+Stored in <code>~/.cache/srs/bench-work.txt</code>; each test group adds
+a line (<code>work-compress</code>, <code>work-sort</code>,
+<code>work-hash</code>, <code>work-text</code>,
+<code>work-interp</code>) to the <a href="#sections-tools--benchmark-history">Benchmark
+history</a>. Only one benchmark runs at a time in SRS.</p>
+<hr />
+<h2 id="sections-tools--network-benchmark">Network benchmark</h2>
+<p><code>net-bench</code> - Linux data</p>
+<p><strong>In plain words.</strong> Two separate tests. <strong>On this
+computer</strong> (loopback, 127.0.0.1) sends data between two programs
+on this PC: how fast Linux and the CPU move network data, and how long a
+message takes to go there and back. Nothing leaves the computer and no
+network card is used. <strong>Internet</strong> (optional, asks
+separately) measures the real connection against Cloudflare's public
+speed test (speed.cloudflare.com): name lookup (DNS), connect and HTTPS
+times, and download and upload speed with 1 and N connections.</p>
+<p><strong>What you see.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>How</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TCP, 1 stream (loopback)</td>
+<td>one connection, 128 KiB writes</td>
+<td>Mbit/s average and peak</td>
+</tr>
+<tr>
+<td>TCP, N streams (loopback)</td>
+<td>N connections at once (default 4)</td>
+<td>Mbit/s</td>
+</tr>
+<tr>
+<td>UDP, 1472-byte packets (loopback)</td>
+<td>one sender, one receiver; lost packets counted</td>
+<td>Mbit/s received, % lost</td>
+</tr>
+<tr>
+<td>TCP / UDP round trip (loopback)</td>
+<td>8-byte ping-pong (TCP_NODELAY; UDP with sequence numbers)</td>
+<td>median, best, 99% under, jitter</td>
+</tr>
+<tr>
+<td>DNS lookup (internet)</td>
+<td>first lookup of the server name, repeated (median of 5, usually
+cached), one made-up name under the server's domain (not cached)</td>
+<td>ms</td>
+</tr>
+<tr>
+<td>HTTPS request (internet)</td>
+<td>3 new connections: TCP connect, TLS handshake, server reply
+(medians)</td>
+<td>ms</td>
+</tr>
+<tr>
+<td>Connect time (internet)</td>
+<td>10 plain TCP connects to port 443 of each host</td>
+<td>median, best, 99%, jitter, lost</td>
+</tr>
+<tr>
+<td>Download / upload, 1 and N streams (internet)</td>
+<td><code>GET /__down?bytes=25000000</code> / <code>POST /__up</code>
+with 25 MB of random data per request, repeated until the time is
+up</td>
+<td>Mbit/s average and peak</td>
+</tr>
+</tbody>
+</table>
+<p>Below: the connection (kind such as wired, Wi-Fi, VPN; link speed,
+duplex, MTU, Wi-Fi signal), the IP version used, the libcurl version and
+whether a proxy variable is set (only its name).</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Choices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parts</td>
+<td>On this computer (default on), Internet speed test (default off;
+asks separately)</td>
+</tr>
+<tr>
+<td>Streams</td>
+<td>1-32 (default 4)</td>
+</tr>
+<tr>
+<td>Seconds per test</td>
+<td>1-30 in the window (command line 0.1-60), default 5; round trip
+tests use at most 1 s</td>
+</tr>
+<tr>
+<td>IP version</td>
+<td>IPv4 or IPv6 (default), IPv4 only, IPv6 only</td>
+</tr>
+<tr>
+<td>Data cap per transfer test</td>
+<td>250 MB (command line <code>--max-mb</code>, 0 = no cap)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Safety and privacy.</strong></p>
+<ul>
+<li>The loopback test asks before it starts; the internet test
+<strong>asks separately</strong> (No is the default) and states the
+server, the hosts, the tests, the time and the data use - up to about
+1000 MB with the defaults (4 x 250 MB; about 250 MB on a 100 Mbit/s
+line). It also says the server sees your public IP address. It never
+runs without that Yes. Avoid metered or mobile connections.</li>
+<li>Nothing private is shown or saved: no IP address (local or public),
+MAC address, Wi-Fi network name (SSID), host name or proxy address.
+Interface names that contain a MAC address (<code>enx...</code>,
+<code>wlx...</code>) are shortened. Requests carry a plain
+<code>srs-sysinfo</code> user agent and no cookies; https only,
+certificates checked.</li>
+<li>Stop ends the current test within about 0.2 s (loopback) or at
+libcurl's next progress check (internet); a DNS lookup in progress
+finishes first (bounded by the system's resolver timeout).</li>
+</ul>
+<p><strong>Healthy / typical values.</strong> Loopback on a Ryzen 7
+7800X3D (Linux 7.3, 0.3 s tests): TCP about 110 Gbit/s on 1 stream and
+205 Gbit/s on 2, UDP about 8 Gbit/s with 0-1% loss, TCP and UDP round
+trip about 7 µs. Internet results depend on your plan: a result close to
+the speed you pay for is healthy; Wi-Fi is often half of it or less.</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li>Loopback far below these figures: a busy CPU, power saving, or
+firewall / traffic-shaping rules that also apply to loopback.</li>
+<li>Internet download far below your plan: Wi-Fi, other traffic in the
+house, a VPN, or a busy server; run it again at another time and compare
+with <a
+href="https://speed.cloudflare.com">https://speed.cloudflare.com</a> in
+a browser.</li>
+<li>High jitter or lost connects: an overloaded router or Wi-Fi
+interference.</li>
+<li>Speed rows say "the server did not answer 200 OK": the public
+endpoints changed or are rate limited (they are not a documented API);
+DNS and connect times still work.</li>
+</ul>
+<p><strong>Where Linux gets it.</strong> Built in: plain sockets for
+loopback; <code>getaddrinfo</code> for DNS; libcurl (loaded at run time
+with <code>dlopen</code>, optional) for HTTPS and the transfers; the
+default route from <code>/proc/net/route</code> and
+<code>/proc/net/ipv6_route</code>; the interface from
+<code>/sys/class/net</code> and Wi-Fi signal from
+<code>/proc/net/wireless</code>. Setups with only policy routing (some
+VPNs) are reported as "no network connection". Stored in
+<code>~/.cache/srs/bench-net.txt</code>; each run is added to the <a
+href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+at a time in SRS.</p>
 <hr />
 <h2 id="sections-tools--srs-pi">SRS Pi</h2>
 <p><code>srs-pi</code> - Linux data</p>
@@ -31097,11 +31872,12 @@ burn-in, benchmarks. Needs no desktop.</td>
 do the same thing.</p>
 <blockquote>
 <p><strong>Note:</strong> <code>sysreport-search --help</code> lists
-only <code>id</code>, <code>find</code> and <code>devices</code>. The
-other commands below (<code>-save</code>, <code>--list</code>,
+every command, including <code>-save</code>, <code>--list</code>,
 <code>burn</code>, <code>bench</code>, <code>ipi</code>,
-<code>latency</code>) work the same way but are not in the built-in help
-text.</p>
+<code>latency</code>, <code>pi</code>, <code>crypto</code>,
+<code>prime</code>, <code>cachemem</code>, <code>storage</code>,
+<code>os-latency</code>, <code>compute</code>, <code>work</code> and
+<code>net</code>.</p>
 </blockquote>
 <blockquote>
 <p><strong>zsh users:</strong> quote anything with square brackets:
@@ -31127,6 +31903,10 @@ sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
 sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
+sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
+sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
+sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -31139,7 +31919,7 @@ read-only)</h2>
 <p>Prints the usage text: every command, <code>-save</code>,
 <code>--list</code>, <code>guide</code>, the load commands and the
 <code>srs-gui</code> start options. Exit code 0.</p>
-<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency} ...
+<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -31175,17 +31955,37 @@ Benchmarks and stress (load the CPU; run only when you ask):
         ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
-  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
-        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
-        5 s per test); never touches existing files; asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
         Cache &amp; Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
         ~20 s; asks first, --yes starts at once)
+  storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
+        read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
+        5 s per test); never touches existing files; asks first, --yes starts at once
+  os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
+        how quickly the OS answers: system calls, context switches, thread / process start, wake-ups,
+        timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink
+        (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)
+  compute [--threads N] [--seconds S] [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
+          [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+        CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /
+        Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%
+        busy (--single: one thread); asks first, --yes starts at once
+  work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz]
+       [--single] [--part-kib K] [--yes]
+        Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing
+        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;
+        generated data only; asks first, --yes starts at once
+  net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]
+      [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
+        Network: loopback TCP / UDP speed and round trip (default; nothing leaves the computer);
+        --internet adds DNS, connect, HTTPS, download and upload tests against speed.cloudflare.com
+        (up to ~1000 MB of data). Asks first; --yes answers the loopback question, the internet test
+        asks separately and only --yes-internet skips that question
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
         count the primes up to the limit, checked against the known count (default 1e9, all threads)
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power &amp; cost page; --power-recorder record its history with no window
@@ -31739,8 +32539,252 @@ first</strong>; <code>--yes</code> starts at once. Exit code 0 when it
 ran, 1 when it was stopped or hit an I/O error, 2 when it did not start
 (the message says why). See <a
 href="#sections-tools--storage-benchmark">tools.md</a>.</p>
-<p>Every <code>cachemem</code>, <code>storage</code>, <code>pi</code>,
-<code>crypto</code> and <code>prime</code> run is added to
+<h3 id="cli-reference--os-latency---how-quickly-the-os-answers"><code>os-latency</code>
+- how quickly the OS answers</h3>
+<pre><code>sysreport-search os-latency [--samples N] [--tick-seconds S]
+                            [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]</code></pre>
+<p>Times many single samples of system calls, pipe context switches
+(threads and processes, same CPU and two cores), thread create, fork and
+posix_spawn, futex and condition-variable wake-ups, sleep overshoot and
+a periodic 1 ms tick, page faults (4 KiB and 2 MiB), mmap / munmap, and
+small-file create / stat / unlink. Each row shows the median, 95%, 99%,
+worst and best. The CPU scheduler in use (sched_ext such as scx_lavd,
+BORE, EEVDF), the preemption mode, the timer tick, the clock source and
+the timer slack are shown with the result. It keeps one or two CPUs busy
+for about 6 seconds at the defaults and <strong>asks first</strong>;
+<code>--yes</code> (<code>-y</code>) starts at once. Without a terminal
+and without <code>--yes</code> it does not start (exit code 2).</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--samples N</code></td>
+<td>Samples for the fast tests, 100-1,000,000 (default 20,000); the slow
+tests use a tenth to a fortieth</td>
+</tr>
+<tr>
+<td><code>--tick-seconds S</code></td>
+<td>How long the 1 ms tick is watched, 0.1-60 (default 3)</td>
+</tr>
+<tr>
+<td><code>--only</code></td>
+<td>Run only some groups, e.g. <code>--only syscall,switch</code></td>
+</tr>
+</tbody>
+</table>
+<p>Nothing on the system is changed. The file test uses a temporary
+folder in <code>~/.cache/srs</code> that is always removed. Exit code 0
+when it ran, 1 when it was stopped, 2 when it did not start (bad option,
+not confirmed, not available). Example:</p>
+<pre><code>$ sysreport-search os-latency --only syscall,timer --yes</code></pre>
+<p>See <a
+href="#sections-tools--os-latency-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--compute---cpu-compute-floating-point-work"><code>compute</code>
+- CPU Compute (floating-point work)</h3>
+<pre><code>sysreport-search compute [--threads N] [--seconds S]
+                         [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
+                         [--code auto|c|sse2|avx2|avx512] [--single] [--yes]</code></pre>
+<p>Matrix multiply (SGEMM / DGEMM), peak multiply-add, FFT, N-body,
+Mandelbrot and a small ray tracer, in GFLOPS or Mpixels/s, on 1 thread
+and on N threads, with the best vector code the CPU has. Every answer is
+checked; a wrong one is shown as WRONG. With N threads every CPU is 100%
+busy (AVX-512 where the CPU has it), so it <strong>asks first</strong>;
+<code>--yes</code> (<code>-y</code>) starts at once. Without a terminal
+and without <code>--yes</code> it does not start (exit code 2). An
+unstable overclock or undervolt can crash the PC under this load;
+<code>--single</code> keeps it light.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--threads N</code></td>
+<td>Threads for the right-hand column (default 0 = all logical
+CPUs)</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>Measuring time per test and column, 0.1-60 (default 0.5)</td>
+</tr>
+<tr>
+<td><code>--tests</code></td>
+<td>Run only some tests, e.g. <code>--tests dgemm,mandelbrot</code></td>
+</tr>
+<tr>
+<td><code>--code</code></td>
+<td>Force a code path (a path the CPU lacks falls back to the best it
+has)</td>
+</tr>
+<tr>
+<td><code>--single</code></td>
+<td>Only the 1-thread column (light load, half the time)</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0 when every check passed, 1 when a check failed (WRONG) or
+it was stopped, 2 when it did not start (bad option, not confirmed, CPU
+Burnin running). Example:</p>
+<pre><code>$ sysreport-search compute --single --tests sgemm,nbody --yes</code></pre>
+<p>See <a
+href="#sections-tools--cpu-compute-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--work---everyday-work"><code>work</code> - Everyday work</h3>
+<pre><code>sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]
+                      [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]</code></pre>
+<p>Compression and decompression with the system's zlib, zstd, lz4 and
+xz libraries (MB/s and ratio), sorting (Mkeys/s), checksums and hashes
+(GB/s), text processing (GB/s) and a bytecode interpreter (Mops/s), on 1
+thread and on N threads; every result is checked. The data is generated
+by SRS (your files are never read or written). It keeps every CPU busy
+and <strong>asks first</strong> with the expected time;
+<code>--yes</code> (<code>-y</code>) starts at once. Without a terminal
+and without <code>--yes</code> it does not start (exit code 2). A
+library that is not installed shows "not installed" and its rows are
+skipped.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--threads N</code></td>
+<td>Threads for the right-hand column (default 0 = all logical
+CPUs)</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>Measuring time per test and column, 0.1-60 (default 0.5)</td>
+</tr>
+<tr>
+<td><code>--only</code></td>
+<td>Test groups, e.g. <code>--only compress,hash</code></td>
+</tr>
+<tr>
+<td><code>--libs</code></td>
+<td>Compression libraries, e.g. <code>--libs zstd,lz4</code></td>
+</tr>
+<tr>
+<td><code>--single</code></td>
+<td>Only the 1-thread column</td>
+</tr>
+<tr>
+<td><code>--part-kib K</code></td>
+<td>Size of each generated data part per thread, 64-16384 KiB (default
+1024)</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0 when every check passed, 1 when a check failed or it was
+stopped, 2 when it did not start (bad option, not confirmed, CPU Burnin
+running, not enough memory). Each test group adds a line
+(<code>work-compress</code> ... <code>work-interp</code>) to the
+history. Example:</p>
+<pre><code>$ sysreport-search work --only compress --libs zstd,lz4 --single --yes</code></pre>
+<p>See <a
+href="#sections-tools--everyday-work-benchmark">tools.md</a>.</p>
+<h3 id="cli-reference--net---network-benchmark"><code>net</code> - Network
+benchmark</h3>
+<pre><code>sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB]
+                     [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]</code></pre>
+<p>Without options: the loopback test only - TCP throughput with 1 and N
+streams, UDP throughput and loss, TCP and UDP round trip time between
+two programs on this PC (127.0.0.1). Nothing leaves the computer. It
+<strong>asks first</strong>; <code>--yes</code> (<code>-y</code>) starts
+the loopback test at once.</p>
+<p><code>--internet</code> adds DNS, connect, HTTPS, download and upload
+tests against <code>https://speed.cloudflare.com</code>. Before it
+starts it prints the server, the hosts, the tests, the time and the data
+use (up to about 4 x <code>--max-mb</code>, 1000 MB with the defaults)
+and says the server sees your public IP address. <strong>It asks its own
+question, which <code>--yes</code> does not answer</strong>: type
+<code>y</code> at the prompt, or pass <code>--yes-internet</code>
+(scripts). Without a terminal and without <code>--yes-internet</code>
+the internet test does not start (exit code 2). <code>--internet</code>
+alone runs only the internet part; <code>--local --internet</code> runs
+both.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--local</code></td>
+<td>The loopback test (the default when neither <code>--local</code> nor
+<code>--internet</code> is given)</td>
+</tr>
+<tr>
+<td><code>--internet</code></td>
+<td>The internet tests (asks separately)</td>
+</tr>
+<tr>
+<td><code>--seconds S</code></td>
+<td>Seconds per throughput test, 0.1-60 (default 5); round trip tests
+use at most 1 s</td>
+</tr>
+<tr>
+<td><code>--streams N</code></td>
+<td>Connections for the "N streams" tests, 1-32 (default 4)</td>
+</tr>
+<tr>
+<td><code>--samples N</code></td>
+<td>TCP connects per host for the connect-time test, 1-100 (default
+10)</td>
+</tr>
+<tr>
+<td><code>--max-mb MB</code></td>
+<td>Each transfer test stops after this many MB (default 250, 0 = no
+cap)</td>
+</tr>
+<tr>
+<td><code>-4</code> / <code>-6</code></td>
+<td>IPv4 only / IPv6 only</td>
+</tr>
+<tr>
+<td><code>--server URL</code></td>
+<td>Another speed test server with the same <code>/__down</code> and
+<code>/__up</code> paths (https only)</td>
+</tr>
+<tr>
+<td><code>--hosts H,H</code></td>
+<td>Extra hosts for the connect-time test (<code>host</code> or
+<code>host:port</code>)</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>Start the loopback test without asking</td>
+</tr>
+<tr>
+<td><code>--yes-internet</code></td>
+<td>Start the internet test without asking</td>
+</tr>
+</tbody>
+</table>
+<p>Without libcurl the DNS and connect tests still run and the HTTPS and
+speed rows say "not available". No IP address, MAC address, network name
+or host name is printed or saved. Exit code 0 when it ran, 1 when it was
+stopped or a test failed, 2 when it did not start (bad option, not
+confirmed, no network connection for the internet test). Examples:</p>
+<pre><code>$ sysreport-search net --yes                      # loopback only
+$ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most about 200 MB</code></pre>
+<p>See <a href="#sections-tools--network-benchmark">tools.md</a>.</p>
+<p>Every <code>cachemem</code>, <code>storage</code>,
+<code>os-latency</code>, <code>compute</code>, <code>work</code>,
+<code>net</code>, <code>pi</code>, <code>crypto</code> and
+<code>prime</code> run is added to
 <code>~/.cache/srs/bench-history.tsv</code>.</p>
 <hr />
 <h2 id="cli-reference--srs-gui-window-options"><code>srs-gui</code> window options</h2>
@@ -31844,6 +32888,23 @@ stop it with Ctrl+C or SIGTERM.</td>
 <tr>
 <td><code>storagebench</code></td>
 <td>Storage benchmark (<code>storage</code> alone is the Storage page's
+item)</td>
+</tr>
+<tr>
+<td><code>oslatency</code></td>
+<td>OS Latency</td>
+</tr>
+<tr>
+<td><code>compute</code></td>
+<td>CPU Compute</td>
+</tr>
+<tr>
+<td><code>work</code></td>
+<td>Everyday Work</td>
+</tr>
+<tr>
+<td><code>netbench</code></td>
+<td>Network benchmark (<code>network</code> alone is the Network page's
 item)</td>
 </tr>
 <tr>
@@ -32102,8 +33163,10 @@ of spare flash blocks an SSD has left (starts at 100%). <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
 <li><strong>AVX / AVX2 / AVX-512</strong> - Advanced Vector Extensions;
 instruction sets that work on many numbers at once (256 or 512 bits
-wide). <em>See: <a
-href="#sections-processors">processors</a>.</em></li>
+wide: 8 or 16 single-precision numbers per instruction). AVX-512 draws a
+lot of power under full load. <em>See: <a
+href="#sections-processors">processors</a>, <a
+href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--b">B</h2>
 <ul>
@@ -32150,6 +33213,13 @@ href="#sections-processors">processors</a>.</em></li>
 <li><strong>BootOrder</strong> - the UEFI variable listing the boot
 entries (Boot####) in the order the firmware tries them. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>BORE (Burst-Oriented Response Enhancer)</strong> - a change
+to Linux's EEVDF CPU scheduler that favours tasks which run in short
+bursts (typically interactive programs), shipped in some gaming kernels.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>Boyer-Moore-Horspool</strong> - a fast way to find a word in
+a text by skipping ahead using the last letter of the word. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Bridge (USB bridge)</strong> - The chip in a USB enclosure,
 stick or card reader that converts USB to SATA, NVMe or flash commands.
 <em>See: <a href="#sections-buses-1">buses-1</a>, <a
@@ -32249,6 +33319,9 @@ href="#sections-buses-1">buses-1</a>.</em></li>
 <li><strong>Commit charge</strong> - the total memory programs have
 reserved; it can exceed RAM when swap exists. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Compression ratio</strong> - how much smaller data became:
+2.5 means the packed data is 2.5 times smaller than the original.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Compute unit (CU)</strong> - A block of shader cores inside
 the GPU. RDNA GPUs pair two CUs into a WGP. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -32256,6 +33329,10 @@ href="#sections-graphics">graphics</a>.</em></li>
 how fast it can send without overloading the path. <em>See: <a
 href="#sections-network">network</a>, <a
 href="#sections-srs-items">srs-items</a>.</em></li>
+<li><strong>Context switch</strong> - the kernel stopping one task on a
+CPU and starting another; the OS Latency benchmark times it with two
+threads or programs passing a byte back and forth through a pipe.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Core dump</strong> - a snapshot of a crashed program's
 memory, saved for debugging. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
@@ -32280,6 +33357,10 @@ href="#sections-processors">processors</a>.</em></li>
 <li><strong>CRB</strong> - Command Response Buffer; the memory-based
 interface used by firmware TPMs. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>CRC32, CRC32C</strong> - checksums that detect damaged data
+(CRC32 in ZIP and Ethernet, CRC32C in storage and networks); many CPUs
+have an instruction for CRC32C. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Critical Warning</strong> - NVMe health field: a bit field
 that is 0x00 when the drive sees no serious problem. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -32353,6 +33434,10 @@ href="#sections-buses-1">buses-1</a>.</em></li>
 <li><strong>Device-mapper (dm)</strong> - The Linux kernel layer that
 maps virtual block devices onto real ones; used by LVM and dm-crypt.
 <em>See: <a href="#sections-storage">storage</a>.</em></li>
+<li><strong>DGEMM, SGEMM</strong> - double- and single-precision general
+matrix multiply: the standard way to measure floating-point speed,
+counted as 2 x n³ operations for n x n matrices. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>DHCP (Dynamic Host Configuration Protocol)</strong> - the
 way a router hands out IP addresses, gateway and DNS settings to devices
 automatically. <em>See: <a
@@ -32408,6 +33493,10 @@ href="#sections-network">network</a>.</em></li>
 <li><strong>DNS cache</strong> - a local store of recent DNS answers so
 repeated lookups are instant. <em>See: <a
 href="#sections-network">network</a>.</em></li>
+<li><strong>DNS lookup</strong> - turning a name like
+speed.cloudflare.com into an address; the first lookup asks the network,
+a repeat usually comes from a cache. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>DPM (dynamic power management)</strong> - The GPU's list of
 clock and voltage steps; the firmware switches between them many times a
 second. <em>See: <a href="#sections-graphics">graphics</a>, <a
@@ -32480,6 +33569,9 @@ href="#sections-machine">machine</a>.</em></li>
 128-byte block (plus extensions) stored in the monitor that describes
 its maker, model, size and supported modes. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>EEVDF (Earliest Eligible Virtual Deadline First)</strong> -
+the standard Linux CPU scheduler since Linux 6.6 (it replaced CFS).
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>EGL</strong> - The interface that connects OpenGL and OpenGL
 ES to windows on Wayland or X11. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -32543,6 +33635,10 @@ internal data fabric, the chip's support logic, and the display engine.
 <li><strong>FCLK / UCLK / MCLK</strong> - on AMD: Infinity Fabric clock,
 memory controller clock and memory clock. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>FFT (Fast Fourier Transform)</strong> - a fast way to split
+a signal into its frequencies; used in audio, images and science.
+Counted as 5 N log2 N operations for N points. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>File descriptor</strong> - a small number a process uses for
 each open file, pipe, socket or device; the Linux version of a Windows
 handle. <em>See: <a href="#sections-linux-os">linux-os</a>.</em></li>
@@ -32584,6 +33680,10 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>Function (PCI)</strong> - One logical device inside a PCI
 chip. A GPU's audio part is function 1 (<code>03:00.1</code>). <em>See:
 <a href="#sections-buses-1">buses-1</a>.</em></li>
+<li><strong>Futex</strong> - "fast user-space mutex": the Linux building
+block that lets a waiting thread sleep and be woken by another; the OS
+Latency benchmark times the wake-up. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--g">G</h2>
 <ul>
@@ -32600,6 +33700,9 @@ href="#sections-graphics">graphics</a>.</em></li>
 an AMD GPU. Its version gives the <code>gfx</code> target name (GC
 12.0.1 = <code>gfx1201</code>). <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>GFLOPS</strong> - billions of floating-point (decimal-point)
+operations per second. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>GLVND</strong> - The vendor-neutral OpenGL dispatch library
 that lets several OpenGL drivers be installed side by side. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -32806,6 +33909,9 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>JEDEC</strong> - the standards body for memory; the JEDEC
 speed is a stick's standard base speed. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Jitter</strong> - how much a time (round trip, connect)
+changes from one try to the next. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Joule (J)</strong> - a unit of energy: 3,600 J = 1 Wh. Linux
 energy counters count microjoules (millionths of a joule). <em>See: <a
 href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
@@ -32890,6 +33996,9 @@ href="#sections-network">network</a>.</em></li>
 With SMT, each physical core shows up as two logical CPUs. <em>See: <a
 href="#sections-srs-items">srs-items</a>, <a
 href="#sections-tools">tools</a>.</em></li>
+<li><strong>Loopback (127.0.0.1)</strong> - the computer's connection to
+itself; data never reaches a network card. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>LPC (Low Pin Count)</strong> - A slim bus from the chipset
 to the Super I/O chip, TPM, serial port and BIOS flash. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
@@ -32915,12 +34024,18 @@ href="#sections-network">network</a>.</em></li>
 <li><strong>MADT</strong> - Multiple APIC Description Table (signature
 APIC); lists the CPU threads and interrupt controllers. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Mandelbrot set</strong> - a famous fractal; drawing it is a
+simple, repeatable floating-point test. Measured in Mpixels/s. <em>See:
+<a href="#sections-tools">tools</a>.</em></li>
 <li><strong>MangoHud</strong> - A Linux in-game overlay that shows frame
 rate, temperatures, clocks and more, and can limit the frame rate.
 <em>See: <a href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>Masquerade</strong> - NAT (network address translation):
 many devices share one address on the way out. <em>See: <a
 href="#sections-network">network</a>.</em></li>
+<li><strong>Mbit/s</strong> - million bits per second; 8 bits = 1 byte,
+so 100 Mbit/s is 12.5 MB/s. Internet plans are sold in Mbit/s. <em>See:
+<a href="#sections-tools">tools</a>.</em></li>
 <li><strong>MBR</strong> - Master Boot Record: the old partition table
 format (shown as <code>dos</code>), with four primary partitions and
 one-byte type codes. <em>See: <a
@@ -33018,6 +34133,9 @@ href="#sections-network">network</a>.</em></li>
 <li><strong>Multicast</strong> - one-to-many traffic: devices join a
 group address and receive what is sent to it. <em>See: <a
 href="#sections-network">network</a>.</em></li>
+<li><strong>Multikey quicksort</strong> - a way of sorting text that
+compares one letter position at a time. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Multipath</strong> - Reaching one drive over more than one
 route; Linux combines the routes into one disk. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -33030,6 +34148,10 @@ href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--n">N</h2>
 <ul>
+<li><strong>N-body simulation</strong> - working out the gravity between
+every pair of a group of bodies (stars, planets); a classic
+floating-point workload. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Namespace</strong> - A slice of an NVMe SSD presented as one
 disk; consumer SSDs have one. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -33121,6 +34243,10 @@ power tuning. On Linux it appears as <code>pp_od_clk_voltage</code>.
 <ul>
 <li><strong>P-core</strong> - Performance core, a big, fast core on a
 hybrid CPU. <em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>Page fault</strong> - what happens the first time a program
+touches a page of memory the kernel has not set up yet: the kernel stops
+the program for a moment and supplies the page. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>PLATYPUS</strong> - a 2020 attack that used CPU energy
 readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since
 Linux 5.10 the powercap RAPL counters are root-only because of it.
@@ -33299,6 +34425,9 @@ href="#sections-buses-2">buses-2</a>.</em></li>
 <ul>
 <li><strong>radeonsi</strong> - Mesa's OpenGL driver for AMD GPUs.
 <em>See: <a href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>Radix sort</strong> - sorting numbers by their digits (or
+bytes) instead of comparing them with each other. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>RADV</strong> - Mesa's Vulkan driver for AMD GPUs. <em>See:
 <a href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>RAID</strong> - Redundant Array of Independent Disks:
@@ -33315,6 +34444,9 @@ href="#sections-sensors">sensors</a>.</em></li>
 <li><strong>Raw value</strong> - A SMART attribute's actual counter
 (sectors, hours, degrees); its format is up to the maker. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>Ray tracing</strong> - drawing a picture by following rays
+of light from the eye into a scene, with shadows and reflections.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Regex</strong> - regular expression, a text search pattern
 (for example <code>^</code> = start of line, <code>.</code> = any
 character). <em>See: <a href="#sections-tools">tools</a>.</em></li>
@@ -33347,6 +34479,12 @@ href="#sections-buses-1">buses-1</a>.</em></li>
 host controller's ports. Each USB 3 controller has a 2.0 root hub and a
 3.x root hub. <em>See: <a href="#sections-buses-1">buses-1</a>, <a
 href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>Round trip (compression)</strong> - compress, then
+decompress, then compare with the original; it must be identical.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>Round trip time</strong> - the time for a message to go to
+the other end and come back. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>RPC</strong> - Remote Procedure Call, a way for one program
 to send commands to another over a network connection. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
@@ -33434,6 +34572,9 @@ href="#sections-linux-os">linux-os</a>.</em></li>
 <li><strong>SLAT</strong> - Second Level Address Translation (Intel EPT,
 AMD RVI/NPT); hardware help that makes virtual machine memory fast.
 <em>See: <a href="#sections-processors">processors</a>.</em></li>
+<li><strong>Slicing-by-8</strong> - a way of computing CRC checksums 8
+bytes at a time with lookup tables. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>SMART (Self-Monitoring, Analysis and Reporting
 Technology)</strong> - Self-Monitoring, Analysis and Reporting
 Technology: the health log a drive keeps about itself. <em>See: <a
@@ -33557,6 +34698,10 @@ kernel shows devices and their settings as small text files. <em>See: <a
 href="#sections-buses-1">buses-1</a>, <a
 href="#sections-graphics">graphics</a>, <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>System call</strong> - a request from a program to the
+operating system kernel (open a file, read the clock, start a thread);
+the cost of crossing from the program into the kernel and back. <em>See:
+<a href="#sections-tools">tools</a>.</em></li>
 <li><strong>systemd target</strong> - a named group of systemd units
 that the system boots into, similar to a Windows boot mode. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
@@ -33602,6 +34747,10 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 <li><strong>Thread state</strong> - a one-letter code: R running, S
 sleeping, D waiting on hardware, T stopped, Z zombie. <em>See: <a
 href="#sections-srs-items">srs-items</a>.</em></li>
+<li><strong>Threaded dispatch</strong> - an interpreter technique where
+each instruction jumps straight to the next one's code instead of going
+back through one big switch. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Threshold</strong> - The SMART failure line for an
 attribute; a normalised value at or below it means the attribute has
 failed. <em>See: <a href="#sections-storage">storage</a>.</em></li>
@@ -33617,15 +34766,26 @@ href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
 <li><strong>Time-of-use price</strong> - an electricity price that
 depends on the hour and the day. <em>See: <a
 href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
+<li><strong>Timer slack</strong> - how much later than asked Linux may
+wake a sleeping thread, so that wake-ups can be grouped to save power;
+50 µs by default. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>Tjmax</strong> - the highest temperature a CPU allows before
 it throttles itself. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
 <li><strong>TLB shootdown</strong> - an interrupt one CPU sends others
 to make them forget cached address translations after memory mappings
 change. <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>TLS handshake</strong> - setting up the encrypted connection
+that https uses, before any data flows. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>TPM</strong> - Trusted Platform Module; a security device
 that stores keys and measures the boot process. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Transparent huge pages (THP)</strong> - Linux handing out
+memory in 2 MiB pages instead of 4 KiB ones when it can, so the CPU
+needs fewer page-table look-ups. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>TRIM</strong> - A command that tells an SSD which blocks no
 longer hold data, so it can erase them ahead of time. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -33714,6 +34874,9 @@ href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>Vcore</strong> - the main supply voltage of the CPU cores,
 measured by the motherboard's sensor chip. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
+<li><strong>vDSO</strong> - a small piece of kernel code mapped into
+every program so that reading the clock does not need a real system
+call. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>Vendor ID</strong> - The 16-bit number that names a chip
 maker, e.g. 1022 AMD, 1002 AMD/ATI, 10EC Realtek. <em>See: <a
 href="#sections-buses-1">buses-1</a>.</em></li>
@@ -33826,6 +34989,9 @@ Express. <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
 <li><strong>XMP</strong> - Intel Extreme Memory Profile; faster memory
 settings stored in the SPD. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>xxHash</strong> - a very fast non-cryptographic hash by Yann
+Collet, used to check data quickly; xxHash64 gives a 64-bit result.
+<em>See: <a href="#sections-tools">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--z">Z</h2>
 <ul>
@@ -33840,6 +35006,10 @@ compressed data, often used as fast swap. <em>See: <a
 href="#sections-linux-os">linux-os</a>, <a
 href="#sections-srs-items">srs-items</a>, <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>Zstandard (zstd), LZ4, xz, zlib</strong> - common
+compression formats and libraries: lz4 is the fastest, zstd fast with
+good ratios, zlib (gzip / ZIP) the classic, and xz the smallest but
+slowest. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>zswap</strong> - a compressed cache in RAM that sits in
 front of disk swap. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
