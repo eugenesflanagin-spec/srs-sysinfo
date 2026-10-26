@@ -640,11 +640,37 @@ static const struct { size_t n; const char *sha, *tail; } pi_ref[] = {
     { 8000000, "d553ef1b09a588e5cbbfc8feee121ca8956da15c0d823245cb16134ae5c905c4", "80521868811148966164" },
     { 16000000, "1531a9f5bbbd9050f21b695a815f8f5fa4b9a2879857b72f1ba43566bd7021fd", "72458731614311886858" },
     { 32000000, "2e6d0f509bc9b87eb891a8144e3b51420cd79dd620f8e4b73f74ec9a306a3d8d", "92127277244129012784" },
+    /* SuperPi sizes (powers of two); the first 32,000,000 digits of these were checked against a
+       second, separate mpmath run */
+    { 16384, "7e0fbde2cdea91d86396eb8d585cd07267460ca7b22871d2985dc0568e3cbd9b", "31002797665935838758" },
+    { 32768, "ef215fb31d300d51ba7817735f8b614897313d16b7253a242072e39336fbec0b", "53471885372293096161" },
+    { 65536, "1654e3aaf15083b22841608f39ce0533724f5afc57b3332cc0f40c6c13274044", "54302210909472721073" },
+    { 131072, "adb3261f4cdd37f5c0074920e64a3fc9d1675280c05a11c097eab256ec94d1ed", "27594750178122678581" },
+    { 262144, "0fe92c3203bc1a034ae1f1a169ad3585020438d26dd4e5ae4750021eb2dae865", "74841548524687471869" },
+    { 524288, "b2f02b62d35d62d05eba866342eab6fff0860abb37467fcc26efd911355a9fe1", "69678446051551761653" },
+    { 1048576, "f09ba8137bd6aa789764f666c119b58db5cd7d313ed8be7967af230cb1bd44b1", "33170994591637429204" },
+    { 2097152, "255c1ccf090905850d107cd57438f3d1e362b5c5b55043aa54ce45f3fc47c96b", "63207750323664312379" },
+    { 4194304, "e346ccbe066c59a70aa0f9d1b1f65e0d1a0b6a896d19e41fa73630c8009175ed", "80258565140638311120" },
+    { 8388608, "96fdc3cd30fa04b038b5e30adfd6353c58b7cb19dc771bb0c2656e471ab49534", "17423342216340425119" },
+    { 16777216, "65ca4431b92e284febbd187790f0ccb03287ba43bf8c76b3cc0fa736b52424fb", "28229791155273188571" },
+    { 33554432, "3ed4c8bbd858967342e3d883e2037165280ec2a62e81395a0f3af666d89c103e", "49255830905226097306" },
 };
 static const char pi_head[] = "14159265358979323846264338327950288419716939937510"
                               "58209749445923078164062862089986280348253421170679";
 
-const size_t pi_sizes[PI_NSIZES] = { 128000, 1000000, 2000000, 4000000, 8000000, 16000000, 32000000 };
+/* time on a Ryzen 7 7800X3D, Chudnovsky, 1 thread, package build; slower CPUs take longer */
+const pi_size pi_size_tab[] = {
+    { 128000, 0, "128 thousand digits (under a second)" }, { 1000000, 0, "1 million digits (about 3 s)" },
+    { 2000000, 0, "2 million digits (about 8 s)" }, { 4000000, 0, "4 million digits (about 18 s)" },
+    { 8000000, 0, "8 million digits (about 40 s)" }, { 16000000, 0, "16 million digits (about 1.5 minutes)" },
+    { 32000000, 0, "32 million digits (about 3-4 minutes, 1-2 GB of memory)" },
+    { 16384, 1, "16K = 16,384 digits" }, { 32768, 1, "32K = 32,768 digits" }, { 65536, 1, "64K = 65,536 digits" },
+    { 131072, 1, "128K = 131,072 digits (under a second)" }, { 262144, 1, "256K = 262,144 digits" },
+    { 524288, 1, "512K = 524,288 digits" }, { 1048576, 1, "1M = 1,048,576 digits (about 4 s)" },
+    { 2097152, 1, "2M = 2,097,152 digits (about 10 s)" }, { 4194304, 1, "4M = 4,194,304 digits (about 20 s)" },
+    { 8388608, 1, "8M = 8,388,608 digits (about 45 s)" }, { 16777216, 1, "16M = 16,777,216 digits (about 2 minutes)" },
+    { 33554432, 1, "32M = 33,554,432 digits (about 4-5 minutes, 1-2 GB of memory)" } };
+const int pi_size_count = sizeof pi_size_tab / sizeof *pi_size_tab;
 
 /* 1 = every digit checked and right, 0 = wrong, -1 = only the first 100 digits could be checked */
 static int pi_check(const char *d, size_t n, char *how, size_t hn)
@@ -679,7 +705,10 @@ static void pi_render(srs_out *o, void *c)
     char t[64];
     so_siv_header(o, "SRS Pi (pi to many decimal places, every digit checked)");
     so_tabs(o, tabs, 1);
-    snprintf(t, sizeof t, "%zu decimal places", x->digits);
+    if (x->digits >= 16384 && !(x->digits & (x->digits - 1)))
+        snprintf(t, sizeof t, "%zu decimal places (SuperPi size %zu%s)", x->digits,
+                 x->digits >= 1048576 ? x->digits >> 20 : x->digits >> 10, x->digits >= 1048576 ? "M" : "K");
+    else snprintf(t, sizeof t, "%zu decimal places", x->digits);
     so_kv(o, "Digits", C_VALUE, t);
     so_kv(o, "Method", C_TEAL, x->algo == PI_AGM ? "Gauss-Legendre (AGM), the method SuperPi uses" :
                                                    "Chudnovsky series, binary splitting");

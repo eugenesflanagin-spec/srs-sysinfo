@@ -4,7 +4,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## Unreleased (branch 2x-bench, prototype - not released)
+## 2.1.0 - 2026-10-26
 
 ### Added
 - **SRS Pi**: works out pi to 128 thousand, 1, 2, 4, 8, 16 or 32 million decimal places and checks
@@ -14,6 +14,9 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   command line `sysreport-search pi [--digits 1m] [--threads N] [--method chudnovsky|agm]
   [--save-digits FILE]`. Times are SRS Pi times, not SuperPi times (SuperPi's "1M" is 1,048,576
   digits). Example, Ryzen 7 7800X3D, package build, one thread: 1 million digits 3.1 s.
+  **SuperPi sizes**: a tick box (and `--digits 16ki` ... `32mi` on the command line) switches to the
+  power-of-two digit counts SuperPi uses, 16K = 16,384 ... 1M = 1,048,576 ... 32M = 33,554,432,
+  each with its own built-in checksum.
 - **Crypto benchmark**: AES-128-CTR and SHA-256 speed in MB/s on one thread and on N threads, with
   AES-NI / SHA-NI and in plain C; the FIPS 197 / FIPS 180-4 test vectors are checked before every
   run. `sysreport-search crypto [--threads N] [--seconds S]`.

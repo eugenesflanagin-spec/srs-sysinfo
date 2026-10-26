@@ -85,7 +85,7 @@ typedef struct swin {
     burn_status st;
     /* bench */
     GtkWidget *bm_mode, *bm_secs, *bm_run, *bm_cpus, *bm_rounds, *bm_max, *bm_status;
-    GtkWidget *bm_digits, *bm_algo, *bm_threads, *bm_limit, *bm_stop;
+    GtkWidget *bm_digits, *bm_algo, *bm_threads, *bm_limit, *bm_stop, *bm_superpi;
     int running;
     volatile int *cancelp;   /* the running job's cancel flag (SRS Pi, Prime sieve) */
     double run_t0;
@@ -1540,8 +1540,11 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_threads));
         j->threads = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
         if (w->sub == BK_PI) {
+            int sp = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->bm_superpi)), i, n = 0;
             k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_digits));
-            j->digits = pi_sizes[k < 0 ? 1 : k];
+            j->digits = 1000000;
+            for (i = 0; i < pi_size_count; i++)
+                if (pi_size_tab[i].superpi == sp && n++ == k) j->digits = pi_size_tab[i].digits;
             j->algo = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_algo)) == 1 ? PI_AGM : PI_CHUDNOVSKY;
         } else if (w->sub == BK_PRIME) {
             k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_limit));
@@ -1569,6 +1572,22 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_widget_set_sensitive(w->bm_run, TRUE);
         g_free(j);
     }
+}
+
+/* SRS Pi: fill the Digits list with the decimal sizes or the SuperPi (power-of-two) sizes; 1M stays chosen */
+static void on_pi_sizes(GtkWidget *x, gpointer data)
+{
+    swin *w = data;
+    int sp = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->bm_superpi)), i, n = 0, sel = 0;
+    (void)x;
+    gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->bm_digits));
+    for (i = 0; i < pi_size_count; i++) {
+        if (pi_size_tab[i].superpi != sp) continue;
+        if (pi_size_tab[i].digits == (sp ? 1048576u : 1000000u)) sel = n;
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->bm_digits), pi_size_tab[i].label);
+        n++;
+    }
+    gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_digits), sel);
 }
 
 static GtkWidget *threads_spin(swin *w, GtkWidget *row, int def, const char *tip)
@@ -1610,15 +1629,15 @@ static void build_bench(swin *w, GtkWidget *vb)
         w->bm_max = spin(1, 4096, 1, 256);
         gtk_box_pack_start(GTK_BOX(row), w->bm_max, FALSE, FALSE, 0);
     } else if (w->sub == BK_PI) {
-        /* time and memory measured on a Ryzen 7 7800X3D (Chudnovsky, 1 thread); slower CPUs take longer */
-        static const char *const sz[PI_NSIZES] = { "128 thousand digits (under a second)", "1 million digits (about 3 s)",
-            "2 million digits (about 8 s)", "4 million digits (about 18 s)", "8 million digits (about 40 s)",
-            "16 million digits (about 1.5 minutes)", "32 million digits (about 3-4 minutes, 1-2 GB of memory)" };
         gtk_box_pack_start(GTK_BOX(row), lbl("Digits"), FALSE, FALSE, 0);
         w->bm_digits = gtk_combo_box_text_new();
-        for (m = 0; m < PI_NSIZES; m++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->bm_digits), sz[m]);
-        gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_digits), 1);
         gtk_box_pack_start(GTK_BOX(row), w->bm_digits, FALSE, FALSE, 0);
+        w->bm_superpi = gtk_check_button_new_with_mnemonic("Super_Pi sizes");
+        gtk_widget_set_tooltip_text(w->bm_superpi, "Powers of two, the digit counts SuperPi uses: its \"1M\" is 1,048,576 digits, "
+                                                   "its \"32M\" 33,554,432. Off: round decimal sizes (1 million = 1,000,000).");
+        g_signal_connect(w->bm_superpi, "toggled", G_CALLBACK(on_pi_sizes), w);
+        gtk_box_pack_start(GTK_BOX(row), w->bm_superpi, FALSE, FALSE, 0);
+        on_pi_sizes(NULL, w);
         gtk_box_pack_start(GTK_BOX(row), lbl("Method"), FALSE, FALSE, 0);
         w->bm_algo = gtk_combo_box_text_new();
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->bm_algo), "Chudnovsky (fast, can use threads)");

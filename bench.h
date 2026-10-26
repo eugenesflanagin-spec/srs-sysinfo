@@ -41,9 +41,12 @@ const char *bench_build_tag(void);
 
 /* ---- SRS Pi (bench_pi.c): pi to N decimal places, every digit checked ---- */
 enum { PI_CHUDNOVSKY, PI_AGM };
-#define PI_NSIZES 7
-#define PI_MAXDIGITS 32000000
-extern const size_t pi_sizes[PI_NSIZES];          /* the sizes with a full checksum: 128K .. 32M */
+#define PI_MAXDIGITS 33554432
+/* the sizes with a full checksum: decimal 128K .. 32M, and "SuperPi sizes" = powers of two
+   16K (16,384) .. 32M (33,554,432), the digit counts SuperPi's 16K .. 32M runs use */
+typedef struct { size_t digits; int superpi; const char *label; } pi_size;
+extern const pi_size pi_size_tab[];
+extern const int pi_size_count;
 /* 0 = right, 1 = wrong digits, -1 bad size, -2 cancelled, -3 out of memory.
    digits_out (optional) receives the malloc'd digit string (decimal places only). */
 int bench_pi(size_t digits, int threads, int algo, srs_out *o, volatile int *cancel, char **digits_out);

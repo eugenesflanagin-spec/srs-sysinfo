@@ -51,8 +51,9 @@ static const char *HELP =
     "        core-to-core (cache-line ping-pong) latency matrix\n"
     "  latency [--max MB]\n"
     "        memory latency by block size, up to MB (1..4096, default 256)\n"
-    "  pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]\n"
-    "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked\n"
+    "  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]\n"
+    "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;\n"
+    "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432\n"
     "  crypto [--threads N] [--seconds S]\n"
     "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)\n"
     "  prime [--limit 1e8|1e9|1e10|N] [--threads N]\n"
@@ -366,6 +367,11 @@ static double parse_count(const char *s)
     if (*e == 'k' || *e == 'K') { v *= 1e3; e++; }
     else if (*e == 'm' || *e == 'M') { v *= 1e6; e++; }
     else if (*e == 'g' || *e == 'G') { v *= 1e9; e++; }
+    if (*e == 'i' && e > s && strchr("kKmMgG", e[-1])) {   /* binary: 1ki = 1024, 1mi = 1,048,576 (SuperPi sizes) */
+        v = v / (e[-1] == 'k' || e[-1] == 'K' ? 1e3 : e[-1] == 'm' || e[-1] == 'M' ? 1e6 : 1e9) *
+            (e[-1] == 'k' || e[-1] == 'K' ? 1024.0 : e[-1] == 'm' || e[-1] == 'M' ? 1048576.0 : 1073741824.0);
+        e++;
+    }
     return *e ? 0 : v;
 }
 
@@ -383,7 +389,7 @@ static int cmd_bench2(int argc, char **argv)
         threads = 1;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]"); return 0; }
             if (!v) return usage_error("pi: option needs a value");
             if (!strcmp(a, "--digits")) digits = parse_count(v);
             else if (!strcmp(a, "--threads")) threads = atoi(v);
@@ -395,7 +401,7 @@ static int cmd_bench2(int argc, char **argv)
             else return usage_error("pi: unknown option");
             i++;
         }
-        if (digits < 100 || digits > PI_MAXDIGITS) return usage_error("pi: --digits must be 100..32m");
+        if (digits < 100 || digits > PI_MAXDIGITS) return usage_error("pi: --digits must be 100..32mi");
         rc = bench_pi((size_t)digits, threads, method, &o, NULL, save ? &d : NULL);
         if (rc == -3) fprintf(stderr, "pi: out of memory\n");
         if (d && save) {

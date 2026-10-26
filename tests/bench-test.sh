@@ -34,7 +34,7 @@ for spec in "1e7 1" "1e8 1" "1e8 4" "1e9 4" "12345 1"; do
 done
 
 echo "== SRS Pi: built-in check"
-for spec in "128k chudnovsky 1" "1m chudnovsky 1" "1m chudnovsky 4" "128k agm 1" "1m agm 1" "5000 chudnovsky 2"; do
+for spec in "128k chudnovsky 1" "1m chudnovsky 1" "1m chudnovsky 4" "128k agm 1" "1m agm 1" "5000 chudnovsky 2" "16ki chudnovsky 1" "1mi chudnovsky 4"; do
     set -- $spec
     out=$("$BIN" pi --digits "$1" --method "$2" --threads "$3" --save-digits "$TMP/pi-$1-$2-$3.txt"); rc=$?
     t=$(sed -n 's/^Time *//p' <<<"$out")
@@ -52,9 +52,9 @@ if python3 -I -c "import mpmath" 2>/dev/null; then
 import sys, glob, os, mpmath
 from mpmath.libmp import to_fixed
 tmp = sys.argv[1]
-mpmath.mp.prec = int(1000040 * 3.3219280948873626) + 64
+mpmath.mp.prec = int(1048640 * 3.3219280948873626) + 64
 man = to_fixed(mpmath.mpf(mpmath.pi)._mpf_, mpmath.mp.prec)
-ref = str((man * 10**1000000) >> mpmath.mp.prec)[1:]
+ref = str((man * 10**1048600) >> mpmath.mp.prec)[1:]
 bad = 0
 for f in sorted(glob.glob(os.path.join(tmp, "pi-*.txt"))):
     d = open(f).read()

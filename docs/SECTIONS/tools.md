@@ -525,7 +525,7 @@ usually points to an unstable overclock, too little voltage or bad memory.
 
 | Line | Meaning | Why it matters |
 |---|---|---|
-| Digits | How many decimal places were worked out (after "3."). 1 million = 1,000,000. | Bigger takes longer and uses more memory. |
+| Digits | How many decimal places were worked out (after "3."). 1 million = 1,000,000. With **SuperPi sizes** ticked, powers of two: 1M = 1,048,576, marked "(SuperPi size 1M)". | Bigger takes longer and uses more memory. |
 | Method | Chudnovsky series (fast) or Gauss-Legendre / AGM (the method SuperPi uses). | Only compare runs made with the same method. |
 | Threads | 1 = single-thread score. Chudnovsky can split its work over more threads; AGM always uses one. | |
 | Time | Seconds from start to the last digit (the check is not counted). | Lower is faster. |
@@ -554,8 +554,12 @@ independent mpmath library). Stored in `~/.cache/srs/bench-pi.txt`; each run is 
 [Benchmark history](#benchmark-history).
 
 **Background.** SuperPi (1995) made "pi to 1 million digits" a famous overclocking test. SRS Pi is
-SRS's own program with its own name and timings; its times are **not** SuperPi times. Note that
-SuperPi's "1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly 1,000,000.
+SRS's own program with its own name and timings; its times are **not** SuperPi times. SuperPi's
+"1M" is 2^20 = 1,048,576 digits; SRS's 1 million is exactly 1,000,000. Tick **SuperPi sizes** to
+work out the same digit counts SuperPi does (16K = 16,384 up to 32M = 33,554,432), so at least the
+amount of work matches; each of these sizes has its own built-in checksum too. 1M = 1,048,576 digits
+took 4.2 s on one thread on the 7800X3D (a little more than 5% over 1,000,000 digits, because the
+multiplications step up to the next power-of-two size).
 
 ---
 ## Crypto benchmark  

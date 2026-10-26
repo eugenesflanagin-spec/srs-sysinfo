@@ -43,7 +43,7 @@ sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|sw
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S]
 sysreport-search ipi [--cpus N] [--rounds R]
 sysreport-search latency [--max MB]
-sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
 sysreport-search crypto [--threads N] [--seconds S]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N]
 
@@ -93,8 +93,9 @@ Benchmarks and stress (load the CPU; run only when you ask):
         core-to-core (cache-line ping-pong) latency matrix
   latency [--max MB]
         memory latency by block size, up to MB (1..4096, default 256)
-  pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
-        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked
+  pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
+        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432
   crypto [--threads N] [--seconds S]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s)
   prime [--limit 1e8|1e9|1e10|N] [--threads N]
@@ -384,11 +385,11 @@ block size, nanoseconds per read and the cache level. See
 ### `pi` - SRS Pi: pi to many digits, every digit checked
 
 ```
-sysreport-search pi [--digits 128k|1m|2m|4m|8m|16m|32m|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
+sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE]
 ```
 
 `--digits` is the number of decimal places (default `1m` = 1,000,000; `k` = thousand, `m` =
-million; 100 to 32m). The listed sizes are checked digit for digit with built-in SHA-256
+million; `ki` = 1,024 and `mi` = 1,048,576 for the **SuperPi sizes** 16ki ... 32mi; 100 to 32mi). The listed sizes are checked digit for digit with built-in SHA-256
 checksums; other sizes only have their first 100 digits checked. `--threads N` (default 1) splits
 the Chudnovsky series over N threads; `--method agm` uses Gauss-Legendre (always one thread).
 `--save-digits FILE` writes the digits (without "3.") to FILE. Exit code 0 when every checked digit

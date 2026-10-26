@@ -1046,13 +1046,14 @@ unstable overclock or memory).
 Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Tools -> SRS Pi... in the
 classic view. On the command line: `sysreport-search pi --digits 1m`.
 Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
-author's PC), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
+author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
+1M = 1,048,576 ... 32M = 33,554,432), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
 SuperPi uses, one thread), **Threads** (default 1, for a single-thread score), **Run** and **Stop**.
 While it runs the status line shows the time so far and the current step (series, division, square
 root). Closing the window also stops it.
 
 Times are **SRS Pi** times, not SuperPi times. SuperPi's "1M" is 1,048,576 digits; SRS's 1 million
-is 1,000,000. 32 million digits takes several minutes and 1-2 GB of memory.
+is 1,000,000 - tick **SuperPi sizes** for the same digit counts as SuperPi. 32 million digits takes several minutes and 1-2 GB of memory.
 
 ### 9.8 Crypto
 
