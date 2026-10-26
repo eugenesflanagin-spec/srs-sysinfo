@@ -57,7 +57,7 @@ static const char *const g_disclaimer =
     "SRS is free software provided \"as is\", without any warranty (GNU General Public License v2.0 or later, "
     "sections 11-12). Eugene Flanagin and the SRS contributors are not responsible for any errors, losses, costs or "
     "damage that come from using these estimates.\n\n"
-    "Price and emissions data: U.S. EIA, Eurostat, Ofgem, AER, Ember and others (see the Price tab). These "
+    "Price and emissions data: U.S. EIA, NREL, Eurostat, Ofgem, Ember and others (see the Price tab). These "
     "organisations are not responsible for SRS's use or changes of their data.";
 
 typedef struct {
