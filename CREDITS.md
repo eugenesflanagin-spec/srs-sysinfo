@@ -25,7 +25,7 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 SRS shows these figures unchanged, apart from unit conversion (cents to currency units) and
 reformatting. The organisations below are not responsible for SRS's use of their data. The tables
 are made by `tools/gen_power_rates.py` from the files listed in that script; the dates are those of
-the copies in SRS 2.2.0.
+the copies in SRS 2.2.1.
 
 | Data | Source | Licence / terms |
 |---|---|---|

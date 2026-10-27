@@ -257,10 +257,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.2.0-x86_64.AppImage
-    ./srs-sysinfo-2.2.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.2.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.2.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.2.1-x86_64.AppImage
+    ./srs-sysinfo-2.2.1-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.2.1-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.2.1-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied

@@ -170,7 +170,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.2.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.2.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -239,7 +239,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.2.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.2.1 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -760,6 +760,8 @@ voltages or fans.** It never burns a software renderer such as llvmpipe as a GPU
 | `--list` | List the devices of each installed back end (or only `--backend`'s) and exit. This starts each runtime but runs no work |
 | `--yes` | Start without asking |
 
+With `--device all`, a card that cannot start is marked in the table and a `note -` line says how many;
+the exit code comes from the cards that ran (all of them failing to start = 1, ended early).
 Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early by a safety rule, 2 = not
 started (bad option, not confirmed, back end not installed, no device, CPU Burnin running).
 Examples:

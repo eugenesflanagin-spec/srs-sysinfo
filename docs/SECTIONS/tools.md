@@ -1022,6 +1022,10 @@ only with your own earlier runs on the same driver.
 **Unusual values and what they suggest.**
 - Any errors: too much overclock or undervolt, too high a temperature, a weak or overloaded power
   supply, or a faulty card or video memory. Undo the overclock / undervolt and run again.
+- "COULD NOT START" (All GPUs): that card could not open or cannot do the precision; the other
+  cards ran and their result stands.
+- A message "a GPU call did not return earlier; restart SRS": a driver call hung in an earlier run;
+  restart SRS (or the PC) before the next GPU test.
 - Ended early on a driver error or "device lost": the GPU crashed or was reset by the driver -
   usually an unstable overclock or undervolt, or the power supply.
 - GFLOPS that fall over a run while the temperature rises: the card slows down when hot.
@@ -1250,7 +1254,7 @@ srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.2.0.
+`/usr/bin/sysreport-search`, V2.2.1.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

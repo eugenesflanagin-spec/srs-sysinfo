@@ -4,6 +4,27 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.2.1 - 2026-10-27
+
+Fixes from the final review of 2.2.0: GPU Burnin messages, the All GPUs verdict, and the window size.
+
+### Fixed
+
+- After a GPU driver call that never returned (the 15-second path), the next GPU test said "GPU
+  Burnin is running; wait for it to finish" and CPU Burnin Start did nothing. They now say "a GPU
+  call did not return earlier; restart SRS (or the PC) before the next GPU test", and a refused
+  CPU Burnin start shows its reason in the status line.
+- GPU Burnin with **All GPUs**: a card that cannot start is marked COULD NOT START and the verdict
+  comes from the cards that ran, with a note (GUI status line and `gpu-burn` on stderr). Before,
+  the whole run was reported as ended early by a safety rule although the others passed.
+- The flag that keeps CPU Burnin and the GPU tests from starting together is now an atomic
+  (seq_cst), so it no longer relies on x86 memory ordering (aarch64 and others).
+- GPU Compute comparison: Run while the back-end check is still going says "Checking which back
+  ends are installed..." instead of asking for a tick on greyed boxes.
+- Windows no longer ask for more than about 90% of the monitor's work area (the main window asked
+  for 1240 x 800 on every screen).
+- User guide: screenshots of the Benchmarks and Tools pages and the classic menu retaken.
+
 ## 2.2.0 - 2026-10-26
 
 Power & cost, new benchmarks, and a main window you can arrange: tab lineups, sortable tables,
