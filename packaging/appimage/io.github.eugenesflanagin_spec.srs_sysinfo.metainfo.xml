@@ -76,7 +76,7 @@
       <description>
         <p>Fixes: clear messages after a hung GPU driver call and when CPU Burnin cannot start,
         an honest All GPUs verdict in GPU Burnin when one card cannot start, a safer CPU/GPU
-        burn-in start check on ARM, and windows that fit small screens.</p>
+        burn-in start check on ARM, and a default window size that fits the screen.</p>
         <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT, wired connection): parts that
         need other hardware may have a bug or two. Please report them on GitHub Issues.</p>
       </description>

@@ -1077,13 +1077,14 @@ Classic Menu** in the main window. It has:
    Report...**, and **Classic view** (from the main window) or **Open the new main window** (when SRS
    started in the classic view). Every entry has its own underlined letter (Alt + letter).
 
-![The classic Menu](images/classic-menu.png)
+   ![The classic Menu](images/classic-menu.png)
 
-*The classic Menu, opened with the Menu button on the classic main window.*
+   *The classic Menu, opened with the Menu button on the classic main window.*
 
-![The classic Menu, Benchmarks & stress submenu](images/classic-bench-menu.png)
+   ![The classic Menu, Benchmarks & stress submenu](images/classic-bench-menu.png)
 
-*The Benchmarks & stress submenu of the classic Menu.*
+   *The Benchmarks & stress submenu of the classic Menu.*
+
 2. **Every item, grouped** (the same groups as the Section Reference):
    - Processors
    - Machine / BIOS / Memory

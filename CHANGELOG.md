@@ -21,9 +21,10 @@ Fixes from the final review of 2.2.0: GPU Burnin messages, the All GPUs verdict,
   (seq_cst), so it no longer relies on x86 memory ordering (aarch64 and others).
 - GPU Compute comparison: Run while the back-end check is still going says "Checking which back
   ends are installed..." instead of asking for a tick on greyed boxes.
-- Windows no longer ask for more than about 90% of the monitor's work area (the main window asked
-  for 1240 x 800 on every screen).
-- User guide: screenshots of the Benchmarks and Tools pages and the classic menu retaken.
+- The default size of windows is limited to about 90% of the monitor's work area (the main window
+  asked for 1240 x 800 on every screen). A window still cannot shrink below what its content needs
+  (the main window about 990 px wide).
+- User guide: new screenshots of the Benchmarks and Tools pages and the classic menu.
 
 ## 2.2.0 - 2026-10-26
 
