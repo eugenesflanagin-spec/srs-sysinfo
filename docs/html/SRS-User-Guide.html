@@ -31,7 +31,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 2.2.0. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 2.2.1. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -175,7 +175,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-2.2.0-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-2.2.1-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -268,8 +268,8 @@ distribution - generic tarball</h3>
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
 an older distribution (Ubuntu 24.04) so it runs on most current ones
 (glibc 2.38 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-2.2.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.2.0-linux-x86_64
+<pre><code>tar xzf srs-sysinfo-2.2.1-linux-x86_64.tar.gz
+cd srs-sysinfo-2.2.1-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
@@ -288,14 +288,14 @@ program in one file, with GTK and everything else it needs inside.
 Nothing is installed; you just run the file. It is built on Ubuntu
 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or
 newer).</p>
-<pre><code>chmod +x srs-sysinfo-2.2.0-x86_64.AppImage
-./srs-sysinfo-2.2.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.2.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.2.0-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
+<pre><code>chmod +x srs-sysinfo-2.2.1-x86_64.AppImage
+./srs-sysinfo-2.2.1-x86_64.AppImage                   # the window
+./srs-sysinfo-2.2.1-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.2.1-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
 <ul>
 <li><strong>Command line:</strong> every <code>sysreport-search</code>
 command works with the AppImage, for example
-<code>./srs-sysinfo-2.2.0-x86_64.AppImage find smart</code>. A link
+<code>./srs-sysinfo-2.2.1-x86_64.AppImage find smart</code>. A link
 named <code>sysreport-search</code> that points to the AppImage behaves
 like the real <code>sysreport-search</code>.</li>
 <li><strong>Updates:</strong> the AppImage knows where its updates are.
@@ -321,7 +321,7 @@ and the rest) come from Ubuntu 22.04 packages. Their licence files are
 inside it in <code>usr/share/doc/&lt;package&gt;/copyright</code>, and
 <code>usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt</code> lists which
 library came from which package (see them with
-<code>./srs-sysinfo-2.2.0-x86_64.AppImage --appimage-extract</code>).</li>
+<code>./srs-sysinfo-2.2.1-x86_64.AppImage --appimage-extract</code>).</li>
 </ul>
 <h3 id="user-guide--36-build-from-source">3.6 Build from source</h3>
 <p>You need <code>gcc</code>, <code>make</code>, <code>pkg-config</code>
@@ -898,6 +898,15 @@ until you press <strong>Run</strong> or <strong>Start</strong> there.
 Its tabs show the last results. The <strong>Tools</strong> page opens
 Device ID Lookup, Find in a system report, Save Report, Run as root and
 the Classic view.</p>
+<p><img src="../images/benchmarks-page.png"
+alt="Benchmarks &amp; stress page" /></p>
+<p><em>The Benchmarks &amp; stress page (light theme): a button for each
+tool, with what it measures and how long it keeps the PC busy. Only the
+first launchers show here; scroll for the rest. The tabs below show the
+last results.</em></p>
+<p><img src="../images/tools-page.png" alt="Tools page" /></p>
+<p><em>The Tools page, here with the Colour RGB debug tab open below the
+launchers.</em></p>
 <h3 id="user-guide--64-search">6.4 Search</h3>
 <p>The search box in the title bar (<strong>Ctrl+F</strong>):</p>
 <ul>
@@ -1737,7 +1746,7 @@ come from</h4>
 <tr>
 <th>Data</th>
 <th>Source</th>
-<th>Date in SRS 2.2.0</th>
+<th>Date in SRS 2.2.1</th>
 <th>Licence / terms</th>
 </tr>
 </thead>
@@ -2030,18 +2039,25 @@ window, right-click the text of any panel and choose <strong>SRS
 Menu</strong>, or use <strong>Menu -&gt; Classic Menu</strong> in the
 main window. It has:</p>
 <ol type="1">
-<li><p><strong>Benchmarks &amp; stress</strong> (a submenu): CPU
-Burnin..., CPU Stress..., Benchmark..., IPI Delay..., Latency..., SRS
-Pi..., Crypto Benchmark..., Prime Sieve..., Cache &amp; Memory...,
-Storage Benchmark..., OS Latency..., CPU Compute..., Everyday Work...,
-Network Benchmark..., GPU Benchmark..., GPU Burnin... and GPU
-Comparison...; then <strong>Device ID Lookup...</strong>, <strong>Find
-in Report...</strong>, and <strong>Classic view</strong> (from the main
+<li><strong>Benchmarks &amp; stress</strong> (a submenu): CPU Burnin...,
+CPU Stress..., Benchmark..., IPI Delay..., Latency..., SRS Pi..., Crypto
+Benchmark..., Prime Sieve..., Cache &amp; Memory..., Storage
+Benchmark..., OS Latency..., CPU Compute..., Everyday Work..., Network
+Benchmark..., GPU Benchmark..., GPU Burnin... and GPU Comparison...;
+then <strong>Device ID Lookup...</strong>, <strong>Find in
+Report...</strong>, and <strong>Classic view</strong> (from the main
 window) or <strong>Open the new main window</strong> (when SRS started
 in the classic view). Every entry has its own underlined letter (Alt +
-letter).</p></li>
-<li><p><strong>Every item, grouped</strong> (the same groups as the
-Section Reference):</p>
+letter).</li>
+</ol>
+<p><img src="../images/classic-menu.png" alt="The classic Menu" /></p>
+<p><em>The classic Menu, opened with the Menu button on the classic main
+window.</em></p>
+<p><img src="../images/classic-bench-menu.png"
+alt="The classic Menu, Benchmarks &amp; stress submenu" /></p>
+<p><em>The Benchmarks &amp; stress submenu of the classic Menu.</em> 2.
+<strong>Every item, grouped</strong> (the same groups as the Section
+Reference):</p>
 <ul>
 <li>Processors</li>
 <li>Machine / BIOS / Memory</li>
@@ -2056,18 +2072,12 @@ Section Reference):</p>
 </ul>
 <p>Each entry shows the title and the item id in brackets, e.g.
 <code>Cache Levels [cache]</code>. Items for hardware most PCs lack are
-marked "(not present)"; Windows-only items are marked
-"(Windows-only)".</p></li>
-<li><p><strong>Options</strong> (<a href="#user-guide--10-options">section
-10</a>).</p></li>
-<li><p><strong>Save Report...</strong>, <strong>Save All
-Items...</strong> (<a href="#user-guide--13-reports-and-exports">section
-13</a>).</p></li>
-<li><p><strong>Run as root (srs-root)...</strong> (<a
-href="#user-guide--5-root-only-data-srs-root">section 5</a>).</p></li>
-<li><p><strong>User Guide...</strong></p></li>
-<li><p><strong>Exit.</strong></p></li>
-</ol>
+marked "(not present)"; Windows-only items are marked "(Windows-only)".
+3. <strong>Options</strong> (<a href="#user-guide--10-options">section 10</a>). 4.
+<strong>Save Report...</strong>, <strong>Save All Items...</strong> (<a
+href="#user-guide--13-reports-and-exports">section 13</a>). 5. <strong>Run as root
+(srs-root)...</strong> (<a href="#user-guide--5-root-only-data-srs-root">section
+5</a>). 6. <strong>User Guide...</strong> 7. <strong>Exit.</strong></p>
 <h2 id="user-guide--9-tools">9. Tools</h2>
 <p>Nothing in this section ever starts by itself: not at launch, not
 from the menu, and not from a saved report. You always press Start or
@@ -3189,18 +3199,23 @@ should take about 20 ms);</li>
 <p>If a GPU driver call never comes back at all (a hung driver), SRS
 waits 15 seconds after the end, then ends the run with "the GPU driver
 did not come back" and leaves the GPU alone; restart SRS (or the PC)
-before the next GPU test. With <strong>All GPUs</strong>, a card that
-cannot start (for example it cannot do FP64) is marked and the others go
-on; a bigger matrix that does not fit in a small card's memory just
-keeps the size that worked.</p>
+before the next GPU test; until then the next GPU test, and CPU Burnin,
+say so ("a GPU call did not return earlier; restart SRS"). With
+<strong>All GPUs</strong>, a card that cannot start (for example it
+cannot do FP64) is marked <strong>COULD NOT START</strong> in the table
+and the others go on; the verdict (PASS / FAIL) comes from the cards
+that ran, with a note saying how many could not start (if none could
+start, the run says that); a bigger matrix that does not fit in a small
+card's memory just keeps the size that worked.</p>
 <p><strong>SRS never changes clocks, voltages or fans</strong> - it only
 reads them. GPU Burnin does not start while CPU Burnin / Stress or
-another benchmark runs, and CPU Burnin waits until it has finished. The
-result is saved to <code>~/.cache/srs/bench-gpuburn.txt</code> and added
-to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>. The idea
-of comparing every result with the first one comes from gpu-burn by
-Ville Timonen; the code is SRS's own. Tested on a software GPU only -
-see the note at the start of this chapter.</p>
+another benchmark runs, and CPU Burnin waits until it has finished (its
+status line says "not started" and why). The result is saved to
+<code>~/.cache/srs/bench-gpuburn.txt</code> and added to the <a
+href="#user-guide--910-benchmark-history">Benchmark history</a>. The idea of
+comparing every result with the first one comes from gpu-burn by Ville
+Timonen; the code is SRS's own. Tested on a software GPU only - see the
+note at the start of this chapter.</p>
 <h3 id="user-guide--919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">9.19 GPU
 Compute: Vulkan vs HIP vs CUDA vs OpenCL</h3>
 <p><strong>In plain words:</strong> the same GPU work, run through every
@@ -3659,7 +3674,7 @@ sysreport-search &#39;-save=[all]=share.txt&#39; --redact   # every item, identi
 <p>File layout: a header line with program, version, host, date and the
 item list, then each item starting with a line
 <code>[id]  [category]</code>:</p>
-<pre><code>srs-gui - System Report Search V2.2.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+<pre><code>srs-gui - System Report Search V2.2.1 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -29689,6 +29704,11 @@ driver.</p>
 <li>Any errors: too much overclock or undervolt, too high a temperature,
 a weak or overloaded power supply, or a faulty card or video memory.
 Undo the overclock / undervolt and run again.</li>
+<li>"COULD NOT START" (All GPUs): that card could not open or cannot do
+the precision; the other cards ran and their result stands.</li>
+<li>A message "a GPU call did not return earlier; restart SRS": a driver
+call hung in an earlier run; restart SRS (or the PC) before the next GPU
+test.</li>
 <li>Ended early on a driver error or "device lost": the GPU crashed or
 was reset by the driver - usually an unstable overclock or undervolt, or
 the power supply.</li>
@@ -30087,7 +30107,7 @@ srs-root.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
 pci.ids Version 2026.10.01 (42452 records), usb.ids Version 2026.06.26
 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-<code>/usr/bin/sysreport-search</code>, V2.2.0.</p>
+<code>/usr/bin/sysreport-search</code>, V2.2.1.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li><code>not found</code>: the hwdata package is missing. Install
@@ -30726,7 +30746,7 @@ arguments).</td>
 </tr>
 <tr>
 <td>Version</td>
-<td>Program version, e.g. <code>V2.2.0</code>.</td>
+<td>Program version, e.g. <code>V2.2.1</code>.</td>
 <td>Quote this in bug reports.</td>
 </tr>
 <tr>
@@ -30795,7 +30815,7 @@ GitHub page.</td>
 </tbody>
 </table>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-<code>V2.2.0</code>, built with gcc 16.2.1 and glibc, image
+<code>V2.2.1</code>, built with gcc 16.2.1 and glibc, image
 <code>/usr/bin/sysreport-search (1.38MB)</code>, Linux 7.3.0 x86_64 on
 an ASUS TUF GAMING X870-PRO WIFI7 W NEO (BIOS 1805), AMD Ryzen 7
 7800X3D. pci.ids version 2026.10.01, usb.ids 2026.06.26. pnp.ids has no
@@ -32218,7 +32238,7 @@ program file was made, and when your settings were last saved.</p>
 file date) and Settings Last Written (SRSDEF.ini date, <code>-</code> if
 none). A note: SRS keeps no usage counter.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-<code>V2.2.0</code>, image 2026-10-26, settings 2026-10-26.</p>
+<code>V2.2.1</code>, image 2026-10-26, settings 2026-10-26.</p>
 <p><strong>Where Linux gets it.</strong> File modification times of the
 program and SRSDEF.ini.</p>
 <hr />
@@ -32887,7 +32907,7 @@ window runs it in a child process to find the items that have nothing to
 show on this PC, only on Options &gt; Check now or Check daily; it never
 runs the network items or Ping.</p>
 <h3 id="cli-reference----version"><code>--version</code></h3>
-<pre><code>sysreport-search 2.2.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+<pre><code>sysreport-search 2.2.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -33003,7 +33023,7 @@ srs-gui &#39;-save=[sensors]&#39;
 sysreport-search &#39;-save=[all]=full-report.txt&#39;
 sysreport-search &#39;-save=[all]=for-forum.txt&#39; --redact</code></pre>
 <p>Output starts with a header and then each item:</p>
-<pre><code>srs-gui - System Report Search V2.2.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+<pre><code>srs-gui - System Report Search V2.2.1 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...</code></pre>
@@ -33848,9 +33868,12 @@ work</td>
 </tr>
 </tbody>
 </table>
-<p>Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early
-by a safety rule, 2 = not started (bad option, not confirmed, back end
-not installed, no device, CPU Burnin running). Examples:</p>
+<p>With <code>--device all</code>, a card that cannot start is marked in
+the table and a <code>note -</code> line says how many; the exit code
+comes from the cards that ran (all of them failing to start = 1, ended
+early). Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended
+early by a safety rule, 2 = not started (bad option, not confirmed, back
+end not installed, no device, CPU Burnin running). Examples:</p>
 <pre><code>$ sysreport-search gpu-burn --list
 $ sysreport-search gpu-burn --seconds 600 --limit 95
 $ sysreport-search gpu-burn --backend hip --fp64 --seconds 120</code></pre>

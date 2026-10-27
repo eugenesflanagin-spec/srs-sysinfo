@@ -468,6 +468,14 @@ Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU Burnin and CPU 
 **Start** there. Its tabs show the last results. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
 
+![Benchmarks & stress page](images/benchmarks-page.png)
+
+*The Benchmarks & stress page (light theme): a button for each tool, with what it measures and how long it keeps the PC busy. Only the first launchers show here; scroll for the rest. The tabs below show the last results.*
+
+![Tools page](images/tools-page.png)
+
+*The Tools page, here with the Colour RGB debug tab open below the launchers.*
+
 ### 6.4 Search
 
 The search box in the title bar (**Ctrl+F**):
@@ -1068,6 +1076,14 @@ Classic Menu** in the main window. It has:
    Benchmark..., GPU Burnin... and GPU Comparison...; then **Device ID Lookup...**, **Find in
    Report...**, and **Classic view** (from the main window) or **Open the new main window** (when SRS
    started in the classic view). Every entry has its own underlined letter (Alt + letter).
+
+![The classic Menu](images/classic-menu.png)
+
+*The classic Menu, opened with the Menu button on the classic main window.*
+
+![The classic Menu, Benchmarks & stress submenu](images/classic-bench-menu.png)
+
+*The Benchmarks & stress submenu of the classic Menu.*
 2. **Every item, grouped** (the same groups as the Section Reference):
    - Processors
    - Machine / BIOS / Memory
