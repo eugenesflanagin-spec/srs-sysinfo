@@ -975,9 +975,10 @@ power supply. Inspired by gpu-burn (Ville Timonen); the code is SRS's own.
 | Auto | Vulkan when it has a GPU, else the first back end that has one |
 
 All four are loaded at run time: a back end that is not installed says "not installed" with a
-one-line hint, and the others still work. HIP, CUDA and OpenCL use SRS's own kernel when their
-compiler is there (hipRTC, NVRTC, the OpenCL driver), else the vendor's matrix library (hipBLAS,
-cuBLAS, CLBlast).
+one-line hint, and the others still work. HIP and CUDA need their runtime compiler (hipRTC,
+NVRTC) for both the own-kernel and the matrix-library (hipBLAS, cuBLAS) rows, because every result is
+checked with one of SRS's own kernels; without it those rows say so. OpenCL needs only its driver
+(the matrix library is CLBlast).
 
 **What you see.** While it runs, per GPU: the time, the **errors** (green 0, red otherwise),
 GFLOPS now and on average, multiplications per second and the matrix size, the **edge**,

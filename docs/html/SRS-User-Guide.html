@@ -29626,9 +29626,11 @@ driver (ROCm, Mesa Rusticl, NVIDIA, PoCL ...) is its own entry</td>
 </table>
 <p>All four are loaded at run time: a back end that is not installed
 says "not installed" with a one-line hint, and the others still work.
-HIP, CUDA and OpenCL use SRS's own kernel when their compiler is there
-(hipRTC, NVRTC, the OpenCL driver), else the vendor's matrix library
-(hipBLAS, cuBLAS, CLBlast).</p>
+HIP and CUDA need their runtime compiler (hipRTC, NVRTC) for both the
+own-kernel and the matrix-library (hipBLAS, cuBLAS) rows, because every
+result is checked with one of SRS's own kernels; without it those rows
+say so. OpenCL needs only its driver (the matrix library is
+CLBlast).</p>
 <p><strong>What you see.</strong> While it runs, per GPU: the time, the
 <strong>errors</strong> (green 0, red otherwise), GFLOPS now and on
 average, multiplications per second and the matrix size, the
