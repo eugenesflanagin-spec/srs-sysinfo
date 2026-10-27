@@ -36,6 +36,7 @@ typedef struct {
     double elapsed, gflops, gflops_avg, iter_per_s;
     gpu_sensors now, max;
     char note[240];                  /* why it ended early ("" = ran to the end) */
+    int not_started;                 /* All GPUs: this one could not start (the others went on); not an early end of the run */
     int no_temp;                     /* a GPU that reports no temperature to SRS: the temperature limit is NOT active for it */
 } gpuburn_dev;
 

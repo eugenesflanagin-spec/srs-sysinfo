@@ -233,6 +233,7 @@ static void *worker_main(void *arg)
     if (w->ops->open(&ctx, &w->info, c->software_only, why, sizeof why)) {
         w_note(w, GBS_ABORTED, "could not open the GPU: %s", why);
         if (!w->many) abort_run(r, why);   /* with All GPUs the others go on */
+        else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
     rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
@@ -241,6 +242,7 @@ static void *worker_main(void *arg)
         snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED ? "this GPU cannot run that precision here" : w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
         if (!w->many || rc == GBP_HUNG || rc == GBP_LOST) abort_run(r, why);
+        else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
     /* grow the matrix until one multiplication takes about a piece; every result counts, also these */
@@ -332,7 +334,7 @@ static void gburn_render(srs_out *o, void *ctx)
         const gpuburn_dev *d = &x->s.dev[i];
         char res[48], er[24], it[24], sp[32], nm[64];
         int col = d->state == GBS_FAILED ? C_RED : d->state == GBS_ABORTED ? C_ORANGE : d->state == GBS_STOPPED ? C_ORANGE : C_GREEN;
-        snprintf(res, sizeof res, "%s", d->state == GBS_FAILED ? "FAIL" : d->state == GBS_ABORTED ? "ENDED EARLY" : d->state == GBS_STOPPED ? (d->errors ? "FAIL (stopped)" : "stopped, 0 errors") : "PASS");
+        snprintf(res, sizeof res, "%s", d->state == GBS_FAILED ? "FAIL" : d->not_started ? "COULD NOT START" : d->state == GBS_ABORTED ? "ENDED EARLY" : d->state == GBS_STOPPED ? (d->errors ? "FAIL (stopped)" : "stopped, 0 errors") : "PASS");
         snprintf(er, sizeof er, "%ld", d->errors);
         snprintf(it, sizeof it, "%ld", d->iterations);
         snprintf(sp, sizeof sp, "%.0f GFLOPS", d->gflops_avg);
@@ -360,7 +362,7 @@ static void gburn_render(srs_out *o, void *ctx)
         so_kvf(o, "Highest temperatures", C_VALUE, "edge %s, junction (hotspot) %s, memory %s", a, b, m);
         so_kvf(o, "Highest power, clock, fan", C_VALUE, "%s, %s, %s", pw, ck, fn);
         if (d->no_temp) so_kv(o, "Temperature limit", C_ORANGE, "not active: this GPU reports no temperature to SRS, so the run could not stop at the limit");
-        if (d->note[0]) so_kv(o, "Ended early", C_ORANGE, d->note);
+        if (d->note[0]) so_kv(o, d->not_started ? "Could not start" : "Ended early", C_ORANGE, d->note);
     }
     so_par(o);
     so_kvf(o, "Settings", C_VALUE, "temperature limit %.0f °C; pieces of about %.0f ms of GPU time", x->c.limit_c, PIECE_S * 1000);
@@ -401,6 +403,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     run_t *run;
     bx *x;
     int backend, n, nw, i, rc = 0, abandoned = 0;
+    char nostartmsg[160] = "";
     int pick[GPUBURN_MAXDEV];
     gpuburn_cfg c = *cfg;
     char lw[240];
@@ -414,7 +417,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     if (c.prec != GP_FP64) c.prec = GP_FP32;
     if (c.n_max < 32) c.n_max = 32;
     if (c.n_max > 16384) c.n_max = 16384;
-    if (!gpu_claim("GPU Burnin", &who)) { if (why) snprintf(why, wn, "%s is running; wait for it to finish", who ? who : "another GPU test"); return -1; }
+    if (!gpu_claim("GPU Burnin", &who)) { if (why) gpu_claim_text(who, why, wn); return -1; }
     if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
     if ((backend = pick_backend(c.backend, c.software_only, lw, sizeof lw)) < 0) { if (why) snprintf(why, wn, "%s", lw); gpu_release(); return -1; }
     if (!gb_table[backend]->available(lw, sizeof lw)) { if (why) snprintf(why, wn, "%s: %s", gb_name[backend], lw); gpu_release(); return -1; }
@@ -473,6 +476,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
             k->d.state = GBS_ABORTED;
             snprintf(k->d.note, sizeof k->d.note, "could not start a worker thread");
             if (!k->many) abort_run(run, k->d.note);
+            else k->d.not_started = 1;
             atomic_store(&k->done, 1);
         } else k->started = 1;
     }
@@ -552,11 +556,25 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     strftime(x->when, sizeof x->when, "%Y-%m-%d %H:%M:%S", localtime(&now));
     snprintf(x->abort_msg, sizeof x->abort_msg, "%s", run->abort_msg);
     g_stage = "";
-    for (i = 0; i < nw; i++) {
-        gpuburn_dev *d = &x->s.dev[i];
-        if (d->errors && d->state != GBS_ABORTED) d->state = GBS_FAILED;
-        if (d->errors) rc = rc == -2 ? rc : 2;
-        if (d->state == GBS_ABORTED && rc != 2) rc = -2;
+    {
+        int nostart = 0;
+        for (i = 0; i < nw; i++) {
+            gpuburn_dev *d = &x->s.dev[i];
+            if (d->not_started) {   /* All GPUs: this one never ran; it is marked, and the verdict comes from the ones that did */
+                nostart++;
+                continue;
+            }
+            if (d->errors && d->state != GBS_ABORTED) d->state = GBS_FAILED;
+            if (d->errors) rc = rc == -2 ? rc : 2;
+            if (d->state == GBS_ABORTED && rc != 2) rc = -2;
+        }
+        if (nostart == nw) {   /* none of them could start: that is a failed start, with the first reason */
+            rc = -2;
+            if (!x->abort_msg[0]) snprintf(x->abort_msg, sizeof x->abort_msg, "no GPU could start (%.200s)", x->s.dev[0].note);
+        } else if (nostart) {
+            snprintf(nostartmsg, sizeof nostartmsg, "%d of %d GPUs could not start (marked in the table); the verdict is from the other%s",
+                     nostart, nw, nw - nostart == 1 ? "" : "s");
+        }
     }
     if (!rc && atomic_load(&run->user)) rc = 1;
     x->rc = rc;
@@ -570,10 +588,13 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
                  nw > 1 ? " (+more)" : "", c.prec == GP_FP64 ? "FP64" : "FP32", c.seconds, c.limit_c, x->s.dev[0].n);
         snprintf(res, sizeof res, "%s %ld errors, %ld multiplications, %.0f GFLOPS%s%.200s", rc == 0 ? "PASS" : rc == 1 ? "STOPPED" : rc == 2 ? "FAIL" : "ENDED EARLY",
                  errs, its, gf, x->abort_msg[0] ? "; " : "", x->abort_msg);
+        if (nostartmsg[0]) { size_t k = strlen(res); snprintf(res + k, sizeof res - k, "; %.150s", nostartmsg); }
         bench_history_add("gpuburn", params, res);
     }
     if (rc == -2 && why) snprintf(why, wn, "%s", x->abort_msg[0] ? x->abort_msg : "the run ended early");
+    else if (rc >= 0 && nostartmsg[0] && why) snprintf(why, wn, "%s", nostartmsg);   /* the GUI and CLI show it next to the verdict */
     if (abandoned) {   /* a worker is still inside the driver: keep what it can touch and keep the GPU claimed */
+        gpu_claim_hung();   /* the next GPU test then says what is wrong instead of "GPU Burnin is running" */
         free(x);
         return rc;
     }

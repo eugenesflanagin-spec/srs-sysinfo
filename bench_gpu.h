@@ -70,6 +70,10 @@ const char *gpu_stage(void);
    take it); returns 1 when claimed, 0 when another one runs (who says which) */
 int  gpu_claim(const char *name, const char **who);
 void gpu_release(void);
+#define GPU_CLAIM_HUNG "a GPU call did not return"
+void gpu_claim_hung(void);     /* after a driver call that never came back: keep the claim, under that name, until SRS is restarted */
+void gpu_claim_text(const char *who, char *buf, size_t n);   /* the "X is running" / "restart SRS" sentence for a refused claim */
+const char *gpu_claim_holder(void);   /* the name that holds the claim, NULL when free */
 int  gpu_busy(void);           /* 1 while any GPU benchmark or burn-in holds the claim (the CPU burner can refuse to start) */   /* "FP32 multiply-add" while a run is going on, "" when idle */
 /* run, render into o (may be NULL) and ~/.cache/srs/bench-gpu.txt, add a history line.
    0 ok, 1 stopped (cancel), 2 a result was wrong (shown as wrong), -1 not started (why says why),

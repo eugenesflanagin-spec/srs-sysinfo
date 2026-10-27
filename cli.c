@@ -1095,6 +1095,7 @@ static int cmd_gpu_burn(int argc, char **argv)
     signal(SIGINT, SIG_DFL);
     if (c.cb) fputc('\n', stderr);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);
+    else if (rc >= 0 && why[0]) fprintf(stderr, "gpu-burn: note - %s\n", why);   /* All GPUs: a card that could not start */
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 

@@ -144,11 +144,36 @@ int gpu_busy(void)
     return b;
 }
 
+const char *gpu_claim_holder(void)
+{
+    const char *w;
+    pthread_mutex_lock(&g_claim_mu);
+    w = g_claim;
+    pthread_mutex_unlock(&g_claim_mu);
+    return w;
+}
+
 void gpu_release(void)
 {
     pthread_mutex_lock(&g_claim_mu);
     g_claim = NULL;
     pthread_mutex_unlock(&g_claim_mu);
+}
+
+/* a GPU driver call never returned: the claim stays for the rest of the process, under a name that says why */
+void gpu_claim_hung(void)
+{
+    pthread_mutex_lock(&g_claim_mu);
+    g_claim = GPU_CLAIM_HUNG;
+    pthread_mutex_unlock(&g_claim_mu);
+}
+
+void gpu_claim_text(const char *who, char *buf, size_t n)
+{
+    if (who && !strcmp(who, GPU_CLAIM_HUNG))
+        snprintf(buf, n, "a GPU call did not return earlier; restart SRS (or the PC) before the next GPU test");
+    else
+        snprintf(buf, n, "%s is running; wait for it to finish", who ? who : "another GPU test");
 }
 
 const char *gvk_result_str(vki_Result r)
@@ -711,5 +736,8 @@ void gpu_quiet_layers(void) {}
 int gpu_claim(const char *name, const char **who) { (void)name; if (who) *who = NULL; return 1; }
 void gpu_release(void) {}
 int gpu_busy(void) { return 0; }
+void gpu_claim_hung(void) {}
+const char *gpu_claim_holder(void) { return NULL; }
+void gpu_claim_text(const char *who, char *buf, size_t n) { snprintf(buf, n, "%s is running; wait for it to finish", who ? who : "another GPU test"); }
 double gvk_now(void) { return (double)time(NULL); }
 #endif

@@ -125,6 +125,12 @@ int main(int argc, char **argv)
         if (rc == 0) burn_stop();
         gpu_release();
         printf("CPUBURN|%d\n", rc);
+        { burn_status st; burn_tick(&st); printf("CPUSTATUS|%s\n", st.status); }
+        gpu_claim_hung();   /* after a driver call that never came back */
+        { char t[200]; const char *w2 = NULL; if (gpu_claim("GPU benchmark", &w2)) printf("HUNG|claimed\n"); else { gpu_claim_text(w2, t, sizeof t); printf("HUNGTEXT|%s\n", t); } }
+        rc = burn_start(&b);
+        { burn_status st; burn_tick(&st); printf("HUNGBURN|%d|%s\n", rc, st.status); }
+        gpu_release();
         return 0;
     }
     only_lavapipe();
@@ -229,6 +235,9 @@ done < <(grep '^BIND|' <<<"$out")
 echo "== CPU Burnin refuses while a GPU test runs"
 out=$("$H" cpuburn 2>&1)
 grep -q '^CPUBURN|-1' <<<"$out" && ok "burn_start refused while the GPU claim is held" || bad "cpuburn: $out"
+grep -q '^CPUSTATUS|.*not started: GPU Burnin is running' <<<"$out" && ok "CPU Burnin says why it did not start" || bad "cpuburn status: $out"
+grep -q '^HUNGTEXT|a GPU call did not return earlier; restart SRS' <<<"$out" && ok "after a hung driver call the next GPU test says to restart SRS" || bad "hung text: $out"
+grep -q '^HUNGBURN|-1|.*not started: a GPU call did not return' <<<"$out" && ok "CPU Burnin says the same after a hung driver call" || bad "hung burn: $out"
 
 echo "== lavapipe only"
 out=$(VK_LOADER_DEBUG=driver "$H" list 2>&1)

@@ -155,7 +155,7 @@ static worker g_w[BURN_MAXCPU];
 static int g_nw;
 static burn_cfg g_cfg;
 static int g_cpus[BURN_MAXCPU], g_ncpus;
-static volatile int g_active;
+static int g_active;   /* read and written only through the __atomic builtins (seq_cst): it pairs with gpu_claim() in the GPU tests */
 
 static int pin(int cpu)
 {
@@ -415,7 +415,7 @@ static void gpu_check(void)
     }
 }
 
-int burn_active(void) { return g_active; }
+int burn_active(void) { return __atomic_load_n(&g_active, __ATOMIC_SEQ_CST); }
 
 void burn_cfg_default(burn_cfg *c)
 {
@@ -475,8 +475,13 @@ static void finish(int state, const char *why);
 int burn_start(const burn_cfg *c)
 {
     int i;
-    if (g_active) return -1;
-    if (gpu_busy()) return -1;   /* not while a GPU burn-in / benchmark runs: both together are too much heat and power */
+    if (burn_active()) return -1;
+    if (gpu_busy()) {   /* not while a GPU burn-in / benchmark runs: both together are too much heat and power */
+        char t[120];
+        gpu_claim_text(gpu_claim_holder(), t, sizeof t);
+        snprintf(g_status, sizeof g_status, "[CPU Burnin] not started: %s", t);
+        return -1;
+    }
     g_cfg = *c;
     if (g_cfg.cycles < 1) g_cfg.cycles = 1;
     load_apic_map();
@@ -506,7 +511,7 @@ int burn_start(const burn_cfg *c)
     g_gpu_bad = 0;
     g_t0 = g_phase_t0 = g_last_tick = now_s();
     g_state = BURN_RUNNING;
-    g_active = 1;
+    __atomic_store_n(&g_active, 1, __ATOMIC_SEQ_CST);
     if (gpu_busy()) {   /* a GPU test took the GPU at the same moment (it checks burn_active() after its claim): it wins */
         finish(BURN_IDLE, "[CPU Burnin] not started: a GPU test is running");
         return -1;
@@ -523,13 +528,13 @@ static void finish(int state, const char *why)
     gpu_load(0);
     for (i = 0; i < g_nw; i++) if (g_w[i].started) pthread_join(g_w[i].tid, NULL);
     g_state = state;
-    g_active = 0;
+    __atomic_store_n(&g_active, 0, __ATOMIC_SEQ_CST);
     snprintf(g_status, sizeof g_status, "%s", why);
 }
 
 void burn_stop(void)
 {
-    if (g_active) finish(BURN_STOPPED, "Stopped by user");
+    if (burn_active()) finish(BURN_STOPPED, "Stopped by user");
 }
 
 #define ROLL(a, b) ((a) = (g_nsamp <= 1 ? (b) : (a) * 0.9 + (b) * 0.1))
@@ -543,7 +548,7 @@ void burn_tick(burn_status *st)
     burn_sample_now(&s);
     memset(st, 0, sizeof *st);
     gpu_check();
-    if (g_active) {
+    if (burn_active()) {
         g_nsamp++;
         g_sum.cpu_load += s.cpu_load; g_sum.cpu_mhz += s.cpu_mhz; g_sum.cpu_temp += s.cpu_temp;
         g_sum.sio_temp += s.sio_temp; g_sum.gpu_temp += s.gpu_temp; g_sum.gpu_load += s.gpu_load; g_sum.gpu_mhz += s.gpu_mhz;

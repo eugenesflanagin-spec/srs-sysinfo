@@ -1275,8 +1275,23 @@ static void on_populate(GtkTextView *v, GtkWidget *popup, gpointer data)
 
 static gboolean on_key(GtkWidget *wid, GdkEventKey *ev, gpointer data);
 
+/* the asked-for size, kept within about 90% of the monitor's work area (a small laptop screen, a window manager that does not shrink) */
+static void fit_to_screen(int *width, int *height)
+{
+    GdkDisplay *dp = gdk_display_get_default();
+    GdkMonitor *mon = dp ? gdk_display_get_primary_monitor(dp) : NULL;
+    GdkRectangle wa;
+    if (dp && !mon && gdk_display_get_n_monitors(dp) > 0) mon = gdk_display_get_monitor(dp, 0);
+    if (!mon) return;
+    gdk_monitor_get_workarea(mon, &wa);
+    if (wa.width < 200 || wa.height < 200) return;
+    if (*width > wa.width * 9 / 10) *width = wa.width * 9 / 10;
+    if (*height > wa.height * 9 / 10) *height = wa.height * 9 / 10;
+}
+
 static GtkWidget *make_window(swin *w, const char *title, int width, int height)
 {
+    fit_to_screen(&width, &height);
     w->win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(w->win), title);
     gtk_window_set_default_size(GTK_WINDOW(w->win), width, height);
@@ -2005,9 +2020,11 @@ static gboolean bench_done(gpointer data)
         if (w->commit_id) { g_source_remove(w->commit_id); w->commit_id = 0; }   /* a live refresh still waiting */
         if (j->sub == BK_GPUBURN) {
             char b[400];
-            snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "PASS - no compute errors" : j->rc == 1 ? "Stopped - no errors so far" :
+            snprintf(b, sizeof b, "%s%s%s", j->rc == 0 ? "PASS - no compute errors" : j->rc == 1 ? "Stopped - no errors so far" :
                                           j->rc == 2 ? "FAIL - compute errors found (see the result)" :
-                                          j->rc == -1 ? "Not started: " : "Ended early by a safety rule: ", j->rc < 0 ? j->why : "");
+                                          j->rc == -1 ? "Not started: " : j->why[0] && strstr(j->why, "no GPU could start") ? "Could not start: " : "Ended early by a safety rule: ",
+                     j->rc < 0 ? j->why : "", j->rc >= 0 && j->why[0] ? (j->rc == 0 ? "; " : ". ") : "");
+            if (j->rc >= 0 && j->why[0]) { size_t k = strlen(b); snprintf(b + k, sizeof b - k, "%s", j->why); }
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
         } else if (j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) {
             char b[400];
@@ -2411,7 +2428,11 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             snprintf(list + strlen(list), sizeof list - strlen(list), "%s%s", nb ? ", " : "", gb_name[k]);
             nb++;
         }
-        if (!nb) { gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: tick at least one back end that is installed"); return; }
+        if (!nb) {
+            gtk_label_set_text(GTK_LABEL(w->bm_status), w->avw ? "Checking which back ends are installed... press Run again in a moment"   /* the boxes are still grey */
+                                                              : "Not started: tick at least one back end that is installed");
+            return;
+        }
         n = gpu_list(dv, GPU_MAXDEV, why, sizeof why);   /* the Vulkan list only: no HIP / CUDA / OpenCL runtime before Yes */
         if (n > 0) {
             if (dev >= n) dev = -1;
