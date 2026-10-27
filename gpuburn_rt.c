@@ -131,7 +131,7 @@ static int rt_bind_once(int cuda)
     const char *const cu_rt[] = { "libcuda.so.1", "libcuda.so", NULL };
     const char *const cu_rtc[] = { "libnvrtc.so.13", "libnvrtc.so.12", "libnvrtc.so.11.2", "libnvrtc.so", NULL };
     const char *const cu_blas[] = { "libcublas.so.13", "libcublas.so.12", "libcublas.so.11", "libcublas.so", NULL };
-    const char *only[2] = { NULL, NULL };
+    const char *only[2] = { NULL, NULL }, *envc;
     if (r->tried) return r->ok;
     r->tried = 1;
     r->cuda = cuda;
@@ -175,7 +175,11 @@ static int rt_bind_once(int cuda)
         }
     }
     only[0] = NULL;
-    r->rtc = open_one(cuda ? cu_rtc : hip_rtc, NULL, 0);
+    /* tests: SRS_HIP_RTC / SRS_CUDA_RTC and SRS_HIP_BLAS / SRS_CUDA_BLAS open exactly that file instead of the compiler and the
+       GEMM library (a name that does not exist = "not installed"), so a test never loads the real ones */
+    envc = getenv(cuda ? "SRS_CUDA_RTC" : "SRS_HIP_RTC");
+    if (envc && *envc) { only[0] = envc; r->rtc = open_one(only, NULL, 0); }
+    else r->rtc = open_one(cuda ? cu_rtc : hip_rtc, NULL, 0);
     if (r->rtc) {
         char save[96];
         snprintf(save, sizeof save, "%.90s", r->miss);
@@ -189,7 +193,9 @@ static int rt_bind_once(int cuda)
         r->have_rtc = !r->miss[0];
         snprintf(r->miss, sizeof r->miss, "%.90s", save);
     }
-    r->blas = open_one(cuda ? cu_blas : hip_blas, NULL, 0);
+    envc = getenv(cuda ? "SRS_CUDA_BLAS" : "SRS_HIP_BLAS");
+    if (envc && *envc) { only[0] = envc; r->blas = open_one(only, NULL, 0); }
+    else r->blas = open_one(cuda ? cu_blas : hip_blas, NULL, 0);
     if (r->blas) {
         char save[96];
         snprintf(save, sizeof save, "%.90s", r->miss);
@@ -387,7 +393,7 @@ static int build_module(gb_ctx *c, int fp64)
 {
     rt_api *r = c->r;
     char *src, *code = NULL, *log = NULL;
-    void *prog = NULL;
+    void *prog = NULL, *mod = NULL, *f[5] = { NULL, NULL, NULL, NULL, NULL };
     size_t sz = 0, ls = 0;
     int e, rc = GBP_ERROR;
     if (c->mod[fp64]) return GBP_OK;
@@ -401,12 +407,17 @@ static int build_module(gb_ctx *c, int fp64)
         goto out;
     }
     if ((e = r->RtcSize(prog, &sz)) || !(code = malloc(sz + 1)) || (e = r->RtcCode(prog, code))) { seterr(c, e, "kernel compiler"); goto out; }
-    if ((e = r->ModuleLoadData(&c->mod[fp64], code))) { seterr(c, e, "loading the kernels"); c->mod[fp64] = NULL; goto out; }
-    if ((e = r->ModuleGetFunction(&c->fn_gemm[fp64], c->mod[fp64], "gemm_r")) || (e = r->ModuleGetFunction(&c->fn_fma[fp64], c->mod[fp64], "fma_r")) ||
-        (e = r->ModuleGetFunction(&c->fn_copy, c->mod[fp64], "copy_u4")) || (e = r->ModuleGetFunction(&c->fn_cmp, c->mod[fp64], "cmp_u32")) ||
-        (e = r->ModuleGetFunction(&c->fn_tick, c->mod[fp64], "tick"))) { seterr(c, e, "finding a kernel"); goto out; }
+    if ((e = r->ModuleLoadData(&mod, code))) { seterr(c, e, "loading the kernels"); mod = NULL; goto out; }
+    /* all five kernels or none: a half-loaded module must never be remembered as built (a NULL function crashes the driver) */
+    if ((e = r->ModuleGetFunction(&f[0], mod, "gemm_r")) || (e = r->ModuleGetFunction(&f[1], mod, "fma_r")) ||
+        (e = r->ModuleGetFunction(&f[2], mod, "copy_u4")) || (e = r->ModuleGetFunction(&f[3], mod, "cmp_u32")) ||
+        (e = r->ModuleGetFunction(&f[4], mod, "tick"))) { seterr(c, e, "finding a kernel"); goto out; }
+    if (!f[0] || !f[1] || !f[2] || !f[3] || !f[4]) { snprintf(c->err, sizeof c->err, "the GPU runtime returned no kernel (internal error)"); goto out; }
+    c->mod[fp64] = mod; mod = NULL;
+    c->fn_gemm[fp64] = f[0]; c->fn_fma[fp64] = f[1]; c->fn_copy = f[2]; c->fn_cmp = f[3]; c->fn_tick = f[4];
     rc = GBP_OK;
 out:
+    if (mod) r->ModuleUnload(mod);
     if (prog) r->RtcDestroy(&prog);
     free(src); free(code); free(log);
     return rc;
@@ -414,6 +425,7 @@ out:
 
 static int launch(gb_ctx *c, void *fn, unsigned gx, unsigned gy, unsigned bx, unsigned by, void **args)
 {
+    if (!fn) { snprintf(c->err, sizeof c->err, "a kernel was not loaded (internal error); the run was ended"); return GBP_ERROR; }
     int e = c->r->Launch(fn, gx, gy, 1, bx, by, 1, 0, NULL, args, NULL);
     if (e) { seterr(c, e, "starting a kernel"); return GBP_ERROR; }
     return GBP_OK;
@@ -533,7 +545,12 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through the GEMM library only"); rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB && !r->have_blas) { snprintf(c->err, sizeof c->err, "%s is not installed", r->cuda ? "cuBLAS" : "hipBLAS"); rc = GBP_UNSUPPORTED; break; }
-        if (variant == GV_OWN && (rc = build_module(c, prec == GP_FP64))) break;
+        /* the error check (cmp_u32) is one of our own kernels, so the library variant needs the module too */
+        if (variant == GV_LIB && !r->have_rtc) {
+            snprintf(c->err, sizeof c->err, "%s needs the runtime compiler (%s) for the error check, and it is not installed", r->cuda ? "cuBLAS" : "hipBLAS", r->cuda ? "libnvrtc" : "libhiprtc");
+            rc = GBP_UNSUPPORTED; break;
+        }
+        if ((rc = build_module(c, variant == GV_OWN && prec == GP_FP64))) break;
         n = n / 16 * 16;
         if (n < 16) n = 16;
         if (prec == GP_FP16 && n > 2048) n = 2048;

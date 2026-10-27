@@ -314,6 +314,7 @@ static int build(gb_ctx *c, int fp64)
     int i;
     if (c->prog[fp64] && c->built_fp64 == fp64 + 1) return GBP_OK;
     for (i = 0; i < 5; i++) if (*k[i]) { a->ReleaseKernel(*k[i]); *k[i] = NULL; }
+    c->built_fp64 = 0;   /* no kernel is loaded now: a failure below must not look like a finished build */
     if (!c->prog[fp64]) {
         if (!(src = gk_source(GKD_OPENCL, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
         sp = src;
@@ -363,7 +364,9 @@ static int rd(gb_ctx *c, void *p, cl_h m, size_t n)
 
 static int setarg(gb_ctx *c, cl_h k, unsigned i, size_t sz, const void *v)
 {
-    int e = c->a->SetKernelArg(k, i, sz, v);
+    int e;
+    if (!k) { snprintf(c->err, sizeof c->err, "a kernel was not loaded (internal error); the run was ended"); return GBP_ERROR; }
+    e = c->a->SetKernelArg(k, i, sz, v);
     if (e) { seterr(c, e, "setting a kernel argument"); return GBP_ERROR; }
     return GBP_OK;
 }
@@ -371,7 +374,9 @@ static int setarg(gb_ctx *c, cl_h k, unsigned i, size_t sz, const void *v)
 static int enq(gb_ctx *c, cl_h k, size_t gx, size_t gy, size_t lx, size_t ly, cl_h *ev)
 {
     size_t g[2] = { gx, gy }, l[2] = { lx, ly };
-    int e = c->a->NDRange(c->q, k, gy > 1 ? 2 : 1, NULL, g, lx ? l : NULL, 0, NULL, ev);
+    int e;
+    if (!k) { snprintf(c->err, sizeof c->err, "a kernel was not loaded (internal error); the run was ended"); return GBP_ERROR; }
+    e = c->a->NDRange(c->q, k, gy > 1 ? 2 : 1, NULL, g, lx ? l : NULL, 0, NULL, ev);
     if (e) { seterr(c, e, "starting a kernel"); return GBP_ERROR; }
     return GBP_OK;
 }

@@ -285,8 +285,14 @@ static void cmp_render(srs_out *o, void *ctx)
         so_kvf(o, k->info.label, C_VALUE, "%s (%s)", k->info.device, k->info.kind);
         so_kvf(o, "  software", C_GRAY, "%s%s", k->info.runtime, k->info.has_lib ? "" : "; no vendor GEMM library");
         if (k->aborted[0]) so_kv(o, "  ended early", C_RED, k->aborted);
-        for (row = 0; row < GC_N; row++)
+        for (row = 0; row < GC_N; row++) {
+            int r2, again = 0;
             if ((k->state[row] == CS_FAILED || k->state[row] == CS_WRONG) && k->note[row][0]) so_kvf(o, "  problem", C_RED, "%s: %s", gpucmp_row_name[row], k->note[row]);
+            else if (k->state[row] == CS_NA && k->note[row][0]) {   /* why a test is not available (said once per reason) */
+                for (r2 = 0; r2 < row; r2++) if (k->state[r2] == CS_NA && !strcmp(k->note[r2], k->note[row])) again = 1;
+                if (!again) so_kvf(o, "  not available", C_GRAY, "%s: %s", gpucmp_row_name[row], k->note[row]);
+            }
+        }
     }
     so_kvf(o, "Sizes", C_VALUE, "matrices %.0f x %.0f; %.0f MiB memory tests; %.1f s of GPU time per test", x->gemm_n, x->gemm_n, x->mem_bytes / 1048576.0, x->c.seconds);
     so_kv(o, "Run", C_GRAY, x->when);

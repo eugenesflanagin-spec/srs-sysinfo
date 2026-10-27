@@ -239,7 +239,7 @@ static void *worker_main(void *arg)
     rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
     if (rc == GBP_UNSUPPORTED) { variant = GV_LIB; rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps); }
     if (rc) {
-        snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED ? "this GPU cannot run that precision here" : w->ops->error(ctx));
+        snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED && !w->ops->error(ctx)[0] ? "this GPU cannot run that precision here" : w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
         if (!w->many || rc == GBP_HUNG || rc == GBP_LOST) abort_run(r, why);
         else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
