@@ -1089,8 +1089,10 @@ healthy result has every row filled in and no errors.
 **Unusual values and what they suggest.**
 - One back end far behind the others on the same card: an old or debug runtime, or a driver that
   does not support that card well.
-- "not available" in the own-kernel rows of CUDA (ZLUDA): ZLUDA has no NVRTC compiler, so only the
-  library rows run.
+- "not available" in the own-kernel rows of CUDA (ZLUDA): ZLUDA has no NVRTC compiler. The library
+  rows need that compiler too, for the error check (every result is checked by one of SRS's own
+  kernels), so without libnvrtc / libhiprtc they say "needs the runtime compiler ... for the error
+  check" and are not run. The notes under the table say why each test is "not available".
 - FP16 library rows "not available" on OpenCL: the driver has no `cl_khr_fp16`.
 
 **Where Linux gets it.** Built in: all four back ends and the libraries are opened at run time
@@ -1254,7 +1256,7 @@ srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.2.1.
+`/usr/bin/sysreport-search`, V2.2.2.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

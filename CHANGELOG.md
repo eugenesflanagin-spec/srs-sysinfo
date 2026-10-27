@@ -4,6 +4,27 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.2.2 - 2026-10-27
+
+Fix for a crash in the GPU Compute comparison and GPU Burnin, found by a user running CUDA through ZLUDA.
+
+### Fixed
+
+- GPU Comparison/GPU Burnin: fixed a crash when the vendor GEMM library (hipBLAS/cuBLAS) was measured
+  before the own kernels (found by a user running CUDA via ZLUDA). The library variant checks every
+  result with one of SRS's own kernels, which was only loaded for the own variant, so the driver got
+  a NULL kernel. The kernels are now always loaded for GEMM, a kernel launch with a missing kernel
+  is refused with a message (HIP, CUDA and OpenCL), and a half-loaded module is never kept.
+- Without libnvrtc / libhiprtc the library test says it needs the runtime compiler for the error
+  check; GPU Burnin shows that reason instead of "cannot run that precision".
+- GPU Comparison lists why a test is "not available" under the table.
+
+### Added
+
+- `tests/gpu-stub-test.sh` and `tests/gpu_stub.c`: the HIP and CUDA back ends run against a fake GPU
+  runtime that aborts on any NULL kernel launch (no GPU needed). Test-only overrides
+  `SRS_HIP_RTC`, `SRS_CUDA_RTC`, `SRS_HIP_BLAS`, `SRS_CUDA_BLAS` (see docs/CLI-REFERENCE.md).
+
 ## 2.2.1 - 2026-10-27
 
 Fixes from the final review of 2.2.0: GPU Burnin messages, the All GPUs verdict, and the window size.

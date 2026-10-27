@@ -72,6 +72,15 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.2.2" date="2026-10-27">
+      <description>
+        <p>Fix: GPU Comparison and GPU Burnin no longer crash when the vendor GEMM library
+        (hipBLAS or cuBLAS) is measured before the own kernels; a missing runtime compiler is
+        now reported with a clear message.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT, wired connection): parts that
+        need other hardware may have a bug or two. Please report them on GitHub Issues.</p>
+      </description>
+    </release>
     <release version="2.2.1" date="2026-10-27">
       <description>
         <p>Fixes: clear messages after a hung GPU driver call and when CPU Burnin cannot start,
