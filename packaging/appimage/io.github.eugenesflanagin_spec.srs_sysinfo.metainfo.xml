@@ -33,7 +33,8 @@
     </p>
     <p>Also included:</p>
     <ul>
-      <li>CPU and GPU burn-in and stress tests; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
+      <li>Stress tests and benchmarks are used at your own risk: SRS is provided without warranty and asks you to agree once before the first one</li>
+      <li>CPU and GPU burn-in and stress tests in one Stress &amp; Burnin window; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
       <li>Power &amp; Cost: an estimate of the whole PC's power use and its cost, with recorded history (estimates, not a meter reading)</li>
       <li>Tabs you can arrange and save as lineups, sortable tables and a startup manager</li>
       <li>Device ID lookup for PCI and USB devices</li>
@@ -77,6 +78,19 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.3.1" date="2026-10-29">
+      <description>
+        <p>Stress &amp; Burnin: CPU Burnin, CPU Stress and GPU Burnin in one window, the GPU load for
+        its own time or in sync with the CPU load, a custom GPU command as the other choice. In the
+        new main window every benchmark and stress test is a tab of the Benchmarks &amp; Stress page.</p>
+        <p>Use at your own risk: the first stress test or benchmark asks you to agree to plain-English
+        terms (provided as is, without warranty). Columns now line up on every page; very long entries
+        end in "..." with the full text in the tooltip and in Copy.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): the built-in GPU Burnin in Stress &amp;
+        Burnin was tested on a software renderer only; parts that need other hardware may have a bug or
+        two - please report them.</p>
+      </description>
+    </release>
     <release version="2.3.0" date="2026-10-29">
       <description>
         <p>CUDA without the NVIDIA runtime compiler: SRS's CUDA test kernels are now built in

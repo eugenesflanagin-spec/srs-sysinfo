@@ -176,7 +176,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.3.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.3.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -245,7 +245,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.3.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.3.1 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -379,6 +379,12 @@ command's usage and exits 0; an unknown option or a missing value exits 2 - neit
 anything. The windows ask the same question. Close other heavy programs first. Press **Ctrl+C** to
 stop. Never run them on a PC you are not allowed to load.
 
+**Use at your own risk (2.3.1).** These commands push the CPU, GPU, memory, drives and power supply to
+their limits; SRS comes without any warranty, and its authors are not responsible for any damage (see
+the licence, GNU GPL v2). The question (`Start now (and agree)? [y/N]`), every load command's
+`--help` and `burn` print that notice. **`--yes` counts as agreeing to it** (so do answering `y` and
+starting `burn`). The window asks once with I Agree / I Disagree.
+
 ```
 $ sysreport-search crypto --threads 1
 It checks the official AES and SHA-256 test vectors, then measures AES-128 encryption and SHA-256
@@ -386,11 +392,15 @@ speed with the CPU's crypto instructions and in plain C, 1.0 s per measurement: 
 Each test runs on one CPU thread (light load).
 
 Close other programs for accurate results.
-Start now? [y/N] n
+Use at your own risk: SRS comes without any warranty, and its authors are not responsible for any damage (see the licence, GNU GPL v2).
+Start now (and agree)? [y/N] n
 crypto: not started
 ```
 
 ### `burn` - CPU Burnin from the command line
+
+`burn --help` (new in 2.3.1) prints the options and the notice. In the window this is the CPU part of
+**Stress & Burnin**; the GPU part is `gpu-burn` below.
 
 | Option | Meaning | Default |
 |---|---|---|
@@ -613,7 +623,7 @@ PC under this load; `--single` keeps it light.
 | `--single` | Only the 1-thread column (light load, half the time) |
 
 Exit code 0 when every check passed, 1 when a check failed (WRONG) or it was stopped, 2 when it did
-not start (bad option, not confirmed, CPU Burnin running). Example:
+not start (bad option, not confirmed, Stress & Burnin running). Example:
 
 ```
 $ sysreport-search compute --single --tests sgemm,nbody --yes
@@ -646,7 +656,7 @@ skipped.
 | `--part-kib K` | Size of each generated data part per thread, 64-16384 KiB (default 1024) |
 
 Exit code 0 when every check passed, 1 when a check failed or it was stopped, 2 when it did not
-start (bad option, not confirmed, CPU Burnin running, not enough memory). Each test group adds a
+start (bad option, not confirmed, Stress & Burnin running, not enough memory). Each test group adds a
 line (`work-compress` ... `work-interp`) to the history. Example:
 
 ```
@@ -726,7 +736,7 @@ terminal and without `--yes` it does not start (exit code 2).
 
 Exit code 0 when every test ran and was right, 1 when it was stopped, a result was wrong or the
 GPU failed during the run, 2 when it did not start (bad option, not confirmed, no Vulkan, no such
-device, CPU Burnin running). Examples:
+device, Stress & Burnin running). Examples:
 
 ```
 $ sysreport-search gpu --list
@@ -769,7 +779,7 @@ voltages or fans.** It never burns a software renderer such as llvmpipe as a GPU
 With `--device all`, a card that cannot start is marked in the table and a `note -` line says how many;
 the exit code comes from the cards that ran (all of them failing to start = 1, ended early).
 Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early by a safety rule, 2 = not
-started (bad option, not confirmed, back end not installed, no device, CPU Burnin running).
+started (bad option, not confirmed, back end not installed, no device, Stress & Burnin running).
 Examples:
 
 ```
@@ -871,8 +881,11 @@ or one of these tool names:
 
 | Name | Opens |
 |---|---|
-| `burnin` | CPU Burnin |
-| `stress` | CPU Stress |
+| `stressburn` | Stress & Burnin as last used (2.3.1) |
+| `burnin` | Stress & Burnin set to Timed (CPU Burnin) |
+| `stress` | Stress & Burnin set to Until Stop (CPU Stress) |
+| `gpuburn` | Stress & Burnin with only GPU Burnin ticked |
+| `loadterms` | Options -> Load test terms (warranty)... |
 | `bench` | Benchmark |
 | `ipi` | IPI Delay |
 | `latency` | Latency |
@@ -886,7 +899,6 @@ or one of these tool names:
 | `work` | Everyday Work |
 | `netbench` | Network benchmark (`network` alone is the Network page's item) |
 | `gpubench` | GPU Benchmark |
-| `gpuburn` | GPU Burnin |
 | `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
 | `cudatoolkit` | The **Options -> NVIDIA CUDA toolkit for GPU tests...** window |
 | `idlookup` | Device ID Lookup |
@@ -897,7 +909,7 @@ or one of these tool names:
 Opening a tool **never starts it**. Example: `srs-gui --gui-open=sensors,burnin`.
 The environment variable `SRS_OPEN=sensors,burnin` does the same.
 
-The menu entries use: `--gui-open=burnin,stress` (SRS CPU Burnin & Stress),
+The menu entries use: `--gui-open=stressburn` (SRS Stress & Burnin),
 `--gui-open=bench,ipi,latency` (SRS Benchmark), and the jump-list actions `sensors`, `processors`,
 `burnin`, `stress`, `bench`, `cachemem`, `storagebench`, `oslatency`, `compute`, `work`,
 `netbench`, `gpubench`, `gpuburn`, `gpucompare`, `pi`, `idlookup`, `find`, and **Classic View** (`--gui-classic`).

@@ -4,6 +4,76 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.3.1 - 2026-10-29
+
+One Stress & Burnin window for the CPU and the GPU, every tool as a tab of the new main window, a "use at your
+own risk" agreement for the load tests, columns that line up on every page, and smaller fixes.
+
+### Added
+
+- **Stress & Burnin**: CPU Burnin, CPU Stress and GPU Burnin in one window. CPU part: **CPU load**, **Timed**
+  (burn / cool cycles, Pass or Fail) or **Until Stop**, temperature limit, Same / Swap CPU, the CPU tick boxes. GPU
+  part: **GPU Burnin (built-in)** with **Time (min)** and **Sync to CPU stress / burn time** (Until Stop: until Stop;
+  Timed: during each burn phase), and **GPU options** folded away (back end, GPU, FP32 / FP64, GPU temperature limit;
+  defaults Auto, first GPU, FP32, 100 C). **Custom GPU command** (the old GPU Load command) is the third choice;
+  it and the built-in one are either-or. CPU load off = a GPU-only run. The built-in GPU Burnin runs as its own
+  process (`srs-gui --gpu-burn-child`): a hung GPU driver cannot freeze the window, Stop ends it (it ends cleanly
+  on SIGTERM and is killed after 20 s), it ends with SRS (PR_SET_PDEATHSIG), and its exit code says PASS, stopped,
+  FAIL, not started or ended early; compute errors or a GPU safety stop make the whole run Fail. Its live page
+  (errors, GFLOPS, temperatures, power, clock, fan) and its result show in the same results area as the CPU
+  numbers. The old menu entries open the window in their layout. New SRSDEF.ini keys `Stress GPU Burnin`,
+  `Stress GPU Minutes`, `Stress GPU Sync`, `Stress GPU Backend`, `Stress GPU Precision`, `Stress GPU Limit`,
+  `Stress Until Stop`, `Stress GPU Options Open`.
+- **Tools as tabs** (new main window): on the Benchmarks & Stress page every tool is a tab with its controls and
+  live results - Stress & Burnin, CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work,
+  Network, GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay, Memory latency - built by the same
+  code as the windows. The page's sections are compact (one short line each, two per row; full text in the
+  tooltip) and open the tool's tab; the Tools page's sections are compact too. The Basic lineup keeps the full
+  descriptions. Classic View keeps the separate windows. Leaving a running tool's tab, its page or the window
+  asks **Stop it** / **Keep running**; Quit (Ctrl+Q) and the tray's Exit ask too.
+- **Load test terms** ("use at your own risk"): shown once before the first stress test or benchmark (both
+  views), **I Agree** / **I Disagree**; agreeing is kept (`Accepted Load Test Terms`, terms version 1), I Disagree
+  starts nothing and Start asks again. A short notice with a **Terms...** link under every tool's controls;
+  **Options -> Load test terms (warranty)...** reads them again or withdraws. Command line: the start question
+  and `--help` of every load command carry the notice; `--yes` counts as agreeing; `burn --help` is new and
+  `burn` prints the notice.
+- **NUMA memory speed** runs the Memory Latency benchmark right on the page (new main window) and says when the
+  shown run was made.
+- **MSR Setup** shows how SRS reads MSRs (driver built in or module, root or not, cache time and size) and
+  decodes the cached ones: P-state MHz (checked on a 7800X3D: 4200 / 3000 MHz), Core Performance Boost, SVM in
+  EFER, CPPC on and CPPC_CAP1 per CPU ranked by highest performance, the RAPL units. Read-only as always.
+- **Side tabs and the mouse wheel**: over a side tab list the wheel goes to the tab above or below, one notch per
+  tab, no wrap-around; it never starts or stops a test (leaving a running tool still asks).
+- **Close to tray**: the first time the close button only hides SRS, a notice says so and how to quit (Don't
+  show this again; `Tray Close Notice Off`).
+- Tests: `tests/stress-burnin-test.sh` (the GPU child and the window on lavapipe, 1 CPU for 3 s),
+  `tests/load-terms-test.sh`, `tests/tab-wheel-test.sh` (xdotool), `tests/columns-test.py` (with the
+  `SRS_TEST_ALIGN_DUMP` hook: 509 items with tables, 0 misaligned). Test hooks `SRS_TEST_GPU_BACKEND`,
+  `SRS_TEST_GB_NMAX`, `SRS_TEST_BURN_AUTOSTART`, `SRS_TEST_TERMS_ANSWER`, `SRS_TEST_TAB_LOG`,
+  `SRS_TEST_FIXED_COLS`, `SRS_TEST_ALIGN_MAIN`, `SRS_TEST_TRAY_NOTICE`.
+
+### Changed
+
+- **Columns line up on every page**: each block of tab stops gets columns as wide as their longest cell (at least
+  the item's own widths, at most 380 px); a longer cell ends in "..." with the full text in its tooltip, in Copy
+  and in a copied selection (Save Report is unchanged). Rows with more cells than stops get extra columns, and
+  command output with tabs in it is cut into cells. 2.3.0 had 38 misaligned items in Classic View and 55 in the
+  new main window's font (PCI bus, PnP Manager, USB bus, Processes, Software, ...).
+- Page names: **Benchmarks & Stress**, **Power & Cost**, **Graphics & Audio**.
+- Tool tabs and tool windows of the new view use compact controls (`srs-compact`) so the results get the height.
+- srs-root lists the CPUs in the MSRs cache in order (CPU-0, 1, 2 ... instead of 0, 1, 10, 11 ...).
+- The **SRS Stress & Burnin** menu entry replaces "SRS CPU Burnin & Stress"; the main entry's Stress and GPU
+  Burnin actions are folded into Stress & Burnin.
+
+### Known limits
+
+- Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT). The built-in GPU Burnin in Stress & Burnin was tested
+  on lavapipe (software Vulkan) only, not on the real card; the custom GPU command path (gpu-burn-rocm) was run
+  by the author with a CPU Burnin and passed.
+- The mouse-wheel tab change was tested with synthetic clicks on Xvfb, where a tab's tooltip opens under the
+  pointer and takes the wheel, so long runs of notches were checked on a real desktop only by hand.
+- MSR Setup shows no voltages: the VID encoding of newer AMD CPUs (SVI3) could not be checked.
+
 ## 2.3.0 - 2026-10-29
 
 CUDA without the NVIDIA runtime compiler (so ZLUDA runs every CUDA test), clearer OpenCL FP64 results, and an

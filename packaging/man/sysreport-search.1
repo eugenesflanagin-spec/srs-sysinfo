@@ -1,4 +1,4 @@
-.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.3.0" "User Commands"
+.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.3.1" "User Commands"
 .SH NAME
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
@@ -86,7 +86,7 @@ GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with 
 \fBcuda\-toolkit\fR [\fB\-\-check\fR|\fB\-\-install\fR|\fB\-\-ask\-again\fR|\fB\-\-never\-ask\fR]
 The optional NVIDIA CUDA toolkit (NVIDIA's developer tools; SRS can use its runtime compiler, NVRTC, as a fallback): what it is for, whether NVRTC and a CUDA library (NVIDIA's or ZLUDA) are installed, and the install command for this distribution (Arch: pacman \-S \-\-needed cuda; Debian/Ubuntu: apt\-get install libnvrtc12 or libnvrtc11.2; Fedora, openSUSE: instructions). \fB\-\-install\fR checks first (package database lock, network, sudo/pkexec), needs a terminal and runs the command with sudo only after a typed \fByes\fR (twice with ZLUDA, where installing it is not recommended). \fB\-\-never\-ask\fR / \fB\-\-ask\-again\fR: whether the GUI asks about it (and gpu\-burn / gpu\-compare print a note). Nothing is ever installed without \fB\-\-install\fR.
 .PP
-\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked. All of them except \fBburn\fR (the burn\-in itself) also ask before they start, on stderr (\fBStart now? [y/N]\fR), unless \fB\-\-yes\fR is given; without a terminal and without \fB\-\-yes\fR they exit with 2 and start nothing. \fB\-\-help\fR after a command prints its usage; an unknown option exits with 2 without starting.
+\fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked. All of them except \fBburn\fR (the burn\-in itself) also ask before they start, on stderr (\fBStart now? [y/N]\fR), unless \fB\-\-yes\fR is given; without a terminal and without \fB\-\-yes\fR they exit with 2 and start nothing. Use them at your own risk: SRS comes without any warranty, and its authors are not responsible for any damage (see the licence, GNU GPL v2); the question, \fB\-\-help\fR and \fBburn\fR print this notice, and \fB\-\-yes\fR counts as agreeing to it. \fB\-\-help\fR after a command prints its usage; an unknown option exits with 2 without starting.
 Run
 .B sysreport-search \-\-help
 for the full option list.

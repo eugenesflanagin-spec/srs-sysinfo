@@ -470,7 +470,7 @@ static void s_burnin(srs_out *o)
     burn_sample_now(&s);
     so_siv_header(o, "CPU Burnin");
     so_tabs(o, tabs, 1);
-    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Benchmarks & Stress > CPU Burnin)");
+    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Benchmarks & Stress > Stress & Burnin)");
     so_kvf(o, "Worker threads", C_BLACK, "%d CPUs available", burn_ncpu());
     so_kvf(o, "Hottest CPU sensor", C_BLACK, "%s %.1f°C", s.cpu_temp_name, s.cpu_temp);
     so_kvf(o, "Hottest SIO sensor", C_BLACK, "%s %.1f°C", s.sio_name, s.sio_temp);

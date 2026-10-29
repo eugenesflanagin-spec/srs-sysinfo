@@ -814,20 +814,33 @@ WRMSR instructions. They hold settings and counters that normal programs never s
 ## MSR Setup  
 `msr-setup` - Linux data - Needs root data
 
-**In plain words.** Whether Linux has the drivers loaded that let root read MSRs and run CPUID per CPU.
+**In plain words.** How SRS gets at the CPU's model-specific registers (MSRs), and what the ones it
+read mean, in plain English. Everything comes from the root cache that **Menu > Run as root** writes
+once (`~/.cache/srs/root/msrs.txt`); SRS never writes any register.
 
 **What you see.**
-- **msr module** - `loaded (/dev/cpu/N/msr present)` or `not loaded`.
-- **cpuid module** - `loaded` or `not loaded`.
-- **Access** - a reminder that reading MSRs is root-only and that SRS reads them through srs-root and
-  never writes them.
+- **msr driver** - built into the kernel or a module, and whether `/dev/cpu/N/msr` is there.
+- **cpuid driver**, **Running as root now**, **Access** (root only, read through srs-root, never written).
+- **MSRs last read** (the time in `collected.txt`), **Cache** (the file), **In the cache** ("18 registers x
+  16 CPUs" - every raw value is on the **MSRs** item), **Refresh** (Menu > Run as root). No cache: how to get it.
+- **Decoded** (CPU 0, raw hex in brackets): each **P-state** (enabled or not, and its MHz from AMD's
+  PStateDef: CpuFid[7:0] / CpuDfsId[13:8] x 200), **Core Performance Boost** (HWCR CpbDis, bit 25),
+  **AMD-V (SVM) in EFER** (SVME bit 12: on = the kernel or a hypervisor has enabled SVM), **CPPC**
+  (CPPC_ENABLE), the **RAPL** energy and time units, and a note that energy counters need two readings
+  over time (see Power & Cost).
+- **CPPC capabilities per CPU** - CPPC_CAP1's highest, nominal, lowest nonlinear and lowest performance
+  for every CPU, highest first with a rank: the CPUs the scheduler prefers (amd_pstate preferred cores).
+- Voltages are not shown: the VID encoding of newer AMD CPUs (SVI3) could not be checked.
 
-**Healthy / typical values.** On the author's PC both modules are loaded.
+**Healthy / typical values.** On the author's 7800X3D (family 19h): P0 4200 MHz (`0x800000004ab248a8`),
+P1 3000 MHz, P2 not used; boost on; SVM on; CPPC enabled; CPU0 181 / 138 / 98 / 14, the best cores 196.
 
-**Unusual values and what they suggest.** `not loaded`: run `modprobe msr` (srs-root does this itself).
-If it still fails, kernel lockdown (Secure Boot) may be blocking it.
+**Unusual values and what they suggest.** Boost off: BIOS "Core Performance Boost" or a tool turned it
+off. No cache: run Menu > Run as root once. `module not loaded`: srs-root loads it; kernel lockdown
+(Secure Boot) can block it.
 
-**Where Linux gets it.** Presence of `/dev/cpu/0/msr` and `/dev/cpu/0/cpuid`.
+**Where Linux gets it.** `/dev/cpu/N/msr` (read by srs-root as root), `/lib/modules/<kernel>/modules.builtin`,
+the cache `~/.cache/srs/root/msrs.txt` and `collected.txt`.
 
 ---
 ## IBM/Cyrix MSRs  
@@ -892,15 +905,17 @@ has CPUs: a memory channel is empty.
 `numa-speeds` - Linux data
 
 **In plain words.** SIV measures memory speed per NUMA node. SRS shows the node count and the result of
-the last memory latency test you ran. It never runs the test by itself.
+the last memory latency test, and (2.3.1) lets you run that test right here: in the new main window the
+tab carries the **Memory Latency** controls (**Largest block**, **Run**), with the same question before
+it starts, the load test terms and one test at a time. It never runs the test by itself.
 
 **What you see.**
 - **NUMA nodes** - count; with one node it adds "(uniform memory access - every CPU sees the same
   latency)".
-- **Last Latency run** - the saved result of Benchmarks & Stress > Latency: a table of **Block** size,
-  **Latency** in nanoseconds and the cache **Level** that block size fits in, plus a note that the levels
-  are indicative.
-- If no test has been run yet: **Memory latency** "Not measured yet - Benchmarks & Stress > Latency, then Run".
+- **Last Latency run** - when the shown run was made (the file's date and time), then its table of
+  **Block** size, **Latency** in nanoseconds and the cache **Level** that block size fits in.
+- If no test has been run yet: **Memory latency** "Not measured yet - press Run above" (Classic View:
+  Benchmarks & Stress > Memory Latency).
 
 **Healthy / typical values.** On the author's 7800X3D: 1 node. Latency about 1-4 ns up to 32KB (L1),
 about 3 ns up to 1MB (L2), and about 8.6-11 ns from 2MB to 64MB (the 96MB L3).

@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 2.3.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 2.3.1. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -63,7 +63,7 @@ operating-system detail. Most values update live.
 
 It also has tools:
 
-- **CPU Burnin / CPU Stress** - load every CPU thread to check the PC is stable and cool enough.
+- **Stress & Burnin** - load every CPU thread and / or the graphics card to check the PC is stable and cool enough.
 - **Benchmark** - classic Dhrystone and Whetstone CPU scores.
 - **IPI Delay** - how long cores take to signal each other.
 - **Latency** - how long memory takes to answer, by block size (shows your cache levels).
@@ -119,7 +119,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-2.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.3.1-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -151,8 +151,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-2.3.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.3.0-linux-x86_64
+tar xzf srs-sysinfo-2.3.1-linux-x86_64.tar.gz
+cd srs-sysinfo-2.3.1-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -170,14 +170,14 @@ with GTK and everything else it needs inside. Nothing is installed; you just run
 built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
 
 ```
-chmod +x srs-sysinfo-2.3.0-x86_64.AppImage
-./srs-sysinfo-2.3.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.3.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.3.0-x86_64.AppImage srs-sysreport     # the full system report
+chmod +x srs-sysinfo-2.3.1-x86_64.AppImage
+./srs-sysinfo-2.3.1-x86_64.AppImage                   # the window
+./srs-sysinfo-2.3.1-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.3.1-x86_64.AppImage srs-sysreport     # the full system report
 ```
 
 - **Command line:** every `sysreport-search` command works with the AppImage, for example
-  `./srs-sysinfo-2.3.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  `./srs-sysinfo-2.3.1-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
   the AppImage behaves like the real `sysreport-search`.
 - **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
   that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
@@ -194,7 +194,7 @@ chmod +x srs-sysinfo-2.3.0-x86_64.AppImage
 - **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
   packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
   `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
-  (see them with `./srs-sysinfo-2.3.0-x86_64.AppImage --appimage-extract`).
+  (see them with `./srs-sysinfo-2.3.1-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 
@@ -230,8 +230,8 @@ Open your application menu. SRS installs four entries (category System / Monitor
 
 | Menu entry | Opens |
 |---|---|
-| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU Burnin, GPU compute comparison, SRS Pi, Device ID Lookup, Find in System Report, Classic View (18 in all). |
-| **SRS CPU Burnin & Stress** | The CPU Burnin and CPU Stress windows (nothing starts until you press Start). |
+| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, Stress & Burnin, Benchmark, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU compute comparison, SRS Pi, Device ID Lookup, Find in System Report, Classic View (16 in all). |
+| **SRS Stress & Burnin** | The Stress & Burnin tab (CPU and GPU load; nothing starts until you press Start). |
 | **SRS Benchmark** | The Benchmark, IPI Delay and Latency windows (nothing runs until you press Run). |
 | **SRS Full System Report** | A terminal that writes a full text report folder (see [13.3](#133-full-system-report-srs-sysreport)). |
 
@@ -462,10 +462,11 @@ Right-click the text for Copy, Select All, the guide link and the Classic Menu. 
 heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab for Keep, Replace
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
-The **Benchmarks & Stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
-Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU
-Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
-**Start** there. Its tabs show the last results. The **Tools** page opens Device ID Lookup, Find in
+The **Benchmarks & Stress** page has one tab per tool (2.3.1): Stress & Burnin (CPU and GPU), CPU
+Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark,
+GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and Memory latency, each with its controls and
+live results, and compact sections at the top that jump to them ([9](#9-tools)); nothing runs until you press **Run** or
+**Start** there. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
 
 ![Benchmarks & Stress page](images/benchmarks-page.png)
@@ -589,6 +590,16 @@ a tab; it only decides which items have a tab and in what order.
 | Go back to the lineup's tabs for this page | Right-click a tab > **Reset this page's tabs to the lineup** |
 
 SRS remembers each page's tabs and their order when it closes. Temporary tabs are not remembered.
+
+**Navigating long tab lists (2.3.1).** With the tabs in a side list, the mouse wheel over the list goes
+to the tab above or below (one notch per tab, no wrap-around), so you get from the top tab to the
+bottom one quickly; the arrow keys, Home and End keep working as before ([12](#12-keyboard-shortcuts)).
+The Benchmarks & Stress page always starts with its tools as tabs ([9.0](#90-use-at-your-own-risk)).
+
+**Lined-up columns (2.3.1).** On every page with columns, each column is as wide as its longest
+entry, so the columns line up on every row; an entry too long for a sensible width ends in "..." -
+hover over it for the full text, and Copy, a copied selection and Save Report always give the full
+text.
 
 **Which tabs a page opens with:** **Options -> Tabs on each page...** (also right-click a tab >
 **Tabs on this page...**). Pick the page, then one of:
@@ -900,7 +911,7 @@ the chip, not a meter: good for changes, and it may read lower than a wall meter
 
 #### Where the built-in figures come from
 
-| Data | Source | Date in SRS 2.3.0 | Licence / terms |
+| Data | Source | Date in SRS 2.3.1 | Licence / terms |
 |---|---|---|---|
 | US average price by state | U.S. Energy Information Administration, *Electric Power Monthly*, Table 5.6.B (residential, year to date) | August 2026 YTD | U.S. government work (public domain); credit EIA |
 | US utility by ZIP code, with its average residential price | NREL, *U.S. Electric Utility Companies and Rates: Look-up by Zip Code (2024)*, from EIA-861 data | 2024 | Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by SRS |
@@ -1016,7 +1027,7 @@ current clock, ACPI name.
 
 Buttons: Linux, Processors, **Features** (CPU feature flags), **Hypervisor** (virtualisation),
 **Groups** (CPU groups / scheduling), **CPU-0, CPU-1, CPU-4, CPU-8** (one CPU's full details),
-**Cache-0 ... Cache-3** (cache levels), **CPU Stress**, **CPU Burnin**, **Benchmark**.
+**Cache-0 ... Cache-3** (cache levels), **CPU Stress** and **CPU Burnin** (both open Stress & Burnin), **Benchmark**.
 Reference: [processors.md](SECTIONS/processors.md).
 
 ### 7.6 Volumes
@@ -1070,10 +1081,10 @@ This is the classic view's Menu. Press **Menu** on the classic main window, pres
 classic window, right-click the text of any panel and choose **SRS Menu**, or use **Menu ->
 Classic Menu** in the main window. It has:
 
-1. **Benchmarks & Stress** (a submenu): CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
+1. **Benchmarks & Stress** (a submenu): Stress & Burnin (CPU / GPU)..., Benchmark..., IPI Delay...,
    Latency..., SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage
    Benchmark..., OS Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU
-   Benchmark..., GPU Burnin... and GPU Comparison...; then **Device ID Lookup...**, **Find in
+   Benchmark... and GPU Comparison...; then **Device ID Lookup...**, **Find in
    Report...**, and **Classic view** (from the main window) or **Open the new main window** (when SRS
    started in the classic view). Every entry has its own underlined letter (Alt + letter).
 
@@ -1165,73 +1176,111 @@ what was tried; in short, not tried on real hardware so far:
   ROCm / HIP, CUDA and OpenCL are started only after Yes.
 
 
-### 9.1 CPU Burnin and CPU Stress
+### 9.0 Use at your own risk
 
-**In plain words:** they make your CPU work at 100% so you can see whether it stays stable and how
-hot it gets. Use them after building a PC, changing cooling, or changing BIOS settings such as
-overclocks, undervolts (Curve Optimizer) or power limits.
+Stress tests and benchmarks push the processor, the graphics card, the memory, the drives and the
+power supply to their limits. That can bring out faults and cause crashes, freezes, lost or damaged
+data, or overheating - more so with an overclock or undervolt. Save your work and close other
+programs first.
 
-![CPU Burnin window](images/cpu-burnin.png)
+SRS is provided as is, **without any warranty**, as its licence (the GNU General Public License)
+says. The authors are not responsible for any damage, data loss or other harm that comes from using
+these tools. This is a plain-English summary, not legal advice; the licence text is what counts.
 
-Open: the **Benchmarks & Stress** page -> **CPU Burnin...** / **CPU Stress...**, the menu entry
-"SRS CPU Burnin & Stress", or in the classic view Processors -> CPU Burnin / CPU Stress or
-Menu -> Benchmarks & Stress.
+- **The first time** you press Start or Run in any stress test or benchmark (new main window or
+  Classic View), SRS shows these terms with **I Agree** and **I Disagree**. I Agree is remembered
+  (`Accepted Load Test Terms=1` in `SRSDEF.ini`). I Disagree starts nothing, and every Start / Run
+  asks again until you agree.
+- A short notice with a **Terms...** link sits under every stress test and benchmark's controls.
+- **Menu > Options > Load test terms (warranty)...** shows them again; I Disagree there withdraws an
+  earlier agreement.
+- **Command line:** the start question (`Start now (and agree)? [y/N]`) and `--help` of every load
+  command carry the same notice. `--yes` starts without asking and counts as agreeing; `burn` starts
+  at once (as before) and prints the notice.
 
-The difference:
+**Tools as tabs (new main window, 2.3.1).** On the **Benchmarks & Stress** page every tool is a tab
+of its own - Stress & Burnin, CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute,
+Everyday work, Network, GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and
+Memory latency - with its controls and live results in the page itself, no pop-up window. The small
+sections at the top of the page (one line each) jump to a tool's tab. The controls are compact and
+scroll sideways in a narrow window, so the results get most of the height. Only one test runs at a
+time. Leaving a tab, the page or the window while a test runs asks: **Stop it** or **Keep running**
+(and stay). Classic View keeps every tool in its own window.
 
-- **CPU Burnin** runs for a set **Burn Time**, then rests for a **Cool Time**, for a number of
-  **Cycles**, and ends with **Pass** or **Fail**.
-- **CPU Stress** runs **until you press Stop** (with a safety cap of 750 hours).
+### 9.1 Stress & Burnin (CPU and GPU)
 
-Controls:
+**In plain words:** one place to make the processor, the graphics card or both work at 100% so you
+can see whether the PC stays stable and how hot it gets. Use it after building a PC, changing
+cooling, or changing BIOS or GPU settings such as overclocks, undervolts (Curve Optimizer) or power
+limits. Since 2.3.1 this one window replaces the separate CPU Burnin, CPU Stress and GPU Burnin
+windows.
+
+![Stress & Burnin tab](images/stress-burnin.png)
+
+Open: the **Benchmarks & Stress** page -> the **Stress & Burnin** tab (or its section at the top of
+the page), the menu entry "SRS Stress & Burnin", the tray menu, or in the classic view Processors ->
+CPU Burnin / CPU Stress and Menu -> Benchmarks & Stress -> Stress & Burnin (CPU / GPU)... The old
+entries still work: "CPU Burnin" opens it set to **Timed**, "CPU Stress" to **Until Stop**, "GPU
+Burnin" with only the GPU ticked. In the new main window it is a tab of the page; Classic View
+keeps it as its own window.
+
+**Before the first run SRS asks once** whether you agree to use its stress tests and benchmarks at
+your own risk ([9.0](#90-use-at-your-own-risk)). Until you click **I Agree**, Start asks again and
+nothing starts.
+
+The three parts, top to bottom:
 
 | Control | Meaning | Default |
 |---|---|---|
-| **Burn Time** + "Hours (otherwise Minutes)" | How long each burn lasts (Burnin only). | 15 minutes |
-| **Cool Time** | Rest between burns, seconds (Burnin only). | 60 s |
-| **Cycles** | How many burn + cool rounds (Burnin only). | 1 |
-| **Temperature limit C** | The run stops at once if the hottest CPU sensor reaches this. | 90 C |
-| **Same CPU (Whetstone)** | Each worker stays on its CPU and runs the Whetstone floating-point test, giving a score per CPU. | on |
-| **Swap CPU (affinity test)** | Workers move between CPUs, checking that the system moves them correctly. | off |
-| **GPU Load command** | Optional: a program to run at the same time to load the graphics card (for example a GPU stress tool you have installed). Saved for next time. | empty |
-| **CPU-0 ... CPU-n** tick boxes | Which logical CPUs get a worker. | all |
-| **Select All / Deselect All** | Tick or untick every CPU. | |
-| **Start / Stop** | Start (asks first) / stop. Closing the window also stops. | |
+| **CPU load** | Make the ticked CPUs 100% busy. Untick it to test only the graphics card. | on |
+| **Timed (burn / cool, Pass or Fail)** | CPU Burnin: run for the **Burn Time**, rest for the **Cool Time**, repeat for the **Cycles**, then Pass or Fail. | on |
+| **Until Stop** | CPU Stress: keep the CPUs busy until you press Stop (safety cap 750 hours). | off |
+| **Burn Time** + **Hours** | How long each burn lasts (minutes, or hours when Hours is ticked). | 15 minutes |
+| **Cool Time** (s) / **Cycles** | Rest between burns, and how many burn + cool rounds. | 60 s / 1 |
+| **CPU temperature limit C** | The run stops at once if the hottest CPU sensor reaches this. | 90 C |
+| **Same CPU (Whetstone)** / **Swap CPU (affinity test)** | Workers stay on their CPU and give a Whetstone score each, or move between CPUs to check the system places them correctly. | Same CPU |
+| **GPU Burnin (built-in)** | Load the graphics card too, with SRS's own GPU Burnin ([9.18](#918-gpu-burnin)): large matrix multiplications that count every wrong result. | off |
+| **Time (min)** | How long the GPU part runs, from Start. It always ends with the CPU run at the latest. | 15 |
+| **Sync to CPU stress time** / **Sync to CPU burn time** | Run the GPU exactly as long as the CPU load: with Until Stop until you press Stop; with Timed during each burn phase, pausing while the CPUs cool. The Time box is greyed while it is ticked. | on |
+| **GPU options** (folded) | Back end (Auto = Vulkan, ROCm / HIP, CUDA, OpenCL), which GPU (the first, all, or one from the list), FP32 / FP64, and the GPU temperature limit (default 100 C). Closed by default; SRS remembers whether you opened it. | Auto, first GPU, FP32, 100 C |
+| **Custom GPU command** | Instead of the built-in GPU Burnin, run your own GPU stress program (for example `gpu-burn-rocm 600`). SRS checks the program exists first. It pauses in each cool phase and stops with the run. Ticking it unticks GPU Burnin and the other way round. | empty |
+| **CPU-0 ... CPU-n**, **Select All / Deselect All** | Which logical CPUs get a worker. | all |
+| **Start / Stop** | Start (asks first) / stop everything at once. | |
 
-Before it starts, SRS shows a warning saying how many CPUs will be 100% busy and the temperature
-limit. If a GPU Load command is set, SRS first checks that the program exists; if not, it shows
-an error and starts nothing.
+The built-in GPU Burnin runs as its own small process (`srs-gui --gpu-burn-child`): if a GPU driver
+hangs, the SRS window stays usable, Stop still works, and the GPU part ends when SRS ends. Its own
+messages go to `~/.cache/srs/gpu-load.log`, its result to `~/.cache/srs/bench-gpuburn.txt`.
 
-What you see while it runs:
+What you see while it runs, all in the results area under the controls:
 
 - **Status** (Idle / Burning / Cooling / Pass / Fail / Stopped), **Elapsed**, **Remaining**.
-- A table with **Current, Overall Average, Rolling Average, Maximum** for: CPU Load, CPU Frequency,
-  Hottest Core Temp, Hottest SIO (motherboard) Sensor Temp, GPU Load, GPU Temp, GPU Frequency.
-  The line under it names which sensors are "hottest" (e.g. `k10temp Tctl / nct6799 CPUTIN`).
-- **GPU Load** status line (when a command is set): running, finished (exit code), failed, not found
-  (127), not executable (126), killed by signal. The command's own output is saved to
-  `~/.cache/srs/gpu-load.log`.
-- A table per worker thread: Thread, CPU (where it was placed), On CPU (where it is now), User and
-  Kernel CPU time, Clock, Whetstone score (last / average / min / max, MWIPS) and **Affinity**
-  (`ok`, or `FAIL` if a worker was found on the wrong CPU).
-- A graph: green = CPU load %, red = hottest core C, orange = motherboard sensor C, blue = GPU C
-  (scale 0-100).
+- **Current, Overall Average, Rolling Average, Maximum** for CPU Load, CPU Frequency, Hottest Core
+  Temp, Hottest SIO (motherboard) Sensor Temp, GPU Load, GPU Temp and GPU Frequency.
+- The **GPU** line: GPU Burnin (built-in) running / finished / stopped / could not start, or the
+  custom command's state (exit code, not found, killed).
+- With GPU Burnin: its live page - per GPU the errors found, GFLOPS now and on average, edge /
+  hotspot / memory temperature, power, clock and fan; when it ends, its full result.
+- A table per worker thread (CPU, where it runs now, user / kernel time, clock, Whetstone score,
+  **Affinity** ok / FAIL) and a graph: green CPU load %, red hottest core C, orange board sensor C,
+  blue GPU C.
 
 How to read the result:
 
-- **Pass** - the run finished, no worker failed and the temperature limit was not reached.
-- **Fail** - a worker failed (affinity error) or the temperature limit was hit. A temperature stop
-  means your cooling cannot keep up at this load: check the cooler mounting, fans, thermal paste and
-  BIOS fan curves. A worker failure or a PC crash/freeze during the run points to instability
+- **Pass** - the run finished, no worker failed, no temperature limit was reached, and GPU Burnin
+  (when it ran) found no compute errors.
+- **Fail** - a CPU worker failed (affinity error), a temperature limit was hit, GPU Burnin found
+  compute errors, or GPU Burnin ended early on a safety rule (GPU temperature, driver error, a GPU
+  that stopped answering). A temperature stop means the cooling cannot keep up at this load. A
+  worker failure, wrong GPU results, or a crash or freeze during the run point to instability
   (overclock, undervolt or memory settings too aggressive).
-- Compare Whetstone scores per CPU: a CPU far below the others may be throttling or busy with
-  something else.
+- Compare Whetstone scores per CPU: a CPU far below the others may be throttling or busy.
 
-**Saved results.** Every run that ends (Pass, Fail or Stopped, in Burnin and in Stress) is saved to
-its own file, `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` (the date and time it ended). The file holds
-the same text as the **Copy** button: status, the sensor table and the thread table. The status line
-shows the file name. To compare two runs, for example before and after a BIOS change:
-`diff ~/.cache/srs/burnin-20261025-101500.txt ~/.cache/srs/burnin-20261025-113000.txt`
+Leaving the tab, the page or the window while a run is on asks whether to **Stop it** or **Keep
+running** (and stay); closing the tab or the classic window stops it.
+
+**Saved results.** Every run that ends (Pass, Fail or Stopped) is saved to its own file,
+`~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` (the date and time it ended), the same text as **Copy**.
+To compare two runs: `diff ~/.cache/srs/burnin-20261025-101500.txt ~/.cache/srs/burnin-20261025-113000.txt`
 or open both in `meld`. SRS never deletes these files.
 
 Full details of every column: [tools.md](SECTIONS/tools.md).
@@ -1796,15 +1845,17 @@ on a software GPU only - see the note at the start of this chapter.
 
 ### 9.18 GPU Burnin
 
-**In plain words:** a stress test for the graphics card, like CPU Burnin is for the processor. It
+**In plain words:** a stress test for the graphics card, like the CPU part of Stress & Burnin is for the processor. It
 keeps the GPU as busy as it can be with large matrix multiplications (big blocks of sums) for as
 long as you choose, and checks every single result. A healthy card gets the same answer every
 time; a card that is pushed too far (overclocked, undervolted, too hot, short of power) sooner or
 later gets one wrong. **0 errors = PASS.** While it runs you see the temperatures, power, clock
 and fan speed live.
-Open: the **Benchmarks & Stress** page -> **GPU Burnin...**, or Menu -> Benchmarks & Stress -> GPU
-Burnin... in the classic view. Command line: `sysreport-search gpu-burn`.
-Controls: **Back end** (see below; Auto = Vulkan), **GPU** (the first GPU, All GPUs, or one from
+Open: since 2.3.1 GPU Burnin is part of **Stress & Burnin** ([9.1](#91-stress--burnin-cpu-and-gpu)):
+tick **GPU Burnin (built-in)**, untick **CPU load** to test only the GPU, and set its time or **Sync to
+CPU stress time**; the old "GPU Burnin" entries open it that way. Command line (unchanged):
+`sysreport-search gpu-burn`.
+Controls (under **GPU options** in Stress & Burnin): **Back end** (see below; Auto = Vulkan), **GPU** (the first GPU, All GPUs, or one from
 the list; the list always comes from Vulkan, like `vulkaninfo`: it names your GPUs and sends them no
 work. With ROCm / HIP, CUDA or OpenCL as the back end, SRS starts that runtime only after you
 answer Yes and then finds the GPU you picked in its own list by its PCI address), **Precision** (FP32, or FP64 for the double-precision units), **Seconds** (default 60;
@@ -2053,9 +2104,9 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Light (SIV classic)** | SIV's light look and colours. | classic view |
 | **Theme -> Dark** | Dark panels, SIV's colours brightened so they stay readable, dark graphs. | |
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
-| **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). CPU Burnin / Stress always updates every second. | Default |
+| **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). Stress & Burnin always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
-| **Close button hides to tray** | Closing the main window hides it instead of exiting. | off |
+| **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Exit, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
 | **Minimize hides to tray (X11 / XWayland)** | Minimising hides it to the tray. Native Wayland apps are not told when they are minimised, so this works only on X11 / XWayland. | off |
 | **Start hidden in tray** | Start with no window, just the tray icon. | off |
 | **Start with the desktop (autostart)** | Writes `~/.config/autostart/srs-gui.desktop`, which runs `srs-gui --gui-tray` at login. Untick to remove it. | off |
@@ -2071,6 +2122,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Check daily which items have nothing to show** | On: once a day, in the background, SRS reads every item to find the ones with nothing to show on this PC and hides them. Off: only when you choose **Check now**. Windows-only items and hardware that is not present are hidden either way. The network items and Ping are never part of the check. | off |
 | **Check now which items have nothing to show** | Does that check once, now, in the background. | |
 | **NVIDIA CUDA toolkit for GPU tests...** | What the optional NVIDIA CUDA toolkit is for, whether it (its runtime compiler, NVRTC) is installed, the install command for your Linux, **Install...** and **Ask me again** - see [9.20](#920-the-nvidia-cuda-toolkit-optional). | |
+| **Load test terms (warranty)...** | The "use at your own risk" terms of the stress tests and benchmarks: read them again, agree, or withdraw your agreement - see [9.0](#90-use-at-your-own-risk). | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
 Until you pick a Theme, the main window follows the desktop and the classic view starts light.
@@ -2085,8 +2137,9 @@ KDE Plasma, XFCE, and GNOME with the AppIndicator extension).
 
 - **Tooltip:** CPU temperature and load, GPU temperature and load, updated every 2 seconds.
 - **Middle-click:** show / hide SRS.
-- **Tray menu:** Show SRS / Hide to Tray, Sensors, Processors, CPU Burnin..., CPU Stress...,
-  Benchmark..., Find..., **SRS Menu** (the full menu), Exit. Sensors and Processors open their
+- **Tray menu:** Show SRS / Hide to Tray, Sensors, Processors, Stress & Burnin (CPU / GPU)...,
+  Benchmark..., Find..., **SRS Menu** (the full menu), Exit. Exit really ends SRS (it asks first
+  while a stress test or benchmark runs). Sensors and Processors open their
   page in the main window (or their panel in the classic view).
 - `srs-gui --gui-tray` starts hidden in the tray.
 - Safety: SRS only hides its windows if a tray icon really exists, so it cannot get lost.
@@ -2111,12 +2164,14 @@ In the main window:
 | **Ctrl+T** | Add a tab to this page (the **+** button) |
 | **Ctrl+W** | Close the tab in view (also a middle-click on a tab) |
 | **Ctrl+PageUp / Ctrl+PageDown** | Previous / next tab, in every tab-bar layout |
+| **Mouse wheel over a side tab list** | Tabs in a side list (Layout: side): the tab above / below, one notch per tab, stopping at the first and last tab (no wrap-around). Over the page itself the wheel scrolls the page; with tabs on top it does not change tabs. It never starts or stops a test: leaving a running tool's tab still asks first (2.3.1) |
+| **Up / Down, Home / End** in a tab list or list | GTK's own keys, unchanged: step through the list, first / last. Inside a tool's controls (a spin button, a list box) the arrows change that control, not the tab |
 | **Right-click a tab** | Keep, Replace with..., Move, Close, Tabs on this page, Lineup |
 | **Click a table heading** | Sort by that column (again: the other way) |
 | **F5** | Read the page again |
 | **F1** | User guide at the current tab's item (the Overview opens the start) |
 | **Shift+F1** | Help item |
-| **Ctrl+Q** | Quit |
+| **Ctrl+Q** | Quit (Menu > Quit). It really ends SRS, also with Close to tray on; a stress test or benchmark still running asks first |
 | **Alt + underlined letter** | Press that button |
 | **Double-click a PCI or USB ID** | Look it up |
 
@@ -2163,7 +2218,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V2.3.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.3.1 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -2237,7 +2292,10 @@ hand is fine while SRS is closed.
 | `Close To Tray` | `1` / `0` | Options -> Close button hides to tray |
 | `Minimize To Tray` | `1` / `0` | Options -> Minimize hides to tray |
 | `Start In Tray` | `1` / `0` | Options -> Start hidden in tray |
-| `GPU Load Command` | text | Burnin / Stress GPU Load command |
+| `GPU Load Command` | text | Stress & Burnin: Custom GPU command |
+| `Stress GPU Burnin`, `Stress GPU Minutes`, `Stress GPU Sync`, `Stress GPU Backend`, `Stress GPU Precision`, `Stress GPU Limit`, `Stress Until Stop`, `Stress GPU Options Open` | numbers | Stress & Burnin: GPU Burnin on, its minutes, Sync, back end (0 Auto, 1 Vulkan, 2 ROCm / HIP, 3 CUDA, 4 OpenCL), FP64, GPU limit C, Until Stop, GPU options open (2.3.1) |
+| `Accepted Load Test Terms` | `1` / `0` | The load test terms agreed (the terms' version), `0` = not yet or withdrawn ([9.0](#90-use-at-your-own-risk)) |
+| `Tray Close Notice Off` | `1` / `0` | The one-time "still running in the tray" notice was seen |
 | `Colour Find Text` | 6 hex digits, e.g. `FFFF00` | Find highlight colour |
 | `Highlight Matches` | `1` / `0` | Find highlighting |
 | `Font Name` | text | Kept for SIV compatibility; not used for drawing |

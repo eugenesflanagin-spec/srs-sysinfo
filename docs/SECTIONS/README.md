@@ -601,7 +601,7 @@ The groups are in the same order as SRS's Menu.
 | [Device ID Lookup](tools.md#device-id-lookup) | `id-lookup` | Linux data |
 | [Find](tools.md#find) | `find` | Linux data |
 | [ALL Devices](tools.md#all-devices) | `all-dev` | Linux data |
-| [CPU Burnin](tools.md#cpu-burnin) | `burnin` | Linux data |
+| [Stress & Burnin (CPU and GPU)](tools.md#stress--burnin-cpu-and-gpu) | `burnin` | Linux data |
 | [CPU Stress](tools.md#cpu-stress) | `cpu-stress` | Linux data |
 
 ### SRS (SIV items)

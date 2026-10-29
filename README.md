@@ -7,6 +7,15 @@ improve on it along the way. SRS is free and open source for the Linux and open-
 SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under the GNU General Public License v2.0 or
 later (GPL-2.0-or-later).
 
+> **Use at your own risk.** SRS's stress tests and benchmarks push the processor, the graphics card,
+> the memory, the drives and the power supply to their limits. That can bring out faults and cause
+> crashes, freezes, lost or damaged data, or overheating - more so with an overclock or undervolt.
+> Save your work first. SRS is provided as is, **without any warranty**, as its licence says; the
+> authors are not responsible for any damage, data loss or other harm from using these tools. The
+> window asks you to agree once before the first stress test or benchmark (I Agree / I Disagree;
+> Options -> Load test terms (warranty)... shows it again); on the command line `--yes` counts as
+> agreeing. This is a plain-English summary, not legal advice; the licence text is what counts.
+
 > **Credit:** SIV - System Information Viewer - is the work of **Ray Hinchliffe, RH Software**
 > (<https://rh-software.com>). SIV has been a remarkably thorough hardware and system viewer for
 > Windows for decades, and SRS exists because of it. All credit for SIV's design, its item set and
@@ -30,7 +39,7 @@ Every one of SIV64X 5.87's **538 report items** has a counterpart in SRS
 as "not present" on a typical PC (Itanium, Xeon PIRs, RAID cards, IPMI, ...) and **38**
 Windows-only items, most of which show their Linux equivalent instead (services -> systemd,
 drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> coredumpctl, ...).
-SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and Stress, Find, ID Lookup and a few more), so
+SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin, Find, ID Lookup and a few more), so
 `sysreport-search --list` shows **558** in all.
 
 | Program | What |
@@ -100,7 +109,10 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
   - **Menu** (SIV's tray menu) lists every item by group, plus the tools, Save Report, Save All
     Items, Run as root and Exit. Right-click any panel for the same menu.
 - **Tools:**
-  - **CPU Burnin / CPU Stress** - per-CPU worker threads (Same CPU: Whetstone rating per CPU;
+  - **Stress & Burnin** (2.3.1: CPU Burnin, CPU Stress and GPU Burnin in one window; in the new main
+    window a tab of the Benchmarks & Stress page, like every benchmark) - the CPU load Timed (burn /
+    cool cycles, Pass or Fail) or Until Stop, plus the built-in GPU Burnin for its own time or synced
+    to the CPU time (it runs as its own process), or a custom GPU command. CPU part: per-CPU worker threads (Same CPU: Whetstone rating per CPU;
     Swap CPU: affinity test), affinity/APIC check, burn/cool cycles, current / average / rolling /
     maximum CPU load, clock, core temperature, board (Super-I/O) temperature and GPU load,
     temperature and clock, plots, Pass/Fail. Asks before starting, stops at a temperature limit
@@ -132,7 +144,7 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
   - **GPU Benchmark** - through Vulkan: FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS),
     video memory read / write / copy and upload / download (GB/s), dispatch latency (µs); every
     result checked; Vulkan loaded at run time (optional); about 15 s at full GPU load.
-  - **GPU Burnin** - repeated large matrix multiplications at full GPU load through Vulkan, ROCm /
+  - **GPU Burnin** (in Stress & Burnin) - repeated large matrix multiplications at full GPU load through Vulkan, ROCm /
     HIP, CUDA (or ZLUDA) or OpenCL, compute errors counted (0 = PASS), live temperature / power /
     clock / fan; stops by itself at the temperature limit (default 100 °C) or on a driver error;
     never changes clocks, voltages or fans.
@@ -180,8 +192,9 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
 
 Like SIV's Icon Tray, SRS shows a tray icon (needs `libayatana-appindicator`; KDE Plasma, XFCE,
 GNOME with the AppIndicator extension) with a live CPU / GPU temperature and load tooltip and a
-menu (Show / Hide to Tray, Sensors, Processors, CPU Burnin, CPU Stress, Benchmark, Find, the SRS
-Menu, Exit; middle-click toggles). **Menu -> Options** sets: tray icon, Close button hides to
+menu (Show / Hide to Tray, Sensors, Processors, Stress & Burnin, Benchmark, Find, the SRS
+Menu, Exit; middle-click toggles). The first time the close button only hides SRS to the tray, a
+notice says how to quit. **Menu -> Options** sets: tray icon, Close button hides to
 tray, Minimize hides to tray (X11/XWayland), Start hidden in tray, and Start with the desktop
 (autostart into the tray). `srs-gui --gui-tray` starts hidden. See [CHANGELOG.md](CHANGELOG.md).
 
@@ -195,7 +208,7 @@ an unchanged panel isn't redrawn at all. With the Sensors panel open this halved
 **Menu -> Options -> Update interval** sets how often live panels refresh: *Default* (each panel's
 own rate; the classic main window every 2 s; the Overview and the key-fact tiles every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or *Paused* (press F5 to
 refresh a panel by hand). Applies at once to every open window and is saved as `Update Interval=`
-(milliseconds; 0 = default, -1 = paused) in `~/.config/srs/SRSDEF.ini`. CPU Burnin / Stress always
+(milliseconds; 0 = default, -1 = paused) in `~/.config/srs/SRSDEF.ini`. Stress & Burnin always
 updates its status every second.
 
 ## Dark mode
@@ -269,10 +282,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.3.0-x86_64.AppImage
-    ./srs-sysinfo-2.3.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.3.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.3.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.3.1-x86_64.AppImage
+    ./srs-sysinfo-2.3.1-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.3.1-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.3.1-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -305,7 +318,7 @@ window page has two entries with the same Alt+letter.
 | `sec.h`, `sec_core.c` | section API, registry, text backend, `-save`, data helpers |
 | `sec_cpu.c` ... `sec_siv.c` | one file per group (cpu, machine, sensors, storage, network, os, gpu, bus, tools, siv) |
 | `sec_stubs.c` | generated from `CHECKLIST.tsv` by `gen_stubs.py`: every SIV item is registered |
-| `burner.c`, `bench.c` | CPU Burnin/Stress engine; Dhrystone, Whetstone, IPI, memory latency, run history |
+| `burner.c`, `bench.c` | Stress & Burnin engine (CPU load, the GPU part's process); Dhrystone, Whetstone, IPI, memory latency, run history |
 | `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
 | `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_compute.c` | CPU Compute benchmark (SGEMM / DGEMM, multiply-add, FFT, N-body, Mandelbrot, ray tracer; SSE2 / AVX2 / AVX-512) |

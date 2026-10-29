@@ -1,4 +1,4 @@
-.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.3.0" "User Commands"
+.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.3.1" "User Commands"
 .SH NAME
 srs-gui \- SRS system information viewer (GTK 3)
 .SH SYNOPSIS
@@ -16,10 +16,14 @@ is the graphical front end of SRS, a Linux system information viewer inspired by
 SIV64X (System Information Viewer by Ray Hinchliffe, RH Software) and built to improve on it.
 SRS is an independent project, not affiliated with SIV or its author. It shows CPU,
 memory, sensor, storage, bus, GPU, network and operating-system information,
-and includes a CPU burn-in / stress tester and benchmarks (Dhrystone / Whetstone, IPI delay, memory
-latency, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark,
-GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve). Nothing runs until you press
-Run or Start, and every benchmark asks before it starts.
+and includes Stress & Burnin (the CPU burn-in / stress tester and GPU Burnin in one window) and
+benchmarks (Dhrystone / Whetstone, IPI delay, memory latency, Cache & Memory, Storage, OS Latency,
+CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Compute comparison, SRS Pi, Crypto, Prime
+Sieve); in the main window each is a tab of the Benchmarks & Stress page, in the classic view its own
+window. Nothing runs until you press Run or Start, and every benchmark asks before it starts.
+The stress tests and benchmarks are used at your own risk: SRS comes without any warranty, and its
+authors are not responsible for any damage (GNU GPL v2). The first one asks you to agree once
+(Options \- Load test terms (warranty)... shows the terms again).
 SRS is not affiliated with or endorsed by RH Software.
 .PP
 The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
@@ -149,7 +153,7 @@ items that had nothing to show on this PC at the last check (made only by Option
 Check daily, which is off by default; the network items and Ping are never checked).
 .TP
 .I ~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt
-the summary of each finished CPU Burnin / CPU Stress run.
+the summary of each finished Stress & Burnin run.
 .TP
 .I ~/.cache/srs/bench\-history.tsv
 one line per finished benchmark run: Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work,
