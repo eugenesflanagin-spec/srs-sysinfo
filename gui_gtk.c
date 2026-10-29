@@ -3676,8 +3676,8 @@ static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
     GError *err = NULL;
     guint timer = 0;
     int resp;
-    if (busy && !w.have) return -3;
-    busy = 1;
+    if (busy && !w.have) return -3;   /* an earlier pkexec install has not ended yet */
+    busy = term == NULL;              /* only pkexec has a child watch that can outlive this call */
     memset(&w, 0, sizeof w);
     dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
     g_mkdir_with_parents(dir, 0700);
@@ -3694,7 +3694,7 @@ static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
         for (k = 0; k < pl->argc && n < 14; k++) argv[n++] = pl->argv[k];
         if (pl->noninteractive[0]) argv[n++] = pl->noninteractive;
         argv[n] = NULL;
-        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &w.pid, &err)) { g_clear_error(&err); return -1; }
+        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &w.pid, &err)) { g_clear_error(&err); busy = 0; return -1; }
         g_child_watch_add(w.pid, ctk_child_done, &w);
     }
     w.dlg = gtk_dialog_new_with_buttons("NVIDIA CUDA toolkit - installing", parent, GTK_DIALOG_MODAL, "_Stop waiting", GTK_RESPONSE_CANCEL, NULL);
