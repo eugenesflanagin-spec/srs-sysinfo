@@ -58,6 +58,7 @@ static char g_env_theme[256];
 static GDBusProxy *g_portal;
 static void theme_apply(void);
 /* Stress & Burnin window choices, kept in SRSDEF.ini: GPU Burnin on, its minutes, sync, back end (0 = Auto), FP64, limit, Until Stop */
+static int g_tray_notice_off;   /* SRSDEF.ini "Tray Close Notice Off": the one-time close-to-tray notice was seen */
 static int g_terms;   /* load test terms: the version agreed (SRSDEF.ini "Accepted Load Test Terms"), 0 = not yet */
 static int g_sb_gpu, g_sb_gpumin = 15, g_sb_sync = 1, g_sb_back, g_sb_prec, g_sb_limit = 100, g_sb_until, g_sb_gpuopts;
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
@@ -169,6 +170,8 @@ static void open_tool(wkind k, int sub);
 /* tool tabs of the new main window (2.3.1) */
 static int tool_inline_ok(void);
 static int home_close_guard(GtkWidget *win);
+static int srs_quit_ok(void);
+static void tray_close_notice(void);
 static int tool_open_tab(wkind k, int sub, int preset);
 static struct swin *bench_running_tab(void);
 static int tool_leave_guard(struct swin *t, const char *where);
@@ -868,10 +871,11 @@ static void settings_load(void)
         {   /* Stress & Burnin (2.3.1) */
             static const char *const keys[] = { "Stress GPU Burnin", "Stress GPU Minutes", "Stress GPU Sync", "Stress GPU Backend",
                                                 "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open",
-                                                "Accepted Load Test Terms" };
-            int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts, &g_terms };
+                                                "Accepted Load Test Terms", "Tray Close Notice Off" };
+            int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts, &g_terms,
+                            &g_tray_notice_off };
             int k;
-            for (k = 0; k < 9; k++) {
+            for (k = 0; k < 10; k++) {
                 GError *e4 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e4);
                 if (!e4) *vars[k] = v; else g_error_free(e4);
@@ -923,6 +927,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Stress Until Stop", g_sb_until);
     g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Options Open", g_sb_gpuopts);
     g_key_file_set_integer(kf, "SRSDEF", "Accepted Load Test Terms", g_terms);
+    g_key_file_set_integer(kf, "SRSDEF", "Tray Close Notice Off", g_tray_notice_off);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
@@ -993,6 +998,24 @@ static void terms_notice(GtkWidget *box)
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
     g_signal_connect(l, "activate-link", G_CALLBACK(on_terms_link), NULL);
     gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);
+}
+/* 2.3.1: the first time the window's close button only hides SRS to the tray (Options > Close to tray), say so once */
+static void tray_close_notice(void)
+{
+    GtkWidget *d, *cb;
+    if (g_tray_notice_off) return;
+    if (getenv("SRS_TEST_TRAY_NOTICE")) { fprintf(stderr, "SRS-TEST: tray close notice shown\n"); g_tray_notice_off = 1; settings_save(); return; }
+    d = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "SRS is still running in the tray");
+    gtk_window_set_title(GTK_WINDOW(d), "SRS System Information");
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "Closing the window only hid it (Options > Close to tray is on). "
+        "Click the tray icon to show SRS again; to quit, right-click the icon and choose Exit, or use Menu > Quit (Ctrl+Q).");
+    cb = gtk_check_button_new_with_mnemonic("_Don't show this again");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cb), TRUE);
+    gtk_box_pack_start(GTK_BOX(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(d))), cb, FALSE, FALSE, 0);
+    gtk_widget_show_all(d);
+    gtk_dialog_run(GTK_DIALOG(d));
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(cb))) { g_tray_notice_off = 1; settings_save(); }
+    gtk_widget_destroy(d);
 }
 static void on_terms_menu(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; terms_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL, 1); }
 static gboolean terms_open_idle(gpointer d) { (void)d; on_terms_menu(NULL, NULL); return G_SOURCE_REMOVE; }
@@ -3875,7 +3898,7 @@ static void on_tray_open(GtkMenuItem *mi, gpointer d)
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
     else open_item(t);
 }
-static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main) gtk_widget_destroy(g_main->win); }
+static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main && srs_quit_ok()) gtk_widget_destroy(g_main->win); }
 
 static void tray_build_menu(void)
 {
@@ -4451,7 +4474,7 @@ static gboolean on_main_delete(GtkWidget *wid, GdkEvent *ev, gpointer d)
 {
     (void)wid; (void)ev; (void)d;
     if (home_close_guard(wid)) return TRUE;   /* a tool tab still running: stop it, or keep the window */
-    if (g_opt_close_tray && tray_active()) { srs_hide_all(); return TRUE; }
+    if (g_opt_close_tray && tray_active()) { srs_hide_all(); tray_close_notice(); return TRUE; }
     return FALSE;
 }
 
@@ -5837,6 +5860,13 @@ static int tool_inline_ok(void)
     return 1;
 }
 
+/* Quit (Menu, Ctrl+Q, the tray's Exit): a tool tab still running asks first. 1 = go ahead */
+static int srs_quit_ok(void)
+{
+    swin *t = g_home ? bench_running_tab() : NULL;
+    return !t || !tool_leave_guard(t, "quit SRS");
+}
+
 /* closing (or hiding) the new main window while a tool tab runs: 1 = keep the window */
 static int home_close_guard(GtkWidget *win)
 {
@@ -6619,7 +6649,7 @@ static void on_hmenu(GtkMenuItem *mi, gpointer d)
     swin *tab = home_cur_tab();
     (void)mi;
     if (!strcmp(t, "copy")) { if (tab) copy_all(tab); }
-    else if (!strcmp(t, "quit")) { if (g_main) gtk_widget_destroy(g_main->win); }
+    else if (!strcmp(t, "quit")) { if (g_main && srs_quit_ok()) gtk_widget_destroy(g_main->win); }
     else if (!strcmp(t, "about")) open_item("about");
     else if (!strcmp(t, "guide")) open_guide(tab);
     else on_launch(NULL, (gpointer)t);
@@ -6765,7 +6795,7 @@ static int home_key(swin *w, GdkEventKey *ev)
             return TRUE;
         case GDK_KEY_l: open_tool(W_IDLOOKUP, 0); return TRUE;
         case GDK_KEY_s: save_dialog(0); return TRUE;
-        case GDK_KEY_q: gtk_widget_destroy(w->win); return TRUE;
+        case GDK_KEY_q: if (srs_quit_ok()) gtk_widget_destroy(w->win); return TRUE;
         case GDK_KEY_m: on_menu_btn(GTK_BUTTON(g_home->menubtn), NULL); return TRUE;
         case GDK_KEY_d: open_item("all-dev"); return TRUE;
         case GDK_KEY_h: toggle_highlight(); return TRUE;
