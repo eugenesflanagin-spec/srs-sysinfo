@@ -185,7 +185,13 @@ static int g_opt_autoscan;
 /* ======================================================================
  * GTK text backend for srs_out
  * ====================================================================== */
-typedef struct { swin *w; GtkTextBuffer *buf; GtkTextIter end; const char *tabtag; } gctx;
+typedef struct {
+    swin *w; GtkTextBuffer *buf; GtkTextIter end; const char *tabtag;
+    /* 2.3.1: every block of tab stops gets columns as wide as their longest cell (at least the item's own stops, at most
+       COL_CAP); a longer cell ends in "..." and keeps its full text for Copy and the tooltip (tag "trunc<n>", data "full") */
+    int n, px[32], maxw[33], col, cell_off, cell_bold, cell_mono, nblk, ntrunc;
+    char tagname[24];
+} gctx;
 
 /* (re)colour a buffer's palette tags for the current theme; find highlight keeps dark text in dark mode */
 static void theme_tags(GtkTextBuffer *b)
@@ -221,21 +227,89 @@ static void ensure_tags(GtkTextBuffer *b)
     theme_tags(b);
 }
 
-static const char *tabs_tag(GtkTextBuffer *b, const int *px, int n)
+#define COL_GAP 14    /* pixels between a column's longest cell and the next column */
+#define COL_CAP 380   /* the widest a column gets; a longer cell is cut with "..." */
+
+/* set a tag's tab stops (pixels) */
+static void tag_set_tabs(GtkTextTag *t, const int *px, int n)
 {
-    static char name[512];
-    GtkTextTagTable *tt = gtk_text_buffer_get_tag_table(b);
+    PangoTabArray *ta = pango_tab_array_new(n ? n : 1, TRUE);
     int i;
-    size_t l;
-    snprintf(name, sizeof name, "tabs");
-    for (i = 0; i < n; i++) { l = strlen(name); snprintf(name + l, sizeof name - l, "_%d", px[i]); }
-    if (!gtk_text_tag_table_lookup(tt, name)) {
-        PangoTabArray *ta = pango_tab_array_new(n ? n : 1, TRUE);
-        for (i = 0; i < n; i++) pango_tab_array_set_tab(ta, i, PANGO_TAB_LEFT, px[i]);
-        gtk_text_buffer_create_tag(b, name, "tabs", ta, NULL);
-        pango_tab_array_free(ta);
+    for (i = 0; i < n; i++) pango_tab_array_set_tab(ta, i, PANGO_TAB_LEFT, px[i]);
+    g_object_set(t, "tabs", ta, NULL);
+    pango_tab_array_free(ta);
+}
+
+/* the pixel width of a cell's text in the view's font */
+static int cell_px(GtkWidget *view, const char *t, int bold, int mono)
+{
+    PangoLayout *l = gtk_widget_create_pango_layout(view, t);
+    PangoAttrList *a = pango_attr_list_new();
+    int w = 0;
+    if (bold) pango_attr_list_insert(a, pango_attr_weight_new(PANGO_WEIGHT_BOLD));
+    if (mono) pango_attr_list_insert(a, pango_attr_family_new("Monospace"));
+    pango_layout_set_attributes(l, a);
+    pango_layout_get_pixel_size(l, &w, NULL);
+    pango_attr_list_unref(a);
+    g_object_unref(l);
+    return w;
+}
+
+/* a cell ends (at a tab, bounded = 1, or at the end of the line): measure it, cut it with "..." when it is wider than
+   its column may get, and widen the block's tab stops when it is wider than its column is */
+static void cell_end(gctx *g, int bounded)
+{
+    GtkTextIter a;
+    char *t;
+    int w, lim, i, st[32], changed = 0;
+    static int fixed = -1;   /* tests: SRS_TEST_FIXED_COLS=1 = the fixed tab stops of 2.3.0 (to compare) */
+    if (fixed < 0) fixed = getenv("SRS_TEST_FIXED_COLS") != NULL;
+    /* only a cell followed by a tab can push the next column: the last cell of a row (and a line without tabs) never counts */
+    if (fixed || !bounded || !g->n || !g->w || !g->w->view || g->col >= g->n) return;
+    gtk_text_buffer_get_iter_at_offset(g->buf, &a, g->cell_off);
+    t = gtk_text_buffer_get_text(g->buf, &a, &g->end, FALSE);
+    if (!*t) { g_free(t); return; }
+    w = cell_px(g->w->view, t, g->cell_bold, g->cell_mono);
+    if (bounded && g->col < g->n) {
+        int own = g->px[g->col] - (g->col ? g->px[g->col - 1] : 0);
+        lim = (own > COL_CAP ? own : COL_CAP) - COL_GAP;
+        if (w > lim) {   /* the longest prefix that fits with "..." */
+            glong nc = g_utf8_strlen(t, -1), lo = 0, hi = nc;
+            GtkTextIter cut;
+            GSList *tags, *l;
+            char tn[24];
+            GtkTextTag *tr;
+            while (lo < hi) {
+                glong mid = (lo + hi + 1) / 2;
+                char *pre = g_utf8_substring(t, 0, mid), *x = g_strconcat(pre, "\u2026", NULL);
+                if (cell_px(g->w->view, x, g->cell_bold, g->cell_mono) <= lim) lo = mid; else hi = mid - 1;
+                g_free(pre);
+                g_free(x);
+            }
+            gtk_text_buffer_get_iter_at_offset(g->buf, &cut, g->cell_off + (int)lo);
+            tags = gtk_text_iter_get_tags(&cut);
+            gtk_text_buffer_delete(g->buf, &cut, &g->end);
+            gtk_text_buffer_get_end_iter(g->buf, &g->end);
+            gtk_text_buffer_insert(g->buf, &g->end, "\u2026", -1);
+            gtk_text_buffer_get_iter_at_offset(g->buf, &cut, g->cell_off + (int)lo);
+            for (l = tags; l; l = l->next) gtk_text_buffer_apply_tag(g->buf, l->data, &cut, &g->end);
+            g_slist_free(tags);
+            snprintf(tn, sizeof tn, "trunc%d", g->ntrunc++);
+            if (!(tr = gtk_text_tag_table_lookup(gtk_text_buffer_get_tag_table(g->buf), tn))) tr = gtk_text_buffer_create_tag(g->buf, tn, NULL);
+            g_object_set_data_full(G_OBJECT(tr), "full", g_strdup(t), g_free);
+            gtk_text_buffer_get_iter_at_offset(g->buf, &a, g->cell_off);
+            gtk_text_buffer_apply_tag(g->buf, tr, &a, &g->end);
+            w = lim;
+        }
     }
-    return gtk_text_tag_table_lookup(tt, name) ? name : NULL;
+    g_free(t);
+    if (g->col < g->n && w > g->maxw[g->col]) { g->maxw[g->col] = w; changed = 1; }
+    if (!changed) return;
+    for (i = 0; i < g->n; i++) {
+        int own = g->px[i] - (i ? g->px[i - 1] : 0), need = g->maxw[i] + COL_GAP;
+        st[i] = (i ? st[i - 1] : 0) + (need > own ? need : own);
+    }
+    tag_set_tabs(gtk_text_tag_table_lookup(gtk_text_buffer_get_tag_table(g->buf), g->tagname), st, g->n);
 }
 
 static char *clean(const char *s, gssize len)
@@ -261,13 +335,59 @@ static void ins(gctx *g, int col, int bold, int mono, int hl, const char *s, gss
     if (mono) gtk_text_buffer_apply_tag_by_name(b, "m", &start, &g->end);
     if (hl) gtk_text_buffer_apply_tag_by_name(b, "hl", &start, &g->end);
     if (g->tabtag) gtk_text_buffer_apply_tag_by_name(b, g->tabtag, &start, &g->end);
+    if (*c && *c != '\t' && *c != '\n') { g->cell_bold |= bold; g->cell_mono |= mono; }
     g_free(c);
 }
+static void cell_next(gctx *g)
+{
+    g->cell_off = gtk_text_iter_get_offset(&g->end);
+    g->cell_bold = g->cell_mono = 0;
+}
 
-static void gx_text(srs_out *o, int c, int b, int m, const char *s) { ins(o->ctx, c, b, m, 0, s, -1); }
-static void gx_tab(srs_out *o) { ins(o->ctx, C_BLACK, 0, 0, 0, "\t", -1); }
-static void gx_par(srs_out *o) { ins(o->ctx, C_BLACK, 0, 0, 0, "\n", -1); }
-static void gx_tabs(srs_out *o, const int *px, int n) { gctx *g = o->ctx; g->tabtag = tabs_tag(g->buf, px, n); }
+static void gx_tab(srs_out *o);
+static void gx_par(srs_out *o);
+/* text with tabs or line ends in it (raw command output): those are cells and lines too, so the columns are sized right */
+static void gx_text(srs_out *o, int c, int b, int m, const char *s)
+{
+    const char *p = s;
+    if (!((gctx *)o->ctx)->n || !strpbrk(s, "\t\n")) { ins(o->ctx, c, b, m, 0, s, -1); return; }
+    while (*p) {
+        size_t k = strcspn(p, "\t\n");
+        if (k) ins(o->ctx, c, b, m, 0, p, (gssize)k);
+        if (!p[k]) break;
+        if (p[k] == '\t') gx_tab(o); else gx_par(o);
+        p += k + 1;
+    }
+}
+static void gx_tab(srs_out *o)
+{
+    gctx *g = o->ctx;
+    if (g->n && g->col >= g->n && g->n < 32) {   /* a row with more cells than the item gave stops for: one more column */
+        g->px[g->n] = g->px[g->n - 1] + 80;
+        g->maxw[g->n] = 0;
+        g->n++;
+    }
+    cell_end(g, 1);
+    ins(g, C_BLACK, 0, 0, 0, "\t", -1);
+    g->col++;
+    cell_next(g);
+}
+static void gx_par(srs_out *o) { gctx *g = o->ctx; cell_end(g, 0); ins(g, C_BLACK, 0, 0, 0, "\n", -1); g->col = 0; cell_next(g); }
+/* a new block of tab stops: its own tag ("atabs<k>", the k-th block of this view's output), widened by cell_end */
+static void gx_tabs(srs_out *o, const int *px, int n)
+{
+    gctx *g = o->ctx;
+    GtkTextTag *t;
+    if (n > 32) n = 32;
+    g->n = n;
+    memcpy(g->px, px, sizeof(int) * (size_t)n);
+    memset(g->maxw, 0, sizeof g->maxw);
+    snprintf(g->tagname, sizeof g->tagname, "atabs%d", g->nblk++);
+    if (!(t = gtk_text_tag_table_lookup(gtk_text_buffer_get_tag_table(g->buf), g->tagname)))
+        t = gtk_text_buffer_create_tag(g->buf, g->tagname, NULL);
+    tag_set_tabs(t, px, n);
+    g->tabtag = g->tagname;
+}
 
 static void out_setup(swin *w, srs_out *o, gctx *g, const char *arg, GtkTextBuffer *target)
 {
@@ -624,7 +744,7 @@ static void tbl_replay(swin *w)
         gtk_widget_set_visible(w->reset_btn, nb > 0);
         gtk_widget_set_sensitive(w->reset_btn, sorted);
     }
-    gtk_widget_set_has_tooltip(w->view, nb > 0);
+    gtk_widget_set_has_tooltip(w->view, TRUE);   /* also the full text of cells cut with "..." */
 }
 
 /* the table heading under a point of the view: block index and column, -1 if none */
@@ -702,6 +822,24 @@ static gboolean on_view_tooltip(GtkWidget *v, int x, int y, gboolean kb, GtkTool
     int col, b;
     char name[120], s[500];
     (void)v;
+    if (!kb && w->view) {   /* a cell cut with "...": its full text */
+        GtkTextIter it;
+        int bx, by;
+        GSList *tags, *l;
+        const char *full = NULL;
+        gtk_text_view_window_to_buffer_coords(GTK_TEXT_VIEW(w->view), GTK_TEXT_WINDOW_WIDGET, x, y, &bx, &by);
+        if (gtk_text_view_get_iter_at_location(GTK_TEXT_VIEW(w->view), &it, bx, by)) {
+            tags = gtk_text_iter_get_tags(&it);
+            for (l = tags; l && !full; l = l->next) {
+                char *n = NULL;
+                g_object_get(l->data, "name", &n, NULL);
+                if (n && !strncmp(n, "trunc", 5)) full = g_object_get_data(G_OBJECT(l->data), "full");
+                g_free(n);
+            }
+            g_slist_free(tags);
+            if (full) { gtk_tooltip_set_text(tip, full); return TRUE; }
+        }
+    }
     if (kb || (b = tbl_hit(w, x, y, &col)) < 0 || !*tbl_head_name(w, b, col, name, sizeof name)) return FALSE;
     snprintf(s, sizeof s, "Click to sort by %s: smallest or A first (▲), click again for largest or Z first (▼).\n"
              "Numbers sort by value with their units (MB / GB, MHz, °C, RPM, %%), dates by date.\n"
@@ -975,6 +1113,31 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     g_free(w);
 }
 
+/* the text of [s, e) with every cell cut by "..." given in full again (cell_end keeps it in its "trunc<n>" tag) */
+static char *text_full(GtkTextBuffer *b, const GtkTextIter *s, const GtkTextIter *e)
+{
+    GString *o = g_string_new(NULL);
+    GtkTextIter it = *s;
+    while (gtk_text_iter_compare(&it, e) < 0) {
+        GtkTextIter nx = it;
+        GSList *tags = gtk_text_iter_get_tags(&it), *l;
+        const char *full = NULL;
+        for (l = tags; l && !full; l = l->next) {
+            char *n = NULL;
+            g_object_get(l->data, "name", &n, NULL);
+            if (n && !strncmp(n, "trunc", 5)) full = g_object_get_data(G_OBJECT(l->data), "full");
+            g_free(n);
+        }
+        g_slist_free(tags);
+        if (!gtk_text_iter_forward_to_tag_toggle(&nx, NULL) || gtk_text_iter_compare(&nx, e) > 0) nx = *e;
+        if (gtk_text_iter_equal(&nx, &it)) { gtk_text_iter_forward_char(&nx); }
+        if (full && gtk_text_iter_starts_tag(&it, NULL)) g_string_append(o, full);
+        else if (!full) { char *t = gtk_text_buffer_get_text(b, &it, &nx, FALSE); g_string_append(o, t); g_free(t); }
+        it = nx;
+    }
+    return g_string_free(o, FALSE);
+}
+
 static void copy_all(swin *w)
 {
     GtkTextIter s, e;
@@ -982,7 +1145,7 @@ static void copy_all(swin *w)
     if (!w->buf) return;
     gtk_text_buffer_get_bounds(w->buf, &s, &e);
     /* a sorted tab copies the item's own order: the same text as before sorting existed */
-    txt = w->plain ? g_strdup(w->plain) : gtk_text_buffer_get_text(w->buf, &s, &e, FALSE);
+    txt = w->plain ? g_strdup(w->plain) : text_full(w->buf, &s, &e);
     srs_redact = g_opt_redact;   /* the copied text is masked like a saved report; the panel is not */
     r = srs_redact_text(txt);
     srs_redact = 0;
@@ -1347,10 +1510,10 @@ static void on_copy_clip(GtkTextView *v, gpointer data)
     GtkTextIter s, e;
     char *txt, *r;
     (void)data;
-    if (!g_opt_redact || !gtk_text_buffer_get_selection_bounds(b, &s, &e)) return;
-    txt = gtk_text_buffer_get_text(b, &s, &e, FALSE);
-    srs_redact = 1;
-    r = srs_redact_text(txt);
+    if (!gtk_text_buffer_get_selection_bounds(b, &s, &e)) return;
+    txt = text_full(b, &s, &e);   /* cells cut with "..." are copied in full */
+    srs_redact = g_opt_redact;
+    r = g_opt_redact ? srs_redact_text(txt) : strdup(txt);
     srs_redact = 0;
     if (r) {
         gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), r, -1);
@@ -1426,6 +1589,7 @@ static GtkWidget *make_view(swin *w)
     g_signal_connect(w->view, "copy-clipboard", G_CALLBACK(on_copy_clip), w);
     g_signal_connect(w->view, "motion-notify-event", G_CALLBACK(on_view_motion), w);
     g_signal_connect(w->view, "query-tooltip", G_CALLBACK(on_view_tooltip), w);
+    gtk_widget_set_has_tooltip(w->view, TRUE);   /* full text of cells cut with "..." (and the sortable headings) */
     gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(sw), w->view);
     return sw;
@@ -6755,6 +6919,88 @@ static void home_open(int as_main)
     g_home->tick = g_timeout_add(3000, home_tick, NULL);
 }
 
+
+/* tests (2.3.1): SRS_TEST_ALIGN_DUMP=FILE renders each item (SRS_TEST_ALIGN_IDS=a,b,... or "all") in a classic panel and
+   writes where every cell after a tab really starts on screen: "id <TAB> line <TAB> block tag <TAB> x1,x2,...". A column
+   whose cells start at different x in one block is misaligned (tests/columns-test.py). Read-only items only. */
+static void align_dump_one(FILE *f, const char *id)
+{
+    swin *w = open_section(id);
+    GtkTextIter it;
+    int line, n;
+    if (!w || !w->view) return;
+    if (getenv("SRS_TEST_ALIGN_MAIN")) {   /* the new main window's tab font (.srs-main #panel, 9 pt) instead of the classic 8 pt */
+        gtk_style_context_remove_class(gtk_widget_get_style_context(w->win), "siv");
+        gtk_style_context_add_class(gtk_widget_get_style_context(w->win), "srs-main");
+        while (gtk_events_pending()) gtk_main_iteration();   /* the new font first, then measure and draw with it */
+        gtk_text_buffer_set_text(w->buf, "", -1);
+        render(w);
+    }
+    while (gtk_events_pending()) gtk_main_iteration();
+    if (w->commit_id) { g_source_remove(w->commit_id); w->commit_id = 0; commit_idle(w); }
+    while (gtk_events_pending()) gtk_main_iteration();
+    n = gtk_text_buffer_get_line_count(w->buf);
+    for (line = 0; line < n; line++) {
+        GtkTextIter e;
+        GSList *tags, *l;
+        char tag[32] = "-";
+        GString *xs = g_string_new(NULL);
+        gtk_text_buffer_get_iter_at_line(w->buf, &it, line);
+        tags = gtk_text_iter_get_tags(&it);
+        for (l = tags; l; l = l->next) {
+            char *nm = NULL;
+            g_object_get(l->data, "name", &nm, NULL);
+            if (nm && !strncmp(nm, "atabs", 5)) snprintf(tag, sizeof tag, "%s", nm);
+            g_free(nm);
+        }
+        g_slist_free(tags);
+        e = it;
+        if (!gtk_text_iter_ends_line(&e)) gtk_text_iter_forward_to_line_end(&e);
+        while (gtk_text_iter_compare(&it, &e) < 0) {
+            if (gtk_text_iter_get_char(&it) == '\t') {
+                GtkTextIter nx = it;
+                GdkRectangle r;
+                gtk_text_iter_forward_char(&nx);
+                while (gtk_text_iter_compare(&nx, &e) < 0 && gtk_text_iter_get_char(&nx) == '\t') {   /* an empty cell: its start too */
+                    gtk_text_view_get_iter_location(GTK_TEXT_VIEW(w->view), &nx, &r);
+                    g_string_append_printf(xs, "%s%d", xs->len ? "," : "", r.x);
+                    gtk_text_iter_forward_char(&nx);
+                }
+                gtk_text_view_get_iter_location(GTK_TEXT_VIEW(w->view), &nx, &r);
+                g_string_append_printf(xs, "%s%d", xs->len ? "," : "", r.x);
+                it = nx;
+                continue;
+            }
+            gtk_text_iter_forward_char(&it);
+        }
+        if (xs->len) fprintf(f, "%s\t%d\t%s\t%s\n", id, line, tag, xs->str);
+        g_string_free(xs, TRUE);
+    }
+    gtk_widget_destroy(w->win);
+    while (gtk_events_pending()) gtk_main_iteration();
+}
+static gboolean align_dump(gpointer d)
+{
+    FILE *f = fopen(getenv("SRS_TEST_ALIGN_DUMP"), "w");
+    const char *ids = getenv("SRS_TEST_ALIGN_IDS");
+    (void)d;
+    if (f) {
+        if (!ids || !strcmp(ids, "all")) {
+            int i, n = srs_section_count();
+            for (i = 0; i < n; i++) {   /* ping sends packets: not here */
+                const srs_item *it = srs_section_at(i);
+                if (it && it->id && strcmp(it->id, "ping")) { align_dump_one(f, it->id); fflush(f); }
+            }
+        } else {
+            char *v = g_strdup(ids), *t, *sv = NULL;
+            for (t = strtok_r(v, ",", &sv); t; t = strtok_r(NULL, ",", &sv)) { align_dump_one(f, t); fflush(f); }
+            g_free(v);
+        }
+        fclose(f);
+    }
+    exit(0);
+    return G_SOURCE_REMOVE;
+}
 /* srs-gui --gpu-burn-child: the built-in GPU Burnin of the Stress & Burnin window, as its own process. Reports through
    the --live file (gb_live) about twice a second, writes the result and the history line like the CLI gpu-burn
    (~/.cache/srs/bench-gpuburn.txt), and ends cleanly on SIGTERM / SIGINT (Stop, or SRS closing). */
@@ -6869,6 +7115,7 @@ int main(int argc, char **argv)
         tray_apply();
         if (start_hidden) srs_hide_all();   /* only hides when a tray icon really exists */
     }
+    if (getenv("SRS_TEST_ALIGN_DUMP")) g_timeout_add(1500, align_dump, NULL);   /* tests: column alignment */
     autop = getenv("SRS_OPEN");   /* comma-separated items or tool names to open at start */
     {
         int i;
