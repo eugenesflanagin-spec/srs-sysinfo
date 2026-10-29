@@ -107,7 +107,7 @@ static void s_storage(srs_out *o)
 static void s_oslat(srs_out *o)
 {
     if (bench_show_last("os-latency", o)) return;
-    so_siv_header(o, "OS latency");
+    so_siv_header(o, "OS Latency");
     not_run(o, "Benchmarks & Stress > OS Latency, then Run", "srs-gui os-latency [--samples N] [--tick-seconds S] [--yes]");
 }
 

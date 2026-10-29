@@ -55,7 +55,7 @@ Name=GPU Benchmark
 Exec=srs-gui --gui-open=gpubench
 
 [Desktop Action GpuCompare]
-Name=GPU compute comparison
+Name=GPU Compute Comparison
 Exec=srs-gui --gui-open=gpucompare
 
 [Desktop Action Pi]

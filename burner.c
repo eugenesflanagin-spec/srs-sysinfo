@@ -379,6 +379,7 @@ static pid_t g_gpu_pid;
 static double g_gpu_t0, g_gpu_stop_t;   /* g_gpu_stop_t: when Stop asked the GPU part to end (0 = not stopping) */
 static char g_gpu_msg[300], g_gpu_log[600];
 static int g_gpu_bad, g_gpu_killed, g_gpu_cooling;
+static int g_gpu_want;   /* a burn phase began while the last GPU run was still ending: start it once that one is reaped */
 static int g_gpu_exit = -1;   /* the built-in GPU Burnin's last exit code (GPUB_EXIT_*), -1 = none yet */
 
 /* the GPU part's own output goes to ~/.cache/srs/gpu-load.log so errors are not lost */
@@ -483,6 +484,8 @@ static void set_run(int v)
    It gets its own process group, so Stop reaches everything it started, and it ends when SRS ends. */
 static void gpu_load(int on)
 {
+    if (on && gpu_configured() && g_gpu_pid) { g_gpu_want = 1; return; }   /* retried by burn_tick */
+    if (!on) g_gpu_want = 0;
     if (on && gpu_configured() && !g_gpu_pid) {
         pid_t p, parent = getpid();
         gpu_log_path();
@@ -648,6 +651,8 @@ void burn_tick(burn_status *st)
             snprintf(g_status, sizeof g_status, "Burning, cycle %d of %d", g_cycle, g_cfg.cycles);
         }
     }
+    if (g_gpu_want && !g_gpu_pid && g_state == BURN_RUNNING) { g_gpu_want = 0; gpu_load(1); }   /* short Cool Time */
+    else if (g_gpu_want && g_state != BURN_RUNNING) g_gpu_want = 0;
     st->state = g_state;
     st->cycle = g_cycle;
     st->elapsed = g_nsamp ? t - g_t0 : 0;

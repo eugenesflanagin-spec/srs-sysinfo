@@ -1209,7 +1209,7 @@ static void s_msr_setup(srs_out *o)
     mf = *mfp ? mfp : NULL;
     cf = *cfp ? cfp : NULL;
     static msrrow rows[32];
-    int nrow = 0, ncpu = 0, cols[256], i, builtin = 0;
+    int nrow = 0, ncpu = 0, cols[256], i, builtin = 0, amd = 0, pdec = 0;
     struct utsname u;
     so_siv_header(o, "MSR Setup");
     so_tabs(o, tabs, 1);
@@ -1262,6 +1262,15 @@ static void s_msr_setup(srs_out *o)
     so_par(o);
     so_head(o, "Decoded (CPU 0 unless a table says otherwise; raw value in brackets)");
     so_tabs(o, tabs, 1);
+    {
+        kvp ci[40];
+        int nci = cpuinfo_cpu(0, ci, 40);
+        int fam = atoi(kv_get(ci, nci, "cpu family"));
+        amd = strstr(kv_get(ci, nci, "vendor_id"), "AMD") != NULL;
+        /* PStateDef with CpuFid[7:0] / CpuDfsId[13:8] x 200 MHz is the family 17h / 19h (Zen 1-4) layout, checked on
+           a 7800X3D; other families (Zen 5 = 1Ah) encode it differently, so their raw value is shown undecoded */
+        pdec = amd && (fam == 0x17 || fam == 0x19);
+    }
     for (i = 0; i < 8; i++) {   /* P-state definitions */
         char nm[24];
         const msrrow *r;
@@ -1273,6 +1282,7 @@ static void s_msr_setup(srs_out *o)
             char lbl[40];
             snprintf(lbl, sizeof lbl, "P-state P%d", i);
             if (!(v >> 63)) so_kvf(o, lbl, C_GRAY, "not used (0x%016llx)", v);
+            else if (!pdec) so_kvf(o, lbl, C_VALUE, "enabled; MHz not decoded for this CPU family yet (0x%016llx)", v);
             else if (dfs) so_kvf(o, lbl, C_GREEN, "enabled, %u MHz (FID %u / DFS %u x 200) (0x%016llx)", fid * 200 / dfs, fid, dfs, v);
             else so_kvf(o, lbl, C_ORANGE, "enabled, divider 0 - not decoded (0x%016llx)", v);
         }
@@ -1281,7 +1291,7 @@ static void s_msr_setup(srs_out *o)
         const msrrow *r = msr_find(rows, nrow, "HWCR");
         if (r && r->have[0]) so_kvf(o, "Core Performance Boost", (r->v[0] >> 25 & 1) ? C_ORANGE : C_GREEN, "%s (HWCR CpbDis bit 25 = %llu) (0x%016llx)",
                                      (r->v[0] >> 25 & 1) ? "off - boost disabled" : "on", r->v[0] >> 25 & 1, r->v[0]);
-        r = msr_find(rows, nrow, "EFER");
+        r = amd ? msr_find(rows, nrow, "EFER") : NULL;   /* SVM is AMD's; Intel's VMX is not in EFER */
         if (r && r->have[0]) so_kvf(o, "AMD-V (SVM) in EFER", C_VALUE, "%s (SVME bit 12 = %llu) (0x%016llx)",
                                      (r->v[0] >> 12 & 1) ? "on - the kernel or a hypervisor has enabled SVM on this CPU" : "off on this CPU right now",
                                      r->v[0] >> 12 & 1, r->v[0]);

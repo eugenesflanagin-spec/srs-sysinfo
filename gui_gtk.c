@@ -1145,17 +1145,20 @@ static char *text_full(GtkTextBuffer *b, const GtkTextIter *s, const GtkTextIter
     while (gtk_text_iter_compare(&it, e) < 0) {
         GtkTextIter nx = it;
         GSList *tags = gtk_text_iter_get_tags(&it), *l;
+        GtkTextTag *ttag = NULL;
         const char *full = NULL;
         for (l = tags; l && !full; l = l->next) {
             char *n = NULL;
             g_object_get(l->data, "name", &n, NULL);
-            if (n && !strncmp(n, "trunc", 5)) full = g_object_get_data(G_OBJECT(l->data), "full");
+            if (n && !strncmp(n, "trunc", 5)) { ttag = l->data; full = g_object_get_data(G_OBJECT(ttag), "full"); }
             g_free(n);
         }
         g_slist_free(tags);
         if (!gtk_text_iter_forward_to_tag_toggle(&nx, NULL) || gtk_text_iter_compare(&nx, e) > 0) nx = *e;
         if (gtk_text_iter_equal(&nx, &it)) { gtk_text_iter_forward_char(&nx); }
-        if (full && gtk_text_iter_starts_tag(&it, NULL)) g_string_append(o, full);
+        /* the full text once per cut cell: where ITS tag starts (a colour change inside the cell is another toggle),
+           or at the copy's start when the selection begins inside the cell */
+        if (full && (gtk_text_iter_starts_tag(&it, ttag) || gtk_text_iter_equal(&it, s))) g_string_append(o, full);
         else if (!full) { char *t = gtk_text_buffer_get_text(b, &it, &nx, FALSE); g_string_append(o, t); g_free(t); }
         it = nx;
     }

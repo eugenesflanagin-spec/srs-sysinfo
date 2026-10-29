@@ -74,6 +74,14 @@ own risk" agreement for the load tests, columns that line up on every page, and 
   Prime Sieve, Benchmark History.
 - GPU Burnin's live-status file (`~/.cache/srs/gpuburn-live-<pid>.bin`) is deleted when its window or tab
   closes; ones left by an SRS that crashed are removed at the next GPU run.
+- Stress & Burnin, Timed with the GPU part synced: with a short Cool Time the GPU run of the next burn phase is
+  started as soon as the last one has ended (it was skipped when that one was still stopping).
+- Copy gives a "..." cell's full text once, also when a colour starts inside the cell.
+- MSR Setup decodes P-state MHz only on AMD family 17h / 19h (Zen 1-4), where the layout is checked; other
+  CPUs show the raw value. The AMD-V (SVM) line is AMD only.
+- A GPU Benchmark also waits while the GPU part of a Stress & Burnin run is still ending.
+- `--help` lists the `stressburn` and `loadterms` panels; a few more names in Title Case (OS Latency, GPU Compute
+  Comparison, Benchmarks and Stress).
 
 ### Known limits
 

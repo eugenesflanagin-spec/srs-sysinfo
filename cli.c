@@ -42,7 +42,7 @@ static const char *HELP =
     "        --print only shows the section and the command that would run\n"
 #ifdef __linux__
     "\n"
-    "Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
+    "Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
     "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
     "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
     "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]\n"
@@ -112,7 +112,7 @@ static const char *HELP =
     "        asks first, --yes starts at once\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & Cost page; --power-recorder record its history with no window\n"
@@ -753,7 +753,7 @@ static int cmd_compute(int argc, char **argv)
              cp_isa_best() == CP_ISA_AVX512 && (c.isa == CP_ISA_AUTO || c.isa == CP_ISA_AVX512) ? " It uses AVX-512, which draws a lot of power." : "");
     if (!yes && !ask_start("compute", what)) return 2;
     rc = bench_compute(&c, &o, NULL);
-    if (rc == -1) fprintf(stderr, "compute: not started - CPU Burnin / Stress is running, or out of memory\n");
+    if (rc == -1) fprintf(stderr, "compute: not started - Stress & Burnin is running, or out of memory\n");
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
