@@ -67,6 +67,8 @@ pre code { background: none; }
 table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 0.6em 0; }
 th, td { border: 1px solid #c8ced6; padding: 3px 5px; vertical-align: top; word-break: break-word; }
 th { background: #e6edf5; }
+tr, th, td { break-inside: avoid; page-break-inside: avoid; }   /* a table row is never torn across two pages */
+thead { display: table-header-group; }
 img { max-width: 100%; border: 1px solid #ccc; }
 blockquote { border-left: 4px solid #e0a800; background: #fff8e1; margin: 0.6em 0; padding: 4px 10px; }
 .cover { text-align: center; padding-top: 70mm; }

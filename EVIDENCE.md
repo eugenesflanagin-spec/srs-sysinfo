@@ -205,17 +205,23 @@ or result files were used or looked at for them. Public sources are credited in 
   first follows gpu-burn (Ville Timonen, BSD-2-Clause), from its README and its published
   description, not its code; the HIP, CUDA, hipRTC, NVRTC, hipBLAS, cuBLAS, OpenCL and CLBlast
   functions are declared in SRS from the vendors' public API documentation and opened with
-  `dlopen`; the sensors are the kernel's documented hwmon files. HIP, CUDA and OpenCL work was not
-  run by the author (only loading the libraries and finding their functions was tested).
+  `dlopen`; the sensors are the kernel's documented hwmon files. HIP, NVIDIA CUDA and OpenCL work was
+  not run by the author (only loading the libraries and finding their functions was tested); CUDA
+  through ZLUDA was run once in the GPU Compute comparison (see below), GPU Burnin with CUDA was not.
   Since 2.3 the CUDA kernels (the same `gpu_kernels.h` source) are also compiled ahead of time to
   PTX with clang's NVPTX back end, without any NVIDIA headers or libraries (`tools/gen-cuda-ptx.sh`;
   the output is in `gpu_kernels_ptx.inc`), using clang's own documented NVVM builtins; PTX ISA 6.0
   and `sm_50` were chosen from NVIDIA's public PTX ISA documentation. They were checked offline and
-  against a fake driver (`tests/gpu-stub-test.sh`), not on a GPU.
+  against a fake driver (`tests/gpu-stub-test.sh`), and on 2026-10-29 run by the author through ZLUDA
+  (preview build, no NVRTC) on a Radeon RX 9070 XT in the GPU Compute comparison: every CUDA row ran
+  from them (own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860); cuBLAS FP64 "not available" (ZLUDA's cuBLAS answers NOT_SUPPORTED, error 15).
+  Never run on NVIDIA hardware.
 - **NVIDIA CUDA toolkit option** (`cuda_toolkit.c`): package names and sizes from the Arch
   package database (`pacman -Si cuda`, `pacman -Fl cuda`), packages.debian.org (`libnvrtc12`,
   `libnvrtc11.2`) and Launchpad (Ubuntu's `nvidia-cuda-toolkit` in multiverse); NVIDIA's
-  download page for other distributions. Tested with fake package managers only.
+  download page for other distributions. Tested with fake package managers only. The package
+  manager, `sudo` and `pkexec` are taken only from `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` by full
+  path (review finding: `pkexec` looks a bare name up in the caller's `PATH`, see `man pkexec`).
 - **GPU Compute comparison** (`bench_gpucompare.c`): the same back ends and kernels; ZLUDA is
   recognised by marker strings in the loaded CUDA library file; OpenCL platforms are named from
   their own platform names; devices of different back ends are matched by PCI address

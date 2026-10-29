@@ -15,6 +15,8 @@ pre code { background: none; }
 table { border-collapse: collapse; width: 100%; font-size: 9.5pt; margin: 0.6em 0; }
 th, td { border: 1px solid #c8ced6; padding: 3px 5px; vertical-align: top; word-break: break-word; }
 th { background: #e6edf5; }
+tr, th, td { break-inside: avoid; page-break-inside: avoid; }   /* a table row is never torn across two pages */
+thead { display: table-header-group; }
 img { max-width: 100%; border: 1px solid #ccc; }
 blockquote { border-left: 4px solid #e0a800; background: #fff8e1; margin: 0.6em 0; padding: 4px 10px; }
 .cover { text-align: center; padding-top: 70mm; }
@@ -2110,15 +2112,18 @@ short, not tried on real hardware so far:</p>
 
 <ul>
 <li>GPU benchmarks: Vulkan only on lavapipe (the Mesa software renderer,
-which runs on the CPU), with small sizes; ROCm/HIP, CUDA, ZLUDA and
+which runs on the CPU), with small sizes; ROCm/HIP, CUDA on NVIDIA and
 OpenCL only as far as loading their libraries and finding every function
-SRS needs - no HIP, CUDA or OpenCL work was run on a GPU. Untested:
-every real GPU (AMD, NVIDIA, Intel) and the temperature, power, clock
-and fan read-outs for NVIDIA and Intel. The built-in CUDA kernels (PTX,
-new in 2.3) were checked offline and against a fake driver only; they
-are meant to be tried with ZLUDA on an AMD card and were never run on
-NVIDIA hardware. The NVIDIA CUDA toolkit install (Options) was tested
-with fake package managers only.</li>
+SRS needs - no HIP, NVIDIA CUDA or OpenCL work was run on a GPU. CUDA
+through ZLUDA: the GPU Compute comparison was run on the author's Radeon
+RX 9070 XT (2026-10-29), every CUDA row from the built-in kernels (PTX,
+new in 2.3) without NVRTC; only the cuBLAS FP64 row says "not available"
+(ZLUDA's cuBLAS has none). GPU Burnin with CUDA was not run on the real
+card. Untested: every other real GPU use (AMD, NVIDIA, Intel) and the
+temperature, power, clock and fan read-outs for NVIDIA and Intel. The
+built-in CUDA kernels were never run on NVIDIA hardware. The NVIDIA CUDA
+toolkit install (Options) was tested with fake package managers
+only.</li>
 <li>ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where
 noted, self-tested, not used day to day.</li>
 <li>OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other
@@ -3270,7 +3275,13 @@ have. The CUDA column's <strong>software</strong> line says "own kernels
 built in (PTX)". Only when the graphics driver refuses the built-in
 kernels do the CUDA rows say "not available" and point to <a
 href="#user-guide--920-the-nvidia-cuda-toolkit-optional">Options -&gt; NVIDIA CUDA
-toolkit</a>.</li>
+toolkit</a> (then please report your driver or ZLUDA version). ZLUDA's
+cuBLAS has no FP64 matrix multiply, so with ZLUDA the <strong>FP64
+matrix multiply, vendor library</strong> row says "not available: cuBLAS
+on this driver does not support FP64 matrix multiply" - expected, not a
+fault. On the author's Radeon RX 9070 XT with ZLUDA every other CUDA row
+ran (2026-10-29: own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS
+FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860 GFLOPS).</li>
 <li><strong>ROCm / HIP</strong> still needs its runtime compiler
 (hipRTC, part of ROCm) for its own-kernel rows and, for the error check,
 its library rows; without it they say so and are not run.</li>
@@ -3299,9 +3310,9 @@ after your Yes. The work is cut into short pieces, a GPU that fails ends
 its column cleanly, Stop ends the run at once, and SRS never changes
 clocks, voltages or fans. The result is saved to
 <code>~/.cache/srs/bench-gpucompare.txt</code> and added to the <a
-href="#user-guide--910-benchmark-history">Benchmark history</a>. HIP, CUDA and
-OpenCL were not run on real hardware by the author - see the note at the
-start of this chapter.</p>
+href="#user-guide--910-benchmark-history">Benchmark history</a>. HIP, CUDA on NVIDIA
+and OpenCL were not run on real hardware by the author (CUDA through
+ZLUDA was, on one card) - see the note at the start of this chapter.</p>
 <h3 id="user-guide--920-the-nvidia-cuda-toolkit-optional">9.20 The NVIDIA CUDA
 toolkit (optional)</h3>
 <p><strong>In plain words:</strong> the NVIDIA CUDA toolkit is NVIDIA's
@@ -3322,7 +3333,9 @@ card or a CUDA library (also ZLUDA) and NVRTC is not installed. The
 question explains the above, shows what was found, the exact install
 command and its size, and has three buttons:</p>
 <ul>
-<li><strong>Install...</strong> - see "Installing" below.</li>
+<li><strong>Install...</strong> - see "Installing" below. The question
+still counts as asked: if you then cancel, SRS does not ask again until
+it is restarted.</li>
 <li><strong>Not now</strong> - not asked again until SRS is restarted.
 The run goes on with the built-in tests.</li>
 <li><strong>Don't ask again</strong> - never asked again (stored as
@@ -3387,21 +3400,44 @@ and install only its <code>cuda-nvrtc</code> package</td>
 </tr>
 </tbody>
 </table>
+<p>The Debian package names come from Debian's package archive; the
+Ubuntu ones are inferred from the CUDA version of Ubuntu's
+<code>nvidia-cuda-toolkit</code> source and were not looked up one by
+one. That is why SRS first asks apt (<code>apt-cache show</code>,
+read-only) which of them exists, and offers only that one.</p>
 <p>SRS opens a <strong>terminal window</strong> (Konsole, GNOME
 Terminal, Xfce Terminal, kitty, Alacritty, foot, xterm ...) and runs the
 command there with <code>sudo</code>, so you type your password and
 answer the package manager's questions yourself. Without a terminal
 program it uses <code>pkexec</code> (the system's password window) and
-the package manager's "no questions" switch. SRS waits for the result
-(<strong>Stop waiting</strong> lets you go on), then says whether it
-worked and checks for NVRTC again.</p>
+the package manager's "no questions" switch. Then nobody answers the
+questions, so they get their default answers: with pacman's
+<code>--noconfirm</code> that is yes to "Proceed with installation?",
+the first package where it offers a choice, yes to "Replace X with Y?"
+and <strong>no</strong> to "remove the conflicting package?" - so a
+conflict stops the install and nothing is removed without you; apt-get's
+<code>-y</code> answers yes (apt still stops for a held or essential
+package). With ZLUDA SRS never uses <code>pkexec</code>: it needs a
+terminal window. SRS waits for the result (<strong>Stop waiting</strong>
+lets you go on), then says whether it worked and checks for NVRTC
+again.</p>
+<p><strong>Only system programs.</strong> SRS runs the package manager,
+<code>sudo</code> and <code>pkexec</code> only from
+<code>/usr/bin</code>, <code>/usr/sbin</code>, <code>/bin</code> or
+<code>/sbin</code>, by their full path (the confirmation shows them as
+<em>Programs used</em>). A program of the same name anywhere else - for
+example in <code>~/.local/bin</code>, which is often first in
+<code>PATH</code>, or the current folder - is never used: it could be
+anything, and it would run as administrator after your password. If they
+are not in those folders, SRS does not start the install and shows the
+command to type yourself.</p>
 <p>It refuses, with the reason, when: a benchmark or burn-in is running;
 the package database is locked by another update (pacman's
 <code>db.lck</code>); the computer has no network connection; there is
-no <code>sudo</code> or <code>pkexec</code> to ask for the password.
-Afterwards it explains a cancelled password prompt, a refused one, or an
-error of the package manager (no internet, a locked database, a conflict
-with an installed package, a "no" answer).</p>
+no <code>sudo</code> or <code>pkexec</code> in a system folder to ask
+for the password. Afterwards it explains a cancelled password prompt, a
+refused one, or an error of the package manager (no internet, a locked
+database, a conflict with an installed package, a "no" answer).</p>
 <p><strong>ZLUDA (AMD cards).</strong> Installing NVIDIA's toolkit is
 <strong>not recommended</strong> with ZLUDA: on Arch the
 <code>cuda</code> package puts NVIDIA's own cuBLAS on the library path,
@@ -30041,8 +30077,12 @@ pieces, each with a watchdog. A GPU that hangs or stops answering ends
 the run: no later back end touches that GPU again, and the tests that
 did not run say <strong>not run</strong> (the line under the table says
 why). Stop works. SRS never changes clocks, voltages or fans.</p>
-<p><strong>Healthy / typical values.</strong> Not measured by SRS on
-real hardware yet (only on the software renderer). In general the vendor
+<p><strong>Healthy / typical values.</strong> Measured by the author on
+real hardware once, for CUDA through ZLUDA only: a Radeon RX 9070 XT
+with ZLUDA (preview build, no NVRTC), 2026-10-29 - own-kernel FP32
+matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046,
+own-kernel FP64 860; cuBLAS FP64 "not available". The other back ends
+were measured only on the software renderer. In general the vendor
 libraries are much faster than a plain kernel for matrix multiply, and
 the own-kernel rows show how well each driver compiles the same simple
 code; a healthy result has every row filled in and no errors.</p>
@@ -30054,7 +30094,14 @@ runtime, or a driver that does not support that card well.</li>
 (PTX); the CUDA column's software line says "own kernels built in (PTX),
 no NVRTC". "not available ... the CUDA driver refused the built-in
 kernels ... see Options &gt; NVIDIA CUDA toolkit": that driver or ZLUDA
-version does not take them, and NVRTC is not installed.</li>
+version does not take them, and NVRTC is not installed - install NVRTC
+(User Guide 9.20) and please report the driver or ZLUDA version.</li>
+<li>"FP64 matrix multiply, vendor library: not available: cuBLAS on this
+driver does not support FP64 matrix multiply" with ZLUDA: ZLUDA's cuBLAS
+has no FP64 matrix multiply (it answers "not supported", cuBLAS error
+15). Expected, not a fault; every other CUDA row runs. A library that
+says "not supported" only for a bigger size during the run likewise
+marks only that row "not available".</li>
 <li>"not available" in the HIP rows: without libhiprtc the own kernels
 cannot be built, and the library rows need one of them for the error
 check, so they say "needs the runtime compiler ... for the error check"
@@ -34202,10 +34249,10 @@ when ZLUDA is in use; whether the GUI will ask</td>
 <td><code>--install</code></td>
 <td>Checks first (no install command for this Linux, pacman's database
 locked, no network, no <code>sudo</code> / <code>pkexec</code>), needs a
-terminal, shows the exact command and runs it with <code>sudo</code>
-only after you type <code>yes</code> - with ZLUDA you must type
-<code>yes</code> twice. Then reports the result and looks for NVRTC
-again</td>
+terminal, shows the exact command and the full paths of the programs it
+uses, and runs it with <code>sudo</code> only after you type
+<code>yes</code> - with ZLUDA you must type <code>yes</code> twice. Then
+reports the result and looks for NVRTC again</td>
 </tr>
 <tr>
 <td><code>--ask-again</code></td>
@@ -34231,8 +34278,14 @@ href="https://developer.nvidia.com/cuda-downloads">https://developer.nvidia.com/
 package <code>cuda-nvrtc-&lt;version&gt;</code>). With ZLUDA, installing
 the toolkit is not recommended (it can replace ZLUDA's cuBLAS on the
 library path, and NVIDIA's driver libraries conflict with ZLUDA). The
-GUI has the same under <strong>Options -&gt; NVIDIA CUDA toolkit for GPU
-tests...</strong> (User Guide 9.20).</p>
+package manager, <code>sudo</code> and <code>pkexec</code> are only
+taken from <code>/usr/bin</code>, <code>/usr/sbin</code>,
+<code>/bin</code> or <code>/sbin</code> and run by their full path; a
+program of the same name elsewhere in <code>PATH</code> (for example
+<code>~/.local/bin</code>) is never used, and without them in those
+folders SRS does not start the install and shows the command to type
+yourself. The GUI has the same under <strong>Options -&gt; NVIDIA CUDA
+toolkit for GPU tests...</strong> (User Guide 9.20).</p>
 <p>Exit code 0: shown, or installed and NVRTC found; 1: not started
 (with the reason) or the install failed; 2: not confirmed, no terminal,
 or a bad option.</p>
@@ -34545,6 +34598,14 @@ the ROCm / HIP, CUDA or OpenCL library (a name that does not exist =
 <td><code>SRS_CTK_DRY_RUN=1</code></td>
 <td><code>cuda-toolkit --install</code> and the GUI's toolkit install
 show what they would run and run nothing (for tests)</td>
+</tr>
+<tr>
+<td><code>SRS_CTK_TOOL_DIRS</code></td>
+<td>Only together with <code>SRS_CTK_DRY_RUN=1</code>: look for the
+package manager, <code>sudo</code> and <code>pkexec</code> in these
+folders (colon-separated) instead of <code>/usr/bin</code>,
+<code>/usr/sbin</code>, <code>/bin</code>, <code>/sbin</code> (for
+tests: fake tools that are never run). Ignored otherwise</td>
 </tr>
 <tr>
 <td><code>SRS_OS_RELEASE</code>, <code>SRS_PCI_SYSFS</code>,

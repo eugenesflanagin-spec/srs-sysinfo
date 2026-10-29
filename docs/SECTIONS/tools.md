@@ -1087,8 +1087,9 @@ into short pieces, each with a watchdog. A GPU that hangs or stops answering end
 back end touches that GPU again, and the tests that did not run say **not run** (the line under the
 table says why). Stop works. SRS never changes clocks, voltages or fans.
 
-**Healthy / typical values.** Not measured by SRS on real hardware yet (only on the software
-renderer). In general the vendor libraries are much faster than a plain kernel for matrix
+**Healthy / typical values.** Measured by the author on real hardware once, for CUDA through ZLUDA
+only: a Radeon RX 9070 XT with ZLUDA (preview build, no NVRTC), 2026-10-29 - own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860; cuBLAS FP64
+"not available". The other back ends were measured only on the software renderer. In general the vendor libraries are much faster than a plain kernel for matrix
 multiply, and the own-kernel rows show how well each driver compiles the same simple code; a
 healthy result has every row filled in and no errors.
 
@@ -1098,7 +1099,12 @@ healthy result has every row filled in and no errors.
 - CUDA (ZLUDA) rows: since 2.3 they run from SRS's built-in kernels (PTX); the CUDA column's
   software line says "own kernels built in (PTX), no NVRTC". "not available ... the CUDA driver
   refused the built-in kernels ... see Options > NVIDIA CUDA toolkit": that driver or ZLUDA version
-  does not take them, and NVRTC is not installed.
+  does not take them, and NVRTC is not installed - install NVRTC (User Guide 9.20) and please report
+  the driver or ZLUDA version.
+- "FP64 matrix multiply, vendor library: not available: cuBLAS on this driver does not support FP64
+  matrix multiply" with ZLUDA: ZLUDA's cuBLAS has no FP64 matrix multiply (it answers "not supported",
+  cuBLAS error 15). Expected, not a fault; every other CUDA row runs. A library that says "not supported"
+  only for a bigger size during the run likewise marks only that row "not available".
 - "not available" in the HIP rows: without libhiprtc the own kernels cannot be built, and the
   library rows need one of them for the error check, so they say "needs the runtime compiler ...
   for the error check" and are not run. The notes under the table say why each test is "not available".

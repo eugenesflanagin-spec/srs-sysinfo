@@ -145,7 +145,8 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
     CUDA run when its runtime compiler (NVRTC) is missing (Install / Not now / Don't ask again),
     and offers it any time under **Options -> NVIDIA CUDA toolkit for GPU tests...** or
     `sysreport-search cuda-toolkit`: the exact command for your Linux, run in a terminal only after
-    you confirm; with ZLUDA it warns that the toolkit can break or remove ZLUDA and asks twice.
+    you confirm, with the package manager, sudo and pkexec only from the system folders (by full
+    path, never from PATH); with ZLUDA it warns that the toolkit can break or remove ZLUDA and asks twice.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -160,9 +161,11 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
   - **GPU features, what was and wasn't run.** The Vulkan tests,
     GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) only;
     for ROCm/HIP, CUDA and OpenCL I checked that the libraries load and that every function SRS
-    needs is found, but did not run HIP, CUDA or OpenCL work on a GPU. The built-in CUDA kernels (PTX,
-    2.3) were checked offline and against a fake driver; meant for ZLUDA on an AMD card, never run on
-    NVIDIA hardware. GPU Burnin ends by itself on a
+    needs is found, but did not run HIP, NVIDIA CUDA or OpenCL work on a GPU. The built-in CUDA kernels
+    (PTX, 2.3) were checked offline and against a fake driver, and the GPU Compute comparison ran every
+    CUDA row from them through ZLUDA on my RX 9070 XT (cuBLAS FP64 "not available": ZLUDA's cuBLAS has
+    none); GPU Burnin with CUDA was not run on the real card, and nothing CUDA on NVIDIA hardware.
+    GPU Burnin ends by itself on a
     driver error, a GPU that stops answering, a piece of work that takes far too long, or a
     temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)

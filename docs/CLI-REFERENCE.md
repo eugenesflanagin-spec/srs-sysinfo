@@ -832,7 +832,7 @@ installed and the install command for your Linux, and can run it.
 | Option | Meaning |
 |---|---|
 | `--check` | (default) The explanation; NVIDIA card found or not; the CUDA library (NVIDIA's, ZLUDA, none); NVRTC installed (version, file) or not; the install command and its size (or instructions); a red-flag warning when ZLUDA is in use; whether the GUI will ask |
-| `--install` | Checks first (no install command for this Linux, pacman's database locked, no network, no `sudo` / `pkexec`), needs a terminal, shows the exact command and runs it with `sudo` only after you type `yes` - with ZLUDA you must type `yes` twice. Then reports the result and looks for NVRTC again |
+| `--install` | Checks first (no install command for this Linux, pacman's database locked, no network, no `sudo` / `pkexec`), needs a terminal, shows the exact command and the full paths of the programs it uses, and runs it with `sudo` only after you type `yes` - with ZLUDA you must type `yes` twice. Then reports the result and looks for NVRTC again |
 | `--ask-again` | Let the GUI ask again before the next CUDA run (`Ask CUDA Toolkit=1` in `~/.config/srs/SRSDEF.ini`) |
 | `--never-ask` | The GUI never asks, and `gpu-burn` / `gpu-compare` print no toolkit note (`Ask CUDA Toolkit=0`, the GUI's "Don't ask again") |
 
@@ -841,8 +841,11 @@ disk); Debian / Ubuntu `sudo apt-get install libnvrtc12` or `libnvrtc11.2` (abou
 `nvidia-cuda-toolkit`; Fedora, openSUSE and others: instructions for NVIDIA's CUDA repository
 (<https://developer.nvidia.com/cuda-downloads>, package `cuda-nvrtc-<version>`). With ZLUDA,
 installing the toolkit is not recommended (it can replace ZLUDA's cuBLAS on the library path, and
-NVIDIA's driver libraries conflict with ZLUDA). The GUI has the same under **Options -> NVIDIA
-CUDA toolkit for GPU tests...** (User Guide 9.20).
+NVIDIA's driver libraries conflict with ZLUDA). The package manager, `sudo` and `pkexec` are only
+taken from `/usr/bin`, `/usr/sbin`, `/bin` or `/sbin` and run by their full path; a program of the
+same name elsewhere in `PATH` (for example `~/.local/bin`) is never used, and without them in those
+folders SRS does not start the install and shows the command to type yourself. The GUI has the
+same under **Options -> NVIDIA CUDA toolkit for GPU tests...** (User Guide 9.20).
 
 Exit code 0: shown, or installed and NVRTC found; 1: not started (with the reason) or the install
 failed; 2: not confirmed, no terminal, or a bad option.
@@ -967,6 +970,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_HIP_LIB`, `SRS_CUDA_LIB`, `SRS_OPENCL_LIB` | GPU Burnin and the GPU Compute comparison: open this file instead of the ROCm / HIP, CUDA or OpenCL library (a name that does not exist = "not installed"; for tests) |
 | `SRS_HIP_RTC`, `SRS_CUDA_RTC`, `SRS_HIP_BLAS`, `SRS_CUDA_BLAS`, `SRS_CLBLAST_LIB` | Same, for the runtime compiler (hipRTC / NVRTC), the GEMM library (hipBLAS / cuBLAS) and CLBlast (for tests: `tests/gpu-stub-test.sh` runs against a fake runtime) |
 | `SRS_CTK_DRY_RUN=1` | `cuda-toolkit --install` and the GUI's toolkit install show what they would run and run nothing (for tests) |
+| `SRS_CTK_TOOL_DIRS` | Only together with `SRS_CTK_DRY_RUN=1`: look for the package manager, `sudo` and `pkexec` in these folders (colon-separated) instead of `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` (for tests: fake tools that are never run). Ignored otherwise |
 | `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK` | NVIDIA CUDA toolkit checks: read this file instead of `/etc/os-release`, this folder instead of `/sys/bus/pci/devices`, this route table instead of `/proc/net/route`, this lock file instead of pacman's `db.lck` (for tests: `tests/cuda-toolkit-test.sh`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |
