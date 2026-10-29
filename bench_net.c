@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -376,7 +377,7 @@ static void iface_info(net_iface *ifc)
     if (ifc->wifi) snprintf(ifc->kind, sizeof ifc->kind, "Wi-Fi");
     else {
         int type = atoi(v), usb;
-        char real[1024];
+        char real[PATH_MAX];   /* realpath() needs PATH_MAX (FORTIFY_SOURCE aborts otherwise) */
         snprintf(p, sizeof p, "/sys/class/net/%s/bridge", name);
         if (access(p, F_OK) == 0) snprintf(ifc->kind, sizeof ifc->kind, "bridge");
         else if (snprintf(p, sizeof p, "/sys/class/net/%s/bonding", name), access(p, F_OK) == 0) snprintf(ifc->kind, sizeof ifc->kind, "bonded links");

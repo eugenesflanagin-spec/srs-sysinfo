@@ -69,6 +69,10 @@ own risk" agreement for the load tests, columns that line up on every page, and 
 
 ### Fixed
 
+- Start-up abort ("buffer overflow detected") in builds with FORTIFY_SOURCE (the AppImage and distro packages):
+  the Network Benchmark, now built as a tab when SRS starts, looked up a wired adapter with `realpath()` into a
+  buffer smaller than `PATH_MAX`. Found by the release start-test before 2.3.1 shipped. Builds from the Makefile
+  now use `-D_FORTIFY_SOURCE=2` unless the packager sets it, so this kind of bug shows in every build.
 - Tool titles in Title Case like the tab names: Cache & Memory Benchmark, Storage Benchmark, OS Latency
   Benchmark, CPU Compute Benchmark, Everyday Work Benchmark, Network Benchmark, GPU Benchmark, Crypto Benchmark,
   Prime Sieve, Benchmark History.

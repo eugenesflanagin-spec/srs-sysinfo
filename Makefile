@@ -34,7 +34,9 @@ SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h 
 # glibc 2.34+ has dlopen in libc, older glibc needs libdl. The GPU shaders are pre-compiled into
 # bench_gpu_spv.inc, so no shader compiler is needed to build (make gpu-shaders regenerates it); the CUDA
 # kernels likewise as PTX in gpu_kernels_ptx.inc (make cuda-ptx regenerates it with clang)
-LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread
+# FORTIFY_SOURCE like the distro and AppImage release builds, so a too-small buffer (realpath needs PATH_MAX)
+# aborts in every build, not only in the release one (2.3.1). A packager's own -D_FORTIFY_SOURCE wins.
+LINUX     := -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread $(if $(findstring _FORTIFY_SOURCE,$(CFLAGS) $(CPPFLAGS)),,-D_FORTIFY_SOURCE=2)
 
 # --- PE layout copied field-for-field from SIV64X.exe / SIV32X.exe (objdump -p) ---
 #   system msvcrt.dll (not UCRT), GUI subsystem, ImageBase 0x1000000,
