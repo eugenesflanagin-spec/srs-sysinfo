@@ -2156,7 +2156,7 @@ static void build_burn(swin *w, GtkWidget *vb)
     w->b_cpuon = gtk_check_button_new_with_mnemonic("C_PU load");
     gtk_widget_set_tooltip_text(w->b_cpuon, "Make the ticked CPUs 100 % busy. Untick it to test only the GPU.");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpuon), TRUE);
-    w->b_timed = gtk_radio_button_new_with_mnemonic(NULL, "T_imed (burn / cool cycles, Pass or Fail)");
+    w->b_timed = gtk_radio_button_new_with_mnemonic(NULL, "T_imed (burn / cool, Pass or Fail)");
     w->b_until = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(w->b_timed), "_Until Stop");
     gtk_widget_set_tooltip_text(w->b_timed, "CPU Burnin: run for the Burn Time, rest for the Cool Time, repeat for the Cycles, then Pass or Fail.");
     gtk_widget_set_tooltip_text(w->b_until, "CPU Stress: keep the CPUs busy until you press Stop (safety cap 750 hours).");
@@ -2168,12 +2168,13 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_box_pack_start(GTK_BOX(trow), lbl("Burn Time"), FALSE, FALSE, 0);
     w->b_time = spin(0, 750, 1, 15);
     gtk_box_pack_start(GTK_BOX(trow), w->b_time, FALSE, FALSE, 0);
-    w->b_hours = gtk_check_button_new_with_label("Hours (otherwise Minutes)");
+    w->b_hours = gtk_check_button_new_with_label("Hours");
+    gtk_widget_set_tooltip_text(w->b_hours, "Burn Time in hours (otherwise minutes)");
     gtk_box_pack_start(GTK_BOX(trow), w->b_hours, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(trow), lbl("Cool Time"), FALSE, FALSE, 0);
     w->b_cool = spin(0, 900, 5, 60);
     gtk_box_pack_start(GTK_BOX(trow), w->b_cool, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(trow), lbl("Seconds   Cycles"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(trow), lbl("s   Cycles"), FALSE, FALSE, 0);
     w->b_cycles = spin(1, 99, 1, 1);
     gtk_box_pack_start(GTK_BOX(trow), w->b_cycles, FALSE, FALSE, 0);
     w->b_timedrow = trow;
@@ -2248,6 +2249,7 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gb), g_sb_gpu);
     gtk_box_pack_start(GTK_BOX(vb), grid, FALSE, FALSE, 0);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(cpus), 16);
+    gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(cpus), ncpu < 8 ? (ncpu < 1 ? 1 : ncpu) : 8);   /* its height is asked at the narrowest */
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(cpus), GTK_SELECTION_NONE);
     w->nb_cpu = ncpu;
     for (i = 0; i < ncpu; i++) {
@@ -2273,7 +2275,7 @@ static void build_burn(swin *w, GtkWidget *vb)
     w->b_stop = sbtn("St_op");
     g_signal_connect(w->b_stop, "clicked", G_CALLBACK(on_burn_stop), w);
     gtk_box_pack_start(GTK_BOX(row), w->b_stop, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(row), lbl("  Nothing starts until you press Start and confirm. Stop ends the CPU and the GPU load at once."), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), lbl("  Nothing starts until you press Start and confirm. Stop ends all load at once."), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
     g_signal_connect(w->b_cpuon, "toggled", G_CALLBACK(on_burn_opt), w);
     g_signal_connect(w->b_timed, "toggled", G_CALLBACK(on_burn_opt), w);
@@ -5393,7 +5395,11 @@ static swin *tab_find(int cat, const char *id, int *index)
    build_bench), into the tab's box. "on" = converted; the others still open their window. ---- */
 typedef struct { const char *id; wkind k; int sub, on; } toolitem;
 static const toolitem g_toolitems[] = {
-    { "burnin", W_BURN, 3, 1 },
+    { "burnin", W_BURN, 3, 1 },             { "benchmark", W_BENCH, BK_BENCH, 1 },        { "cache-memory", W_BENCH, BK_CACHEMEM, 1 },
+    { "storage-bench", W_BENCH, BK_STORAGE, 1 }, { "os-latency", W_BENCH, BK_OSLAT, 1 },   { "cpu-compute", W_BENCH, BK_COMPUTE, 1 },
+    { "everyday-work", W_BENCH, BK_WORK, 1 }, { "net-bench", W_BENCH, BK_NET, 1 },         { "gpu-bench", W_BENCH, BK_GPU, 1 },
+    { "gpu-compare", W_BENCH, BK_GPUCOMPARE, 1 }, { "srs-pi", W_BENCH, BK_PI, 1 },          { "crypto-bench", W_BENCH, BK_CRYPTO, 1 },
+    { "prime-sieve", W_BENCH, BK_PRIME, 1 }, { "ipi-delay", W_BENCH, BK_IPI, 1 },          { "latency", W_BENCH, BK_LAT, 1 },
 };
 static const toolitem *tool_item(const char *id)
 {
@@ -5506,7 +5512,26 @@ static swin *tool_tab_new(int cat, const toolitem *ti, int select, int pos)
     gtk_style_context_add_class(gtk_widget_get_style_context(page), "srs-compact");
     g_object_set_data(G_OBJECT(page), "swin", t);
     t->page = page;
-    if (t->kind == W_BURN) build_burn(t, page); else build_bench(t, page);
+    {   /* the controls scroll sideways in a narrow window instead of widening it; the results below get the rest */
+        GtkWidget *ctl = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2), *sc = gtk_scrolled_window_new(NULL, NULL);
+        if (t->kind == W_BURN) build_burn(t, ctl); else build_bench(t, ctl);
+        if (t->kind == W_BENCH && t->bm_status && gtk_widget_get_parent(t->bm_status) == gtk_widget_get_parent(t->bm_run)) {
+            g_object_ref(t->bm_status);   /* the status on its own line, so Run and Stop always show */
+            gtk_container_remove(GTK_CONTAINER(gtk_widget_get_parent(t->bm_status)), t->bm_status);
+            gtk_label_set_xalign(GTK_LABEL(t->bm_status), 0);
+            gtk_box_pack_start(GTK_BOX(ctl), t->bm_status, FALSE, FALSE, 0);
+            g_object_unref(t->bm_status);
+        }
+        if (t->kind == W_BENCH && t->bm_mode) {   /* the long mode names end in "..." */
+            GList *cells = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(t->bm_mode)), *c;
+            for (c = cells; c; c = c->next) if (GTK_IS_CELL_RENDERER_TEXT(c->data)) g_object_set(c->data, "ellipsize", PANGO_ELLIPSIZE_END, "width-chars", 36, NULL);
+            g_list_free(cells);
+        }
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+        gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sc), TRUE);
+        gtk_container_add(GTK_CONTAINER(sc), ctl);
+        gtk_box_pack_start(GTK_BOX(page), sc, FALSE, FALSE, 0);
+    }
     gtk_box_pack_start(GTK_BOX(page), make_view(t), TRUE, TRUE, 0);
     if (t->kind == W_BURN || (t->kind == W_BENCH && (t->sub == BK_IPI || t->sub == BK_LAT))) {
         t->plot = gtk_drawing_area_new();
@@ -6064,7 +6089,9 @@ static GtkWidget *build_cat_page(int cat)
         gtk_box_pack_start(GTK_BOX(tr), v, TRUE, TRUE, 0);
     }
     gtk_box_pack_start(GTK_BOX(head), tr, FALSE, FALSE, 0);
-    if (cat != CAT_BENCH && cat != CAT_TOOLS) {
+    if (cat == CAT_BENCH) {
+        /* 2.3.1: no heading and no launchers - every tool is a tab (its controls and live results), so the results get the height */
+    } else if (cat != CAT_TOOLS) {
         factsui *u = &g_home->facts[cat];
         u->box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         gtk_box_pack_start(GTK_BOX(head), u->box, FALSE, FALSE, 0);
@@ -6077,61 +6104,7 @@ static GtkWidget *build_cat_page(int cat)
         gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), 32);
         gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(fb), 0);
         gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
-        if (cat == CAT_BENCH) {   /* MNEMONIC-MENU: benchmarks-page (one Alt+letter each, also unlike the tab bar's) */
-            grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
-                "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("CPU IPI Delay", "How long the cores take to hand data to each other (core-to-core latency), as a table and heat map.",
-                "Busy for a few seconds while it measures.", "IPI _Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
-                "Busy for a few seconds while it measures.", "Late_ncy...", "lat", "Open the Latency window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
-                "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "C_ache & Memory...", "cachemem",
-                "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Storage", "How fast the drive that holds a folder you choose reads and writes: sequential, 4K random and response time.",
-                "Works on its own temporary test file only; never touches your files. USB drives only when you allow them. Asks before it starts.",
-                "S_torage...", "storagebench", "Open the Storage benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("OS Latency", "How quickly the operating system answers a program: system calls, task switches, "
-                "starting threads and programs, wake-ups, timer lateness (with the CPU scheduler in use), page faults and small-file operations.",
-                "Busy on one or two CPUs for about 6 seconds. Asks before it starts.", "_OS Latency...", "oslatency",
-                "Open the OS Latency window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("CPU Compute", "Floating-point number crunching: matrix multiply, peak multiply-add, FFT, N-body gravity, "
-                "Mandelbrot and a small ray tracer, on one thread and on all threads, with the best vector code the CPU has. Every answer is checked.",
-                "All threads 100 % busy for about 10 seconds (AVX-512 where the CPU has it). Asks before it starts; \"1 thread only\" keeps it light.",
-                "CPU Co_mpute...", "compute", "Open the CPU Compute window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Everyday Work", "The work a PC does all day: compressing files (zlib, zstd, lz4, xz), sorting, checksums, "
-                "searching and checking text, and running a small program, on one thread and on all threads. Every result is checked.",
-                "All threads busy for about half a minute. Uses generated data, never your files. Asks before it starts.",
-                "_Everyday Work...", "work", "Open the Everyday Work window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Network", "On this computer: how fast Linux moves network data between two programs (loopback). "
-                "Optional internet speed test: DNS, connect time, download and upload speed against Cloudflare's public speed test.",
-                "Loopback: a few CPUs for about 20 seconds, nothing leaves the PC. The internet test asks separately and says how much data it uses.",
-                "Networ_k...", "netbench", "Open the Network benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("GPU Benchmark", "How fast the graphics card computes (FP32, FP16, FP64 and whole-number multiply-add), "
-                "how fast its video memory reads, writes and copies, how fast data moves to and from it, and how quickly it answers. "
-                "Uses Vulkan; every result is checked.",
-                "The GPU works at full load for about 15 seconds. Asks before it starts. Needs a Vulkan driver.",
-                "GPU Benc_hmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", "Runs the same GPU work through every compute back end "
-                "you have installed, on the same graphics card, side by side: SRS's own kernel and the vendor's library (hipBLAS, cuBLAS, "
-                "CLBlast), the fastest marked and each as a percentage of Vulkan.",
-                "Full GPU load for about 20 seconds per back end. Asks first. Back ends that are not installed say so.",
-                "GPU Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
-                "A classic single-thread test; a wrong digit points to an unstable overclock.",
-                "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Crypto", "How fast the CPU encrypts (AES-128) and hashes (SHA-256), with and without its built-in crypto instructions.",
-                "Busy for about 8 seconds.", "Cr_ypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Prime Sieve", "Counts the prime numbers up to 10 billion and checks the count. Simple integer and cache work that scales with threads.",
-                "Busy for about a second on all threads.", "Prime Sie_ve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("Stress & Burnin (CPU and GPU)", "Loads the CPUs, the graphics card or both: timed burn and cool cycles "
-                "with a Pass or Fail at the end, or until you press Stop. The built-in GPU Burnin counts every wrong GPU result "
-                "(Vulkan, ROCm / HIP, CUDA or OpenCL) and can run for its own time or in sync with the CPU load; a custom GPU command "
-                "works too. Live clocks, temperatures, power and fan.",
-                "Makes the chosen CPUs and / or the GPU 100 % busy. Asks before it starts; stops at the temperature limits (CPU 90 °C, "
-                "GPU 100 °C by default) or on a GPU driver error. Never changes clocks, voltages or fans.",
-                "Stress & B_urnin...", "stressburn", "Open the Stress & Burnin window. Nothing starts until you press Start and confirm."));
-            /* MNEMONIC-END */
-        } else {   /* MNEMONIC-MENU: tools-page */
+        {   /* MNEMONIC-MENU: tools-page */
             grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
                 "Ctrl+L. Also: double-click a device line on any page.", "Loo_kup...", "idlookup", "Open the Device ID Lookup window"));
             grid_add3(fb, launcher("Find in a system report", "Search every section of a full text report made by SRS Full System Report (srs-sysreport).",
@@ -6155,7 +6128,8 @@ static GtkWidget *build_cat_page(int cat)
             gtk_box_pack_start(GTK_BOX(head), sc, TRUE, TRUE, 0);
         }
     }
-    gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
+    if (cat == CAT_BENCH) gtk_widget_destroy(head);   /* the header bar already names the page */
+    else gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
 
     nb = tabs_area(cat);
     page_fill(cat);
