@@ -244,14 +244,14 @@ missing one only skips its rows</td>
 </tr>
 <tr>
 <td><code>curl</code> (libcurl)</td>
-<td>The internet speed test of the Network benchmark (<a
+<td>The internet speed test of the Network Benchmark (<a
 href="#user-guide--916-network">9.16</a>)</td>
 </tr>
 <tr>
 <td><code>vulkan-icd-loader</code> and your GPU's Vulkan driver
 (<code>vulkan-radeon</code>, <code>vulkan-intel</code>,
 <code>nvidia-utils</code>)</td>
-<td>The GPU benchmarks (<a href="#user-guide--917-gpu-benchmark">9.17</a>); almost
+<td>The GPU Benchmarks (<a href="#user-guide--917-gpu-benchmark">9.17</a>); almost
 every desktop has them</td>
 </tr>
 <tr>
@@ -390,7 +390,7 @@ System / Monitor):</p>
 <td><strong>SRS System Information</strong></td>
 <td>The main window. Right-click it in the menu for shortcuts: Sensors,
 Processors, Stress &amp; Burnin, Benchmark, Cache &amp; Memory, Storage,
-OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU
+OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU
 compute comparison, SRS Pi, Device ID Lookup, Find in System Report,
 Classic View (16 in all).</td>
 </tr>
@@ -647,7 +647,7 @@ Installed software, Environment, Users</td>
 <td>CPU Benchmarks, Cache &amp; Memory, Storage, OS Latency, CPU
 Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute
 comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency,
-Benchmark history (the last results)</td>
+Benchmark History (the last results)</td>
 </tr>
 <tr>
 <td><strong>Tools</strong></td>
@@ -894,7 +894,7 @@ href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; Stress</strong> page has one tab per
 tool (2.3.1): Stress &amp; Burnin (CPU and GPU), CPU Benchmarks, Cache
 &amp; Memory, Storage, OS latency, CPU compute, Everyday work, Network,
-GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and
+GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and
 Memory latency, each with its controls and live results, and compact
 sections at the top that jump to them (<a href="#user-guide--9-tools">9</a>);
 nothing runs until you press <strong>Run</strong> or
@@ -2125,7 +2125,7 @@ short, not tried on real hardware so far:</p>
 <!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
 
 <ul>
-<li>GPU benchmarks: Vulkan only on lavapipe (the Mesa software renderer,
+<li>GPU Benchmarks: Vulkan only on lavapipe (the Mesa software renderer,
 which runs on the CPU), with small sizes; ROCm/HIP, CUDA on NVIDIA and
 OpenCL only as far as loading their libraries and finding every function
 SRS needs - no HIP, NVIDIA CUDA or OpenCL work was run on a GPU. CUDA
@@ -2210,8 +2210,8 @@ without asking and counts as agreeing; <code>burn</code> starts at once
 <p><strong>Tools as tabs (new main window, 2.3.1).</strong> On the
 <strong>Benchmarks &amp; Stress</strong> page every tool is a tab of its
 own - Stress &amp; Burnin, CPU Benchmarks, Cache &amp; Memory, Storage,
-OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU
-Compare, SRS Pi, Crypto, Prime sieve, IPI delay and Memory latency -
+OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU
+Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency -
 with its controls and live results in the page itself, no pop-up window.
 The small sections at the top of the page (one line each) jump to a
 tool's tab. The controls are compact and scroll sideways in a narrow
@@ -2749,7 +2749,7 @@ Command line: <code>sysreport-search latency</code> (asks first;
 in ns, level) and a curve.</p>
 <p>For the <strong>bandwidth</strong> of the RAM and the caches, see <a
 href="#user-guide--911-cache--memory">9.11 Cache &amp; Memory</a>. The newer
-benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache
+benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark History, Cache
 &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network
 and the three GPU tests - are in <a href="#user-guide--97-srs-pi">9.7</a> to <a
 href="#user-guide--919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">9.19</a>; the
@@ -2911,12 +2911,12 @@ threads - the defaults - it warns about unstable overclocks and
 <strong>No</strong> is the default answer), <strong>Stop</strong>. On
 the command line it asks the same; <code>--yes</code> starts at
 once.</p>
-<h3 id="user-guide--910-benchmark-history">9.10 Benchmark history</h3>
+<h3 id="user-guide--910-benchmark-history">9.10 Benchmark History</h3>
 <p>Every SRS Pi, Crypto, Prime Sieve, Cache &amp; Memory, Storage, OS
 Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin
 and GPU Compute comparison run adds a line to
 <code>~/.cache/srs/bench-history.tsv</code> (time, test, settings,
-result, build). The <strong>Benchmark history</strong> tab on the
+result, build). The <strong>Benchmark History</strong> tab on the
 Benchmarks &amp; Stress page shows it, newest first. Compare only lines
 with the same settings and the same <strong>Build</strong>: a package
 built for any x86-64 CPU (<code>-march=x86-64 -O2</code>) can score well
@@ -3007,7 +3007,7 @@ no scheduler, priority or timer change. The file test works in its own
 temporary folder in <code>~/.cache/srs</code>, which is removed at the
 end, after Stop, and (if SRS was killed) on the next run. The result is
 saved to <code>~/.cache/srs/bench-os-latency.txt</code> and added to the
-<a href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on one PC
+<a href="#user-guide--910-benchmark-history">Benchmark History</a>. Tested on one PC
 only - see the note at the start of this chapter.</p>
 <h3 id="user-guide--914-cpu-compute">9.14 CPU Compute</h3>
 <p><strong>In plain words:</strong> how fast the processor does
@@ -3048,7 +3048,7 @@ overclock or undervolt can crash the PC</strong> under this load. Tick
 <strong>1 thread only</strong> (command line <code>--single</code>) to
 keep it light. It will not start while CPU Burnin or Stress runs. The
 result is saved to <code>~/.cache/srs/bench-compute.txt</code> and added
-to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on
+to the <a href="#user-guide--910-benchmark-history">Benchmark History</a>. Tested on
 one PC only - see the note at the start of this chapter.</p>
 <h3 id="user-guide--915-everyday-work">9.15 Everyday Work</h3>
 <p><strong>In plain words:</strong> how fast the PC does the work it
@@ -3095,7 +3095,7 @@ size (<code>--part-kib 16384</code>) one xz -6 pass can take 10-20
 seconds, so "Stopping..." may show for that long (at the default size it
 is under a second). The result is saved to
 <code>~/.cache/srs/bench-work.txt</code>, and each test group adds a
-line to the <a href="#user-guide--910-benchmark-history">Benchmark history</a>.
+line to the <a href="#user-guide--910-benchmark-history">Benchmark History</a>.
 Tested on one PC only - see the note at the start of this chapter.</p>
 <h3 id="user-guide--916-network">9.16 Network</h3>
 <p><strong>In plain words:</strong> two separate tests. <strong>On this
@@ -3150,7 +3150,7 @@ as "host N (a numeric address)", so it never lands in the saved result.
 A speed test server given with a port (<code>https://host:8443</code>)
 is timed on that port too. The result is saved to
 <code>~/.cache/srs/bench-net.txt</code> and added to the <a
-href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on one PC on
+href="#user-guide--910-benchmark-history">Benchmark History</a>. Tested on one PC on
 a wired connection only - see the note at the start of this chapter.</p>
 <h3 id="user-guide--917-gpu-benchmark">9.17 GPU Benchmark</h3>
 <p><strong>In plain words:</strong> how fast your graphics card (GPU)
@@ -3217,7 +3217,7 @@ keeps Vulkan overlays such as MangoHud out of the run. Vulkan is loaded
 when needed: without it the window says "not available" and the rest of
 SRS works as before. The result is saved to
 <code>~/.cache/srs/bench-gpu.txt</code> and added to the <a
-href="#user-guide--910-benchmark-history">Benchmark history</a>. Tested on a
+href="#user-guide--910-benchmark-history">Benchmark History</a>. Tested on a
 software GPU only - see the note at the start of this chapter.</p>
 <h3 id="user-guide--918-gpu-burnin">9.18 GPU Burnin</h3>
 <p><strong>In plain words:</strong> a stress test for the graphics card,
@@ -3328,7 +3328,7 @@ reads them. GPU Burnin does not start while CPU Burnin / Stress or
 another benchmark runs, and CPU Burnin waits until it has finished (its
 status line says "not started" and why). The result is saved to
 <code>~/.cache/srs/bench-gpuburn.txt</code> and added to the <a
-href="#user-guide--910-benchmark-history">Benchmark history</a>. The idea of
+href="#user-guide--910-benchmark-history">Benchmark History</a>. The idea of
 comparing every result with the first one comes from gpu-burn by Ville
 Timonen; the code is SRS's own. Tested on a software GPU only - see the
 note at the start of this chapter.</p>
@@ -3408,7 +3408,7 @@ after your Yes. The work is cut into short pieces, a GPU that fails ends
 its column cleanly, Stop ends the run at once, and SRS never changes
 clocks, voltages or fans. The result is saved to
 <code>~/.cache/srs/bench-gpucompare.txt</code> and added to the <a
-href="#user-guide--910-benchmark-history">Benchmark history</a>. HIP, CUDA on NVIDIA
+href="#user-guide--910-benchmark-history">Benchmark History</a>. HIP, CUDA on NVIDIA
 and OpenCL were not run on real hardware by the author (CUDA through
 ZLUDA was, on one card) - see the note at the start of this chapter.</p>
 <h3 id="user-guide--920-the-nvidia-cuda-toolkit-optional">9.20 The NVIDIA CUDA
@@ -3863,6 +3863,11 @@ tab still asks first (2.3.1)</td>
 <td>GTK's own keys, unchanged: step through the list, first / last.
 Inside a tool's controls (a spin button, a list box) the arrows change
 that control, not the tab</td>
+</tr>
+<tr>
+<td><strong>Page Up / Page Down</strong> in a tab list</td>
+<td>10 tabs back / on, stopping at the first / last tab (in a list: a
+page up / down)</td>
 </tr>
 <tr>
 <td><strong>Right-click a tab</strong></td>
@@ -7440,40 +7445,40 @@ physical cores one at a time</a></td>
 </tr>
 <tr>
 <td><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory
-benchmark</a></td>
+Benchmark</a></td>
 <td><code>cache-memory</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--storage-benchmark">Storage benchmark</a></td>
+<td><a href="#sections-tools--storage-benchmark">Storage Benchmark</a></td>
 <td><code>storage-bench</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--os-latency-benchmark">OS latency
-benchmark</a></td>
+<td><a href="#sections-tools--os-latency-benchmark">OS Latency
+Benchmark</a></td>
 <td><code>os-latency</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--cpu-compute-benchmark">CPU compute
-benchmark</a></td>
+<td><a href="#sections-tools--cpu-compute-benchmark">CPU Compute
+Benchmark</a></td>
 <td><code>cpu-compute</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--everyday-work-benchmark">Everyday work
-benchmark</a></td>
+<td><a href="#sections-tools--everyday-work-benchmark">Everyday Work
+Benchmark</a></td>
 <td><code>everyday-work</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--network-benchmark">Network benchmark</a></td>
+<td><a href="#sections-tools--network-benchmark">Network Benchmark</a></td>
 <td><code>net-bench</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--gpu-benchmark">GPU benchmark</a></td>
+<td><a href="#sections-tools--gpu-benchmark">GPU Benchmark</a></td>
 <td><code>gpu-bench</code></td>
 <td>Linux data</td>
 </tr>
@@ -7494,17 +7499,17 @@ Compute: Vulkan vs HIP vs CUDA vs OpenCL</a></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a></td>
+<td><a href="#sections-tools--crypto-benchmark">Crypto Benchmark</a></td>
 <td><code>crypto-bench</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--prime-sieve">Prime sieve</a></td>
+<td><a href="#sections-tools--prime-sieve">Prime Sieve</a></td>
 <td><code>prime-sieve</code></td>
 <td>Linux data</td>
 </tr>
 <tr>
-<td><a href="#sections-tools--benchmark-history">Benchmark history</a></td>
+<td><a href="#sections-tools--benchmark-history">Benchmark History</a></td>
 <td><code>bench-history</code></td>
 <td>Linux data</td>
 </tr>
@@ -28351,8 +28356,8 @@ href="#glossary">Glossary</a></p>
 window they are on two pages. <strong>Benchmarks &amp; Stress</strong>
 (Alt+=) has (2.3.1) one tab per tool - Stress &amp; Burnin (CPU and
 GPU), CPU Benchmarks, Cache &amp; Memory, Storage, OS latency, CPU
-compute, Everyday work, Network, GPU benchmark, GPU Compare, SRS Pi,
-Crypto, Prime sieve, IPI delay and Memory latency - with its controls
+compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi,
+Crypto, Prime Sieve, IPI delay and Memory latency - with its controls
 and live results, compact sections at the top that jump to them, and the
 benchmark history tab. <strong>Tools</strong> (Alt+Backspace) has
 buttons for Device ID Lookup, Find in a system report, Save Report, Run
@@ -28420,28 +28425,28 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <li><a href="#sections-tools--ipi-plots">IPI Plots</a> <code>ipi-plots</code></li>
 <li><a href="#sections-tools--memory-latency">Memory Latency</a>
 <code>latency</code></li>
-<li><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</a>
+<li><a href="#sections-tools--cache--memory-benchmark">Cache &amp; Memory Benchmark</a>
 <code>cache-memory</code></li>
-<li><a href="#sections-tools--storage-benchmark">Storage benchmark</a>
+<li><a href="#sections-tools--storage-benchmark">Storage Benchmark</a>
 <code>storage-bench</code></li>
-<li><a href="#sections-tools--os-latency-benchmark">OS latency benchmark</a>
+<li><a href="#sections-tools--os-latency-benchmark">OS Latency Benchmark</a>
 <code>os-latency</code></li>
-<li><a href="#sections-tools--cpu-compute-benchmark">CPU compute benchmark</a>
+<li><a href="#sections-tools--cpu-compute-benchmark">CPU Compute Benchmark</a>
 <code>cpu-compute</code></li>
-<li><a href="#sections-tools--everyday-work-benchmark">Everyday work benchmark</a>
+<li><a href="#sections-tools--everyday-work-benchmark">Everyday Work Benchmark</a>
 <code>everyday-work</code></li>
-<li><a href="#sections-tools--network-benchmark">Network benchmark</a>
+<li><a href="#sections-tools--network-benchmark">Network Benchmark</a>
 <code>net-bench</code></li>
-<li><a href="#sections-tools--gpu-benchmark">GPU benchmark</a>
+<li><a href="#sections-tools--gpu-benchmark">GPU Benchmark</a>
 <code>gpu-bench</code></li>
 <li><a href="#sections-tools--gpu-burnin">GPU Burnin</a> <code>gpu-burnin</code></li>
 <li><a href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute:
 Vulkan vs HIP vs CUDA vs OpenCL</a> <code>gpu-compare</code></li>
 <li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
-<li><a href="#sections-tools--crypto-benchmark">Crypto benchmark</a>
+<li><a href="#sections-tools--crypto-benchmark">Crypto Benchmark</a>
 <code>crypto-bench</code></li>
-<li><a href="#sections-tools--prime-sieve">Prime sieve</a> <code>prime-sieve</code></li>
-<li><a href="#sections-tools--benchmark-history">Benchmark history</a>
+<li><a href="#sections-tools--prime-sieve">Prime Sieve</a> <code>prime-sieve</code></li>
+<li><a href="#sections-tools--benchmark-history">Benchmark History</a>
 <code>bench-history</code></li>
 <li><a href="#sections-tools--lookup">Lookup</a> <code>lookup</code></li>
 <li><a href="#sections-tools--ping">Ping</a> <code>ping</code></li>
@@ -29132,7 +29137,7 @@ cores (tens of MB). Data the CPU uses often stays close. Latency
 (waiting time) matters most for programs that jump around in memory,
 such as games and databases.</p>
 <hr />
-<h2 id="sections-tools--cache--memory-benchmark">Cache &amp; Memory benchmark</h2>
+<h2 id="sections-tools--cache--memory-benchmark">Cache &amp; Memory Benchmark</h2>
 <p><code>cache-memory</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the RAM and each cache
 level (L1, L2, L3) can <strong>read</strong>, <strong>write</strong> and
@@ -29209,10 +29214,10 @@ frequency; the Infinity Fabric clock is read (read-only) from the
 <code>ryzen_smu</code> driver's PM table, layout 0x540104 only; the
 memory sticks come from the root DMI data (Tools &gt; Collect root
 data). Stored in <code>~/.cache/srs/bench-cachemem.txt</code>; each run
-is added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>. It
+is added to the <a href="#sections-tools--benchmark-history">Benchmark History</a>. It
 asks before it starts, and only one benchmark runs at a time in SRS.</p>
 <hr />
-<h2 id="sections-tools--storage-benchmark">Storage benchmark</h2>
+<h2 id="sections-tools--storage-benchmark">Storage Benchmark</h2>
 <p><code>storage-bench</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the drive that holds a
 folder you choose can read and write: big files in one go (sequential),
@@ -29307,9 +29312,9 @@ queue depths, incompressible random data; the drive is found through
 (device-mapper and RAID followed to the first member); the temperature
 from the drive's hwmon sensor. Drive health (SMART) is on the Storage
 page. Stored in <code>~/.cache/srs/bench-storage.txt</code>; each run is
-added to the <a href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+added to the <a href="#sections-tools--benchmark-history">Benchmark History</a>.</p>
 <hr />
-<h2 id="sections-tools--os-latency-benchmark">OS latency benchmark</h2>
+<h2 id="sections-tools--os-latency-benchmark">OS Latency Benchmark</h2>
 <p><code>os-latency</code> - Linux data</p>
 <p><strong>In plain words.</strong> How quickly the operating system
 answers a program: how long a basic request to the kernel takes, how
@@ -29436,10 +29441,10 @@ or the kernel headers' <code>.config</code> (not from
 <code>/sys/devices/system/clocksource</code>; THP from
 <code>/sys/kernel/mm/transparent_hugepage</code>. Stored in
 <code>~/.cache/srs/bench-os-latency.txt</code>; each run is added to the
-<a href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark
+<a href="#sections-tools--benchmark-history">Benchmark History</a>. Only one benchmark
 runs at a time in SRS.</p>
 <hr />
-<h2 id="sections-tools--cpu-compute-benchmark">CPU compute benchmark</h2>
+<h2 id="sections-tools--cpu-compute-benchmark">CPU Compute Benchmark</h2>
 <p><code>cpu-compute</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the processor does
 floating-point number crunching, the maths in 3D, video, science and AI
@@ -29558,10 +29563,10 @@ Intel intrinsics, the code path chosen at run time with
 <code>__builtin_cpu_supports</code>, so a generic x86-64 package still
 uses AVX-512. On ARM (aarch64) only plain C runs. Stored in
 <code>~/.cache/srs/bench-compute.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+href="#sections-tools--benchmark-history">Benchmark History</a>. Only one benchmark runs
 at a time in SRS.</p>
 <hr />
-<h2 id="sections-tools--everyday-work-benchmark">Everyday work benchmark</h2>
+<h2 id="sections-tools--everyday-work-benchmark">Everyday Work Benchmark</h2>
 <p><code>everyday-work</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the PC does the work it
 does all day long: compressing and unpacking files, sorting, checksums
@@ -29697,9 +29702,9 @@ Stored in <code>~/.cache/srs/bench-work.txt</code>; each test group adds
 a line (<code>work-compress</code>, <code>work-sort</code>,
 <code>work-hash</code>, <code>work-text</code>,
 <code>work-interp</code>) to the <a href="#sections-tools--benchmark-history">Benchmark
-history</a>. Only one benchmark runs at a time in SRS.</p>
+History</a>. Only one benchmark runs at a time in SRS.</p>
 <hr />
-<h2 id="sections-tools--network-benchmark">Network benchmark</h2>
+<h2 id="sections-tools--network-benchmark">Network Benchmark</h2>
 <p><code>net-bench</code> - Linux data</p>
 <p><strong>In plain words.</strong> Two separate tests. <strong>On this
 computer</strong> (loopback, 127.0.0.1) sends data between two programs
@@ -29851,10 +29856,10 @@ default route from <code>/proc/net/route</code> and
 <code>/proc/net/wireless</code>. Setups with only policy routing (some
 VPNs) are reported as "no network connection". Stored in
 <code>~/.cache/srs/bench-net.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+href="#sections-tools--benchmark-history">Benchmark History</a>. Only one benchmark runs
 at a time in SRS.</p>
 <hr />
-<h2 id="sections-tools--gpu-benchmark">GPU benchmark</h2>
+<h2 id="sections-tools--gpu-benchmark">GPU Benchmark</h2>
 <p><code>gpu-bench</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the graphics card (GPU)
 computes and moves data, measured through Vulkan, the graphics and
@@ -29989,7 +29994,7 @@ to check.</li>
 without it, or without a Vulkan driver, the window says "not available".
 The compute programs (shaders) are pre-compiled into SRS. Stored in
 <code>~/.cache/srs/bench-gpu.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>. Only one benchmark runs
+href="#sections-tools--benchmark-history">Benchmark History</a>. Only one benchmark runs
 at a time in SRS, and none runs while Stress &amp; Burnin runs.</p>
 <hr />
 <h2 id="sections-tools--gpu-burnin">GPU Burnin</h2>
@@ -30159,7 +30164,7 @@ card's hwmon folder in
 <code>/sys/bus/pci/devices/&lt;address&gt;/hwmon</code> (amdgpu: all of
 them; i915, xe and nouveau: what they offer). Stored in
 <code>~/.cache/srs/bench-gpuburn.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+href="#sections-tools--benchmark-history">Benchmark History</a>.</p>
 <hr />
 <h2 id="sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute: Vulkan
 vs HIP vs CUDA vs OpenCL</h2>
@@ -30301,7 +30306,7 @@ and the libraries are opened at run time with <code>dlopen</code> (see
 <a href="#sections-tools--gpu-burnin">GPU Burnin</a>); ZLUDA is recognised by marker
 strings in the CUDA library file. Stored in
 <code>~/.cache/srs/bench-gpucompare.txt</code>; each run is added to the
-<a href="#sections-tools--benchmark-history">Benchmark history</a>. Compare results only
+<a href="#sections-tools--benchmark-history">Benchmark History</a>. Compare results only
 between alike SRS builds and the same driver and runtime versions.</p>
 <hr />
 <h2 id="sections-tools--srs-pi">SRS Pi</h2>
@@ -30397,7 +30402,7 @@ Newton steps for division and square roots. The true digits' SHA-256
 checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into
 SRS (computed once with the independent mpmath library). Stored in
 <code>~/.cache/srs/bench-pi.txt</code>; each run is added to the <a
-href="#sections-tools--benchmark-history">Benchmark history</a>.</p>
+href="#sections-tools--benchmark-history">Benchmark History</a>.</p>
 <p><strong>Background.</strong> SuperPi (1995) made "pi to 1 million
 digits" a famous overclocking test. SRS Pi is SRS's own program with its
 own name and timings; its times are <strong>not</strong> SuperPi times.
@@ -30409,7 +30414,7 @@ built-in checksum too. 1M = 1,048,576 digits took 4.2 s on one thread on
 the 7800X3D (a little more than 5% over 1,000,000 digits, because the
 multiplications step up to the next power-of-two size).</p>
 <hr />
-<h2 id="sections-tools--crypto-benchmark">Crypto benchmark</h2>
+<h2 id="sections-tools--crypto-benchmark">Crypto Benchmark</h2>
 <p><code>crypto-bench</code> - Linux data</p>
 <p><strong>In plain words.</strong> How fast the CPU can encrypt data
 (AES-128, used by disk encryption, VPNs and HTTPS) and make fingerprints
@@ -30470,7 +30475,7 @@ with the plain C results. Stored in
 <code>~/.cache/srs/bench-crypto.txt</code>. Runs about 8 seconds at the
 default of 1 second per measurement.</p>
 <hr />
-<h2 id="sections-tools--prime-sieve">Prime sieve</h2>
+<h2 id="sections-tools--prime-sieve">Prime Sieve</h2>
 <p><code>prime-sieve</code> - Linux data</p>
 <p><strong>In plain words.</strong> Counts all the prime numbers up to a
 limit (100 million to 100 billion) and checks the count against the
@@ -30494,10 +30499,10 @@ Eratosthenes over the odd numbers, in 128 KB pieces that fit in the L2
 cache, shared between threads. Stored in
 <code>~/.cache/srs/bench-prime.txt</code>.</p>
 <hr />
-<h2 id="sections-tools--benchmark-history">Benchmark history</h2>
+<h2 id="sections-tools--benchmark-history">Benchmark History</h2>
 <p><code>bench-history</code> - Linux data</p>
 <p><strong>In plain words.</strong> A list of every SRS Pi, Crypto and
-Prime sieve run, newest first, so you can compare before and after a
+Prime Sieve run, newest first, so you can compare before and after a
 change (BIOS setting, kernel, cooler).</p>
 <p><strong>What you see.</strong> When, Test, Settings (digits, threads,
 method), Result, and Build. Results in red were wrong.</p>
@@ -33319,7 +33324,7 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
-        Cache &amp; Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
+        Cache &amp; Memory Benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
         ~20 s; asks first, --yes starts at once)
   storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
         read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
@@ -33907,7 +33912,7 @@ once. Exit code 1 when the count is wrong, 2 for a bad option or when it
 was not started. See <a
 href="#sections-tools--prime-sieve">tools.md</a>.</p>
 <h3 id="cli-reference--cachemem---cache--memory-benchmark"><code>cachemem</code> -
-Cache &amp; Memory benchmark</h3>
+Cache &amp; Memory Benchmark</h3>
 <pre><code>sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
                           [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]
                           [--mem-write auto|clzero|stream] [--yes]</code></pre>
@@ -34131,7 +34136,7 @@ history. Example:</p>
 <p>See <a
 href="#sections-tools--everyday-work-benchmark">tools.md</a>.</p>
 <h3 id="cli-reference--net---network-benchmark"><code>net</code> - Network
-benchmark</h3>
+Benchmark</h3>
 <pre><code>sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB]
                      [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]</code></pre>
 <p>Without options: the loopback test only - TCP throughput with 1 and N
@@ -34220,7 +34225,7 @@ confirmed, no network connection for the internet test). Examples:</p>
 <pre><code>$ sysreport-search net --yes                      # loopback only
 $ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most about 200 MB</code></pre>
 <p>See <a href="#sections-tools--network-benchmark">tools.md</a>.</p>
-<h3 id="cli-reference--gpu---gpu-benchmark-vulkan"><code>gpu</code> - GPU benchmark
+<h3 id="cli-reference--gpu---gpu-benchmark-vulkan"><code>gpu</code> - GPU Benchmark
 (Vulkan)</h3>
 <pre><code>sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
                      [--mem-mib M] [--list] [--yes]</code></pre>
@@ -34600,7 +34605,7 @@ stop it with Ctrl+C or SIGTERM.</td>
 </tr>
 <tr>
 <td><code>crypto</code></td>
-<td>Crypto benchmark</td>
+<td>Crypto Benchmark</td>
 </tr>
 <tr>
 <td><code>prime</code></td>
@@ -34612,7 +34617,7 @@ stop it with Ctrl+C or SIGTERM.</td>
 </tr>
 <tr>
 <td><code>storagebench</code></td>
-<td>Storage benchmark (<code>storage</code> alone is the Storage page's
+<td>Storage Benchmark (<code>storage</code> alone is the Storage page's
 item)</td>
 </tr>
 <tr>
@@ -34629,7 +34634,7 @@ item)</td>
 </tr>
 <tr>
 <td><code>netbench</code></td>
-<td>Network benchmark (<code>network</code> alone is the Network page's
+<td>Network Benchmark (<code>network</code> alone is the Network page's
 item)</td>
 </tr>
 <tr>
@@ -34787,7 +34792,7 @@ for <code>guide</code>, F1 and the Guide button (default
 </tr>
 <tr>
 <td><code>SRS_VULKAN_LIB</code></td>
-<td>GPU benchmarks: open this file instead of
+<td>GPU Benchmarks: open this file instead of
 <code>libvulkan.so.1</code> (a name that does not exist = "not
 installed"; for tests)</td>
 </tr>
@@ -34831,7 +34836,7 @@ tests: fake tools that are never run). Ignored otherwise</td>
 </tr>
 <tr>
 <td><code>SRS_GPU_SOFTWARE_ONLY=1</code></td>
-<td>GPU benchmarks: refuse every Vulkan device that is not a software
+<td>GPU Benchmarks: refuse every Vulkan device that is not a software
 renderer such as lavapipe (for tests)</td>
 </tr>
 <tr>
@@ -35116,7 +35121,7 @@ or NTFS filesystem hands out to a file. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
 <li><strong>CLZERO</strong> - an AMD instruction that writes a whole
 zeroed 64-byte cache line straight to memory; the Cache &amp; Memory
-benchmark uses it to measure how fast the RAM itself can take writes.
+Benchmark uses it to measure how fast the RAM itself can take writes.
 <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>CMOS</strong> - the battery-backed clock chip and its small
 memory on the motherboard; the name comes from the chip technology.

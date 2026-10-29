@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the Stress & Burnin load test (CPU and GPU), a core-to-core delay test, a memory latency test, and the
@@ -40,19 +40,19 @@ memory it needs). Saving a report (`-save`) only shows the last stored result.
 - [IPI Dump](#ipi-dump) `ipi-dmp`
 - [IPI Plots](#ipi-plots) `ipi-plots`
 - [Memory Latency](#memory-latency) `latency`
-- [Cache & Memory benchmark](#cache--memory-benchmark) `cache-memory`
-- [Storage benchmark](#storage-benchmark) `storage-bench`
-- [OS latency benchmark](#os-latency-benchmark) `os-latency`
-- [CPU compute benchmark](#cpu-compute-benchmark) `cpu-compute`
-- [Everyday work benchmark](#everyday-work-benchmark) `everyday-work`
-- [Network benchmark](#network-benchmark) `net-bench`
-- [GPU benchmark](#gpu-benchmark) `gpu-bench`
+- [Cache & Memory Benchmark](#cache--memory-benchmark) `cache-memory`
+- [Storage Benchmark](#storage-benchmark) `storage-bench`
+- [OS Latency Benchmark](#os-latency-benchmark) `os-latency`
+- [CPU Compute Benchmark](#cpu-compute-benchmark) `cpu-compute`
+- [Everyday Work Benchmark](#everyday-work-benchmark) `everyday-work`
+- [Network Benchmark](#network-benchmark) `net-bench`
+- [GPU Benchmark](#gpu-benchmark) `gpu-bench`
 - [GPU Burnin](#gpu-burnin) `gpu-burnin`
 - [GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL](#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl) `gpu-compare`
 - [SRS Pi](#srs-pi) `srs-pi`
-- [Crypto benchmark](#crypto-benchmark) `crypto-bench`
-- [Prime sieve](#prime-sieve) `prime-sieve`
-- [Benchmark history](#benchmark-history) `bench-history`
+- [Crypto Benchmark](#crypto-benchmark) `crypto-bench`
+- [Prime Sieve](#prime-sieve) `prime-sieve`
+- [Benchmark History](#benchmark-history) `bench-history`
 - [Lookup](#lookup) `lookup`
 - [Ping](#ping) `ping`
 - [Configuration Find](#configuration-find) `reg-find`
@@ -533,7 +533,7 @@ cores (tens of MB). Data the CPU uses often stays close. Latency (waiting time) 
 programs that jump around in memory, such as games and databases.
 
 ---
-## Cache & Memory benchmark  
+## Cache & Memory Benchmark  
 `cache-memory` - Linux data
 
 **In plain words.** How fast the RAM and each cache level (L1, L2, L3) can **read**, **write** and
@@ -573,11 +573,11 @@ vary by a few % from run to run.
 code). The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal frequency; the Infinity
 Fabric clock is read (read-only) from the `ryzen_smu` driver's PM table, layout 0x540104 only; the
 memory sticks come from the root DMI data (Tools > Collect root data). Stored in
-`~/.cache/srs/bench-cachemem.txt`; each run is added to the [Benchmark history](#benchmark-history).
+`~/.cache/srs/bench-cachemem.txt`; each run is added to the [Benchmark History](#benchmark-history).
 It asks before it starts, and only one benchmark runs at a time in SRS.
 
 ---
-## Storage benchmark  
+## Storage Benchmark  
 `storage-bench` - Linux data
 
 **In plain words.** How fast the drive that holds a folder you choose can read and write: big
@@ -633,10 +633,10 @@ around 1 MB/s (100-200 IOPS) at 4K Q1T1.
 for real queue depths, incompressible random data; the drive is found through
 `/proc/self/mountinfo` and `/sys/block` (device-mapper and RAID followed to the first member); the
 temperature from the drive's hwmon sensor. Drive health (SMART) is on the Storage page. Stored in
-`~/.cache/srs/bench-storage.txt`; each run is added to the [Benchmark history](#benchmark-history).
+`~/.cache/srs/bench-storage.txt`; each run is added to the [Benchmark History](#benchmark-history).
 
 ---
-## OS latency benchmark  
+## OS Latency Benchmark  
 `os-latency` - Linux data
 
 **In plain words.** How quickly the operating system answers a program: how long a basic request
@@ -696,10 +696,10 @@ which is Linux's default timer slack.
 and the kernel command line; CONFIG_HZ from `/boot/config-<release>` or the kernel headers' `.config`
 (not from `/proc/config.gz`); the clock source from `/sys/devices/system/clocksource`; THP from
 `/sys/kernel/mm/transparent_hugepage`. Stored in `~/.cache/srs/bench-os-latency.txt`; each run is
-added to the [Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+added to the [Benchmark History](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
-## CPU compute benchmark  
+## CPU Compute Benchmark  
 `cpu-compute` - Linux data
 
 **In plain words.** How fast the processor does floating-point number crunching, the maths in 3D,
@@ -755,10 +755,10 @@ SSE2 about 47, AVX2 about 121.
 **Where Linux gets it.** Built in: SRS's own code with Intel intrinsics, the code path chosen at
 run time with `__builtin_cpu_supports`, so a generic x86-64 package still uses AVX-512. On ARM
 (aarch64) only plain C runs. Stored in `~/.cache/srs/bench-compute.txt`; each run is added to the
-[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+[Benchmark History](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
-## Everyday work benchmark  
+## Everyday Work Benchmark  
 `everyday-work` - Linux data
 
 **In plain words.** How fast the PC does the work it does all day long: compressing and
@@ -815,11 +815,11 @@ shrink (ratio about 1.0); text and records shrink about 1.8-4.8 times.
 **Where Linux gets it.** Built in: SRS's own sorting, checksum, text and interpreter code; the
 compression libraries through `dlopen`; threads pinned with `sched_setaffinity`. Stored in
 `~/.cache/srs/bench-work.txt`; each test group adds a line (`work-compress`, `work-sort`,
-`work-hash`, `work-text`, `work-interp`) to the [Benchmark history](#benchmark-history). Only one
+`work-hash`, `work-text`, `work-interp`) to the [Benchmark History](#benchmark-history). Only one
 benchmark runs at a time in SRS.
 
 ---
-## Network benchmark  
+## Network Benchmark  
 `net-bench` - Linux data
 
 **In plain words.** Two separate tests. **On this computer** (loopback, 127.0.0.1) sends data
@@ -887,10 +887,10 @@ healthy; Wi-Fi is often half of it or less.
 `/proc/net/route` and `/proc/net/ipv6_route`; the interface from `/sys/class/net` and Wi-Fi signal
 from `/proc/net/wireless`. Setups with only policy routing (some VPNs) are reported as "no network
 connection". Stored in `~/.cache/srs/bench-net.txt`; each run is added to the
-[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS.
+[Benchmark History](#benchmark-history). Only one benchmark runs at a time in SRS.
 
 ---
-## GPU benchmark  
+## GPU Benchmark  
 `gpu-bench` - Linux data
 
 **In plain words.** How fast the graphics card (GPU) computes and moves data, measured through
@@ -951,7 +951,7 @@ which runs on the CPU) is far slower; it is there for testing.
 `dlopen`, so SRS does not need Vulkan to build or start; without it, or without a Vulkan driver,
 the window says "not available". The compute programs (shaders) are pre-compiled into SRS.
 Stored in `~/.cache/srs/bench-gpu.txt`; each run is added to the
-[Benchmark history](#benchmark-history). Only one benchmark runs at a time in SRS, and none runs
+[Benchmark History](#benchmark-history). Only one benchmark runs at a time in SRS, and none runs
 while Stress & Burnin runs.
 
 ---
@@ -1045,7 +1045,7 @@ the built-in PTX kernels) and OpenCL
 (`libOpenCL.so.1`, `libclblast`) are opened at run time with `dlopen`. The sensors come from
 the card's hwmon folder in `/sys/bus/pci/devices/<address>/hwmon` (amdgpu: all of them; i915, xe
 and nouveau: what they offer). Stored in `~/.cache/srs/bench-gpuburn.txt`; each run is added to
-the [Benchmark history](#benchmark-history).
+the [Benchmark History](#benchmark-history).
 
 ---
 ## GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL  
@@ -1118,7 +1118,7 @@ healthy result has every row filled in and no errors.
 **Where Linux gets it.** Built in: all four back ends and the libraries are opened at run time
 with `dlopen` (see [GPU Burnin](#gpu-burnin)); ZLUDA is recognised by marker strings in the CUDA
 library file. Stored in `~/.cache/srs/bench-gpucompare.txt`; each run is added to the
-[Benchmark history](#benchmark-history). Compare results only between alike SRS builds and the
+[Benchmark History](#benchmark-history). Compare results only between alike SRS builds and the
 same driver and runtime versions.
 
 ---
@@ -1165,7 +1165,7 @@ it at once. On the command line `sysreport-search pi` asks the same; `--yes` sta
 number-theoretic transform; Newton steps for division and square roots. The true digits' SHA-256
 checksums for 128K, 1M, 2M, 4M, 8M, 16M and 32M digits are built into SRS (computed once with the
 independent mpmath library). Stored in `~/.cache/srs/bench-pi.txt`; each run is added to the
-[Benchmark history](#benchmark-history).
+[Benchmark History](#benchmark-history).
 
 **Background.** SuperPi (1995) made "pi to 1 million digits" a famous overclocking test. SRS Pi is
 SRS's own program with its own name and timings; its times are **not** SuperPi times. SuperPi's
@@ -1176,7 +1176,7 @@ took 4.2 s on one thread on the 7800X3D (a little more than 5% over 1,000,000 di
 multiplications step up to the next power-of-two size).
 
 ---
-## Crypto benchmark  
+## Crypto Benchmark  
 `crypto-bench` - Linux data
 
 **In plain words.** How fast the CPU can encrypt data (AES-128, used by disk encryption, VPNs and
@@ -1215,7 +1215,7 @@ compared with the plain C results. Stored in `~/.cache/srs/bench-crypto.txt`. Ru
 8 seconds at the default of 1 second per measurement.
 
 ---
-## Prime sieve  
+## Prime Sieve  
 `prime-sieve` - Linux data
 
 **In plain words.** Counts all the prime numbers up to a limit (100 million to 100 billion) and
@@ -1239,10 +1239,10 @@ line `sysreport-search prime` asks the same; `--yes` starts at once.
 `~/.cache/srs/bench-prime.txt`.
 
 ---
-## Benchmark history  
+## Benchmark History  
 `bench-history` - Linux data
 
-**In plain words.** A list of every SRS Pi, Crypto and Prime sieve run, newest first, so you can
+**In plain words.** A list of every SRS Pi, Crypto and Prime Sieve run, newest first, so you can
 compare before and after a change (BIOS setting, kernel, cooler).
 
 **What you see.** When, Test, Settings (digits, threads, method), Result, and Build. Results in red

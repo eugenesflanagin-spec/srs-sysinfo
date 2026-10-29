@@ -92,14 +92,14 @@ static void s_pi(srs_out *o)
 static void s_cachemem(srs_out *o)
 {
     if (bench_show_last("cachemem", o)) return;
-    so_siv_header(o, "Cache & Memory benchmark");
+    so_siv_header(o, "Cache & Memory Benchmark");
     not_run(o, "Benchmarks & Stress > Cache & Memory, then Run", "srs-gui cachemem [--threads N] [--seconds S] [--yes]");
 }
 
 static void s_storage(srs_out *o)
 {
     if (bench_show_last("storage", o)) return;
-    so_siv_header(o, "Storage benchmark");
+    so_siv_header(o, "Storage Benchmark");
     not_run(o, "Benchmarks & Stress > Storage, then choose a folder and Run",
             "srs-gui storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--yes]");
 }
@@ -114,21 +114,21 @@ static void s_oslat(srs_out *o)
 static void s_compute(srs_out *o)
 {
     if (bench_show_last("compute", o)) return;
-    so_siv_header(o, "CPU compute benchmark");
+    so_siv_header(o, "CPU Compute Benchmark");
     not_run(o, "Benchmarks & Stress > CPU Compute, then Run", "srs-gui compute [--threads N] [--seconds S] [--single] [--yes]");
 }
 
 static void s_work(srs_out *o)
 {
     if (bench_show_last("work", o)) return;
-    so_siv_header(o, "Everyday work benchmark");
+    so_siv_header(o, "Everyday Work Benchmark");
     not_run(o, "Benchmarks & Stress > Everyday Work, then Run", "srs-gui work [--threads N] [--seconds S] [--single] [--yes]");
 }
 
 static void s_net(srs_out *o)
 {
     if (bench_show_last("net", o)) return;
-    so_siv_header(o, "Network benchmark");
+    so_siv_header(o, "Network Benchmark");
     not_run(o, "Benchmarks & Stress > Network, then Run (the internet test asks separately)",
             "srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes]");
 }
@@ -136,7 +136,7 @@ static void s_net(srs_out *o)
 static void s_gpu(srs_out *o)
 {
     if (bench_show_last("gpu", o)) return;
-    so_siv_header(o, "GPU benchmark");
+    so_siv_header(o, "GPU Benchmark");
     not_run(o, "Benchmarks & Stress > GPU Benchmark, then Run (asks first)",
             "srs-gui gpu [--device N] [--seconds S] [--only fp32,read,...] [--list] [--yes]");
 }
@@ -160,14 +160,14 @@ static void s_gpucompare(srs_out *o)
 static void s_crypto(srs_out *o)
 {
     if (bench_show_last("crypto", o)) return;
-    so_siv_header(o, "Crypto benchmark");
+    so_siv_header(o, "Crypto Benchmark");
     not_run(o, "Benchmarks & Stress > Crypto, then Run", "srs-gui crypto [--threads N] [--seconds S]");
 }
 
 static void s_prime(srs_out *o)
 {
     if (bench_show_last("prime", o)) return;
-    so_siv_header(o, "Prime sieve");
+    so_siv_header(o, "Prime Sieve");
     not_run(o, "Benchmarks & Stress > Prime Sieve, then Run", "srs-gui prime [--limit 1e10] [--threads N]");
 }
 
@@ -495,19 +495,19 @@ const srs_item sec_tools[] = {
     { "ipi-dmp", "hardware", "IPI Dump", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "ipi-plots", "hardware", "IPI Plots", B_LINUX, 0, "built-in core-to-core ping-pong", s_ipi, 0, "tools" },
     { "latency", "hardware", "Memory Latency", B_LINUX, 0, "built-in pointer chase", s_latency, 0, "tools" },
-    { "cache-memory", "tools", "Cache & Memory benchmark", B_LINUX, 0, "built-in (bandwidth and latency of the RAM and L1-L3)", s_cachemem, 0, "tools" },
-    { "storage-bench", "tools", "Storage benchmark", B_LINUX, 0, "built-in (temporary test file, O_DIRECT, Linux AIO)", s_storage, 0, "tools" },
-    { "os-latency", "tools", "OS latency benchmark", B_LINUX, 0, "built-in (system calls, context switches, wake-ups, timers, page faults, file metadata)", s_oslat, 0, "tools" },
-    { "cpu-compute", "tools", "CPU compute benchmark", B_LINUX, 0, "built-in (matrix multiply, multiply-add, FFT, N-body, Mandelbrot, ray tracer; checked results)", s_compute, 0, "tools" },
-    { "everyday-work", "tools", "Everyday work benchmark", B_LINUX, 0, "built-in (compression with the system's zlib / zstd / lz4 / xz, sorting, checksums, text, interpreter; checked results)", s_work, 0, "tools" },
-    { "net-bench", "tools", "Network benchmark", B_LINUX, 0, "built-in (loopback TCP / UDP; optional internet test with libcurl, asks first)", s_net, 0, "tools" },
-    { "gpu-bench", "tools", "GPU benchmark", B_LINUX, 0, "built-in, Vulkan loaded at run time (multiply-add FP32 / FP16 / FP64 / INT32, video memory, upload / download, dispatch latency; checked results, asks first)", s_gpu, 0, "tools" },
+    { "cache-memory", "tools", "Cache & Memory Benchmark", B_LINUX, 0, "built-in (bandwidth and latency of the RAM and L1-L3)", s_cachemem, 0, "tools" },
+    { "storage-bench", "tools", "Storage Benchmark", B_LINUX, 0, "built-in (temporary test file, O_DIRECT, Linux AIO)", s_storage, 0, "tools" },
+    { "os-latency", "tools", "OS Latency Benchmark", B_LINUX, 0, "built-in (system calls, context switches, wake-ups, timers, page faults, file metadata)", s_oslat, 0, "tools" },
+    { "cpu-compute", "tools", "CPU Compute Benchmark", B_LINUX, 0, "built-in (matrix multiply, multiply-add, FFT, N-body, Mandelbrot, ray tracer; checked results)", s_compute, 0, "tools" },
+    { "everyday-work", "tools", "Everyday Work Benchmark", B_LINUX, 0, "built-in (compression with the system's zlib / zstd / lz4 / xz, sorting, checksums, text, interpreter; checked results)", s_work, 0, "tools" },
+    { "net-bench", "tools", "Network Benchmark", B_LINUX, 0, "built-in (loopback TCP / UDP; optional internet test with libcurl, asks first)", s_net, 0, "tools" },
+    { "gpu-bench", "tools", "GPU Benchmark", B_LINUX, 0, "built-in, Vulkan loaded at run time (multiply-add FP32 / FP16 / FP64 / INT32, video memory, upload / download, dispatch latency; checked results, asks first)", s_gpu, 0, "tools" },
     { "gpu-burnin", "tools", "GPU Burnin", B_LINUX, 0, "built-in, Vulkan / ROCm-HIP / CUDA / OpenCL loaded at run time (repeated matrix multiplications, compute errors counted, temperature limit; asks first)", s_gpuburn, 0, "tools" },
     { "gpu-compare", "tools", "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", B_LINUX, 0, "built-in, every installed back end loaded at run time (own kernel and vendor library side by side on the same GPU; checked results, asks first)", s_gpucompare, 0, "tools" },
     { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
-    { "crypto-bench", "tools", "Crypto benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
-    { "prime-sieve", "tools", "Prime sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },
-    { "bench-history", "tools", "Benchmark history", B_LINUX, 0, "~/.cache/srs/bench-history.tsv", s_bench_history, 0, "tools" },
+    { "crypto-bench", "tools", "Crypto Benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },
+    { "prime-sieve", "tools", "Prime Sieve", B_LINUX, 0, "built-in segmented sieve of Eratosthenes", s_prime, 0, "tools" },
+    { "bench-history", "tools", "Benchmark History", B_LINUX, 0, "~/.cache/srs/bench-history.tsv", s_bench_history, 0, "tools" },
     { "lookup", "hardware", "Lookup", B_LINUX, 0, "/usr/share/hwdata/*.ids", s_lookup, 0, "tools" },
     { "ping", "windows", "Ping", B_LINUX, 0, "ping (default gateway)", s_ping, 0, "tools" },
     { "reg-find", "windows", "Configuration Find", B_LINUX, 0, "/etc, ~/.config", s_reg_find, 0, "tools" },

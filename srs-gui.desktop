@@ -27,31 +27,31 @@ Name=Benchmark
 Exec=srs-gui --gui-open=bench
 
 [Desktop Action CacheMemory]
-Name=Cache & Memory benchmark
+Name=Cache & Memory Benchmark
 Exec=srs-gui --gui-open=cachemem
 
 [Desktop Action Storage]
-Name=Storage benchmark
+Name=Storage Benchmark
 Exec=srs-gui --gui-open=storagebench
 
 [Desktop Action OsLatency]
-Name=OS latency benchmark
+Name=OS Latency Benchmark
 Exec=srs-gui --gui-open=oslatency
 
 [Desktop Action Compute]
-Name=CPU compute benchmark
+Name=CPU Compute Benchmark
 Exec=srs-gui --gui-open=compute
 
 [Desktop Action Work]
-Name=Everyday work benchmark
+Name=Everyday Work Benchmark
 Exec=srs-gui --gui-open=work
 
 [Desktop Action Network]
-Name=Network benchmark
+Name=Network Benchmark
 Exec=srs-gui --gui-open=netbench
 
 [Desktop Action GpuBench]
-Name=GPU benchmark
+Name=GPU Benchmark
 Exec=srs-gui --gui-open=gpubench
 
 [Desktop Action GpuCompare]

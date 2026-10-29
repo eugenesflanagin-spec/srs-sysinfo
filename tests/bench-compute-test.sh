@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/bench-compute-test.sh - correctness test for the CPU compute benchmark (bench_compute.c).
+# tests/bench-compute-test.sh - correctness test for the CPU Compute Benchmark (bench_compute.c).
 # Tiny runs only (0.1 s per measurement, at most 2 threads), so it is safe on a desktop.
 #
 #   tests/bench-compute-test.sh [BINARY]     default: dist/native/sysreport-search (make native)

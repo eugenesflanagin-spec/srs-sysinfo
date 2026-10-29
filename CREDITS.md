@@ -11,9 +11,9 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 |---|---|---|
 | GTK 3, GLib, Pango, cairo | the GUI | LGPL-2.1-or-later (cairo: LGPL-2.1 / MPL-1.1) |
 | SQLite | the Power & Cost history (`srs-gui` only) | public domain |
-| libcurl (<https://curl.se/libcurl/>) | the Network benchmark's HTTPS and speed tests; the system's own library, loaded at run time when installed, not shipped or linked; no code copied | curl licence (MIT-style) |
+| libcurl (<https://curl.se/libcurl/>) | the Network Benchmark's HTTPS and speed tests; the system's own library, loaded at run time when installed, not shipped or linked; no code copied | curl licence (MIT-style) |
 | zlib (or zlib-ng in zlib mode), Zstandard, LZ4, XZ Utils liblzma | Everyday Work's compression rows; the system's own libraries, loaded at run time when installed, not shipped or linked | zlib licence; BSD-3-Clause / GPL-2.0; BSD-2-Clause (library); 0BSD / public domain |
-| Vulkan loader (`libvulkan.so.1`) and your GPU's Vulkan driver | the GPU benchmarks; the system's own, loaded at run time when installed, not shipped or linked | Apache-2.0 (loader); the driver's own |
+| Vulkan loader (`libvulkan.so.1`) and your GPU's Vulkan driver | the GPU Benchmarks; the system's own, loaded at run time when installed, not shipped or linked | Apache-2.0 (loader); the driver's own |
 | Khronos Vulkan-Headers (<https://github.com/KhronosGroup/Vulkan-Headers>) | the layouts of the few Vulkan structures copied field for field into `gpu_vk.h` (prefix `vki_`), so SRS needs no Vulkan header to build; checked against the real header by `tests/bench-gpu-test.sh` | Apache-2.0 OR MIT |
 | ROCm / HIP (`libamdhip64`, hipRTC, hipBLAS), CUDA (`libcuda`, NVRTC, cuBLAS), an OpenCL loader and drivers | the ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin and the GPU Compute comparison; the system's own, loaded at run time when installed, not shipped or linked; no code copied | MIT (ROCm); NVIDIA's licence (CUDA); the loader's and drivers' own |
 | CLBlast by Cedric Nugteren (<https://github.com/CNugteren/CLBlast>) | the "vendor library" variant of the OpenCL matrix multiply; loaded at run time (`libclblast`) when installed, not bundled | Apache-2.0 |

@@ -1121,6 +1121,7 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     if (w->commit_id) g_source_remove(w->commit_id);
     if (w->scratch) g_object_unref(w->scratch);
     if (w->kind == W_BURN && burn_active()) { burn_stop(); burn_tick(&w->st); burn_saved(w); }
+    if (w->kind == W_BURN && w->gb_live[0]) g_unlink(w->gb_live);   /* GPU Burnin's live-status file (the run is over) */
     if (w->kind == W_BENCH && w->running && w->cancelp) *w->cancelp = 1;   /* closing the window stops the run */
     if (w->jobw) *w->jobw = NULL;
     if (w->avw) *w->avw = NULL;   /* a run still going (Benchmark, IPI, Latency, Crypto, Find) ends without a window */
@@ -2203,7 +2204,22 @@ static int gb_child_argv(swin *w, int back, int dev, const char *pci, int prec, 
     snprintf(w->gb_live, sizeof w->gb_live, "%s/srs/gpuburn-live-%d.bin", g_get_user_cache_dir(), (int)getpid());
     {
         char *dir = g_path_get_dirname(w->gb_live);
+        GDir *gd;
+        const char *nm;
         g_mkdir_with_parents(dir, 0755);
+        if ((gd = g_dir_open(dir, 0, NULL))) {   /* left behind by an SRS that crashed: its process is gone */
+            while ((nm = g_dir_read_name(gd))) {
+                int pid;
+                char proc[64], *old;
+                if (sscanf(nm, "gpuburn-live-%d.bin", &pid) != 1 || pid == (int)getpid()) continue;
+                snprintf(proc, sizeof proc, "/proc/%d", pid);
+                if (g_file_test(proc, G_FILE_TEST_EXISTS)) continue;
+                old = g_build_filename(dir, nm, NULL);
+                g_unlink(old);
+                g_free(old);
+            }
+            g_dir_close(gd);
+        }
         g_free(dir);
     }
     g_unlink(w->gb_live);

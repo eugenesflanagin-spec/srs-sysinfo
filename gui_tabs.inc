@@ -1539,6 +1539,28 @@ static gboolean on_nb_scroll(GtkWidget *nb, GdkEventScroll *ev, gpointer d)
     return TRUE;
 }
 
+/* Keys on a focused tab list: Home / End = first / last tab (GTK's own binding, kept explicit here), Page Up / Page Down
+   = 10 tabs back / on, no wrap-around. Ctrl+Page Up / Down stays GTK's previous / next tab. Inside a page the keys go to
+   the page's own widgets (lists, spin buttons), since the notebook only sees them while its tab list has the focus. */
+static gboolean on_nb_key(GtkWidget *nb, GdkEventKey *ev, gpointer d)
+{
+    int n, i, to;
+    (void)d;
+    if (!gtk_widget_is_focus(nb) || (ev->state & (GDK_CONTROL_MASK | GDK_MOD1_MASK | GDK_SHIFT_MASK))) return FALSE;
+    n = gtk_notebook_get_n_pages(GTK_NOTEBOOK(nb));
+    i = gtk_notebook_get_current_page(GTK_NOTEBOOK(nb));
+    if (n < 1 || i < 0) return FALSE;
+    switch (ev->keyval) {
+    case GDK_KEY_Home: case GDK_KEY_KP_Home: to = 0; break;
+    case GDK_KEY_End: case GDK_KEY_KP_End: to = n - 1; break;
+    case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up: to = i - 10 < 0 ? 0 : i - 10; break;
+    case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down: to = i + 10 >= n ? n - 1 : i + 10; break;
+    default: return FALSE;
+    }
+    if (to != i) gtk_notebook_set_current_page(GTK_NOTEBOOK(nb), to);
+    return TRUE;
+}
+
 /* ---- a page's tab area: the notebook, the wrapped strip, and the "+" / "All N items" buttons ---- */
 static GtkWidget *tabs_area(int cat)
 {
@@ -1550,6 +1572,7 @@ static GtkWidget *tabs_area(int cat)
     gtk_notebook_set_show_border(GTK_NOTEBOOK(nb), FALSE);
     gtk_widget_add_events(nb, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);
     g_signal_connect(nb, "scroll-event", G_CALLBACK(on_nb_scroll), NULL);
+    g_signal_connect(nb, "key-press-event", G_CALLBACK(on_nb_key), NULL);
     g_home->strip[cat] = gtk_flow_box_new();
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(g_home->strip[cat]), GTK_SELECTION_NONE);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(g_home->strip[cat]), 40);

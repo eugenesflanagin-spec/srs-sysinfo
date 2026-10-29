@@ -44,7 +44,7 @@ const srs_item sec_stubs[] = {
     { "atk-debug", "hardware", "ASUS ATK0110 debug", B_ABSENT, 0, "/sys/bus/acpi/devices (probe ATK0110)", NULL, 0, "sensors" },
     { "audio", "hardware", "Audio devices", B_LINUX, 0, "/proc/asound/cards; wpctl status", NULL, 0, "gpu" },
     { "battery", "hardware", "Battery", B_ABSENT, 0, "/sys/class/power_supply (Battery / UPS)", NULL, 0, "sensors" },
-    { "benchmark", "hardware", "CPU Dhrystone/Whetstone benchmark", B_LINUX, 0, "built-in Dhrystone 2.1 / Whetstone", NULL, 0, "tools" },
+    { "benchmark", "hardware", "CPU Dhrystone/Whetstone Benchmark", B_LINUX, 0, "built-in Dhrystone 2.1 / Whetstone", NULL, 0, "tools" },
     { "benchmark-ac", "hardware", "CPU benchmark (all CPUs concurrent)", B_LINUX, 0, "built-in", NULL, 0, "tools" },
     { "benchmark-as", "hardware", "CPU benchmark (all CPUs sequential)", B_LINUX, 0, "built-in", NULL, 0, "tools" },
     { "benchmark-dd", "hardware", "CPU benchmark D+D then W+W", B_LINUX, 0, "built-in", NULL, 0, "tools" },

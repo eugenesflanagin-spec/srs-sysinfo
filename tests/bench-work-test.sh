@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/bench-work-test.sh - correctness test for the Everyday work benchmark (bench_work.c).
+# tests/bench-work-test.sh - correctness test for the Everyday Work Benchmark (bench_work.c).
 # Tiny runs only (64 KB test data, 0.1 s per measurement, 2 threads; a few seconds in all).
 #
 #   tests/bench-work-test.sh [BINARY]     default: dist/native/sysreport-search (make native)

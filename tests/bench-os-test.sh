@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/bench-os-test.sh - correctness test for the OS latency benchmark (bench_os.c).
+# tests/bench-os-test.sh - correctness test for the OS Latency Benchmark (bench_os.c).
 # Tiny runs only (about 1-2 s in all), so it is safe on a desktop.
 #
 #   tests/bench-os-test.sh [BINARY]     default: dist/native/sysreport-search (make native)

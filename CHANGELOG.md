@@ -43,7 +43,9 @@ own risk" agreement for the load tests, columns that line up on every page, and 
   decodes the cached ones: P-state MHz (checked on a 7800X3D: 4200 / 3000 MHz), Core Performance Boost, SVM in
   EFER, CPPC on and CPPC_CAP1 per CPU ranked by highest performance, the RAPL units. Read-only as always.
 - **Side tabs and the mouse wheel**: over a side tab list the wheel goes to the tab above or below, one notch per
-  tab, no wrap-around; it never starts or stops a test (leaving a running tool still asks).
+  tab, no wrap-around; it never starts or stops a test (leaving a running tool still asks). With the tab list
+  focused, **Home / End** go to the first / last tab and **Page Up / Page Down** 10 tabs back / on (no wrap-around);
+  lists keep their own Home / End / Page Up / Page Down.
 - **Close to tray**: the first time the close button only hides SRS, a notice says so and how to quit (Don't
   show this again; `Tray Close Notice Off`).
 - Tests: `tests/stress-burnin-test.sh` (the GPU child and the window on lavapipe, 1 CPU for 3 s),
@@ -64,6 +66,14 @@ own risk" agreement for the load tests, columns that line up on every page, and 
 - srs-root lists the CPUs in the MSRs cache in order (CPU-0, 1, 2 ... instead of 0, 1, 10, 11 ...).
 - The **SRS Stress & Burnin** menu entry replaces "SRS CPU Burnin & Stress"; the main entry's Stress and GPU
   Burnin actions are folded into Stress & Burnin.
+
+### Fixed
+
+- Tool titles in Title Case like the tab names: Cache & Memory Benchmark, Storage Benchmark, OS Latency
+  Benchmark, CPU Compute Benchmark, Everyday Work Benchmark, Network Benchmark, GPU Benchmark, Crypto Benchmark,
+  Prime Sieve, Benchmark History.
+- GPU Burnin's live-status file (`~/.cache/srs/gpuburn-live-<pid>.bin`) is deleted when its window or tab
+  closes; ones left by an SRS that crashed are removed at the next GPU run.
 
 ### Known limits
 

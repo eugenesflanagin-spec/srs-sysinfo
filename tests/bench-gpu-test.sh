@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/bench-gpu-test.sh - correctness test for the GPU benchmarks: GPU compute (bench_gpu.c), GPU Burnin
+# tests/bench-gpu-test.sh - correctness test for the GPU Benchmarks: GPU compute (bench_gpu.c), GPU Burnin
 # (bench_gpuburn.c) and GPU Compute comparison (bench_gpucompare.c) with the shared Vulkan layer and the
 # HIP / CUDA / OpenCL back ends.
 #
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
         printf("CPUBURN|%d\n", rc);
         { burn_status st; burn_tick(&st); printf("CPUSTATUS|%s\n", st.status); }
         gpu_claim_hung();   /* after a driver call that never came back */
-        { char t[200]; const char *w2 = NULL; if (gpu_claim("GPU benchmark", &w2)) printf("HUNG|claimed\n"); else { gpu_claim_text(w2, t, sizeof t); printf("HUNGTEXT|%s\n", t); } }
+        { char t[200]; const char *w2 = NULL; if (gpu_claim("GPU Benchmark", &w2)) printf("HUNG|claimed\n"); else { gpu_claim_text(w2, t, sizeof t); printf("HUNGTEXT|%s\n", t); } }
         rc = burn_start(&b);
         { burn_status st; burn_tick(&st); printf("HUNGBURN|%d|%s\n", rc, st.status); }
         gpu_release();

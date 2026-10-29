@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/bench-test.sh - correctness tests for the SRS Pi, Crypto and Prime sieve benchmarks, and the
+# tests/bench-test.sh - correctness tests for the SRS Pi, Crypto and Prime Sieve benchmarks, and the
 # ask-first checks of bench / ipi / latency / pi / crypto / prime (and a tiny run of the first three).
 # Short runs only (about 15 s in all, at most 4 threads), so it is safe on a desktop.
 #

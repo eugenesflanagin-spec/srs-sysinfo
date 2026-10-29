@@ -114,7 +114,7 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
-        Cache & Memory benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
+        Cache & Memory Benchmark: Read / Write / Copy and Latency of the RAM and L1-L3 (all threads,
         ~20 s; asks first, --yes starts at once)
   storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
         read / write speed of the drive holding FOLDER, on a temporary test file (default 1024 MB,
@@ -526,7 +526,7 @@ also warns about unstable overclocks); `--yes` starts at once. Exit code 1 when 
 2 for a bad option or when it was not started. See
 [tools.md](SECTIONS/tools.md#prime-sieve).
 
-### `cachemem` - Cache & Memory benchmark
+### `cachemem` - Cache & Memory Benchmark
 
 ```
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]
@@ -665,7 +665,7 @@ $ sysreport-search work --only compress --libs zstd,lz4 --single --yes
 
 See [tools.md](SECTIONS/tools.md#everyday-work-benchmark).
 
-### `net` - Network benchmark
+### `net` - Network Benchmark
 
 ```
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB]
@@ -710,7 +710,7 @@ $ sysreport-search net --internet --seconds 3 --max-mb 50   # asks; at most abou
 
 See [tools.md](SECTIONS/tools.md#network-benchmark).
 
-### `gpu` - GPU benchmark (Vulkan)
+### `gpu` - GPU Benchmark (Vulkan)
 
 ```
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]
@@ -890,14 +890,14 @@ or one of these tool names:
 | `ipi` | IPI Delay |
 | `latency` | Latency |
 | `pi` | SRS Pi |
-| `crypto` | Crypto benchmark |
+| `crypto` | Crypto Benchmark |
 | `prime` | Prime Sieve |
 | `cachemem` | Cache & Memory |
-| `storagebench` | Storage benchmark (`storage` alone is the Storage page's item) |
+| `storagebench` | Storage Benchmark (`storage` alone is the Storage page's item) |
 | `oslatency` | OS Latency |
 | `compute` | CPU Compute |
 | `work` | Everyday Work |
-| `netbench` | Network benchmark (`network` alone is the Network page's item) |
+| `netbench` | Network Benchmark (`network` alone is the Network page's item) |
 | `gpubench` | GPU Benchmark |
 | `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
 | `cudatoolkit` | The **Options -> NVIDIA CUDA toolkit for GPU tests...** window |
@@ -978,11 +978,11 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_POWER_DB`, `SRS_POWER_INI` | Power & Cost: use another history database / settings file instead of `~/.local/share/srs/power.db` and `~/.config/srs/power.ini` (for tests) |
 | `SRS_DATA_DIR` | Folder holding `power-zip-rates.tsv` for the offline US ZIP price lookup (default: next to the program, then `/usr/share/srs-sysinfo`) |
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
-| `SRS_VULKAN_LIB` | GPU benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |
+| `SRS_VULKAN_LIB` | GPU Benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |
 | `SRS_HIP_LIB`, `SRS_CUDA_LIB`, `SRS_OPENCL_LIB` | GPU Burnin and the GPU Compute comparison: open this file instead of the ROCm / HIP, CUDA or OpenCL library (a name that does not exist = "not installed"; for tests) |
 | `SRS_HIP_RTC`, `SRS_CUDA_RTC`, `SRS_HIP_BLAS`, `SRS_CUDA_BLAS`, `SRS_CLBLAST_LIB` | Same, for the runtime compiler (hipRTC / NVRTC), the GEMM library (hipBLAS / cuBLAS) and CLBlast (for tests: `tests/gpu-stub-test.sh` runs against a fake runtime) |
 | `SRS_CTK_DRY_RUN=1` | `cuda-toolkit --install` and the GUI's toolkit install show what they would run and run nothing (for tests) |
 | `SRS_CTK_TOOL_DIRS` | Only together with `SRS_CTK_DRY_RUN=1`: look for the package manager, `sudo` and `pkexec` in these folders (colon-separated) instead of `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` (for tests: fake tools that are never run). Ignored otherwise |
 | `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK` | NVIDIA CUDA toolkit checks: read this file instead of `/etc/os-release`, this folder instead of `/sys/bus/pci/devices`, this route table instead of `/proc/net/route`, this lock file instead of pacman's `db.lck` (for tests: `tests/cuda-toolkit-test.sh`) |
-| `SRS_GPU_SOFTWARE_ONLY=1` | GPU benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
+| `SRS_GPU_SOFTWARE_ONLY=1` | GPU Benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

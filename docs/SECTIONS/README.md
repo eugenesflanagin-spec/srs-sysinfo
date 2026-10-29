@@ -582,19 +582,19 @@ The groups are in the same order as SRS's Menu.
 | [IPI Dump](tools.md#ipi-dump) | `ipi-dmp` | Linux data |
 | [IPI Plots](tools.md#ipi-plots) | `ipi-plots` | Linux data |
 | [Memory Latency](tools.md#memory-latency) | `latency` | Linux data |
-| [Cache & Memory benchmark](tools.md#cache--memory-benchmark) | `cache-memory` | Linux data |
-| [Storage benchmark](tools.md#storage-benchmark) | `storage-bench` | Linux data |
-| [OS latency benchmark](tools.md#os-latency-benchmark) | `os-latency` | Linux data |
-| [CPU compute benchmark](tools.md#cpu-compute-benchmark) | `cpu-compute` | Linux data |
-| [Everyday work benchmark](tools.md#everyday-work-benchmark) | `everyday-work` | Linux data |
-| [Network benchmark](tools.md#network-benchmark) | `net-bench` | Linux data |
-| [GPU benchmark](tools.md#gpu-benchmark) | `gpu-bench` | Linux data |
+| [Cache & Memory Benchmark](tools.md#cache--memory-benchmark) | `cache-memory` | Linux data |
+| [Storage Benchmark](tools.md#storage-benchmark) | `storage-bench` | Linux data |
+| [OS Latency Benchmark](tools.md#os-latency-benchmark) | `os-latency` | Linux data |
+| [CPU Compute Benchmark](tools.md#cpu-compute-benchmark) | `cpu-compute` | Linux data |
+| [Everyday Work Benchmark](tools.md#everyday-work-benchmark) | `everyday-work` | Linux data |
+| [Network Benchmark](tools.md#network-benchmark) | `net-bench` | Linux data |
+| [GPU Benchmark](tools.md#gpu-benchmark) | `gpu-bench` | Linux data |
 | [GPU Burnin](tools.md#gpu-burnin) | `gpu-burnin` | Linux data |
 | [GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL](tools.md#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl) | `gpu-compare` | Linux data |
 | [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
-| [Crypto benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
-| [Prime sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |
-| [Benchmark history](tools.md#benchmark-history) | `bench-history` | Linux data |
+| [Crypto Benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
+| [Prime Sieve](tools.md#prime-sieve) | `prime-sieve` | Linux data |
+| [Benchmark History](tools.md#benchmark-history) | `bench-history` | Linux data |
 | [Lookup](tools.md#lookup) | `lookup` | Linux data |
 | [Ping](tools.md#ping) | `ping` | Linux data |
 | [Configuration Find](tools.md#configuration-find) | `reg-find` | Linux data |

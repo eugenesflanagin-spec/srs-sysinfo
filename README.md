@@ -165,7 +165,7 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     and all threads; FIPS test vectors checked first. **Prime Sieve** - counts the primes up to
     10^8 ... 10^11, checked against the known counts. Every run of the benchmarks above (all but the
     classic Benchmark, IPI Delay and Latency, which keep their own last result) is kept in a
-    **Benchmark history** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
+    **Benchmark History** (`~/.cache/srs/bench-history.tsv`) with a build tag, for fair compares.
   - Every benchmark asks before it starts (the command line too; `--yes` skips the question). **Tested on one PC** (Ryzen 7 7800X3D, Radeon RX 9070 XT,
     wired network): parts that need other hardware may have a bug or two - please report them on
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
@@ -265,7 +265,7 @@ the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SR
 
 Read-only by design: nothing is written to sysfs, devices or firmware. No i2c/SMBus/DDC access,
 no hidraw, no SMU commands, no network traffic apart from `ping` to the default gateway in the
-Ping item and the Network benchmark's internet speed test, which runs only after you say yes to
+Ping item and the Network Benchmark's internet speed test, which runs only after you say yes to
 its own question. Burner and benchmarks never start on their own (not from `-save` either), and
 every benchmark asks before it starts. Root-only
 data comes only from `srs-root`'s cache in `~/.cache/srs/root`. The one thing that changes your
@@ -304,7 +304,7 @@ Dependencies: gtk3, sqlite (srs-gui only: the Power & Cost history), glibc, hwda
 smartmontools, nvme-cli, pciutils, polkit (srs-root), vulkan-tools, clinfo, mesa-utils, iw,
 bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors. Loaded at run time when present (a missing one only
 skips its rows): zlib, zstd, lz4, xz (Everyday Work), libcurl (the internet speed test), the Vulkan loader
-(vulkan-icd-loader) and a Vulkan driver (GPU benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA (the
+(vulkan-icd-loader) and a Vulkan driver (GPU Benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA (the
 NVIDIA driver's libcuda, or ZLUDA), an OpenCL loader and driver, and CLBlast (the other GPU back ends). The NVIDIA
 CUDA toolkit (Arch `cuda`, Debian / Ubuntu `libnvrtc12`) is optional: only its runtime compiler is used, as a
 fallback, and SRS can install it later from Options; not recommended with ZLUDA. The CUDA kernels are pre-compiled
@@ -319,12 +319,12 @@ window page has two entries with the same Alt+letter.
 | `sec_cpu.c` ... `sec_siv.c` | one file per group (cpu, machine, sensors, storage, network, os, gpu, bus, tools, siv) |
 | `sec_stubs.c` | generated from `CHECKLIST.tsv` by `gen_stubs.py`: every SIV item is registered |
 | `burner.c`, `bench.c` | Stress & Burnin engine (CPU load, the GPU part's process); Dhrystone, Whetstone, IPI, memory latency, run history |
-| `bench_storage.c` | Storage benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
-| `bench_cachemem.c` | Cache & Memory benchmark (engine from Linux System Audit 0.2.0) |
+| `bench_storage.c` | Storage Benchmark (temporary unlinked test file, O_DIRECT, Linux AIO) |
+| `bench_cachemem.c` | Cache & Memory Benchmark (engine from Linux System Audit 0.2.0) |
 | `bench_compute.c` | CPU Compute benchmark (SGEMM / DGEMM, multiply-add, FFT, N-body, Mandelbrot, ray tracer; SSE2 / AVX2 / AVX-512) |
-| `bench_net.c` | Network benchmark (loopback sockets; internet test through libcurl loaded with dlopen) |
+| `bench_net.c` | Network Benchmark (loopback sockets; internet test through libcurl loaded with dlopen) |
 | `bench_gpu.c` | GPU Benchmark (Vulkan compute: multiply-add, video memory, transfers, dispatch latency) |
-| `gpu_vk.c`, `bench_gpu_spv.inc`, `shaders/gpu/` | the Vulkan layer of the GPU benchmarks (loader opened with dlopen, own copy of the few Vulkan types it needs); the GLSL compute shaders and their pre-compiled SPIR-V (`shaders/gpu/build.sh`, `make gpu-shaders`) |
+| `gpu_vk.c`, `bench_gpu_spv.inc`, `shaders/gpu/` | the Vulkan layer of the GPU Benchmarks (loader opened with dlopen, own copy of the few Vulkan types it needs); the GLSL compute shaders and their pre-compiled SPIR-V (`shaders/gpu/build.sh`, `make gpu-shaders`) |
 | `bench_gpuburn.c`, `gpu_backend.c`, `gpuburn_vk.c`, `gpuburn_rt.c`, `gpuburn_cl.c`, `gpu_kernels.h` | GPU Burnin and the compute back ends: Vulkan, ROCm / HIP and CUDA (`gpuburn_rt.c`), OpenCL, each loaded with dlopen; GPU sensors from hwmon |
 | `bench_gpucompare.c` | GPU Compute comparison: Vulkan vs HIP vs CUDA vs OpenCL on the same GPU |
 | `gpu_kernels_ptx.inc`, `tools/gen-cuda-ptx.sh` | the CUDA kernels of `gpu_kernels.h` pre-compiled to PTX with clang (`make cuda-ptx`), loaded instead of compiling with NVRTC |
@@ -337,7 +337,7 @@ window page has two entries with the same Alt+letter.
 | `tests/bench-test.sh` | correctness tests for SRS Pi, Crypto and Prime Sieve (short runs) |
 | `tests/bench-compute-test.sh` | CPU Compute self-test on every code path, spoilt-result detection, Stop, CLI |
 | `tests/bench-net-test.sh` | Network loopback test, privacy checks, Stop, refusals, strace (loopback only), CLI |
-| `tests/bench-gpu-test.sh` | GPU benchmarks on lavapipe only (software Vulkan; refuses any real GPU), ASan + UBSan, Vulkan layouts, shaders, Stop, CLI |
+| `tests/bench-gpu-test.sh` | GPU Benchmarks on lavapipe only (software Vulkan; refuses any real GPU), ASan + UBSan, Vulkan layouts, shaders, Stop, CLI |
 | `tests/bench-work-test.sh` | Everyday Work known answers, round trips, "not installed" path, Stop, CLI (ASan + UBSan) |
 | `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
@@ -365,7 +365,7 @@ Boyer-Moore-Horspool (1980) and multikey quicksort (Bentley and Sedgewick, 1997)
 system's zlib, zstd, lz4 and xz libraries at run time (not shipped or linked). The Network
 benchmark's internet test uses Cloudflare's public speed test endpoints (speed.cloudflare.com,
 `/__down` and `/__up`; SRS is not affiliated with Cloudflare) through libcurl, loaded at run time.
-The GPU benchmarks open the system's Vulkan loader at run time and use their own copy of the few
+The GPU Benchmarks open the system's Vulkan loader at run time and use their own copy of the few
 Vulkan structures they need, laid out as in the Khronos Vulkan-Headers (Apache-2.0 OR MIT); they
 were tested on Mesa's lavapipe software renderer (MIT). GPU Burnin's way of finding compute errors
 (every result compared with the first) follows gpu-burn by Ville Timonen (BSD-2-Clause,

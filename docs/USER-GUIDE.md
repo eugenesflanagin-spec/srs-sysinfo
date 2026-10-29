@@ -141,8 +141,8 @@ similar names):
 | `wireplumber`, `libpulse` | Audio graph details |
 | `inxi`, `lshw`, `hwinfo` | Extra sections in the full system report |
 | `zlib`, `zstd`, `lz4`, `xz` | The compression rows of Everyday Work ([9.15](#915-everyday-work)); almost every system has them, a missing one only skips its rows |
-| `curl` (libcurl) | The internet speed test of the Network benchmark ([9.16](#916-network)) |
-| `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
+| `curl` (libcurl) | The internet speed test of the Network Benchmark ([9.16](#916-network)) |
+| `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU Benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
 | `rocm-hip-runtime` (and `hipblas`), `cuda` (or the NVIDIA driver), `opencl-icd-loader` with an OpenCL driver, `clblast` | The ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin ([9.18](#918-gpu-burnin)) and the GPU Compute comparison; only if you want them |
 
 ### 3.4 Any other distribution - generic tarball
@@ -230,7 +230,7 @@ Open your application menu. SRS installs four entries (category System / Monitor
 
 | Menu entry | Opens |
 |---|---|
-| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, Stress & Burnin, Benchmark, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark, GPU compute comparison, SRS Pi, Device ID Lookup, Find in System Report, Classic View (16 in all). |
+| **SRS System Information** | The main window. Right-click it in the menu for shortcuts: Sensors, Processors, Stress & Burnin, Benchmark, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU compute comparison, SRS Pi, Device ID Lookup, Find in System Report, Classic View (16 in all). |
 | **SRS Stress & Burnin** | The Stress & Burnin tab (CPU and GPU load; nothing starts until you press Start). |
 | **SRS Benchmark** | The Benchmark, IPI Delay and Latency windows (nothing runs until you press Run). |
 | **SRS Full System Report** | A terminal that writes a full text report folder (see [13.3](#133-full-system-report-srs-sysreport)). |
@@ -351,7 +351,7 @@ as **Sensor status** or **SMART drives**; there are 558 of them.
 | **Power & Cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
-| **Benchmarks & Stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
+| **Benchmarks & Stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark History (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
 The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
@@ -463,8 +463,8 @@ heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab fo
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
 The **Benchmarks & Stress** page has one tab per tool (2.3.1): Stress & Burnin (CPU and GPU), CPU
-Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU benchmark,
-GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and Memory latency, each with its controls and
+Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark,
+GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency, each with its controls and
 live results, and compact sections at the top that jump to them ([9](#9-tools)); nothing runs until you press **Run** or
 **Start** there. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
@@ -1136,7 +1136,7 @@ report SRS made, and I'll fix it. The release notes and the CHANGELOG (Known lim
 what was tried; in short, not tried on real hardware so far:
 
 <!-- the list of untested areas: each benchmark adds its line; the GPU pass adds the GPU lines here -->
-- GPU benchmarks: Vulkan only on lavapipe (the Mesa software renderer, which runs on the CPU), with
+- GPU Benchmarks: Vulkan only on lavapipe (the Mesa software renderer, which runs on the CPU), with
   small sizes; ROCm/HIP, CUDA on NVIDIA and OpenCL only as far as loading their libraries and
   finding every function SRS needs - no HIP, NVIDIA CUDA or OpenCL work was run on a GPU. CUDA through
   ZLUDA: the GPU Compute comparison was run on the author's Radeon RX 9070 XT (2026-10-29), every CUDA
@@ -1200,7 +1200,7 @@ these tools. This is a plain-English summary, not legal advice; the licence text
 
 **Tools as tabs (new main window, 2.3.1).** On the **Benchmarks & Stress** page every tool is a tab
 of its own - Stress & Burnin, CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute,
-Everyday work, Network, GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay and
+Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and
 Memory latency - with its controls and live results in the page itself, no pop-up window. The small
 sections at the top of the page (one line each) jump to a tool's tab. The controls are compact and
 scroll sideways in a narrow window, so the results get most of the height. Only one test runs at a
@@ -1507,7 +1507,7 @@ that much memory, about 3 seconds at the default). Command line: `sysreport-sear
 first; `--yes` starts at once). Results: a table (block size, time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
-The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
+The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark History, Cache & Memory,
 Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests - are in
 [9.7](#97-srs-pi) to [9.19](#919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl); the optional NVIDIA
 CUDA toolkit is [9.20](#920-the-nvidia-cuda-toolkit-optional).
@@ -1606,11 +1606,11 @@ Controls: **Count primes up to**, **Threads** (default all), **Run** (asks first
 or with all threads - the defaults - it warns about unstable overclocks and **No** is the default
 answer), **Stop**. On the command line it asks the same; `--yes` starts at once.
 
-### 9.10 Benchmark history
+### 9.10 Benchmark History
 
 Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU Compute comparison run adds a line to
 `~/.cache/srs/bench-history.tsv`
-(time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & Stress
+(time, test, settings, result, build). The **Benchmark History** tab on the Benchmarks & Stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
 package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
 own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.
@@ -1678,7 +1678,7 @@ scheduler.
 **Safety:** it only reads system settings - no root, and no scheduler, priority or timer change.
 The file test works in its own temporary folder in `~/.cache/srs`, which is removed at the end,
 after Stop, and (if SRS was killed) on the next run. The result is saved to
-`~/.cache/srs/bench-os-latency.txt` and added to the [Benchmark history](#910-benchmark-history).
+`~/.cache/srs/bench-os-latency.txt` and added to the [Benchmark History](#910-benchmark-history).
 Tested on one PC only - see the note at the start of this chapter.
 
 ### 9.14 CPU Compute
@@ -1709,7 +1709,7 @@ numbers compare PCs and settings with each other; they are lower than a tuned ma
 power: **an unstable overclock or undervolt can crash the PC** under this load. Tick **1 thread
 only** (command line `--single`) to keep it light. It will not start while CPU Burnin or Stress
 runs. The result is saved to `~/.cache/srs/bench-compute.txt` and added to the
-[Benchmark history](#910-benchmark-history). Tested on one PC only - see the note at the start of
+[Benchmark History](#910-benchmark-history). Tested on one PC only - see the note at the start of
 this chapter.
 
 ### 9.15 Everyday Work
@@ -1745,7 +1745,7 @@ threads are used, with a note, when memory is short). **Stop** is checked betwee
 the largest part size (`--part-kib 16384`) one xz -6 pass can take 10-20 seconds, so "Stopping..."
 may show for that long (at the default size it is under a second). The result is saved to
 `~/.cache/srs/bench-work.txt`, and each test group adds a line to the
-[Benchmark history](#910-benchmark-history). Tested on one PC only - see the note at the start of
+[Benchmark History](#910-benchmark-history). Tested on one PC only - see the note at the start of
 this chapter.
 
 ### 9.16 Network
@@ -1787,7 +1787,7 @@ saved; only the IP version used. Extra hosts for the connect-time test (`--hosts
 line) are shown by name; one typed as a numeric address is shown as "host N (a numeric address)",
 so it never lands in the saved result. A speed test server given with a port
 (`https://host:8443`) is timed on that port too. The result is saved to `~/.cache/srs/bench-net.txt` and added to
-the [Benchmark history](#910-benchmark-history). Tested on one PC on a wired connection only - see
+the [Benchmark History](#910-benchmark-history). Tested on one PC on a wired connection only - see
 the note at the start of this chapter.
 
 ### 9.17 GPU Benchmark
@@ -1840,7 +1840,7 @@ time, so the desktop stays usable; a GPU that stops answering ends the run clean
 so far; Stop ends it at once. SRS never changes clocks, voltages or fans, and keeps Vulkan overlays
 such as MangoHud out of the run. Vulkan is loaded when needed: without it the window says "not
 available" and the rest of SRS works as before. The result is saved to
-`~/.cache/srs/bench-gpu.txt` and added to the [Benchmark history](#910-benchmark-history). Tested
+`~/.cache/srs/bench-gpu.txt` and added to the [Benchmark History](#910-benchmark-history). Tested
 on a software GPU only - see the note at the start of this chapter.
 
 ### 9.18 GPU Burnin
@@ -1923,7 +1923,7 @@ memory just keeps the size that worked.
 **SRS never changes clocks, voltages or fans** - it only reads them. GPU Burnin does not start
 while CPU Burnin / Stress or another benchmark runs, and CPU Burnin waits until it has finished (its status line says "not started" and why).
 The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
-[Benchmark history](#910-benchmark-history). The idea of comparing every result with the first
+[Benchmark History](#910-benchmark-history). The idea of comparing every result with the first
 one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on a software GPU only -
 see the note at the start of this chapter.
 
@@ -1982,7 +1982,7 @@ end at the defaults) and that the GPU works at full load; an unstable GPU overcl
 can crash the PC under that load. ROCm / HIP, CUDA and OpenCL start only after your Yes. The work
 is cut into short pieces, a GPU that fails ends its column cleanly, Stop ends the run at once, and
 SRS never changes clocks, voltages or fans. The result is saved to
-`~/.cache/srs/bench-gpucompare.txt` and added to the [Benchmark history](#910-benchmark-history).
+`~/.cache/srs/bench-gpucompare.txt` and added to the [Benchmark History](#910-benchmark-history).
 HIP, CUDA on NVIDIA and OpenCL were not run on real hardware by the author (CUDA through ZLUDA was,
 on one card) - see the note at the start of this chapter.
 
@@ -2166,6 +2166,7 @@ In the main window:
 | **Ctrl+PageUp / Ctrl+PageDown** | Previous / next tab, in every tab-bar layout |
 | **Mouse wheel over a side tab list** | Tabs in a side list (Layout: side): the tab above / below, one notch per tab, stopping at the first and last tab (no wrap-around). Over the page itself the wheel scrolls the page; with tabs on top it does not change tabs. It never starts or stops a test: leaving a running tool's tab still asks first (2.3.1) |
 | **Up / Down, Home / End** in a tab list or list | GTK's own keys, unchanged: step through the list, first / last. Inside a tool's controls (a spin button, a list box) the arrows change that control, not the tab |
+| **Page Up / Page Down** in a tab list | 10 tabs back / on, stopping at the first / last tab (in a list: a page up / down) |
 | **Right-click a tab** | Keep, Replace with..., Move, Close, Tabs on this page, Lineup |
 | **Click a table heading** | Sort by that column (again: the other way) |
 | **F5** | Read the page again |
