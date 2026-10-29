@@ -15,7 +15,10 @@
  *                         does not add by itself: instructions and the link to NVIDIA's download page instead.
  * Not run by any test: package managers. The tests use a fake PATH, a fake /etc/os-release (SRS_OS_RELEASE), a fake
  * PCI tree (SRS_PCI_SYSFS), a fake route table (SRS_CTK_ROUTE), a fake lock file (SRS_CTK_PACMAN_LOCK) and
- * SRS_CTK_DRY_RUN=1. Written for SRS. */
+ * SRS_CTK_DRY_RUN=1 (with SRS_CTK_TOOL_DIRS = the folder of fake tools, read only in a dry run).
+ * What runs as root: only a package manager, sudo and pkexec found in /usr/bin, /usr/sbin, /bin or /sbin, run by that full
+ * path; PATH is never searched for them (a planted ~/.local/bin/pacman would otherwise run as root after the password).
+ * Written for SRS. */
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -24,6 +27,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -92,18 +96,34 @@ void ctk_detect(ctk_state *s, int recheck)
 }
 
 /* ---------------------------------------------------------------- the install command */
-static int in_path(const char *name, char *full, size_t n)
+/* name in one of the folders of list (colon-separated); only absolute folders count (an empty or relative PATH entry
+   would mean the current folder), and only a regular executable file */
+static int in_dirs(const char *list, const char *name, char *full, size_t n)
 {
-    const char *path = getenv("PATH");
     char buf[4096], *t, *sp;
-    if (!path) return 0;
-    snprintf(buf, sizeof buf, "%s", path);
+    if (!list) return 0;
+    snprintf(buf, sizeof buf, "%s", list);
     for (t = strtok_r(buf, ":", &sp); t; t = strtok_r(NULL, ":", &sp)) {
         char p[1024];
-        snprintf(p, sizeof p, "%s/%s", *t ? t : ".", name);
-        if (!access(p, X_OK)) { if (full) snprintf(full, n, "%s", p); return 1; }
+        struct stat st;
+        if (*t != '/') continue;
+        if ((size_t)snprintf(p, sizeof p, "%s/%s", t, name) >= sizeof p) continue;
+        if (!stat(p, &st) && S_ISREG(st.st_mode) && !access(p, X_OK)) { if (full) snprintf(full, n, "%s", p); return 1; }
     }
     return 0;
+}
+
+/* a program that runs as the user (terminal emulators): PATH, absolute entries only */
+static int in_path(const char *name, char *full, size_t n) { return in_dirs(getenv("PATH"), name, full, n); }
+
+/* a program that runs as root or asks for the password (package manager, sudo, pkexec, and apt-cache with them):
+   only from the system folders, by full path, whatever PATH says. SRS_CTK_TOOL_DIRS replaces the folders only in a
+   dry run (tests), when nothing is ever run. */
+#define CTK_SYS_DIRS "/usr/bin:/usr/sbin:/bin:/sbin"
+static int trusted_tool(const char *name, char *full, size_t n)
+{
+    const char *t = ctk_dry_run() ? getenv("SRS_CTK_TOOL_DIRS") : NULL;
+    return in_dirs(t && *t ? t : CTK_SYS_DIRS, name, full, n);
 }
 
 /* os-release: ID, ID_LIKE and PRETTY_NAME */
@@ -138,13 +158,25 @@ static int word_in(const char *list, const char *w)
     return 0;
 }
 
-/* does apt know this package? (apt-cache show: a read-only question, no root) */
-static int apt_knows(const char *pkg)
+/* does apt know this package? (apt-cache show: a read-only question, no root). It can take a second or two, so each
+   answer is kept for the session (ctk_plan_refresh forgets them); one question at a time */
+static pthread_mutex_t g_apt_mu = PTHREAD_MUTEX_INITIALIZER;
+static struct { char pkg[40]; int known; } g_apt[6];
+static int g_napt;
+
+void ctk_plan_refresh(void)
+{
+    pthread_mutex_lock(&g_apt_mu);
+    g_napt = 0;
+    pthread_mutex_unlock(&g_apt_mu);
+}
+
+static int apt_ask(const char *pkg)
 {
     char exe[1024];
     pid_t p;
     int st = 0;
-    if (!in_path("apt-cache", exe, sizeof exe)) return 0;
+    if (!trusted_tool("apt-cache", exe, sizeof exe)) return 0;
     if ((p = fork()) < 0) return 0;
     if (p == 0) {
         int nul = open("/dev/null", O_WRONLY);
@@ -154,6 +186,19 @@ static int apt_knows(const char *pkg)
     }
     while (waitpid(p, &st, 0) < 0 && errno == EINTR) {}
     return WIFEXITED(st) && WEXITSTATUS(st) == 0;
+}
+
+static int apt_knows(const char *pkg)
+{
+    int i, k = -1;
+    pthread_mutex_lock(&g_apt_mu);
+    for (i = 0; i < g_napt; i++) if (!strcmp(g_apt[i].pkg, pkg)) { k = g_apt[i].known; break; }
+    if (k < 0) {
+        k = apt_ask(pkg);
+        if (g_napt < (int)(sizeof g_apt / sizeof g_apt[0])) { snprintf(g_apt[g_napt].pkg, sizeof g_apt[g_napt].pkg, "%s", pkg); g_apt[g_napt++].known = k; }
+    }
+    pthread_mutex_unlock(&g_apt_mu);
+    return k;
 }
 
 static void set_argv(ctk_plan *p, const char *const *a)
@@ -177,9 +222,17 @@ int ctk_plan_install(ctk_plan *p)
     os_release(id, sizeof id, like, sizeof like, p->distro, sizeof p->distro);
     if (!p->distro[0]) snprintf(p->distro, sizeof p->distro, "%s", id[0] ? id : "this Linux");
     snprintf(both, sizeof both, "%s %s", id, like);
-    if ((word_in(both, "arch") || word_in(both, "archlinux")) && in_path("pacman", NULL, 0)) {
+    if (word_in(both, "arch") || word_in(both, "archlinux")) {
         static const char *const a[] = { "pacman", "-S", "--needed", "cuda", NULL };
         p->pm = CTK_PM_PACMAN;
+        if (!trusted_tool("pacman", p->exe, sizeof p->exe)) {
+            p->manual = 1;
+            snprintf(p->manual_text, sizeof p->manual_text,
+                     "pacman was not found in /usr/bin, /usr/sbin, /bin or /sbin, so SRS does not run it (a program of that name in "
+                     "another folder, for example your home folder, could be anything). If your pacman is somewhere else on purpose, "
+                     "run it yourself in a terminal: sudo pacman -S --needed cuda");
+            return 0;
+        }
         set_argv(p, a);
         snprintf(p->pkg, sizeof p->pkg, "cuda");
         snprintf(p->noninteractive, sizeof p->noninteractive, "--noconfirm");
@@ -187,10 +240,18 @@ int ctk_plan_install(ctk_plan *p)
         snprintf(p->manual_text, sizeof p->manual_text, "Arch Linux's cuda package installs to /opt/cuda; SRS finds libnvrtc through /etc/ld.so.conf.d/cuda.conf.");
         return 0;
     }
-    if ((word_in(both, "debian") || word_in(both, "ubuntu")) && in_path("apt-get", NULL, 0)) {
+    if (word_in(both, "debian") || word_in(both, "ubuntu")) {
         static const char *const cand[] = { "libnvrtc12", "libnvrtc11.2", NULL };
         int i;
         p->pm = CTK_PM_APT;
+        if (!trusted_tool("apt-get", p->exe, sizeof p->exe)) {
+            p->manual = 1;
+            snprintf(p->manual_text, sizeof p->manual_text,
+                     "apt-get was not found in /usr/bin, /usr/sbin, /bin or /sbin, so SRS does not run it (a program of that name in "
+                     "another folder, for example your home folder, could be anything). Install it yourself in a terminal: "
+                     "sudo apt-get install libnvrtc12 (or libnvrtc11.2 on older releases).");
+            return 0;
+        }
         snprintf(p->noninteractive, sizeof p->noninteractive, "-y");
         for (i = 0; cand[i]; i++) if (apt_knows(cand[i])) break;
         if (cand[i]) {
@@ -237,7 +298,10 @@ void ctk_status_text(const ctk_state *s, const ctk_plan *p, char *b, size_t n)
     } else ADD("Runtime compiler (NVRTC): not installed%s\n", s->cu.libcuda ? " - SRS uses its built-in CUDA tests" : "");
     if (p) {
         if (p->manual) ADD("Install on %s: by hand (see below)\n", p->distro);
-        else ADD("Install on %s: %s %s\n  (%s)\n", p->distro, ctk_root_tool() ? ctk_root_tool() : "sudo", p->cmd, p->size);
+        else {
+            ADD("Install on %s: %s %s\n  (%s)\n", p->distro, ctk_root_tool() ? ctk_root_tool() : "sudo", p->cmd, p->size);
+            ADD("Programs used: %s, %s\n", ctk_root_path() ? ctk_root_path() : "(no sudo or pkexec in /usr/bin, /usr/sbin, /bin or /sbin)", p->exe);
+        }
     }
 #undef ADD
 }
@@ -298,7 +362,8 @@ int ctk_ask_set(int on)
                 if (in && !done) { fprintf(o, ASK_KEY "=%d\n", on); done = 1; }
                 in = !strncmp(k, "[SRSDEF]", 8);
                 seen |= in;
-            } else if (in && !strncmp(k, ASK_KEY, sizeof ASK_KEY - 1) && strchr(k, '=')) {
+            } else if (in && !strncmp(k, ASK_KEY, sizeof ASK_KEY - 1) && strchr(" \t=", k[sizeof ASK_KEY - 1]) && k[sizeof ASK_KEY - 1] &&
+                       strchr(k, '=')) {   /* this key, not a longer one that starts the same */
                 if (!done) fprintf(o, ASK_KEY "=%d\n", on);
                 done = 1;
                 continue;
@@ -317,11 +382,19 @@ int ctk_ask_set(int on)
 }
 
 /* ---------------------------------------------------------------- before an install */
+/* sudo, else pkexec, from a system folder only (see trusted_tool) */
+static char g_root[1100], g_pkexec[1100];
+const char *ctk_pkexec_path(void) { return trusted_tool("pkexec", g_pkexec, sizeof g_pkexec) ? g_pkexec : NULL; }
+const char *ctk_root_path(void)
+{
+    if (trusted_tool("sudo", g_root, sizeof g_root)) return g_root;
+    if (trusted_tool("pkexec", g_root, sizeof g_root)) return g_root;
+    return NULL;
+}
 const char *ctk_root_tool(void)
 {
-    if (in_path("sudo", NULL, 0)) return "sudo";
-    if (in_path("pkexec", NULL, 0)) return "pkexec";
-    return NULL;
+    const char *p = ctk_root_path();
+    return !p ? NULL : !strcmp(strrchr(p, '/') + 1, "sudo") ? "sudo" : "pkexec";
 }
 
 const char *ctk_find_terminal(char *b, size_t n)
@@ -342,7 +415,7 @@ int ctk_terminal_argv(const char *term, const char *script, const char **argv, i
     else if (!strcmp(term, "xfce4-terminal") || !strcmp(term, "mate-terminal")) argv[n++] = "-x";
     else if (!strcmp(term, "wezterm")) { argv[n++] = "start"; argv[n++] = "--"; }
     else if (strcmp(term, "kitty") && strcmp(term, "foot")) argv[n++] = "-e";   /* konsole, lxterminal, alacritty, xterm, x-terminal-emulator */
-    argv[n++] = "sh";
+    argv[n++] = "/bin/sh";
     argv[n++] = "-c";
     argv[n++] = script;
     argv[n] = NULL;
@@ -385,25 +458,61 @@ int ctk_precheck(const ctk_plan *p, int have_terminal, char *why, size_t wn)
         return 1;
     }
     if (!have_route()) { snprintf(why, wn, "this computer has no network connection (no default route), and the package has to be downloaded"); return 1; }
-    if (have_terminal && !ctk_root_tool()) { snprintf(why, wn, "neither sudo nor pkexec is installed, so the install cannot ask for the administrator password"); return 1; }
-    if (!have_terminal && !in_path("pkexec", NULL, 0)) {
-        snprintf(why, wn, "no terminal window program and no pkexec (polkit) was found, so the install cannot ask for the administrator password. "
-                          "Run the command yourself in a terminal: sudo %s", p->cmd);
+    if (!p->exe[0]) { snprintf(why, wn, "the package manager was not found in /usr/bin, /usr/sbin, /bin or /sbin, so SRS does not run it"); return 1; }
+    if (have_terminal && !ctk_root_path()) {
+        snprintf(why, wn, "neither sudo nor pkexec was found in /usr/bin, /usr/sbin, /bin or /sbin, so the install cannot ask for the "
+                          "administrator password (SRS does not use a sudo or pkexec from any other folder)");
+        return 1;
+    }
+    if (!have_terminal && !ctk_pkexec_path()) {
+        snprintf(why, wn, "no terminal window program and no pkexec (polkit) in /usr/bin, /usr/sbin, /bin or /sbin was found, so the install "
+                          "cannot ask for the administrator password. Run the command yourself in a terminal: sudo %s", p->cmd);
         return 1;
     }
     return 0;
 }
 
+/* append s to b as one shell word in single quotes (a ' inside becomes '\'') */
+static void shq(char *b, size_t n, const char *s)
+{
+    size_t l = strlen(b);
+    if (l + 1 >= n) return;
+    b[l++] = '\'';
+    for (; *s && l + 5 < n; s++) {
+        if (*s == '\'') { memcpy(b + l, "'\\''", 4); l += 4; }
+        else b[l++] = *s;
+    }
+    b[l++] = '\'';
+    b[l] = 0;
+}
+#define SCAT(...) do { size_t l_ = strlen(b); snprintf(b + l_, l_ < n ? n - l_ : 0, __VA_ARGS__); } while (0)
+
+/* every path and word is quoted for sh (a ' in XDG_CACHE_HOME is fine); the root tool and the package manager by full path */
 void ctk_terminal_script(const ctk_plan *p, const char *statusfile, char *b, size_t n)
 {
-    const char *root = ctk_root_tool();
-    snprintf(b, n,
-             "printf '%%s\\n\\n' 'SRS: installing the NVIDIA CUDA runtime compiler (%s). Command: %s %s'; "
-             "%s %s; s=$?; echo $s > '%s'; echo; "
-             "if [ $s = 0 ]; then echo 'Finished. SRS checks for the compiler now.'; else echo \"The install stopped with exit status $s (see above).\"; fi; "
-             "echo 'Press Enter to close this window.'; read x",
-             p->pkg, root ? root : "sudo", p->cmd, root ? root : "sudo", p->cmd, statusfile);
+    const char *root = ctk_root_path();
+    char msg[600];
+    int k;
+    if (!n) return;
+    b[0] = 0;
+    snprintf(msg, sizeof msg, "SRS: installing the NVIDIA CUDA runtime compiler (%s). Command: %s %s", p->pkg, ctk_root_tool() ? ctk_root_tool() : "sudo", p->cmd);
+    SCAT("printf '%%s\\n\\n' ");
+    shq(b, n, msg);
+    SCAT("; ");
+    if (root && p->exe[0]) {
+        shq(b, n, root);
+        SCAT(" ");
+        shq(b, n, p->exe);
+        for (k = 1; k < p->argc; k++) { SCAT(" "); shq(b, n, p->argv[k]); }
+        SCAT("; s=$?; ");
+    } else SCAT("echo 'No sudo or pkexec in a system folder.'; s=127; ");
+    SCAT("echo $s > ");
+    shq(b, n, statusfile);
+    SCAT("; echo; "
+         "if [ $s = 0 ]; then echo 'Finished. SRS checks for the compiler now.'; else echo \"The install stopped with exit status $s (see above).\"; fi; "
+         "echo 'Press Enter to close this window.'; read x");
 }
+#undef SCAT
 
 void ctk_result_text(const ctk_plan *p, int status, const ctk_state *after, char *b, size_t n)
 {

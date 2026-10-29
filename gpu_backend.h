@@ -86,7 +86,9 @@ typedef struct {
 int gb_cuda_probe(gb_cuda_state *st, int recheck);
 
 /* the test mode is on: the caller asked for it (so) or SRS_GPU_SOFTWARE_ONLY=1 is set. Every open() checks this,
-   so a test run can never start a real GPU runtime */
+   so a test run can never start a real GPU runtime. The rule before the user's Yes: available() and gb_cuda_probe may
+   dlopen / dlsym a library (no hipInit / cuInit / OpenCL platform query); gb_cuda_probe also loads nothing in the test
+   mode unless SRS_CUDA_LIB names the library */
 int gb_software_only(int so);
 
 /* which device of back end b is the one at PCI address pci (any back end), else -1 */

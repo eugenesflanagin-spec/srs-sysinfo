@@ -34,8 +34,13 @@ optional, explained NVIDIA CUDA toolkit install.
   with the PTX refused, and both; the fake runtime takes PTX and now also fakes OpenCL and CLBlast.
   `tests/cuda-toolkit-test.sh` covers detection, the command per distribution, the refusals, the typed yes,
   "Don't ask again" and the GUI windows on Xvfb with fake package managers (nothing is installed).
-  Test-only overrides `SRS_CLBLAST_LIB`, `SRS_CTK_DRY_RUN`, `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`,
-  `SRS_CTK_PACMAN_LOCK`.
+  Test-only overrides `SRS_CLBLAST_LIB`, `SRS_CTK_DRY_RUN`, `SRS_CTK_TOOL_DIRS` (read only in a dry run),
+  `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK`. The toolkit test also checks that a
+  pacman / sudo planted in `~/.local/bin`, an empty or relative `PATH` entry or the current folder is never chosen,
+  that the terminal script survives a `'` in `XDG_CACHE_HOME`, runs its typed-yes cases with every GPU library
+  override and the `LD_DEBUG` check, and searches every trace once more for the real libcuda / libcublas.
+  `tests/gpu-stub-test.sh` adds a GEMM library that says "not supported" only during the run
+  (`STUB_DGEMM_UNSUP_AFTER`).
 
 ### Changed
 
@@ -49,6 +54,26 @@ optional, explained NVIDIA CUDA toolkit install.
 
 ### Fixed
 
+- Security (review finding, before release): the toolkit install ran the package manager - and the GUI `pkexec` /
+  `sudo` themselves - by a bare name, so `pkexec` looked it up in the user's `PATH`: a `pacman` or `apt-get`
+  planted in `~/.local/bin` would have run as root after the password. The package manager, `sudo`, `pkexec` and
+  `apt-cache` are now taken only from `/usr/bin`, `/usr/sbin`, `/bin` or `/sbin` and run by their full path (GUI
+  pkexec and terminal, CLI `execv`); otherwise SRS refuses and shows the command to type. Empty and relative
+  `PATH` entries no longer mean the current folder. The confirmation and `cuda-toolkit --check` show the full
+  paths ("Programs used").
+- The toolkit install's terminal script quotes every path and word for the shell, so a `'` in `XDG_CACHE_HOME`
+  no longer breaks it; terminals start `/bin/sh` by full path.
+- The GPU Compute comparison: a GEMM library that says "not supported" during the run (after it took the size in
+  preparation) now marks that one row "not available" instead of ending the column as if the GPU had hung.
+- The GUI no longer waits for `apt-cache` (Debian / Ubuntu, up to a few seconds) when Run starts a CUDA test: the
+  answers are asked on the GPU window's worker thread and kept for the session (asked again after an install).
+- The toolkit question no longer loads the CUDA library in the test mode (`SRS_GPU_SOFTWARE_ONLY=1`) unless
+  `SRS_CUDA_LIB` names one; the rule "before Yes only dlopen / dlsym, no cuInit / hipInit / OpenCL query" is
+  written down where the code relies on it.
+- "Asked once": Install... followed by Cancel in the question no longer asks again at the next CUDA run in the
+  same session.
+- Status files of terminal installs SRS stopped waiting for are removed at the next install and when SRS exits.
+- `Ask CUDA Toolkit` in SRSDEF.ini: a longer key that starts the same (`Ask CUDA Toolkit2`) is left alone.
 - OpenCL drivers without double precision (often Mesa's Rusticl) showed the FP64 rows as "failed" with an empty
   reason. FP64 own-kernel, CLBlast and multiply-add rows are now "not available: this OpenCL driver has no FP64
   (double precision)" when the device reports neither `CL_DEVICE_DOUBLE_FP_CONFIG` nor `cl_khr_fp64`, and a kernel
@@ -56,8 +81,12 @@ optional, explained NVIDIA CUDA toolkit install.
 
 ### Known limits
 
-- The built-in PTX was checked offline and against a fake driver only. It is meant to be tried with ZLUDA on an
-  AMD card; it was never run on NVIDIA hardware, and ZLUDA's acceptance of it is not yet confirmed.
+- The built-in PTX was checked offline and against a fake driver, and run through ZLUDA (preview build, no
+  NVRTC) on a Radeon RX 9070 XT in the GPU Compute comparison on 2026-10-29: every CUDA row ran from it
+  (own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860 GFLOPS); cuBLAS FP64 is "not available" there because ZLUDA's cuBLAS has no FP64 GEMM (error 15). GPU
+  Burnin with CUDA was not run on the real card, and nothing was run on NVIDIA hardware.
+- Without a terminal program the install uses `pkexec` with pacman's `--noconfirm` (apt `-y`): the default
+  answers, which for pacman means no to removing a conflicting package. With ZLUDA `pkexec` is never used.
 - HIP still compiles its kernels with hipRTC: HIP code objects are per GPU generation and per ROCm release, so
   shipping them would bloat SRS and still miss GPUs.
 - The toolkit install was tested with fake package managers only; the terminal programs other than their names

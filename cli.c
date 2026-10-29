@@ -1333,25 +1333,30 @@ static int cmd_cuda_toolkit(int argc, char **argv)
     if (ctk_precheck(&pl, 1, why, sizeof why)) { fprintf(stderr, "\ncuda-toolkit: not started - %s\n", why); return 1; }
     if (!isatty(0) || !isatty(2)) {
         fprintf(stderr, "\ncuda-toolkit: not started - --install asks for a typed yes and runs only in a terminal.\n"
-                        "              Or run it yourself: %s %s\n", ctk_root_tool(), pl.cmd);
+                        "              Or run it yourself: %s %s\n", ctk_root_tool() ? ctk_root_tool() : "sudo", pl.cmd);
         return 2;
     }
-    fprintf(stderr, "\nThis runs, as administrator: %s %s\n(%s)\n", ctk_root_tool(), pl.cmd, pl.size);
+    /* (ctk_precheck refused when there is no sudo / pkexec in a system folder, so ctk_root_path() is set from here on) */
+    fprintf(stderr, "\nThis runs, as administrator: %s %s\n(%s)\nPrograms used: %s and %s\n", ctk_root_tool(), pl.cmd, pl.size, ctk_root_path(), pl.exe);
     if (!yes_typed("Type yes to install it, anything else to cancel: ")) { fprintf(stderr, "cuda-toolkit: cancelled, nothing installed. %s\n", ctk_later_hint()); return 2; }
     if (st.cu.zluda && !yes_typed("ZLUDA is in use and may stop working or be removed. Type yes AGAIN to install anyway: ")) {
         fprintf(stderr, "cuda-toolkit: cancelled, nothing installed (recommended with ZLUDA).\n");
         return 2;
     }
-    if (ctk_dry_run()) { printf("dry run (SRS_CTK_DRY_RUN): would run: %s %s\n", ctk_root_tool(), pl.cmd); return 0; }
+    if (ctk_dry_run()) { printf("dry run (SRS_CTK_DRY_RUN): would run: %s %s (as: %s %s", ctk_root_tool(), pl.cmd, ctk_root_path(), pl.exe);
+                         for (i = 1; i < pl.argc; i++) printf(" %s", pl.argv[i]);
+                         printf(")\n");
+                         return 0; }
     {
         const char *av[12];
         int n = 0, k;
         pid_t p;
-        av[n++] = ctk_root_tool();
-        for (k = 0; k < pl.argc && n < 11; k++) av[n++] = pl.argv[k];
+        av[n++] = ctk_root_path();   /* full paths in a system folder: never a sudo or package manager found in PATH */
+        av[n++] = pl.exe;
+        for (k = 1; k < pl.argc && n < 11; k++) av[n++] = pl.argv[k];
         av[n] = NULL;
         fflush(stdout);
-        if ((p = fork()) == 0) { execvp(av[0], (char *const *)av); _exit(127); }
+        if ((p = fork()) == 0) { execv(av[0], (char *const *)av); _exit(127); }
         if (p > 0) {
             int ws = 0;
             while (waitpid(p, &ws, 0) < 0 && errno == EINTR) {}

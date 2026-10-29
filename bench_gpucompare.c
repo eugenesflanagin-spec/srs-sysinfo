@@ -95,12 +95,16 @@ static int measure(cx *x, const gb_ops *ops, gb_ctx *ctx, gpucmp_col *col, int r
     rc = ops->prep(ctx, d->kind, d->prec, d->variant, (size_t)size, &work, &maxreps);
     if (rc == GBP_UNSUPPORTED) { set_cell(col, row, CS_NA, 0, ops->error(ctx)); return 0; }
     if (rc) { set_cell(col, row, CS_FAILED, 0, ops->error(ctx)); return rc == GBP_ERROR ? 0 : rc; }
+    /* from here a run() that says "not supported" (a GEMM library that took the size in prep but not a bigger one) marks
+       this one cell "not available": only GBP_HUNG / GBP_LOST end the column */
+#define RUN_FAIL(rc) do { set_cell(col, row, (rc) == GBP_UNSUPPORTED ? CS_NA : CS_FAILED, 0, ops->error(ctx)); ops->release(ctx); \
+                          return (rc) == GBP_ERROR || (rc) == GBP_UNSUPPORTED ? 0 : (rc); } while (0)
     if (d->kind == GK_LATENCY) {
         reps = (unsigned)x->lat_rounds;
         if (reps > maxreps) reps = maxreps;
         rc = ops->run(ctx, 4, &secs, &w);   /* warm-up: first launches pay for lazy driver set-up */
         if (!rc) { rc = ops->run(ctx, reps, &secs, &wrong); wrong += w; }
-        if (rc) { set_cell(col, row, CS_FAILED, 0, ops->error(ctx)); ops->release(ctx); return rc == GBP_ERROR ? 0 : rc; }
+        if (rc) RUN_FAIL(rc);
         set_cell(col, row, wrong ? CS_WRONG : CS_OK, secs * 1e6, wrong ? "the kernel launches did not all run" : NULL);
         ops->release(ctx);
         return 0;
@@ -130,7 +134,8 @@ static int measure(cx *x, const gb_ops *ops, gb_ctx *ctx, gpucmp_col *col, int r
             gpu += secs;
         }
     }
-    if (rc) { set_cell(col, row, CS_FAILED, 0, ops->error(ctx)); ops->release(ctx); return rc == GBP_ERROR ? 0 : rc; }
+    if (rc) RUN_FAIL(rc);
+#undef RUN_FAIL
     if (x->cancel && *x->cancel) { set_cell(col, row, CS_STOPPED, 0, NULL); ops->release(ctx); return 0; }
     if (wrong) set_cell(col, row, CS_WRONG, 0, "the GPU returned a wrong result");
     else if (tot_s > 0) set_cell(col, row, CS_OK, tot_w / tot_s / 1e9, NULL);

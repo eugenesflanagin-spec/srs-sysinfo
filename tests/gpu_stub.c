@@ -291,8 +291,16 @@ EXPORT int hipblasDestroy(void *h) { return blas_destroy(h); }
 GEMM_SIG(cublasSgemm_v2, float) GEMM_BODY(4)
 GEMM_SIG(hipblasSgemm, float) GEMM_BODY(4)
 /* STUB_DGEMM_UNSUP: the library has no FP64 GEMM, as ZLUDA's cuBLAS (cuBLAS 15 / hipBLAS 7 = NOT_SUPPORTED) */
-GEMM_SIG(cublasDgemm_v2, double) { if (getenv("STUB_DGEMM_UNSUP")) return 15; GEMM_BODY(8) }
-GEMM_SIG(hipblasDgemm, double) { if (getenv("STUB_DGEMM_UNSUP")) return 7; GEMM_BODY(8) }
+/* STUB_DGEMM_UNSUP_AFTER=N: the first N FP64 calls work, then NOT_SUPPORTED (a library that takes prep's size, not the run's) */
+static int dgemm_unsup(void)
+{
+    static int calls;
+    const char *a = getenv("STUB_DGEMM_UNSUP_AFTER");
+    if (getenv("STUB_DGEMM_UNSUP")) return 1;
+    return a && *a && calls++ >= atoi(a);
+}
+GEMM_SIG(cublasDgemm_v2, double) { if (dgemm_unsup()) return 15; GEMM_BODY(8) }
+GEMM_SIG(hipblasDgemm, double) { if (dgemm_unsup()) return 7; GEMM_BODY(8) }
 GEMM_SIG(cublasHgemm, uint16_t) GEMM_BODY(2)
 GEMM_SIG(hipblasHgemm, uint16_t) GEMM_BODY(2)
 

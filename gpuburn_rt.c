@@ -244,12 +244,16 @@ int gb_rt_bind_check(int cuda, char *detail, size_t dn)
 }
 
 /* the NVIDIA CUDA toolkit question (cuda_toolkit.c): is libcuda there, is it ZLUDA, is NVRTC there and which version.
-   dlopen / dlsym and nvrtcVersion only (a plain function of the compiler library): never starts a GPU runtime.
+   dlopen / dlsym and nvrtcVersion only (a plain function of the compiler library): never starts a GPU runtime (no cuInit),
+   the same as available(). In the test mode (SRS_GPU_SOFTWARE_ONLY=1) it loads nothing unless SRS_CUDA_LIB names the
+   library to load (the tests' fake runtime), so a test can never load the real libcuda this way.
    recheck = 1 looks for libnvrtc again (after an install) when it was missing. */
 int gb_cuda_probe(gb_cuda_state *st, int recheck)
 {
     rt_api *r = &g_rt[1];
+    const char *env = getenv("SRS_CUDA_LIB");
     memset(st, 0, sizeof *st);
+    if (gb_software_only(0) && !(env && *env)) return 0;
     pthread_mutex_lock(&g_bind_mu);
     rt_bind_once(1);
     if (recheck && r->ok && !r->have_rtc) {

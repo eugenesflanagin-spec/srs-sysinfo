@@ -8,13 +8,20 @@
 # HIP / OpenCL / Vulkan point at files that do not exist, and the run is traced with LD_DEBUG=libs: the test FAILS if a real GPU
 # library is loaded. PATH is a folder of FAKE pacman / apt-get / apt-cache / sudo / pkexec scripts that only write down that they
 # were called; /etc/os-release, the PCI tree, the route table and pacman's lock are fakes (SRS_OS_RELEASE, SRS_PCI_SYSFS,
-# SRS_CTK_ROUTE, SRS_CTK_PACMAN_LOCK); SRS_CTK_DRY_RUN=1 everywhere. HOME and XDG_* are a throw-away folder. The GUI part runs on
-# its own Xvfb display, never clicks Install, and is skipped when Xvfb / xwininfo are missing.
+# SRS_CTK_ROUTE, SRS_CTK_PACMAN_LOCK); SRS_CTK_DRY_RUN=1 everywhere. SRS only takes the package manager, sudo and pkexec from
+# /usr/bin, /usr/sbin, /bin and /sbin; SRS_CTK_TOOL_DIRS (read only in a dry run) points it at the fake ones instead. The cases
+# that check that rule (a fake pacman / sudo planted in ~/.local/bin or the current folder must never be chosen) only look at
+# the plan, in a dry run. SRS_CUDA_BLAS / SRS_CLBLAST_LIB / VK_DRIVER_FILES point at the stub or files that do not exist in
+# every run, and at the end every LD_DEBUG trace is searched once more for the real libcuda / libcublas (this PC has ZLUDA's).
+# HOME and XDG_* are a throw-away folder. The GUI part runs on its own Xvfb display, never clicks Install, and is skipped
+# when Xvfb / xwininfo are missing.
 set -u
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 BIN=${1:-}
 GUI=${2:-$(dirname "$BIN")/srs-gui}
 [ -x "$BIN" ] || { echo "usage: $0 SYSREPORT-SEARCH [SRS-GUI]"; exit 2; }
+BIN=$(cd "$(dirname "$BIN")" && pwd)/$(basename "$BIN")   # absolute: some cases run from another folder
+case $GUI in /*) ;; *) GUI=$PWD/$GUI ;; esac
 TMP=$(mktemp -d)
 cleanup() { [ -n "${XPID:-}" ] && kill "$XPID" 2>/dev/null; rm -rf "$TMP"; }
 trap cleanup EXIT
@@ -44,18 +51,25 @@ echo 0x10de > "$TMP/pci/0000:01:00.0/vendor"; echo 0x030000 > "$TMP/pci/0000:01:
 osr() { printf 'NAME="%s"\nID=%s\nID_LIKE="%s"\nPRETTY_NAME="%s"\n' "$2" "$1" "$3" "$2" > "$TMP/os-release"; }
 osr arch "Arch Linux" ""
 
-# ctk ENV... -- ARGS...  : the CLI with the fakes; sets OUT and RC; checks that no real GPU library was loaded
+# ctk [--tty INPUT] ENV... -- ARGS...  : the CLI with the fakes; sets OUT and RC; checks that no real GPU library was loaded.
+# --tty runs it on a pseudo-terminal (script(1)) with INPUT (printf %b) as the typed answers
 n=0
 ctk() {
-    local extra=()
+    local extra=() tty=
+    [ "$1" = --tty ] && { tty=$2; shift 2; }
     while [ "$1" != -- ]; do extra+=("$1"); shift; done
     shift
     n=$((n + 1))
-    OUT=$(env -u SRS_GPU_SOFTWARE_ONLY PATH="$FAKE" SRS_CTK_DRY_RUN=1 SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" \
-        SRS_CTK_ROUTE="$TMP/route" SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" SRS_CUDA_LIB="$STUB" SRS_CUDA_RTC=/nonexistent/libnvrtc.so \
-        SRS_CUDA_BLAS="$STUB" SRS_HIP_LIB=/nonexistent/libamdhip64.so SRS_OPENCL_LIB=/nonexistent/libOpenCL.so SRS_CLBLAST_LIB=/nonexistent/libclblast.so \
-        VK_DRIVER_FILES=/nonexistent VK_ICD_FILENAMES=/nonexistent LD_DEBUG=libs LD_DEBUG_OUTPUT="$TMP/ld.$n" "${extra[@]}" \
-        /usr/bin/timeout 120 "$BIN" "$@" 2>&1)
+    local run=(env -u SRS_GPU_SOFTWARE_ONLY PATH="$FAKE" SHELL=/bin/sh SRS_CTK_DRY_RUN=1 SRS_CTK_TOOL_DIRS="$FAKE" SRS_OS_RELEASE="$TMP/os-release" \
+        SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" SRS_CUDA_LIB="$STUB" SRS_CUDA_RTC=/nonexistent/libnvrtc.so \
+        SRS_CUDA_BLAS="$STUB" SRS_HIP_LIB=/nonexistent/libamdhip64.so SRS_HIP_RTC=/nonexistent/libhiprtc.so SRS_HIP_BLAS=/nonexistent/libhipblas.so \
+        SRS_OPENCL_LIB=/nonexistent/libOpenCL.so SRS_CLBLAST_LIB=/nonexistent/libclblast.so \
+        VK_DRIVER_FILES=/nonexistent VK_ICD_FILENAMES=/nonexistent LD_DEBUG=libs LD_DEBUG_OUTPUT="$TMP/ld.$n" "${extra[@]}")
+    if [ -n "$tty" ]; then
+        OUT=$(printf '%b' "$tty" | "${run[@]}" /usr/bin/timeout 120 /usr/bin/script -qec "$(printf '%q ' "$BIN" "$@")" /dev/null 2>&1)
+    else
+        OUT=$("${run[@]}" /usr/bin/timeout 120 "$BIN" "$@" 2>&1)
+    fi
     RC=$?
     if cat "$TMP/ld.$n".* 2>/dev/null | grep "calling init" | grep -iE 'libcuda|libnvidia|libamdhip|libhsa|librocm|libhiprtc|libnvrtc|libcublas|libhipblas|libOpenCL|libclblast|/usr/lib.*zluda' | grep -v "$STUB\|$TMP/zluda" | grep -q .; then
         bad "a real GPU library was loaded"
@@ -104,21 +118,69 @@ ctk SRS_CTK_ROUTE="$TMP/noroute" -- cuda-toolkit --install </dev/null
 osr fedora "Fedora Linux 43" ""; ctk -- cuda-toolkit --install </dev/null
 [ $RC = 1 ] && grep -q "no install command for Fedora" <<<"$OUT" && ok "Fedora: --install points to the instructions" || bad "fedora install: rc=$RC"
 osr arch "Arch Linux" ""
-if command -v script >/dev/null; then
-    out=$(printf 'no\n' | env PATH="$FAKE:/usr/bin" SRS_CTK_DRY_RUN=1 SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" \
-          SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" SRS_CUDA_LIB="$STUB" SRS_CUDA_RTC=/nonexistent SRS_HIP_LIB=/nonexistent SRS_OPENCL_LIB=/nonexistent \
-          script -qec "$BIN cuda-toolkit --install" /dev/null 2>&1)
-    grep -q "This runs, as administrator: sudo pacman -S --needed cuda" <<<"$out" && grep -q "cancelled, nothing installed" <<<"$out" && ok "terminal, answer no: the command is shown, cancelled" || bad "tty no: $out"
-    out=$(printf 'yes\n' | env PATH="$FAKE:/usr/bin" SRS_CTK_DRY_RUN=1 SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" \
-          SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" SRS_CUDA_RTC=/nonexistent SRS_HIP_LIB=/nonexistent SRS_OPENCL_LIB=/nonexistent \
-          script -qec "$BIN cuda-toolkit --install" /dev/null 2>&1)
-    grep -q "Type yes AGAIN" <<<"$out" && grep -q "cancelled, nothing installed (recommended with ZLUDA)" <<<"$out" && ok "ZLUDA: a second yes is needed; one yes cancels" || bad "zluda tty: $out"
-    out=$(printf 'yes\nyes\n' | env PATH="$FAKE:/usr/bin" SRS_CTK_DRY_RUN=1 SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" \
-          SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" SRS_CUDA_RTC=/nonexistent SRS_HIP_LIB=/nonexistent SRS_OPENCL_LIB=/nonexistent \
-          script -qec "$BIN cuda-toolkit --install" /dev/null 2>&1)
-    grep -q "dry run (SRS_CTK_DRY_RUN): would run: sudo pacman -S --needed cuda" <<<"$out" && ok "ZLUDA, yes twice, dry run: shows what it would run, runs nothing" || bad "dry run: $out"
-else echo "  skip  no script(1) for a pseudo-terminal"; fi
+if [ -x /usr/bin/script ]; then
+    ctk --tty 'no\n' -- cuda-toolkit --install
+    grep -q "This runs, as administrator: sudo pacman -S --needed cuda" <<<"$OUT" && grep -q "Programs used: $FAKE/sudo and $FAKE/pacman" <<<"$OUT" && grep -q "cancelled, nothing installed" <<<"$OUT" \
+        && ok "terminal, answer no: the command and the full paths are shown, cancelled" || bad "tty no: $OUT"
+    ctk --tty 'yes\n' SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" -- cuda-toolkit --install
+    grep -q "Type yes AGAIN" <<<"$OUT" && grep -q "cancelled, nothing installed (recommended with ZLUDA)" <<<"$OUT" && ok "ZLUDA: a second yes is needed; one yes cancels" || bad "zluda tty: $OUT"
+    ctk --tty 'yes\nyes\n' SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" -- cuda-toolkit --install
+    grep -q "dry run (SRS_CTK_DRY_RUN): would run: sudo pacman -S --needed cuda (as: $FAKE/sudo $FAKE/pacman -S --needed cuda)" <<<"$OUT" \
+        && ok "ZLUDA, yes twice, dry run: shows what it would run (full paths), runs nothing" || bad "dry run: $OUT"
+else echo "  skip  no /usr/bin/script for a pseudo-terminal"; fi
 [ ! -e "$TMP/EXECUTED" ] && ok "no package manager, sudo or pkexec was ever started" || bad "something was executed: $(cat "$TMP/EXECUTED")"
+
+echo "== only system folders: a planted pacman / sudo in ~/.local/bin, in PATH or in the current folder is never chosen (plan only, dry run)"
+PLANT=$HOME/.local/bin
+mkdir -p "$PLANT" "$TMP/cwd"
+for t in pacman sudo pkexec apt-get apt-cache; do
+    printf '#!/bin/sh\necho "planted %s $*" >> "%s/PLANTED"\nexit 0\n' "$t" "$TMP" > "$PLANT/$t"
+    cp "$PLANT/$t" "$TMP/cwd/$t"
+done
+chmod +x "$PLANT"/* "$TMP/cwd"/*
+# what a correct SRS picks on this PC: the real one in a system folder, or nothing (then it refuses)
+sys_tool() { local d; for d in /usr/bin /usr/sbin /bin /sbin; do [ -f "$d/$1" ] && [ -x "$d/$1" ] && { echo "$d/$1"; return; }; done; }
+SYS_PACMAN=$(sys_tool pacman); SYS_ROOT=$(sys_tool sudo); [ -n "$SYS_ROOT" ] || SYS_ROOT=$(sys_tool pkexec)
+check_plan() {   # check_plan WHAT: the plan uses the system pacman (or refuses), never a planted one
+    if grep -q "$PLANT\|$TMP/cwd\|$FAKE" <<<"$OUT"; then bad "$1: a planted tool was chosen: $(grep -m2 "Programs used\|$PLANT\|$TMP/cwd" <<<"$OUT")"
+    elif [ -n "$SYS_PACMAN" ] && [ -n "$SYS_ROOT" ]; then
+        grep -q "Programs used: $SYS_ROOT, $SYS_PACMAN" <<<"$OUT" && ok "$1: $SYS_ROOT and $SYS_PACMAN (system folders), not the planted ones" || bad "$1: $(grep -m2 "Install on\|Programs" <<<"$OUT")"
+    elif [ -z "$SYS_PACMAN" ]; then
+        grep -q "pacman was not found in /usr/bin, /usr/sbin, /bin or /sbin, so SRS does not run it" <<<"$OUT" && ok "$1: no system pacman here: refused with instructions" || bad "$1: $OUT"
+    else grep -q "Programs used: (no sudo or pkexec" <<<"$OUT" && ok "$1: no system sudo / pkexec here: none chosen" || bad "$1: $OUT"; fi
+}
+ctk PATH="$PLANT:$FAKE" SRS_CTK_TOOL_DIRS= -- cuda-toolkit --check
+check_plan "fake pacman / sudo first in PATH (~/.local/bin)"
+cd "$TMP/cwd" && ctk PATH=":$FAKE:" SRS_CTK_TOOL_DIRS= -- cuda-toolkit --check; cd - >/dev/null
+check_plan "empty PATH entries + a pacman in the current folder"
+cd "$TMP/cwd" && ctk PATH="." SRS_CTK_TOOL_DIRS= -- cuda-toolkit --check; cd - >/dev/null
+check_plan "PATH=. (a relative entry)"
+ctk SRS_CTK_DRY_RUN=0 -- cuda-toolkit --check
+check_plan "SRS_CTK_TOOL_DIRS without a dry run is ignored"
+if [ -n "$SYS_PACMAN" ] && [ -n "$SYS_ROOT" ] && [ -x /usr/bin/script ]; then
+    ctk --tty 'yes\n' PATH="$PLANT:$FAKE" SRS_CTK_TOOL_DIRS= -- cuda-toolkit --install
+    grep -q "would run: sudo pacman -S --needed cuda (as: $SYS_ROOT $SYS_PACMAN -S --needed cuda)" <<<"$OUT" && ok "--install (dry run): would run $SYS_ROOT $SYS_PACMAN" || bad "planted install: $(tail -3 <<<"$OUT")"
+fi
+[ ! -e "$TMP/PLANTED" ] && [ ! -e "$TMP/EXECUTED" ] && ok "no planted or fake tool was ever started" || bad "executed: $(cat "$TMP/PLANTED" "$TMP/EXECUTED" 2>/dev/null)"
+
+echo "== the terminal script: every path quoted (a ' in XDG_CACHE_HOME), full paths for sudo and pacman"
+SAFE=$TMP/safebin; mkdir -p "$SAFE" "$TMP/it's cache"
+for t in sudo pacman; do printf '#!/bin/sh\n[ "$(basename "$0")" = sudo ] && exec "$@"\necho "%s $*" > "%s/safe.ran"\nexit 0\n' "$t" "$TMP" > "$SAFE/$t"; done
+chmod +x "$SAFE"/*
+cat > "$TMP/script_h.c" <<'EOF2'
+#include <stdio.h>
+#include <string.h>
+#include "cuda_toolkit.h"
+int gb_cuda_probe(gb_cuda_state *st, int recheck) { (void)recheck; memset(st, 0, sizeof *st); return 0; }
+int main(int argc, char **argv) { ctk_plan p; char b[4000]; (void)argc; ctk_plan_install(&p); ctk_terminal_script(&p, argv[1], b, sizeof b); puts(b); return !p.exe[0]; }
+EOF2
+if gcc -O1 -Wall -Wextra -I"$SRC" -o "$TMP/script_h" "$TMP/script_h.c" "$SRC/cuda_toolkit.c" -pthread 2>"$TMP/script_h.err"; then
+    sf="$TMP/it's cache/cuda-install-1-2.status"
+    scr=$(env PATH=/nonexistent SRS_CTK_DRY_RUN=1 SRS_CTK_TOOL_DIRS="$SAFE" SRS_OS_RELEASE="$TMP/os-release" "$TMP/script_h" "$sf")
+    grep -qF "'$SAFE/sudo' '$SAFE/pacman' '-S' '--needed' 'cuda'" <<<"$scr" && ok "the script runs sudo and pacman by full path" || bad "script paths: $scr"
+    /bin/sh -c "$scr" </dev/null >/dev/null 2>&1
+    [ "$(cat "$sf" 2>/dev/null)" = 0 ] && grep -q "pacman -S --needed cuda" "$TMP/safe.ran" 2>/dev/null && ok "a ' in the status path: the script still runs and writes the status" || bad "quoted script did not run: $scr"
+else bad "script harness: $(head -3 "$TMP/script_h.err")"; fi
 
 echo "== don't ask again: kept in SRSDEF.ini, other settings untouched"
 mkdir -p "$XDG_CONFIG_HOME/srs"
@@ -133,6 +195,9 @@ ctk -- cuda-toolkit --check
 grep -q "does not ask (\"Don't ask again\"" <<<"$OUT" && ok "the setting persists (read back by a new process)" || bad "persist: $OUT"
 ctk -- cuda-toolkit --ask-again
 grep -qx "Ask CUDA Toolkit=1" "$XDG_CONFIG_HOME/srs/SRSDEF.ini" && [ "$(grep -c 'Ask CUDA Toolkit' "$XDG_CONFIG_HOME/srs/SRSDEF.ini")" = 1 ] && ok "--ask-again: back to 1, one key only" || bad "ask-again: $(cat "$XDG_CONFIG_HOME/srs/SRSDEF.ini")"
+printf '[SRSDEF]\nAsk CUDA Toolkit2=5\nAsk CUDA Toolkit = 1\n' > "$XDG_CONFIG_HOME/srs/SRSDEF.ini"; ctk -- cuda-toolkit --never-ask
+grep -qx "Ask CUDA Toolkit2=5" "$XDG_CONFIG_HOME/srs/SRSDEF.ini" && grep -qx "Ask CUDA Toolkit=0" "$XDG_CONFIG_HOME/srs/SRSDEF.ini" && [ "$(grep -c 'Ask CUDA Toolkit' "$XDG_CONFIG_HOME/srs/SRSDEF.ini")" = 2 ] \
+    && ok "a longer key that starts the same (Ask CUDA Toolkit2) is kept, 'Ask CUDA Toolkit = 1' is replaced" || bad "key prefix: $(cat "$XDG_CONFIG_HOME/srs/SRSDEF.ini")"
 rm -f "$XDG_CONFIG_HOME/srs/SRSDEF.ini"; ctk -- cuda-toolkit --never-ask
 grep -qx "\[SRSDEF\]" "$XDG_CONFIG_HOME/srs/SRSDEF.ini" && grep -qx "Ask CUDA Toolkit=0" "$XDG_CONFIG_HOME/srs/SRSDEF.ini" && ok "no ini yet: created with [SRSDEF]" || bad "new ini"
 
@@ -159,8 +224,9 @@ if [ -x "$GUI" ] && command -v Xvfb >/dev/null && command -v xwininfo >/dev/null
         local open=$1; shift
         GLOG=$TMP/gui.$open.log
         env -u WAYLAND_DISPLAY DISPLAY="$d" GDK_BACKEND=x11 G_DEBUG=fatal-criticals NO_AT_BRIDGE=1 PATH="$FAKE:/usr/bin" SRS_CTK_DRY_RUN=1 \
-            SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" \
-            SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" SRS_CUDA_RTC=/nonexistent SRS_CUDA_BLAS=/nonexistent SRS_HIP_LIB=/nonexistent SRS_OPENCL_LIB=/nonexistent \
+            SRS_CTK_TOOL_DIRS="$FAKE" SRS_OS_RELEASE="$TMP/os-release" SRS_PCI_SYSFS="$TMP/nopci" SRS_CTK_ROUTE="$TMP/route" SRS_CTK_PACMAN_LOCK="$TMP/no-db.lck" \
+            SRS_CUDA_LIB="$TMP/zluda/libcuda.so.1" SRS_CUDA_RTC=/nonexistent SRS_CUDA_BLAS=/nonexistent SRS_HIP_LIB=/nonexistent SRS_HIP_RTC=/nonexistent \
+            SRS_HIP_BLAS=/nonexistent SRS_OPENCL_LIB=/nonexistent \
             SRS_CLBLAST_LIB=/nonexistent VK_DRIVER_FILES=/nonexistent VK_ICD_FILENAMES=/nonexistent SRS_GPU_SOFTWARE_ONLY=1 LD_DEBUG=libs LD_DEBUG_OUTPUT="$TMP/ldg.$open" "$@" \
             "$GUI" --gui-new --gui-open="$open" >"$GLOG" 2>&1 & GPID=$!
     }
@@ -183,5 +249,11 @@ if [ -x "$GUI" ] && command -v Xvfb >/dev/null && command -v xwininfo >/dev/null
     stop cudaask
     [ ! -e "$TMP/EXECUTED" ] && ok "the GUI started no package manager, sudo or pkexec" || bad "the GUI executed: $(cat "$TMP/EXECUTED")"
 else echo "  skip  no srs-gui / Xvfb / xwininfo"; fi
+
+echo "== every run of this test: the real libcuda / libcublas (ZLUDA's on this PC) was never loaded"
+if cat "$TMP"/ld.* "$TMP"/ldg.* 2>/dev/null | grep "calling init" | grep -E 'libcublas|libcuda|libnvrtc|libamdhip|libOpenCL|libclblast' | grep -v "$STUB\|$TMP/zluda" | grep -q .; then
+    bad "a real GPU library was loaded: $(cat "$TMP"/ld.* "$TMP"/ldg.* | grep 'calling init' | grep -E 'libcublas|libcuda' | grep -v "$STUB\|$TMP/zluda" | head -3)"
+elif ! cat "$TMP"/ld.* 2>/dev/null | grep "calling init" | grep -q libgpustub; then bad "the LD_DEBUG traces are empty: the check above proves nothing"
+else ok "no real libcuda / libcublas / libnvrtc / HIP / OpenCL library in any LD_DEBUG trace ($(ls "$TMP"/ld.* "$TMP"/ldg.* 2>/dev/null | wc -l) traces; the stub is in them)"; fi
 
 exit $fail

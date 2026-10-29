@@ -2437,7 +2437,9 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             return;
         }
         if (mask >> GB_CUDA & 1) ctk_maybe_ask(GTK_WINDOW(w->win), 0);   /* once: the optional NVIDIA CUDA toolkit */
-        n = gpu_list(dv, GPU_MAXDEV, why, sizeof why);   /* the Vulkan list only: no HIP / CUDA / OpenCL runtime before Yes */
+        n = gpu_list(dv, GPU_MAXDEV, why, sizeof why);   /* the Vulkan list only: no HIP / CUDA / OpenCL runtime is started (no
+                                                            hipInit / cuInit / OpenCL platform query) before Yes; available() and the
+                                                            toolkit question above only dlopen / dlsym the libraries */
         if (n > 0) {
             if (dev >= n) dev = -1;
             k = dev >= 0 ? dev : gpu_default_device(dv, n);
@@ -2825,6 +2827,10 @@ static gpointer gpu_av_thread(gpointer data)
     gpu_avjob *a = data;
     int k;
     for (k = 0; k < GB_N; k++) a->av[k] = gb_table[k]->available(a->hint[k], sizeof a->hint[k]);
+    if (a->av[GB_CUDA] && ctk_ask_get()) {   /* ask apt-cache now (Debian / Ubuntu), so the CUDA toolkit question on Run does not wait */
+        ctk_plan pl;
+        ctk_plan_install(&pl);
+    }
     g_idle_add(gpu_av_done, a);
     return NULL;
 }
@@ -3665,8 +3671,27 @@ static void ctk_child_done(GPid pid, gint st, gpointer data)
     if (w->dlg) gtk_dialog_response(GTK_DIALOG(w->dlg), GTK_RESPONSE_OK);
 }
 
+/* status files of installs SRS stopped waiting for (the terminal writes them later): removed at the next install and at exit */
+static void ctk_sweep_status(void)
+{
+    char *dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
+    GDir *d = g_dir_open(dir, 0, NULL);
+    const char *e;
+    if (d) {
+        while ((e = g_dir_read_name(d)))
+            if (g_str_has_prefix(e, "cuda-install-") && g_str_has_suffix(e, ".status")) {
+                char *f = g_build_filename(dir, e, NULL);
+                unlink(f);
+                g_free(f);
+            }
+        g_dir_close(d);
+    }
+    g_free(dir);
+}
+
 /* run the plan: in a terminal window (the user sees and answers the package manager), else pkexec. Returns the exit status,
-   -1 = could not start, -2 = the user stopped waiting */
+   -1 = could not start, -2 = the user stopped waiting. pkexec, sudo and the package manager run by their full path in a
+   system folder (cuda_toolkit.c), never by a name looked up in PATH */
 static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
 {
     static ctk_wait w;   /* the child watch may outlive this call if the user stops waiting */
@@ -3676,8 +3701,12 @@ static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
     GError *err = NULL;
     guint timer = 0;
     int resp;
+    static int swept;
     if (busy && !w.have) return -3;   /* an earlier pkexec install has not ended yet */
+    if (!pl->exe[0] || (term ? !ctk_root_path() : !ctk_pkexec_path())) return -1;   /* (ctk_precheck said so already) */
     busy = term == NULL;              /* only pkexec has a child watch that can outlive this call */
+    ctk_sweep_status();
+    if (!swept) { swept = 1; atexit(ctk_sweep_status); }
     memset(&w, 0, sizeof w);
     dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
     g_mkdir_with_parents(dir, 0700);
@@ -3690,11 +3719,12 @@ static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
         if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &err)) { g_clear_error(&err); return -1; }
     } else {
         int n = 0, k;
-        argv[n++] = "pkexec";
-        for (k = 0; k < pl->argc && n < 14; k++) argv[n++] = pl->argv[k];
+        argv[n++] = ctk_pkexec_path();   /* full paths: pkexec would look a plain name up in the user's PATH */
+        argv[n++] = pl->exe;
+        for (k = 1; k < pl->argc && n < 14; k++) argv[n++] = pl->argv[k];
         if (pl->noninteractive[0]) argv[n++] = pl->noninteractive;
         argv[n] = NULL;
-        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &w.pid, &err)) { g_clear_error(&err); busy = 0; return -1; }
+        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &w.pid, &err)) { g_clear_error(&err); busy = 0; return -1; }
         g_child_watch_add(w.pid, ctk_child_done, &w);
     }
     w.dlg = gtk_dialog_new_with_buttons("NVIDIA CUDA toolkit - installing", parent, GTK_DIALOG_MODAL, "_Stop waiting", GTK_RESPONSE_CANCEL, NULL);
@@ -3748,6 +3778,10 @@ static void ctk_install(GtkWindow *parent)
         size_t l = strlen(body);
         snprintf(body + l, sizeof body - l, "\n(No terminal was found, so it runs without questions: %s.)", pl.noninteractive);
     }
+    {   /* what exactly runs: full paths in system folders only */
+        size_t l = strlen(body);
+        snprintf(body + l, sizeof body - l, "\nPrograms used: %s and %s.", t ? (ctk_root_path() ? ctk_root_path() : "sudo") : (ctk_pkexec_path() ? ctk_pkexec_path() : "pkexec"), pl.exe);
+    }
     d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, st.cu.zluda ? GTK_MESSAGE_WARNING : GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
                                st.cu.zluda ? "Install the NVIDIA CUDA toolkit anyway? (not recommended with ZLUDA)" : "Install the NVIDIA CUDA runtime compiler?");
     gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit");
@@ -3774,6 +3808,7 @@ static void ctk_install(GtkWindow *parent)
         return;
     }
     rc = ctk_run(parent, &pl, t);
+    ctk_plan_refresh();   /* the package lists may have changed: ask apt-cache again next time */
     ctk_detect(&st, 1);
     ctk_result_text(&pl, rc, &st, res, sizeof res);
     ctk_msg(parent, rc == 0 && st.cu.nvrtc ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING, rc == 0 && st.cu.nvrtc ? "Installed" : "Not installed", res);
@@ -3860,7 +3895,7 @@ static void ctk_maybe_ask(GtkWindow *parent, int force)
     gtk_widget_show_all(d);
     r = gtk_dialog_run(GTK_DIALOG(d));
     gtk_widget_destroy(d);
-    if (r == 1) { ctk_install(parent); return; }
+    if (r == 1) { g_ctk_not_now = 1; ctk_install(parent); return; }   /* asked once: Install... then Cancel does not ask again */
     if (r == 3) ctk_ask_set(0);
     g_ctk_not_now = 1;   /* Not now, Don't ask again or the window closed: not again this session */
     ctk_msg(parent, GTK_MESSAGE_INFO, "Continuing without the NVIDIA CUDA toolkit.", ctk_later_hint());
