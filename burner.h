@@ -64,6 +64,7 @@ int  burn_start(const burn_cfg *c);          /* 0 ok, -1 already running / no CP
 void burn_stop(void);
 void burn_tick(burn_status *st);            /* call ~1/s: samples sensors, advances phases */
 int  burn_active(void);
+int  burn_gpu_pid_set(void);                 /* any thread: a GPU part process is still there (read only, no reaping) */
 int  burn_gpu_running(void);                 /* the GPU part (built-in or command) has not ended yet */
 void burn_sample_now(burn_sample *s);        /* one sensor sample (no load) */
 double whetstone_mwips(long loops, double *secs); /* single run on the calling thread */

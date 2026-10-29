@@ -458,6 +458,8 @@ static void gpu_check(void)
 
 int burn_active(void) { return __atomic_load_n(&g_active, __ATOMIC_SEQ_CST); }
 int burn_gpu_running(void) { gpu_check(); return g_gpu_pid != 0; }
+/* any thread: is a GPU part process still there? Reads only (no reaping; burn_tick on the main thread reaps it) */
+int burn_gpu_pid_set(void) { return __atomic_load_n(&g_gpu_pid, __ATOMIC_SEQ_CST) != 0; }
 
 void burn_cfg_default(burn_cfg *c)
 {

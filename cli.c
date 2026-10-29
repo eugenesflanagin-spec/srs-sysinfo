@@ -820,7 +820,7 @@ static int cmd_work(int argc, char **argv)
              "on one thread and then on all chosen threads at once: every CPU 100% busy, up to ~100 MB of memory per thread.");
     if (!yes && !ask_start("work", what)) return 2;
     rc = bench_work(&c, &o, NULL);
-    if (rc == -1) fprintf(stderr, "work: not started - CPU Burnin / Stress or another run is active, or out of memory\n");
+    if (rc == -1) fprintf(stderr, "work: not started - Stress & Burnin or another run is active, or out of memory\n");
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 

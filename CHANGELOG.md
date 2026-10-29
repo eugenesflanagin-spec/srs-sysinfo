@@ -25,8 +25,8 @@ own risk" agreement for the load tests, columns that line up on every page, and 
   `Stress GPU Minutes`, `Stress GPU Sync`, `Stress GPU Backend`, `Stress GPU Precision`, `Stress GPU Limit`,
   `Stress Until Stop`, `Stress GPU Options Open`.
 - **Tools as tabs** (new main window): on the Benchmarks & Stress page every tool is a tab with its controls and
-  live results - Stress & Burnin, CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work,
-  Network, GPU benchmark, GPU Compare, SRS Pi, Crypto, Prime sieve, IPI delay, Memory latency - built by the same
+  live results - Stress & Burnin, CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work,
+  Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency - built by the same
   code as the windows. The page's sections are compact (one short line each, two per row; full text in the
   tooltip) and open the tool's tab; the Tools page's sections are compact too. The Basic lineup keeps the full
   descriptions. Classic View keeps the separate windows. Leaving a running tool's tab, its page or the window
@@ -79,7 +79,8 @@ own risk" agreement for the load tests, columns that line up on every page, and 
 - Copy gives a "..." cell's full text once, also when a colour starts inside the cell.
 - MSR Setup decodes P-state MHz only on AMD family 17h / 19h (Zen 1-4), where the layout is checked; other
   CPUs show the raw value. The AMD-V (SVM) line is AMD only.
-- A GPU Benchmark also waits while the GPU part of a Stress & Burnin run is still ending.
+- A GPU Benchmark, GPU Burnin or GPU Compare is not started (it says why) while the GPU part of a Stress & Burnin
+  run is still ending.
 - `--help` lists the `stressburn` and `loadterms` panels; a few more names in Title Case (OS Latency, GPU Compute
   Comparison, Benchmarks and Stress).
 

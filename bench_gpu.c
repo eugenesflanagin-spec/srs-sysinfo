@@ -458,7 +458,7 @@ int bench_gpu(const gpu_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
     char params[600], res[700];
     size_t rl;
     if (why && wn) why[0] = 0;
-    if (burn_active() || burn_gpu_running()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU Benchmark when it has finished"); return -1; }
+    if (burn_active() || burn_gpu_pid_set()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU Benchmark when it has finished"); return -1; }
     if (!gpu_claim("GPU Benchmark", &who)) { if (why) gpu_claim_text(who, why, wn); return -1; }
     if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "Stress & Burnin is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
     if (!(x = calloc(1, sizeof *x)) || !(x->lat = malloc(LAT_MAX * sizeof *x->lat))) {

@@ -318,9 +318,9 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
     int c, row, rc = 0;
     time_t now = time(NULL);
     if (why && wn) why[0] = 0;
-    if (burn_active()) { if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU comparison when it has finished"); return -1; }
+    if (burn_active() || burn_gpu_pid_set()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU comparison when it has finished"); return -1; }
     if (!gpu_claim("GPU Compute comparison", &who)) { if (why) gpu_claim_text(who, why, wn); return -1; }
-    if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
+    if (burn_active()) { gpu_release(); if (why) snprintf(why, wn, "Stress & Burnin is running; start the GPU test when it has finished"); return -1; }   /* it started at the same moment */
     x = calloc(1, sizeof *x);
     r = res ? res : calloc(1, sizeof *r);
     if (!x || !r) { free(x); if (!res) free(r); if (why) snprintf(why, wn, "out of memory"); gpu_release(); return -1; }

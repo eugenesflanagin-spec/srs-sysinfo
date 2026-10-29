@@ -3324,10 +3324,10 @@ that ran, with a note saying how many could not start (if none could
 start, the run says that); a bigger matrix that does not fit in a small
 card's memory just keeps the size that worked.</p>
 <p><strong>SRS never changes clocks, voltages or fans</strong> - it only
-reads them. GPU Burnin does not start while CPU Burnin / Stress or
-another benchmark runs, and CPU Burnin waits until it has finished (its
-status line says "not started" and why). The result is saved to
-<code>~/.cache/srs/bench-gpuburn.txt</code> and added to the <a
+reads them. GPU Burnin does not start while Stress &amp; Burnin or
+another benchmark runs, and Stress &amp; Burnin waits until it has
+finished (its status line says "not started" and why). The result is
+saved to <code>~/.cache/srs/bench-gpuburn.txt</code> and added to the <a
 href="#user-guide--910-benchmark-history">Benchmark History</a>. The idea of
 comparing every result with the first one comes from gpu-burn by Ville
 Timonen; the code is SRS's own. Tested on a software GPU only - see the
@@ -33373,7 +33373,7 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power &amp; Cost page; --power-recorder record its history with no window</code></pre>

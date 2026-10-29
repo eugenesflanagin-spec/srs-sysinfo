@@ -163,7 +163,7 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & Cost page; --power-recorder record its history with no window

@@ -1456,7 +1456,7 @@ int bench_work(const wk_cfg *cfg, srs_out *o, volatile int *cancel)
     time_t now = time(NULL);
     cpu_set_t cs;
     int i, g, expected = 0, rc;
-    if (burn_active()) { if (o) so_err(o, "Everyday work: not started - CPU Burnin / Stress is running"); return -1; }
+    if (burn_active()) { if (o) so_err(o, "Everyday Work: not started - Stress & Burnin is running"); return -1; }
     if (!atomic_compare_exchange_strong(&g_running, &expected, 1)) {
         if (o) so_err(o, "Everyday work: not started - it is already running");
         return -1;

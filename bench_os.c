@@ -963,7 +963,7 @@ static void os_render(srs_out *o, void *cv)
     os_result *r = c->r;
     int i, g = -1;
     char sl[32];
-    so_siv_header(o, "OS latency (system calls, context switches, process start, wake-ups, timers, page faults, file metadata)");
+    so_siv_header(o, "OS Latency (system calls, context switches, process start, wake-ups, timers, page faults, file metadata)");
     so_tabs(o, tabs, 7);
     so_row(o, 8, (const char *const[]){ "Test", "Median", "95%", "99%", "Worst", "Best", "Samples", "How" },
            (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });

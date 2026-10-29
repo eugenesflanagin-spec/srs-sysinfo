@@ -410,7 +410,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
     double end_at = 0;
     time_t now = time(NULL);
     if (why && wn) why[0] = 0;
-    if (burn_active()) { if (why) snprintf(why, wn, "CPU Burnin / Stress is running; start the GPU Burnin when it has finished"); return -1; }
+    if (burn_active() || burn_gpu_pid_set()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU Burnin when it has finished"); return -1; }
     if (c.seconds < 1) c.seconds = 1;
     if (c.seconds > 86400) c.seconds = 86400;
     if (c.limit_c < 40 || c.limit_c > 130) c.limit_c = 100;

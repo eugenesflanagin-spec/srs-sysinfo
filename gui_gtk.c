@@ -2803,9 +2803,10 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     benchjob *j;
     GThread *th;
     (void)x;
-    if (w->running || g_bench_busy || burn_active()) {
+    if (w->running || g_bench_busy || burn_active() || burn_gpu_running()) {
         gtk_widget_error_bell(w->win);
         gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - Stress & Burnin is running"
+                           : burn_gpu_running() ? "Not started - the GPU part of Stress & Burnin is still ending; try again in a moment"
                                                                   : "Not started - another benchmark is running; wait for it to finish");
         return;
     }
