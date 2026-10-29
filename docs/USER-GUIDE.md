@@ -1921,7 +1921,7 @@ could start, the run says that); a bigger matrix that does not fit in a small ca
 memory just keeps the size that worked.
 
 **SRS never changes clocks, voltages or fans** - it only reads them. GPU Burnin does not start
-while Stress & Burnin or another benchmark runs, and Stress & Burnin waits until it has finished (its status line says "not started" and why).
+while Stress & Burnin or another benchmark runs, and Stress & Burnin does not start until it has finished (its status line says "not started" and why).
 The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
 [Benchmark History](#910-benchmark-history). The idea of comparing every result with the first
 one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on a software GPU only -

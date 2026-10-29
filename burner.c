@@ -415,7 +415,7 @@ static void gpu_check(void)
         }
         return;
     }
-    g_gpu_pid = 0;
+    __atomic_store_n(&g_gpu_pid, 0, __ATOMIC_SEQ_CST);   /* read from other threads by burn_gpu_pid_set */
     if (g_gpu_stop_t > 0 && !g_gpu_killed) {   /* asked to stop: that is the expected end */
         g_gpu_stop_t = 0;
         if (g_cfg.gpu_argv && WIFEXITED(ws)) g_gpu_exit = WEXITSTATUS(ws);
@@ -503,7 +503,7 @@ static void gpu_load(int on)
             _exit(127);
         }
         if (p > 0) {
-            g_gpu_pid = p;
+            __atomic_store_n(&g_gpu_pid, p, __ATOMIC_SEQ_CST);
             g_gpu_t0 = now_s();
             g_gpu_bad = g_gpu_killed = g_gpu_cooling = 0;
             g_gpu_stop_t = 0;

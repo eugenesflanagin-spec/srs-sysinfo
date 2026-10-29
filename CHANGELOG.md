@@ -79,8 +79,8 @@ own risk" agreement for the load tests, columns that line up on every page, and 
 - Copy gives a "..." cell's full text once, also when a colour starts inside the cell.
 - MSR Setup decodes P-state MHz only on AMD family 17h / 19h (Zen 1-4), where the layout is checked; other
   CPUs show the raw value. The AMD-V (SVM) line is AMD only.
-- A GPU Benchmark, GPU Burnin or GPU Compare is not started (it says why) while the GPU part of a Stress & Burnin
-  run is still ending.
+- No benchmark is started (it says why) while the GPU part of a Stress & Burnin run is still ending (GPU Benchmark,
+  GPU Burnin and GPU Compare check it on the command line too).
 - `--help` lists the `stressburn` and `loadterms` panels; a few more names in Title Case (OS Latency, GPU Compute
   Comparison, Benchmarks and Stress).
 
