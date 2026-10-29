@@ -586,6 +586,12 @@ static int gemm_once(gb_ctx *c, void *dst)
         if (c->prec == GP_FP64) e = r->Dgemm(c->blas, op, op, n, n, n, &d1, c->b, n, c->a, n, &d0, dst, n);
         else if (c->prec == GP_FP16) e = r->Hgemm(c->blas, op, op, n, n, n, &h1, c->b, n, c->a, n, &h0, dst, n);
         else e = r->Sgemm(c->blas, op, op, n, n, n, &f1, c->b, n, c->a, n, &f0, dst, n);
+        /* cuBLAS 15 / hipBLAS 7 = NOT_SUPPORTED (e.g. ZLUDA's cuBLAS has no FP64 GEMM): a missing feature, not a fault */
+        if (e == (r->cuda ? 15 : 7)) {
+            snprintf(c->err, sizeof c->err, "%s on this driver does not support %s matrix multiply", r->cuda ? (r->zluda ? "cuBLAS (ZLUDA)" : "cuBLAS") : "hipBLAS",
+                     c->prec == GP_FP64 ? "FP64" : c->prec == GP_FP16 ? "FP16" : "FP32");
+            return GBP_UNSUPPORTED;
+        }
         if (e) { seterr(c, e, "the GEMM library"); return GBP_ERROR; }
         return GBP_OK;
     } else {

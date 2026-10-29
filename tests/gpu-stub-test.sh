@@ -132,6 +132,11 @@ for be in cuda hip; do
         if no_abort && [ $RC = 0 ] && grep -q "vendor library: the kernel did not compile: stub: the test compiler said no (after the built-in kernels were refused" <<<"$OUT" && [ "$(count cmp_u32)" = 0 ]
         then ok "cuda compare, both fail: the row says both reasons, nothing launched"; else bad "cuda compare, both fail: rc=$RC $(grep -E 'library|compile' <<<"$OUT" | head -3) $LOG"; fi
 
+        echo "== cuda, gpu-compare: the GEMM library has no FP64 (ZLUDA's cuBLAS answers NOT_SUPPORTED)"
+        run_cli STUB_DGEMM_UNSUP=1 -- gpu-compare --backends cuda --seconds 0.1 --yes
+        if [ $RC = 0 ] && no_abort && grep -q "not available *FP64 matrix multiply, vendor library: cuBLAS on this driver does not support FP64 matrix multiply" <<<"$OUT" && ! grep -q "failed" <<<"$OUT"
+        then ok "cuda compare, cuBLAS without FP64: not available (not failed)"; else bad "cuda compare, cuBLAS without FP64: rc=$RC $(grep -E 'FP64 matrix multiply, vendor|failed' <<<"$OUT" | head -3)"; fi
+
         echo "== cuda, gpu-compare: a kernel the module should hold comes back NULL"
         run_cli STUB_NO_FN=cmp_u32 -- gpu-compare --backends cuda --seconds 0.1 --yes
         if no_abort && [ $RC = 0 ] && grep -q "returned no kernel" <<<"$OUT"; then ok "cuda compare, NULL kernel handle: refused with a message"; else bad "cuda compare, NULL kernel: rc=$RC $(tail -3 <<<"$OUT")"; fi

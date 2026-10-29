@@ -39,6 +39,8 @@ optional, explained NVIDIA CUDA toolkit install.
 
 ### Changed
 
+- A GEMM library that answers "not supported" for a precision (ZLUDA's cuBLAS has no FP64 GEMM; cuBLAS 15 /
+  hipBLAS 7) gives a "not available" row with that reason instead of "failed" (seen on the RX 9070 XT with ZLUDA).
 - The CUDA / HIP column's software line says how the own kernels are made: "own kernels built in (PTX)" with
   "NVRTC as fallback" or "no NVRTC" for CUDA, "no runtime compiler (libhiprtc), own kernels unavailable" for HIP.
 - When the driver refuses the built-in kernels and NVRTC is missing, the CUDA rows say so and point to
