@@ -778,6 +778,7 @@ static void on_nb_switch(GtkNotebook *nb, GtkWidget *child, guint n, gpointer d)
 {
     int i, np = gtk_notebook_get_n_pages(nb);
     (void)child;
+    if (getenv("SRS_TEST_TAB_LOG")) fprintf(stderr, "SRS-TEST: tab %d of page %d\n", (int)n, GPOINTER_TO_INT(d));   /* tests */
     for (i = 0; i < np; i++) {   /* the close button: on the tab in view, and on temporary tabs */
         swin *t = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
         GtkWidget *x = t && t->tablbl ? g_object_get_data(G_OBJECT(t->tablbl), "x") : NULL;
@@ -1503,6 +1504,41 @@ static void tabs_dialog(int cat)
     g_free(td);
 }
 
+/* 2.3.1: the mouse wheel over a side (vertical) tab list goes to the tab above / below, one notch per tab, no wrap-around.
+   GTK 3's tab list cannot scroll on its own (it always shows the current tab), so stepping through the tabs is also
+   how a long list scrolls. Touchpad scrolling adds up to whole notches. A running test is never started or stopped by
+   this: leaving a running tool's tab asks as always (on_bench_switch). Tabs on top are not changed. */
+static double g_wheel_acc;
+static gboolean on_nb_scroll(GtkWidget *nb, GdkEventScroll *ev, gpointer d)
+{
+    GtkAllocation na, ca;
+    GtkWidget *cur;
+    int x, y, step = 0, n, i;
+    (void)d;
+    if (g_cur.layout != LAY_SIDE) return FALSE;
+    n = gtk_notebook_get_n_pages(GTK_NOTEBOOK(nb));
+    i = gtk_notebook_get_current_page(GTK_NOTEBOOK(nb));
+    if (i < 0 || !(cur = gtk_notebook_get_nth_page(GTK_NOTEBOOK(nb), i))) return FALSE;
+    gtk_widget_get_allocation(nb, &na);
+    gtk_widget_get_allocation(cur, &ca);
+    gdk_window_get_device_position(gtk_widget_get_window(nb), ev->device, &x, &y, NULL);
+    if (x < na.x || x >= ca.x) return FALSE;   /* only over the tab list, left of the page */
+    if (ev->direction == GDK_SCROLL_UP) step = -1;
+    else if (ev->direction == GDK_SCROLL_DOWN) step = 1;
+    else if (ev->direction == GDK_SCROLL_SMOOTH) {
+        double dx, dy;
+        gdk_event_get_scroll_deltas((GdkEvent *)ev, &dx, &dy);
+        g_wheel_acc += dy;
+        step = (int)g_wheel_acc;   /* whole notches (several when GTK merged queued scroll events) */
+        g_wheel_acc -= step;
+    }
+    if (step) {
+        int to = i + step < 0 ? 0 : i + step >= n ? n - 1 : i + step;   /* no wrap-around */
+        if (to != i) gtk_notebook_set_current_page(GTK_NOTEBOOK(nb), to);
+    }
+    return TRUE;
+}
+
 /* ---- a page's tab area: the notebook, the wrapped strip, and the "+" / "All N items" buttons ---- */
 static GtkWidget *tabs_area(int cat)
 {
@@ -1512,6 +1548,8 @@ static GtkWidget *tabs_area(int cat)
     gtk_style_context_add_class(gtk_widget_get_style_context(nb), "srs-nb");
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(nb), TRUE);
     gtk_notebook_set_show_border(GTK_NOTEBOOK(nb), FALSE);
+    gtk_widget_add_events(nb, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);
+    g_signal_connect(nb, "scroll-event", G_CALLBACK(on_nb_scroll), NULL);
     g_home->strip[cat] = gtk_flow_box_new();
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(g_home->strip[cat]), GTK_SELECTION_NONE);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(g_home->strip[cat]), 40);
