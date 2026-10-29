@@ -4126,6 +4126,8 @@ static void load_css(void)
     }
     if (g_classic_session && !g_home_open) g_string_append(css, g_dark ? dark : light);
     else { g_string_append(css, g_dark ? dark_scoped : light_scoped); g_string_append(css, modern); }
+    /* Adwaita dark's error colour (#c01c28) is too dim for warning text on a dark background */
+    if (g_dark) g_string_append(css, ".srs-bad { color: #ff7b72; }");
     gtk_css_provider_load_from_data(c, css->str, -1, NULL);
     g_string_free(css, TRUE);
 }
