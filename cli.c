@@ -322,6 +322,12 @@ static volatile sig_atomic_t g_int;
 static void on_int(int s) { (void)s; g_int = 1; }
 
 /* burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N] */
+/* 2.3.1: the short "use at your own risk" notice of every load test (the GUI asks once, with I Agree / I Disagree) */
+static const char g_risk[] = "Use at your own risk: SRS comes without any warranty, and its authors are not responsible for any damage "
+                             "(see the licence, GNU GPL v2).";
+static const char g_risk_yes[] = "--yes starts without asking; using it counts as agreeing to that.";
+static void help_risk(void) { puts(g_risk); puts(g_risk_yes); }
+
 static int cmd_burn(int argc, char **argv)
 {
     burn_cfg c;
@@ -333,6 +339,13 @@ static int cmd_burn(int argc, char **argv)
     c.cool_s = 0;
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+            puts("usage: sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
+                 "  starts at once (no question): makes the chosen CPUs 100 % busy, stops at the temperature limit (default 90 C) or Ctrl+C");
+            puts(g_risk);
+            puts("Starting it counts as agreeing to that.");
+            return 0;
+        }
         if (!strcmp(a, "--threads") && v) { threads = atoi(v); i++; }
         else if (!strcmp(a, "--cpus") && v) { cpus = v; i++; }
         else if (!strcmp(a, "--seconds") && v) { c.burn_s = atof(v); i++; }
@@ -352,6 +365,7 @@ static int cmd_burn(int argc, char **argv)
         for (i = 0; i < c.ncpu; i++) c.enabled[i] = i < threads;
     }
     signal(SIGINT, on_int);
+    fprintf(stderr, "%s\n", g_risk);
     burn_tick(&st);                      /* prime the CPU-usage counters */
     if (burn_start(&c)) { fprintf(stderr, "burn: nothing to run (no CPUs selected, already running, or a GPU burn-in / benchmark is running)\n"); return 2; }
     burn_tick(&st);
@@ -385,11 +399,11 @@ static int ask_start(const char *cmd, const char *what)
 {
     char ans[16];
     if (!isatty(0)) {
-        fprintf(stderr, "%s: not started - %s\n%*s  Run it from a terminal to be asked, or pass --yes to start without asking.\n",
-                cmd, what, (int)strlen(cmd), "");
+        fprintf(stderr, "%s: not started - %s\n%s\n%*s  Run it from a terminal to be asked, or pass --yes to start without asking "
+                "(that counts as agreeing).\n", cmd, what, g_risk, (int)strlen(cmd), "");
         return 0;
     }
-    fprintf(stderr, "%s\nStart now? [y/N] ", what);
+    fprintf(stderr, "%s\n%s\nStart now (and agree)? [y/N] ", what, g_risk);
     fflush(stderr);
     if (!fgets(ans, sizeof ans, stdin) || (ans[0] != 'y' && ans[0] != 'Y')) { fprintf(stderr, "%s: not started\n", cmd); return 0; }
     return 1;
@@ -432,6 +446,7 @@ static int cmd_bench(int argc, char **argv)
             puts(!strcmp(cmd, "bench") ? "usage: sysreport-search bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]" :
                  !strcmp(cmd, "ipi") ? "usage: sysreport-search ipi [--cpus N] [--rounds R] [--yes]" :
                  "usage: sysreport-search latency [--max MB] [--yes]");
+            help_risk();
             return 0;
         }
         if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
@@ -521,6 +536,7 @@ static int cmd_cachemem(int argc, char **argv)
             puts("usage: sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M]\n"
                  "                                 [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib]\n"
                  "                                 [--mem-write auto|clzero|stream] [--yes]");
+            help_risk();
             return 0;
         }
         if (need && !v) { fprintf(stderr, "cachemem: %s needs a value\n", a); return 2; }
@@ -589,6 +605,7 @@ static int cmd_storage(int argc, char **argv)
         int need = !strcmp(a, "--dir") || !strcmp(a, "--size") || !strcmp(a, "--seconds") || !strcmp(a, "--profile");
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
             puts("usage: sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]");
+            help_risk();
             return 0;
         }
         if (need && !v) { fprintf(stderr, "storage: %s needs a value\n", a); return 2; }
@@ -645,6 +662,7 @@ static int cmd_os_latency(int argc, char **argv)
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
             puts("usage: sysreport-search os-latency [--samples N] [--tick-seconds S]\n"
                  "                                   [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]");
+            help_risk();
             return 0;
         }
         if (need && !v) { fprintf(stderr, "os-latency: %s needs a value\n", a); return 2; }
@@ -697,6 +715,7 @@ static int cmd_compute(int argc, char **argv)
             puts("usage: sysreport-search compute [--threads N] [--seconds S]\n"
                  "                                [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]\n"
                  "                                [--code auto|c|sse2|avx2|avx512] [--single] [--yes]");
+            help_risk();
             return 0;
         }
         if (need && !v) { fprintf(stderr, "compute: %s needs a value\n", a); return 2; }
@@ -777,6 +796,7 @@ static int cmd_work(int argc, char **argv)
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
             puts("usage: sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]\n"
                  "                             [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]");
+            help_risk();
             return 0;
         }
         if (need && !v) { fprintf(stderr, "work: %s needs a value\n", a); return 2; }
@@ -828,7 +848,7 @@ static int cmd_net(int argc, char **argv)
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         int need = !strcmp(a, "--seconds") || !strcmp(a, "--streams") || !strcmp(a, "--samples") || !strcmp(a, "--max-mb") ||
                    !strcmp(a, "--server") || !strcmp(a, "--hosts");
-        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); help_risk(); return 0; }
         if (need && !v) { fprintf(stderr, "net: %s needs a value\n", a); return 2; }
         if (need) i++;
         if (!strcmp(a, "--local")) { c.local = 1; chose = 1; }
@@ -916,7 +936,7 @@ static int cmd_gpu(int argc, char **argv)
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         int need = !strcmp(a, "--device") || !strcmp(a, "--seconds") || !strcmp(a, "--only") || !strcmp(a, "--mem-mib");
-        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); help_risk(); return 0; }
         if (need && !v) { fprintf(stderr, "gpu: %s needs a value\n", a); return 2; }
         if (need) i++;
         if (!strcmp(a, "--device")) { if (!gpu_parse_device("gpu", v, &c.device)) return 2; }
@@ -1023,7 +1043,7 @@ static int cmd_gpu_burn(int argc, char **argv)
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         int need = !strcmp(a, "--seconds") || !strcmp(a, "--backend") || !strcmp(a, "--device") || !strcmp(a, "--limit") ||
                    !strcmp(a, "--limit-c");
-        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); help_risk(); return 0; }
         if (need && !v) { fprintf(stderr, "gpu-burn: %s needs a value\n", a); return 2; }
         if (need) i++;
         if (!strcmp(a, "--seconds")) c.seconds = atof(v);
@@ -1128,7 +1148,7 @@ static int cmd_gpu_compare(int argc, char **argv)
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         int need = !strcmp(a, "--backends") || !strcmp(a, "--backend") || !strcmp(a, "--seconds") || !strcmp(a, "--device");
-        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); help_risk(); return 0; }
         if (need && !v) { fprintf(stderr, "gpu-compare: %s needs a value\n", a); return 2; }
         if (need) i++;
         if (!strcmp(a, "--seconds")) c.seconds = atof(v);
@@ -1197,7 +1217,7 @@ static int cmd_bench2(int argc, char **argv)
         threads = 1;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]"); help_risk(); return 0; }
             if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("pi: option needs a value");
             if (!strcmp(a, "--digits")) digits = parse_count(v);
@@ -1226,7 +1246,7 @@ static int cmd_bench2(int argc, char **argv)
         double secs = 1;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S] [--yes]"); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S] [--yes]"); help_risk(); return 0; }
             if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("crypto: option needs a value");
             if (!strcmp(a, "--threads")) threads = atoi(v);
@@ -1245,7 +1265,7 @@ static int cmd_bench2(int argc, char **argv)
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
             if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]\n"
-                                                                    "  --limit N  count the primes up to N: any number from 100 to 1e11 (e.g. 5e9 or 1g; default 1e9)"); return 0; }
+                                                                    "  --limit N  count the primes up to N: any number from 100 to 1e11 (e.g. 5e9 or 1g; default 1e9)"); help_risk(); return 0; }
             if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
             if (!v) return usage_error("prime: option needs a value");
             if (!strcmp(a, "--limit")) lim = parse_count(v);

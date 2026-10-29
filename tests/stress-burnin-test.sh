@@ -16,7 +16,8 @@ TMP=$(mktemp -d)
 cleanup() { [ -n "${XPID:-}" ] && kill "$XPID" 2>/dev/null; rm -rf "$TMP"; }
 trap cleanup EXIT
 export HOME=$TMP/home XDG_CONFIG_HOME=$TMP/home/.config XDG_CACHE_HOME=$TMP/home/.cache XDG_DATA_HOME=$TMP/home/.local/share XDG_STATE_HOME=$TMP/home/.local/state
-mkdir -p "$HOME"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME/srs"
+printf '[SRSDEF]\nAccepted Load Test Terms=1\n' >"$XDG_CONFIG_HOME/srs/SRSDEF.ini"   # the terms have their own test (load-terms-test.sh)
 LVP=/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
 [ -f "$LVP" ] || { echo "  skip  no lavapipe ($LVP)"; exit 0; }
 export VK_DRIVER_FILES=$LVP VK_ICD_FILENAMES=$LVP VK_LOADER_LAYERS_DISABLE='~implicit~' DISABLE_MANGOHUD=1 LP_NUM_THREADS=1
@@ -82,8 +83,7 @@ if command -v Xvfb >/dev/null && command -v xwininfo >/dev/null; then
     fi
     guard "$TMP/ld-gpu"
     echo "== GUI: CPU (1 CPU) + GPU synced, capped at 3 s"
-    printf '[SRSDEF]\nStress GPU Burnin=1\nStress GPU Sync=1\nStress Until Stop=1\n' >"$XDG_CONFIG_HOME/srs/SRSDEF.ini" 2>/dev/null || {
-        mkdir -p "$XDG_CONFIG_HOME/srs"; printf '[SRSDEF]\nStress GPU Burnin=1\nStress GPU Sync=1\nStress Until Stop=1\n' >"$XDG_CONFIG_HOME/srs/SRSDEF.ini"; }
+    printf '[SRSDEF]\nAccepted Load Test Terms=1\nStress GPU Burnin=1\nStress GPU Sync=1\nStress Until Stop=1\n' >"$XDG_CONFIG_HOME/srs/SRSDEF.ini"
     S=$(run_gui both stressburn 1)
     if [ -z "$S" ]; then bad "no run summary saved"; tail -5 "$TMP/g-both.log"
     else

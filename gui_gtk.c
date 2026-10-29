@@ -58,6 +58,7 @@ static char g_env_theme[256];
 static GDBusProxy *g_portal;
 static void theme_apply(void);
 /* Stress & Burnin window choices, kept in SRSDEF.ini: GPU Burnin on, its minutes, sync, back end (0 = Auto), FP64, limit, Until Stop */
+static int g_terms;   /* load test terms: the version agreed (SRSDEF.ini "Accepted Load Test Terms"), 0 = not yet */
 static int g_sb_gpu, g_sb_gpumin = 15, g_sb_sync = 1, g_sb_back, g_sb_prec, g_sb_limit = 100, g_sb_until, g_sb_gpuopts;
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
@@ -728,10 +729,11 @@ static void settings_load(void)
         if (gc) snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gc);
         {   /* Stress & Burnin (2.3.1) */
             static const char *const keys[] = { "Stress GPU Burnin", "Stress GPU Minutes", "Stress GPU Sync", "Stress GPU Backend",
-                                                "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open" };
-            int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts };
+                                                "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open",
+                                                "Accepted Load Test Terms" };
+            int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts, &g_terms };
             int k;
-            for (k = 0; k < 8; k++) {
+            for (k = 0; k < 9; k++) {
                 GError *e4 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e4);
                 if (!e4) *vars[k] = v; else g_error_free(e4);
@@ -782,6 +784,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Limit", g_sb_limit);
     g_key_file_set_integer(kf, "SRSDEF", "Stress Until Stop", g_sb_until);
     g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Options Open", g_sb_gpuopts);
+    g_key_file_set_integer(kf, "SRSDEF", "Accepted Load Test Terms", g_terms);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
@@ -794,6 +797,67 @@ static void settings_save(void)
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
 }
+
+/* ======================================================================
+ * Load test terms (2.3.1): asked once before the first stress test or benchmark, "I Agree" / "I Disagree";
+ * SRSDEF.ini "Accepted Load Test Terms" = the version agreed (0 = not yet / withdrawn). Bump TERMS_VER when the
+ * text changes in substance, so everybody is asked again. Options > Load test terms... reads them again.
+ * ====================================================================== */
+#define TERMS_VER 1
+static const char g_terms_head[] = "Stress tests and benchmarks: use at your own risk";
+static const char g_terms_text[] =
+    "Stress tests and benchmarks push the processor, the graphics card, the memory, the drives and the power supply "
+    "to their limits. That can bring out faults and cause crashes, freezes, lost or damaged data, or overheating - "
+    "more so with an overclock or undervolt. Save your work and close other programs first.\n\n"
+    "SRS is provided as is, WITHOUT ANY WARRANTY, as its licence (the GNU General Public License) says. The authors "
+    "are not responsible for any damage, data loss or other harm that comes from using these tools.\n\n"
+    "This is a plain-English summary, not legal advice; the licence text is what counts.\n\n"
+    "Do you agree to use the stress tests and benchmarks on these terms? Nothing starts until you agree.";
+/* 1 = agreed. from_menu: Options entry - "I Disagree" withdraws an earlier yes */
+static int terms_dialog(GtkWindow *parent, int from_menu)
+{
+    const char *t = getenv("SRS_TEST_TERMS_ANSWER");   /* tests: answer without a click (agree / disagree) */
+    int r;
+    if (t && *t) {
+        fprintf(stderr, "SRS-TEST: load test terms dialog shown\n");
+        r = !strcmp(t, "agree") ? GTK_RESPONSE_ACCEPT : GTK_RESPONSE_REJECT;
+    } else {
+        GtkWidget *d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE, "%s", g_terms_head);
+        gtk_window_set_title(GTK_WINDOW(d), "Load test terms");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s%s", g_terms_text,
+            from_menu ? (g_terms >= TERMS_VER ? "\n\nYou agreed earlier. I Disagree withdraws it: the Start and Run buttons ask again."
+                                              : "\n\nYou have not agreed yet.") : "");
+        gtk_dialog_add_buttons(GTK_DIALOG(d), "I _Disagree", GTK_RESPONSE_REJECT, "I _Agree", GTK_RESPONSE_ACCEPT, NULL);
+        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_REJECT);
+        r = gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+    }
+    if (r == GTK_RESPONSE_ACCEPT) { g_terms = TERMS_VER; settings_save(); return 1; }
+    if (r == GTK_RESPONSE_REJECT && (from_menu || g_terms)) { g_terms = 0; settings_save(); }
+    return 0;
+}
+/* before any Start / Run: 1 = go on */
+static int terms_ok(GtkWindow *parent) { return g_terms >= TERMS_VER || terms_dialog(parent, 0); }
+static gboolean on_terms_link(GtkLabel *l, const char *uri, gpointer d)
+{
+    GtkWidget *top = gtk_widget_get_toplevel(GTK_WIDGET(l));
+    (void)uri; (void)d;
+    terms_dialog(GTK_IS_WINDOW(top) ? GTK_WINDOW(top) : NULL, 1);
+    return TRUE;
+}
+/* the short notice under every stress test and benchmark's controls */
+static void terms_notice(GtkWidget *box)
+{
+    GtkWidget *l = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(l), "<small>Use at your own risk - SRS comes without any warranty, and its authors are not responsible "
+                                       "for any damage. <a href=\"terms\">Terms...</a></small>");
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    g_signal_connect(l, "activate-link", G_CALLBACK(on_terms_link), NULL);
+    gtk_box_pack_start(GTK_BOX(box), l, FALSE, FALSE, 0);
+}
+static void on_terms_menu(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; terms_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL, 1); }
+static gboolean terms_open_idle(gpointer d) { (void)d; on_terms_menu(NULL, NULL); return G_SOURCE_REMOVE; }
 
 /* ======================================================================
  * SIV button rows (transcribed from SIV64X's panels; "Windows" -> "Linux")
@@ -1980,6 +2044,11 @@ static void on_burn_start(GtkWidget *x, gpointer data)
     char gpuask[1600] = "";
     (void)x;
     if (g_bench_busy) { gtk_widget_error_bell(w->win); return; }
+    if (!terms_ok(GTK_WINDOW(w->win))) {
+        snprintf(w->st.status, sizeof w->st.status, "Not started: the load test terms were not agreed (Terms... below the controls)");
+        render_burn(w);
+        return;
+    }
     burn_cfg_default(&c);
     cpu = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpuon));
     timed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_timed));
@@ -2531,6 +2600,10 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_widget_error_bell(w->win);
         gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - Stress & Burnin is running"
                                                                   : "Not started - another benchmark is running; wait for it to finish");
+        return;
+    }
+    if (!terms_ok(GTK_WINDOW(w->win))) {
+        gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started - the load test terms were not agreed (Terms... below the controls)");
         return;
     }
     if (w->sub == BK_CACHEMEM) {
@@ -3455,8 +3528,10 @@ static void open_tool(wkind k, int sub)
         gtk_box_pack_start(GTK_BOX(vb), r2, FALSE, FALSE, 0);
     } else if (k == W_BURN) {
         build_burn(w, vb);
+        terms_notice(vb);
     } else {
         build_bench(w, vb);
+        terms_notice(vb);
     }
     gtk_box_pack_start(GTK_BOX(vb), make_view(w), TRUE, TRUE, 0);
     if (k == W_BURN || (k == W_BENCH && (sub == BK_IPI || sub == BK_LAT))) {
@@ -4190,6 +4265,12 @@ static void build_options(GtkWidget *menu)
         gtk_widget_set_tooltip_text(it, "The optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): what it is for, whether it is "
                                         "installed, install it, or let SRS ask about it again");
         g_signal_connect(it, "activate", G_CALLBACK(on_ctk_menu), NULL);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+    {
+        GtkWidget *it = gtk_menu_item_new_with_mnemonic("Load test terms (_warranty)...");
+        gtk_widget_set_tooltip_text(it, "Stress tests and benchmarks are used at your own risk: read the terms again, agree, or withdraw your agreement");
+        g_signal_connect(it, "activate", G_CALLBACK(on_terms_menu), NULL);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
     {
@@ -5522,6 +5603,7 @@ static swin *tool_tab_new(int cat, const toolitem *ti, int select, int pos)
             gtk_box_pack_start(GTK_BOX(ctl), t->bm_status, FALSE, FALSE, 0);
             g_object_unref(t->bm_status);
         }
+        terms_notice(ctl);
         if (t->kind == W_BENCH && t->bm_mode) {   /* the long mode names end in "..." */
             GList *cells = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(t->bm_mode)), *c;
             for (c = cells; c; c = c->next) if (GTK_IS_CELL_RENDERER_TEXT(c->data)) g_object_set(c->data, "ellipsize", PANGO_ELLIPSIZE_END, "width-chars", 36, NULL);
@@ -6725,6 +6807,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);
             else if (!strcmp(t, "cudatoolkit")) g_idle_add(ctk_open_idle, GINT_TO_POINTER(0));   /* Options > NVIDIA CUDA toolkit */
             else if (!strcmp(t, "cudaask")) g_idle_add(ctk_open_idle, GINT_TO_POINTER(1));       /* the question before a CUDA run */
+            else if (!strcmp(t, "loadterms")) g_idle_add(terms_open_idle, NULL);                  /* Options > Load test terms */
             else if (!strcmp(t, "power-cost") && g_home) home_go(CAT_POWER);
             else open_item(t);
         }
