@@ -139,7 +139,13 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
   - **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL** - the same matrix multiply (own kernel and
     hipBLAS / cuBLAS / CLBlast), multiply-add, copy, upload / download and launch tests through every
     installed back end on the same GPU, side by side, fastest marked, % of Vulkan; "CUDA (ZLUDA)"
-    and one column per OpenCL driver.
+    and one column per OpenCL driver. CUDA's kernels are built in (pre-compiled PTX), so CUDA and
+    ZLUDA need no NVIDIA runtime compiler; OpenCL drivers without FP64 say so.
+  - **NVIDIA CUDA toolkit (optional)** - SRS explains what it is for, asks once before the first
+    CUDA run when its runtime compiler (NVRTC) is missing (Install / Not now / Don't ask again),
+    and offers it any time under **Options -> NVIDIA CUDA toolkit for GPU tests...** or
+    `sysreport-search cuda-toolkit`: the exact command for your Linux, run in a terminal only after
+    you confirm; with ZLUDA it warns that the toolkit can break or remove ZLUDA and asks twice.
   - **SRS Pi** - pi to 128 thousand ... 32 million digits (Chudnovsky, or Gauss-Legendre / AGM like
     SuperPi), one or more threads, every digit checked against built-in SHA-256 checksums.
   - **Crypto** - AES-128-CTR and SHA-256 in MB/s, with AES-NI / SHA-NI and in plain C, one thread
@@ -154,7 +160,9 @@ SRS adds 20 items of its own (its benchmarks and their history, CPU Burnin and S
   - **GPU features, what was and wasn't run.** The Vulkan tests,
     GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) only;
     for ROCm/HIP, CUDA and OpenCL I checked that the libraries load and that every function SRS
-    needs is found, but did not run HIP, CUDA or OpenCL work on a GPU. GPU Burnin ends by itself on a
+    needs is found, but did not run HIP, CUDA or OpenCL work on a GPU. The built-in CUDA kernels (PTX,
+    2.3) were checked offline and against a fake driver; meant for ZLUDA on an AMD card, never run on
+    NVIDIA hardware. GPU Burnin ends by itself on a
     driver error, a GPU that stops answering, a piece of work that takes far too long, or a
     temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
@@ -229,6 +237,7 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui gpu [--device N] [--seconds S] [--only TESTS] [--list] [--yes]
     srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--yes]
     srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+    srs-gui cuda-toolkit [--check|--install|--ask-again|--never-ask]   the optional NVIDIA CUDA toolkit
     srs-gui work [--threads N] [--seconds S] [--only GROUPS] [--libs zlib,zstd,lz4,xz] [--single] [--yes]
     srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
@@ -257,10 +266,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.2.2-x86_64.AppImage
-    ./srs-sysinfo-2.2.2-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.2.2-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.2.2-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.3.0-x86_64.AppImage
+    ./srs-sysinfo-2.3.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.3.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.3.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -279,8 +288,11 @@ Dependencies: gtk3, sqlite (srs-gui only: the Power & cost history), glibc, hwda
 smartmontools, nvme-cli, pciutils, polkit (srs-root), vulkan-tools, clinfo, mesa-utils, iw,
 bluez-utils, wireplumber, inxi, lshw, hwinfo, lm_sensors. Loaded at run time when present (a missing one only
 skips its rows): zlib, zstd, lz4, xz (Everyday Work), libcurl (the internet speed test), the Vulkan loader
-(vulkan-icd-loader) and a Vulkan driver (GPU benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA, an
-OpenCL loader and driver, and CLBlast (the other GPU back ends). `make check-mnemonics` checks that no menu or
+(vulkan-icd-loader) and a Vulkan driver (GPU benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA (the
+NVIDIA driver's libcuda, or ZLUDA), an OpenCL loader and driver, and CLBlast (the other GPU back ends). The NVIDIA
+CUDA toolkit (Arch `cuda`, Debian / Ubuntu `libnvrtc12`) is optional: only its runtime compiler is used, as a
+fallback, and SRS can install it later from Options; not recommended with ZLUDA. The CUDA kernels are pre-compiled
+into `gpu_kernels_ptx.inc` (`make cuda-ptx` remakes it; needs clang with the NVPTX target, no NVIDIA toolkit). `make check-mnemonics` checks that no menu or
 window page has two entries with the same Alt+letter.
 
 ## Source map
@@ -299,6 +311,10 @@ window page has two entries with the same Alt+letter.
 | `gpu_vk.c`, `bench_gpu_spv.inc`, `shaders/gpu/` | the Vulkan layer of the GPU benchmarks (loader opened with dlopen, own copy of the few Vulkan types it needs); the GLSL compute shaders and their pre-compiled SPIR-V (`shaders/gpu/build.sh`, `make gpu-shaders`) |
 | `bench_gpuburn.c`, `gpu_backend.c`, `gpuburn_vk.c`, `gpuburn_rt.c`, `gpuburn_cl.c`, `gpu_kernels.h` | GPU Burnin and the compute back ends: Vulkan, ROCm / HIP and CUDA (`gpuburn_rt.c`), OpenCL, each loaded with dlopen; GPU sensors from hwmon |
 | `bench_gpucompare.c` | GPU Compute comparison: Vulkan vs HIP vs CUDA vs OpenCL on the same GPU |
+| `gpu_kernels_ptx.inc`, `tools/gen-cuda-ptx.sh` | the CUDA kernels of `gpu_kernels.h` pre-compiled to PTX with clang (`make cuda-ptx`), loaded instead of compiling with NVRTC |
+| `cuda_toolkit.c` | the optional NVIDIA CUDA toolkit: detection, explanation, install command per distribution, "don't ask again", checks before an install |
+| `tests/gpu-stub-test.sh`, `tests/gpu_stub.c` | HIP / CUDA / OpenCL back ends against a fake runtime (no GPU), and the built-in PTX checked offline |
+| `tests/cuda-toolkit-test.sh` | the NVIDIA CUDA toolkit question and install with fake package managers (nothing installed), Xvfb GUI check |
 | `bench_work.c` | Everyday Work benchmark (compression via dlopen, sorting, checksums, text, interpreter) |
 | `bench_os.c` | OS Latency benchmark (system calls, context switches, wake-ups, timers, page faults, file metadata) |
 | `bench_pi.c`, `bench_crypto.c`, `bench_prime.c` | SRS Pi (big numbers, NTT, Chudnovsky / AGM), AES-128 / SHA-256, prime sieve |

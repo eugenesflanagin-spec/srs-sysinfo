@@ -101,7 +101,7 @@ which name-database files it uses.
 |---|---|---|
 | Title line | `srs-gui - System Report Search V<version> <host>::<user>` | Quick check of version and machine. |
 | Program | One image works as the GUI (no arguments) and the CLI (with arguments). | Explains why reports name `sysreport-search`. |
-| Version | Program version, e.g. `V2.2.2`. | Quote this in bug reports. |
+| Version | Program version, e.g. `V2.3.0`. | Quote this in bug reports. |
 | Program Build | File format, compiler and C runtime the program was built with. | Tells a self-built copy from a packaged one. |
 | Built | Date and time the program was compiled. | Shows how old your copy is. |
 | Image | Full path and size of the running program file. | Shows which copy ran, if you have several. |
@@ -115,7 +115,7 @@ which name-database files it uses.
 | Created by / Licensed under / Home page | The author (Eugene Flanagin), the licence (GPL-2.0-or-later) and the GitHub page. | Who made it and where to get it. |
 | Why SRS / Credit / Disclaimer | Origin, credit to SIV's author and use-at-your-own-risk note. | Credit information. |
 
-**Healthy / typical values.** On the author's PC: `V2.2.2`, built with gcc 16.2.1 and glibc,
+**Healthy / typical values.** On the author's PC: `V2.3.0`, built with gcc 16.2.1 and glibc,
 image `/usr/bin/sysreport-search (1.38MB)`, Linux 7.3.0 x86_64 on an ASUS TUF GAMING X870-PRO
 WIFI7 W NEO (BIOS 1805), AMD Ryzen 7 7800X3D. pci.ids version 2026.10.01, usb.ids 2026.06.26.
 pnp.ids has no version header, so only its file date is shown.
@@ -1151,7 +1151,7 @@ settings were last saved.
 **What you see.** Columns Version, Image Date (program file date) and Settings Last Written
 (SRSDEF.ini date, `-` if none). A note: SRS keeps no usage counter.
 
-**Healthy / typical values.** On the author's PC: `V2.2.2`, image 2026-10-26, settings 2026-10-26.
+**Healthy / typical values.** On the author's PC: `V2.3.0`, image 2026-10-26, settings 2026-10-26.
 
 **Where Linux gets it.** File modification times of the program and SRSDEF.ini.
 

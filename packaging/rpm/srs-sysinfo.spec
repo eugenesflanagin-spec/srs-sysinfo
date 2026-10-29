@@ -60,6 +60,10 @@ Suggests:       libvulkan1
 %else
 Suggests:       vulkan-loader
 %endif
+# The NVIDIA runtime compiler (NVRTC) is optional since 2.3 (the CUDA kernels are built in) and is not in Fedora's or
+# openSUSE's own repositories: only NVIDIA's CUDA repository has it (cuda-nvrtc-<version>), with a version in every
+# package name, so no weak dependency can name it. Options > NVIDIA CUDA toolkit (and sysreport-search cuda-toolkit)
+# shows the instructions instead.
 # ROCm / HIP, OpenCL and CLBlast, loaded at run time by GPU Burnin and the GPU Compute comparison
 %if 0%{?suse_version}
 Suggests:       libOpenCL1

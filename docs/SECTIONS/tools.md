@@ -975,10 +975,14 @@ power supply. Inspired by gpu-burn (Ville Timonen); the code is SRS's own.
 | Auto | Vulkan when it has a GPU, else the first back end that has one |
 
 All four are loaded at run time: a back end that is not installed says "not installed" with a
-one-line hint, and the others still work. HIP and CUDA need their runtime compiler (hipRTC,
-NVRTC) for both the own-kernel and the matrix-library (hipBLAS, cuBLAS) rows, because every result is
-checked with one of SRS's own kernels; without it those rows say so. OpenCL needs only its driver
-(the matrix library is CLBlast).
+one-line hint, and the others still work. CUDA's own kernels are built into SRS (pre-compiled to
+PTX, NVIDIA's portable GPU code, since 2.3), so CUDA needs only its driver library - also with ZLUDA,
+which has no runtime compiler; NVRTC (the NVIDIA CUDA toolkit's runtime compiler) is used only if the
+driver refuses the built-in kernels. HIP needs its runtime compiler (hipRTC) for both the own-kernel
+and the matrix-library (hipBLAS) rows, because every result is checked with one of SRS's own kernels;
+without it those rows say so. OpenCL needs only its driver (the matrix library is CLBlast).
+The optional NVIDIA CUDA toolkit: **Options -> NVIDIA CUDA toolkit for GPU tests...** or
+`sysreport-search cuda-toolkit` (see the User Guide, 9.20).
 
 **What you see.** While it runs, per GPU: the time, the **errors** (green 0, red otherwise),
 GFLOPS now and on average, multiplications per second and the matrix size, the **edge**,
@@ -1034,7 +1038,8 @@ only with your own earlier runs on the same driver.
   temperature to Linux's hwmon, for example), or a software renderer.
 
 **Where Linux gets it.** Built in: Vulkan (`libvulkan.so.1`), ROCm / HIP (`libamdhip64`,
-`libhiprtc`, `libhipblas`), CUDA (`libcuda.so.1`, `libnvrtc`, `libcublas`) and OpenCL
+`libhiprtc`, `libhipblas`), CUDA (`libcuda.so.1`, `libcublas`; `libnvrtc` only as a fallback for
+the built-in PTX kernels) and OpenCL
 (`libOpenCL.so.1`, `libclblast`) are opened at run time with `dlopen`. The sensors come from
 the card's hwmon folder in `/sys/bus/pci/devices/<address>/hwmon` (amdgpu: all of them; i915, xe
 and nouveau: what they offer). Stored in `~/.cache/srs/bench-gpuburn.txt`; each run is added to
@@ -1090,10 +1095,16 @@ healthy result has every row filled in and no errors.
 **Unusual values and what they suggest.**
 - One back end far behind the others on the same card: an old or debug runtime, or a driver that
   does not support that card well.
-- "not available" in the own-kernel rows of CUDA (ZLUDA): ZLUDA has no NVRTC compiler. The library
-  rows need that compiler too, for the error check (every result is checked by one of SRS's own
-  kernels), so without libnvrtc / libhiprtc they say "needs the runtime compiler ... for the error
-  check" and are not run. The notes under the table say why each test is "not available".
+- CUDA (ZLUDA) rows: since 2.3 they run from SRS's built-in kernels (PTX); the CUDA column's
+  software line says "own kernels built in (PTX), no NVRTC". "not available ... the CUDA driver
+  refused the built-in kernels ... see Options > NVIDIA CUDA toolkit": that driver or ZLUDA version
+  does not take them, and NVRTC is not installed.
+- "not available" in the HIP rows: without libhiprtc the own kernels cannot be built, and the
+  library rows need one of them for the error check, so they say "needs the runtime compiler ...
+  for the error check" and are not run. The notes under the table say why each test is "not available".
+- FP64 rows "not available: this OpenCL driver has no FP64 (double precision)": that OpenCL driver
+  (often Mesa's Rusticl) reports no double-precision support, so the FP64 own-kernel, CLBlast and
+  multiply-add rows are not tried. A kernel that does not build always shows the OpenCL error code.
 - FP16 library rows "not available" on OpenCL: the driver has no `cl_khr_fp16`.
 
 **Where Linux gets it.** Built in: all four back ends and the libraries are opened at run time
@@ -1257,7 +1268,7 @@ srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.2.2.
+`/usr/bin/sysreport-search`, V2.3.0.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

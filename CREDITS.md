@@ -17,6 +17,8 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 | Khronos Vulkan-Headers (<https://github.com/KhronosGroup/Vulkan-Headers>) | the layouts of the few Vulkan structures copied field for field into `gpu_vk.h` (prefix `vki_`), so SRS needs no Vulkan header to build; checked against the real header by `tests/bench-gpu-test.sh` | Apache-2.0 OR MIT |
 | ROCm / HIP (`libamdhip64`, hipRTC, hipBLAS), CUDA (`libcuda`, NVRTC, cuBLAS), an OpenCL loader and drivers | the ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin and the GPU Compute comparison; the system's own, loaded at run time when installed, not shipped or linked; no code copied | MIT (ROCm); NVIDIA's licence (CUDA); the loader's and drivers' own |
 | CLBlast by Cedric Nugteren (<https://github.com/CNugteren/CLBlast>) | the "vendor library" variant of the OpenCL matrix multiply; loaded at run time (`libclblast`) when installed, not bundled | Apache-2.0 |
+| LLVM / clang (<https://llvm.org>) | compiles SRS's own CUDA kernels (`gpu_kernels.h`) to PTX at development time (`tools/gen-cuda-ptx.sh`); the generated PTX text in `gpu_kernels_ptx.inc` is compiler output of SRS's own source, built in so CUDA needs no runtime compiler; clang is not needed to build SRS and not shipped | Apache-2.0 WITH LLVM-exception |
+| NVIDIA CUDA toolkit (NVRTC) | optional: the runtime compiler fallback for the CUDA kernels; installed only when the user chooses (Options > NVIDIA CUDA toolkit), never shipped | NVIDIA CUDA Toolkit EULA |
 | Mesa lavapipe (<https://www.mesa3d.org>) | the software Vulkan renderer the GPU tests run on, so they never touch a real GPU (test only, not shipped) | MIT |
 | hwdata (`pci.ids`, `usb.ids`, `pnp.ids`) | device names (not part of SRS) | GPL-2.0-or-later / BSD-3-Clause |
 
@@ -25,7 +27,7 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 SRS shows these figures unchanged, apart from unit conversion (cents to currency units) and
 reformatting. The organisations below are not responsible for SRS's use of their data. The tables
 are made by `tools/gen_power_rates.py` from the files listed in that script; the dates are those of
-the copies in SRS 2.2.2.
+the copies in SRS 2.3.0.
 
 | Data | Source | Licence / terms |
 |---|---|---|

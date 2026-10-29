@@ -1,4 +1,4 @@
-.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.2.2" "User Commands"
+.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.3.0" "User Commands"
 .SH NAME
 srs-gui \- SRS system information viewer (GTK 3)
 .SH SYNOPSIS
@@ -65,7 +65,7 @@ from a cache filled by
 .BI \-\-gui\-open= PANEL
 Open the named items or tools at start: in the main window an item opens on its page, in the
 classic view as its own panel. For example
-.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " idlookup ", " find .
+.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " cudatoolkit ", " idlookup ", " find .
 .TP
 .B \-\-gui\-tray
 start in the system tray.
@@ -88,6 +88,16 @@ page's Setup tab writes and removes). Only one process records at a time.
 .BR \-\-help ", " \-\-version
 Print the command-line help or the version and exit (these are shared with
 .BR sysreport-search (1)).
+.SH NVIDIA CUDA TOOLKIT
+The NVIDIA CUDA toolkit is NVIDIA's free set of developer tools for NVIDIA graphics cards; SRS can
+use one small part of it, the runtime compiler (NVRTC). Since 2.3 SRS's CUDA tests are built in
+(PTX), so it is optional: NVRTC is used only when the driver refuses them. The first time GPU
+Burnin or the GPU Compute comparison runs CUDA without NVRTC, SRS asks once (\fBInstall...\fR,
+\fBNot now\fR, \fBDon't ask again\fR); it can be installed later from \fBOptions \(-> NVIDIA CUDA
+toolkit for GPU tests...\fR, which shows the state and the exact install command (Arch: pacman -S
+--needed cuda; Debian/Ubuntu: apt-get install libnvrtc12 or libnvrtc11.2; others: instructions)
+and runs it in a terminal window with sudo (or pkexec) only after you confirm. With ZLUDA it is
+not recommended (it can break or remove ZLUDA): SRS warns and asks twice.
 .SH USER GUIDE
 Every tab and panel has a \fBGuide\fR button (also \fBF1\fR, and "Open guide for this item"
 in its right-click menu) that opens the user guide at that item's section: in
@@ -111,6 +121,9 @@ directory holding power-zip-rates.tsv (default: next to the program, then /usr/s
 when set to 1, the Startup manager shows the systemctl / pkexec command it would run instead of
 running it (autostart files are still written).
 .TP
+.B SRS_CTK_DRY_RUN
+when set to 1, the NVIDIA CUDA toolkit install shows the command it would run and runs nothing (tests).
+.TP
 .B SRS_RSMU_DIR
 read the ryzen_smu files from this directory instead of /sys/kernel/ryzen_smu_drv (tests).
 .SH FILES
@@ -119,7 +132,8 @@ read the ryzen_smu files from this directory instead of /sys/kernel/ryzen_smu_dr
 the user guide (PDF and HTML), with its Markdown sources in the same folder.
 .TP
 .I ~/.config/srs/SRSDEF.ini
-settings (theme, update interval, tray, "Classic View=1" for Start in classic view, ...).
+settings (theme, update interval, tray, "Classic View=1" for Start in classic view,
+"Ask CUDA Toolkit=0" after Don't ask again, ...).
 .TP
 .I ~/.cache/srs/root/
 root-only data collected by srs-root.

@@ -4,6 +4,63 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.3.0 - 2026-10-29
+
+CUDA without the NVIDIA runtime compiler (so ZLUDA runs every CUDA test), clearer OpenCL FP64 results, and an
+optional, explained NVIDIA CUDA toolkit install.
+
+### Added
+
+- CUDA: SRS's own GPU kernels are built in, pre-compiled to PTX (NVIDIA's portable GPU code) with clang
+  (`tools/gen-cuda-ptx.sh`, `make cuda-ptx`; `gpu_kernels_ptx.inc` is committed, so building SRS needs no CUDA
+  tools). They are the same source and kernels NVRTC builds (`gemm_r`, `fma_r`, `copy_u4`, `cmp_u32`, `tick`, FP32 and
+  FP64), PTX ISA 6.0 for `sm_50` and newer. The driver (or ZLUDA) is given the PTX first; NVRTC is only used when
+  the driver refuses it. GPU Burnin and every CUDA row of the GPU Compute comparison, including the cuBLAS rows
+  (their error check is one of the own kernels), now run without `libnvrtc` - which ZLUDA does not have.
+- The optional NVIDIA CUDA toolkit: a plain-English explanation of what it is for; a question before the first
+  CUDA run when its runtime compiler is missing (Install / Not now / Don't ask again, asked once, only when an
+  NVIDIA card or a CUDA library is there); **Options -> NVIDIA CUDA toolkit for GPU tests...** (state, install
+  command, Install, Ask me again); `sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]`.
+  The install shows the exact command first (Arch `pacman -S --needed cuda`; Debian / Ubuntu `apt-get install
+  libnvrtc12` or `libnvrtc11.2`; Fedora, openSUSE and others: instructions for NVIDIA's repository), runs it in a
+  terminal window with sudo (or pkexec) only after you confirm, refuses while a benchmark or burn-in runs, with a
+  locked package database, without network or without a password tool, and reports the result. With ZLUDA it
+  warns that the toolkit can break or remove ZLUDA, defaults to Cancel and asks twice. The "Don't ask again"
+  choice is `Ask CUDA Toolkit` in SRSDEF.ini.
+- Packaging: the toolkit is an optional dependency (Arch optdepends `cuda`, plus `nvidia-utils` for libcuda;
+  Debian Suggests `libnvrtc12 | libnvrtc11.2`; the RPM spec explains why it names none).
+- Tests: `tests/gpu-stub-test.sh` checks the built-in PTX offline (header, entry names, order, parameter types
+  against the NVRTC source, no outside calls; recompiled with clang when available) and runs CUDA with no NVRTC,
+  with the PTX refused, and both; the fake runtime takes PTX and now also fakes OpenCL and CLBlast.
+  `tests/cuda-toolkit-test.sh` covers detection, the command per distribution, the refusals, the typed yes,
+  "Don't ask again" and the GUI windows on Xvfb with fake package managers (nothing is installed).
+  Test-only overrides `SRS_CLBLAST_LIB`, `SRS_CTK_DRY_RUN`, `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`,
+  `SRS_CTK_PACMAN_LOCK`.
+
+### Changed
+
+- The CUDA / HIP column's software line says how the own kernels are made: "own kernels built in (PTX)" with
+  "NVRTC as fallback" or "no NVRTC" for CUDA, "no runtime compiler (libhiprtc), own kernels unavailable" for HIP.
+- When the driver refuses the built-in kernels and NVRTC is missing, the CUDA rows say so and point to
+  Options > NVIDIA CUDA toolkit; after a CUDA run without NVRTC the command line prints one note with the menu path
+  and the command (not after "Don't ask again").
+
+### Fixed
+
+- OpenCL drivers without double precision (often Mesa's Rusticl) showed the FP64 rows as "failed" with an empty
+  reason. FP64 own-kernel, CLBlast and multiply-add rows are now "not available: this OpenCL driver has no FP64
+  (double precision)" when the device reports neither `CL_DEVICE_DOUBLE_FP_CONFIG` nor `cl_khr_fp64`, and a kernel
+  that does not build always shows the OpenCL error code (and says when the driver gave no build log).
+
+### Known limits
+
+- The built-in PTX was checked offline and against a fake driver only. It is meant to be tried with ZLUDA on an
+  AMD card; it was never run on NVIDIA hardware, and ZLUDA's acceptance of it is not yet confirmed.
+- HIP still compiles its kernels with hipRTC: HIP code objects are per GPU generation and per ROCm release, so
+  shipping them would bloat SRS and still miss GPUs.
+- The toolkit install was tested with fake package managers only; the terminal programs other than their names
+  in PATH were not started in a test.
+
 ## 2.2.2 - 2026-10-27
 
 Fix for a crash in the GPU Compute comparison and GPU Burnin, found by a user running CUDA through ZLUDA.

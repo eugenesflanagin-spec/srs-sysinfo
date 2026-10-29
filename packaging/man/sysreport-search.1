@@ -1,9 +1,9 @@
-.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.2.2" "User Commands"
+.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.3.0" "User Commands"
 .SH NAME
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR,\fBgpu\-burn\fR,\fBgpu\-compare\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR,\fBgpu\-burn\fR,\fBgpu\-compare\fR,\fBcuda\-toolkit\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -81,7 +81,10 @@ GPU benchmark through Vulkan: FP32, FP16, FP64 and INT32 multiply\-add (GFLOPS /
 GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Ends by itself at the temperature limit (default 100 C), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans, and never burns a software renderer (llvmpipe) as a GPU. Default 60 s. Asks first unless \fB\-\-yes\fR; before that only Vulkan's device list is read. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
 .TP
 \fBgpu\-compare\fR [\fB\-\-backends\fR \fIvulkan,hip,cuda,opencl\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-device\fR \fIN\fR] [\fB\-\-yes\fR]
-GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and the vendor library, multiply\-add, copy, upload, download, launch round trip) through every installed back end on the same GPU, side by side; fastest marked, percent of Vulkan; "CUDA (ZLUDA)" and one column per OpenCL driver. Asks first unless \fB\-\-yes\fR.
+GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and the vendor library, multiply\-add, copy, upload, download, launch round trip) through every installed back end on the same GPU, side by side; fastest marked, percent of Vulkan; "CUDA (ZLUDA)" and one column per OpenCL driver. CUDA uses SRS's built-in kernels (PTX), so the NVIDIA runtime compiler (NVRTC) is not needed; an OpenCL driver without FP64 shows its FP64 rows as "not available". Asks first unless \fB\-\-yes\fR.
+.TP
+\fBcuda\-toolkit\fR [\fB\-\-check\fR|\fB\-\-install\fR|\fB\-\-ask\-again\fR|\fB\-\-never\-ask\fR]
+The optional NVIDIA CUDA toolkit (NVIDIA's developer tools; SRS can use its runtime compiler, NVRTC, as a fallback): what it is for, whether NVRTC and a CUDA library (NVIDIA's or ZLUDA) are installed, and the install command for this distribution (Arch: pacman \-S \-\-needed cuda; Debian/Ubuntu: apt\-get install libnvrtc12 or libnvrtc11.2; Fedora, openSUSE: instructions). \fB\-\-install\fR checks first (package database lock, network, sudo/pkexec), needs a terminal and runs the command with sudo only after a typed \fByes\fR (twice with ZLUDA, where installing it is not recommended). \fB\-\-never\-ask\fR / \fB\-\-ask\-again\fR: whether the GUI asks about it (and gpu\-burn / gpu\-compare print a note). Nothing is ever installed without \fB\-\-install\fR.
 .PP
 \fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked. All of them except \fBburn\fR (the burn\-in itself) also ask before they start, on stderr (\fBStart now? [y/N]\fR), unless \fB\-\-yes\fR is given; without a terminal and without \fB\-\-yes\fR they exit with 2 and start nothing. \fB\-\-help\fR after a command prints its usage; an unknown option exits with 2 without starting.
 Run

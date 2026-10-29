@@ -26,6 +26,11 @@
       independent project, not affiliated with SIV or its author, and contains no SIV code or data.
       A classic view with SIV-style windows is included.
     </p>
+    <p>
+      The GPU tests run through Vulkan, ROCm / HIP, CUDA (also ZLUDA on AMD cards, with SRS's
+      built-in CUDA kernels) and OpenCL. The NVIDIA CUDA toolkit is optional; SRS explains what it is
+      for and can install it later from its Options menu.
+    </p>
     <p>Also included:</p>
     <ul>
       <li>CPU and GPU burn-in and stress tests; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
@@ -72,6 +77,20 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.3.0" date="2026-10-29">
+      <description>
+        <p>CUDA without the NVIDIA runtime compiler: SRS's CUDA test kernels are now built in
+        (pre-compiled PTX), so GPU Burnin and every CUDA row of the GPU Compute comparison run
+        with ZLUDA on AMD cards too. OpenCL drivers without double precision now say "not
+        available" with the reason instead of "failed".</p>
+        <p>The NVIDIA CUDA toolkit is explained and optional: SRS asks once before the first CUDA
+        run when it is missing, and it can be installed later from Options; with ZLUDA, SRS warns
+        that installing it can break or remove ZLUDA.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT, wired connection): parts that
+        need other hardware may have a bug or two; the built-in CUDA kernels were never run on
+        NVIDIA hardware. Please report problems on GitHub Issues.</p>
+      </description>
+    </release>
     <release version="2.2.2" date="2026-10-27">
       <description>
         <p>Fix: GPU Comparison and GPU Burnin no longer crash when the vendor GEMM library

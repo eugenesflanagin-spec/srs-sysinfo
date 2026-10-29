@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn` and `gpu-compare`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare` and `cuda-toolkit`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -54,6 +54,7 @@ sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--sampl
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
 sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes]
 sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
@@ -71,7 +72,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -153,11 +154,16 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
         GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
         library, multiply-add, copy, upload / download, launch time) through every installed back end
         on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
+  cuda-toolkit [--check|--install|--ask-again|--never-ask]
+        the optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): whether it is installed, what it
+        is for, the install command for this distribution; --install runs that command after you type
+        yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built
+        in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it
   prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
-srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
@@ -170,7 +176,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.2.2 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.3.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -239,7 +245,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.2.2 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.3.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -787,7 +793,11 @@ GPU, and prints one table: `*` = fastest in the row, (N%) = that column compared
 CUDA that is really ZLUDA is labelled "CUDA (ZLUDA)"; every OpenCL driver is its own column; a
 back end that is not installed shows "not installed" and a hint. It **asks first**; `--yes`
 (`-y`) starts at once; without a terminal and without `--yes` it does not start (exit code 2).
-HIP, CUDA and OpenCL start their runtimes only after that. Ctrl+C stops it. When the GPU hangs or
+HIP, CUDA and OpenCL start their runtimes only after that. Ctrl+C stops it. CUDA runs SRS's
+built-in kernels (PTX, since 2.3), so it needs no runtime compiler (NVRTC); the CUDA column's
+software line says so. When CUDA was used and NVRTC is missing, one note at the end gives the
+`cuda-toolkit` command and the menu path (not after "Don't ask again"). An OpenCL driver without
+FP64 shows its FP64 rows as "not available: this OpenCL driver has no FP64 (double precision)". When the GPU hangs or
 stops answering in one column, the run ends there: no later back end touches that GPU, and the
 tests that did not run say "not run".
 
@@ -807,6 +817,35 @@ $ sysreport-search gpu-compare --backends vulkan,hip --seconds 0.5
 ```
 
 See [tools.md](SECTIONS/tools.md#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl).
+
+### `cuda-toolkit` - the optional NVIDIA CUDA toolkit
+
+```
+sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
+```
+
+**In plain words:** the NVIDIA CUDA toolkit is NVIDIA's free set of developer tools for NVIDIA
+graphics cards. SRS can use one small part of it, the runtime compiler (NVRTC), but since 2.3 its
+CUDA tests are built in, so most people do not need it. This command explains that, shows what is
+installed and the install command for your Linux, and can run it.
+
+| Option | Meaning |
+|---|---|
+| `--check` | (default) The explanation; NVIDIA card found or not; the CUDA library (NVIDIA's, ZLUDA, none); NVRTC installed (version, file) or not; the install command and its size (or instructions); a red-flag warning when ZLUDA is in use; whether the GUI will ask |
+| `--install` | Checks first (no install command for this Linux, pacman's database locked, no network, no `sudo` / `pkexec`), needs a terminal, shows the exact command and runs it with `sudo` only after you type `yes` - with ZLUDA you must type `yes` twice. Then reports the result and looks for NVRTC again |
+| `--ask-again` | Let the GUI ask again before the next CUDA run (`Ask CUDA Toolkit=1` in `~/.config/srs/SRSDEF.ini`) |
+| `--never-ask` | The GUI never asks, and `gpu-burn` / `gpu-compare` print no toolkit note (`Ask CUDA Toolkit=0`, the GUI's "Don't ask again") |
+
+Commands it offers: Arch-based `sudo pacman -S --needed cuda` (about 2.4 GB download, 5.2 GB on
+disk); Debian / Ubuntu `sudo apt-get install libnvrtc12` or `libnvrtc11.2` (about 20 MB), else
+`nvidia-cuda-toolkit`; Fedora, openSUSE and others: instructions for NVIDIA's CUDA repository
+(<https://developer.nvidia.com/cuda-downloads>, package `cuda-nvrtc-<version>`). With ZLUDA,
+installing the toolkit is not recommended (it can replace ZLUDA's cuBLAS on the library path, and
+NVIDIA's driver libraries conflict with ZLUDA). The GUI has the same under **Options -> NVIDIA
+CUDA toolkit for GPU tests...** (User Guide 9.20).
+
+Exit code 0: shown, or installed and NVRTC found; 1: not started (with the reason) or the install
+failed; 2: not confirmed, no terminal, or a bad option.
 
 Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
@@ -846,6 +885,7 @@ or one of these tool names:
 | `gpubench` | GPU Benchmark |
 | `gpuburn` | GPU Burnin |
 | `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
+| `cudatoolkit` | The **Options -> NVIDIA CUDA toolkit for GPU tests...** window |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
@@ -925,6 +965,8 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
 | `SRS_VULKAN_LIB` | GPU benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |
 | `SRS_HIP_LIB`, `SRS_CUDA_LIB`, `SRS_OPENCL_LIB` | GPU Burnin and the GPU Compute comparison: open this file instead of the ROCm / HIP, CUDA or OpenCL library (a name that does not exist = "not installed"; for tests) |
-| `SRS_HIP_RTC`, `SRS_CUDA_RTC`, `SRS_HIP_BLAS`, `SRS_CUDA_BLAS` | Same, for the runtime compiler (hipRTC / NVRTC) and the GEMM library (hipBLAS / cuBLAS) of the HIP and CUDA back ends (for tests: `tests/gpu-stub-test.sh` runs against a fake runtime) |
+| `SRS_HIP_RTC`, `SRS_CUDA_RTC`, `SRS_HIP_BLAS`, `SRS_CUDA_BLAS`, `SRS_CLBLAST_LIB` | Same, for the runtime compiler (hipRTC / NVRTC), the GEMM library (hipBLAS / cuBLAS) and CLBlast (for tests: `tests/gpu-stub-test.sh` runs against a fake runtime) |
+| `SRS_CTK_DRY_RUN=1` | `cuda-toolkit --install` and the GUI's toolkit install show what they would run and run nothing (for tests) |
+| `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK` | NVIDIA CUDA toolkit checks: read this file instead of `/etc/os-release`, this folder instead of `/sys/bus/pci/devices`, this route table instead of `/proc/net/route`, this lock file instead of pacman's `db.lck` (for tests: `tests/cuda-toolkit-test.sh`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

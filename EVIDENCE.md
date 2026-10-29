@@ -207,6 +207,15 @@ or result files were used or looked at for them. Public sources are credited in 
   functions are declared in SRS from the vendors' public API documentation and opened with
   `dlopen`; the sensors are the kernel's documented hwmon files. HIP, CUDA and OpenCL work was not
   run by the author (only loading the libraries and finding their functions was tested).
+  Since 2.3 the CUDA kernels (the same `gpu_kernels.h` source) are also compiled ahead of time to
+  PTX with clang's NVPTX back end, without any NVIDIA headers or libraries (`tools/gen-cuda-ptx.sh`;
+  the output is in `gpu_kernels_ptx.inc`), using clang's own documented NVVM builtins; PTX ISA 6.0
+  and `sm_50` were chosen from NVIDIA's public PTX ISA documentation. They were checked offline and
+  against a fake driver (`tests/gpu-stub-test.sh`), not on a GPU.
+- **NVIDIA CUDA toolkit option** (`cuda_toolkit.c`): package names and sizes from the Arch
+  package database (`pacman -Si cuda`, `pacman -Fl cuda`), packages.debian.org (`libnvrtc12`,
+  `libnvrtc11.2`) and Launchpad (Ubuntu's `nvidia-cuda-toolkit` in multiverse); NVIDIA's
+  download page for other distributions. Tested with fake package managers only.
 - **GPU Compute comparison** (`bench_gpucompare.c`): the same back ends and kernels; ZLUDA is
   recognised by marker strings in the loaded CUDA library file; OpenCL platforms are named from
   their own platform names; devices of different back ends are matched by PCI address

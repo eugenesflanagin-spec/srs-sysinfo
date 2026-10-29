@@ -642,7 +642,7 @@ In text reports (not the GUI) an **OverDrive table** follows: the raw contents o
 - **NVIDIA GPUs** - how many NVIDIA cards were found (vendor ID 10DE).
 - **/dev/nvidia0** - present or absent (the NVIDIA driver's device file).
 - **nvidia-smi** - installed or not.
-- **libcuda.so.1** - whether a CUDA driver library exists in `/usr/lib`. On AMD systems this is often ZLUDA (which lets CUDA programs run on AMD), so SRS says "(ZLUDA or NVIDIA)".
+- **libcuda.so.1** - whether a CUDA driver library exists in `/usr/lib`. On AMD systems this is often ZLUDA (which lets CUDA programs run on AMD), so SRS says "(ZLUDA or NVIDIA)". SRS's GPU Burnin and GPU Compute comparison need only this library for CUDA: their CUDA kernels are built in (PTX, since 2.3), so the NVIDIA CUDA toolkit (its runtime compiler, `libnvrtc`) is optional - see **Options -> NVIDIA CUDA toolkit for GPU tests...** (User Guide 9.20) and [tools](tools.md#gpu-burnin).
 - **Nearest on AMD: ROCm / HIP** - ROCm install folder, HIP runtime library, `/dev/kfd` (the kernel's compute device; "present (compute enabled)" means compute programs can use the GPU), and **HIP target** (the GPU's compiler name, e.g. `gfx1201`).
 
 **What "not present" means.** On the author's PC: 0 NVIDIA GPUs, no `/dev/nvidia0`, no `nvidia-smi`; `libcuda.so.1` exists (ZLUDA); ROCm in `/opt/rocm`; `/dev/kfd` present; HIP target `gfx1201`. If `/dev/kfd` is absent on an AMD system, ROCm programs cannot run: check that your user is in the `render` group and that the driver loaded.

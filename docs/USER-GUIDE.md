@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 2.2.2. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 2.3.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -119,7 +119,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-2.2.2-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.3.0-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -151,8 +151,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-2.2.2-linux-x86_64.tar.gz
-cd srs-sysinfo-2.2.2-linux-x86_64
+tar xzf srs-sysinfo-2.3.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.3.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -170,14 +170,14 @@ with GTK and everything else it needs inside. Nothing is installed; you just run
 built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
 
 ```
-chmod +x srs-sysinfo-2.2.2-x86_64.AppImage
-./srs-sysinfo-2.2.2-x86_64.AppImage                   # the window
-./srs-sysinfo-2.2.2-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.2.2-x86_64.AppImage srs-sysreport     # the full system report
+chmod +x srs-sysinfo-2.3.0-x86_64.AppImage
+./srs-sysinfo-2.3.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.3.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.3.0-x86_64.AppImage srs-sysreport     # the full system report
 ```
 
 - **Command line:** every `sysreport-search` command works with the AppImage, for example
-  `./srs-sysinfo-2.2.2-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  `./srs-sysinfo-2.3.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
   the AppImage behaves like the real `sysreport-search`.
 - **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
   that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
@@ -194,7 +194,7 @@ chmod +x srs-sysinfo-2.2.2-x86_64.AppImage
 - **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
   packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
   `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
-  (see them with `./srs-sysinfo-2.2.2-x86_64.AppImage --appimage-extract`).
+  (see them with `./srs-sysinfo-2.3.0-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 
@@ -900,7 +900,7 @@ the chip, not a meter: good for changes, and it may read lower than a wall meter
 
 #### Where the built-in figures come from
 
-| Data | Source | Date in SRS 2.2.2 | Licence / terms |
+| Data | Source | Date in SRS 2.3.0 | Licence / terms |
 |---|---|---|---|
 | US average price by state | U.S. Energy Information Administration, *Electric Power Monthly*, Table 5.6.B (residential, year to date) | August 2026 YTD | U.S. government work (public domain); credit EIA |
 | US utility by ZIP code, with its average residential price | NREL, *U.S. Electric Utility Companies and Rates: Look-up by Zip Code (2024)*, from EIA-861 data | 2024 | Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by SRS |
@@ -1129,6 +1129,9 @@ what was tried; in short, not tried on real hardware so far:
   small sizes; ROCm/HIP, CUDA, ZLUDA and OpenCL only as far as loading their libraries and finding
   every function SRS needs - no HIP, CUDA or OpenCL work was run on a GPU. Untested: every real GPU
   (AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs for NVIDIA and Intel.
+  The built-in CUDA kernels (PTX, new in 2.3) were checked offline and against a fake driver only;
+  they are meant to be tried with ZLUDA on an AMD card and were never run on NVIDIA hardware. The
+  NVIDIA CUDA toolkit install (Options) was tested with fake package managers only.
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
 - OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
   recognised from the kernel's settings but were not run here.
@@ -1455,7 +1458,8 @@ first; `--yes` starts at once). Results: a table (block size, time in ns, level)
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
 The newer benchmarks - SRS Pi, Crypto, Prime Sieve, the Benchmark history, Cache & Memory,
 Storage, OS Latency, CPU Compute, Everyday Work, Network and the three GPU tests - are in
-[9.7](#97-srs-pi) to [9.19](#919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl).
+[9.7](#97-srs-pi) to [9.19](#919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl); the optional NVIDIA
+CUDA toolkit is [9.20](#920-the-nvidia-cuda-toolkit-optional).
 
 ### 9.5 Device ID Lookup
 
@@ -1816,7 +1820,8 @@ can use four of them, and you choose which:
   there if you installed ROCm.
 - **CUDA** - NVIDIA's compute platform, used by most AI programs. Needs the NVIDIA driver. If your
   "CUDA" is really **ZLUDA** (a translation layer that runs CUDA programs on an AMD card), SRS
-  notices and calls it **CUDA (ZLUDA)**.
+  notices and calls it **CUDA (ZLUDA)**. SRS's CUDA tests are built in, so the NVIDIA CUDA toolkit
+  is not needed ([9.20](#920-the-nvidia-cuda-toolkit-optional)).
 - **OpenCL** - the older compute interface that works across makers. Every OpenCL driver you have
   (ROCm, Mesa Rusticl, NVIDIA, PoCL on the CPU ...) shows as its own choice.
 
@@ -1894,9 +1899,16 @@ greyed one says what to install), **Seconds per test** (default 1), **Run** (ask
   trip** (lower is better) work as in the [GPU Benchmark](#917-gpu-benchmark).
 - `*` marks the fastest in each row. **(85%)** after a number means that column reached 85% of
   Vulkan's speed in that row (above 100% = faster than Vulkan).
-- **CUDA (ZLUDA)**: your CUDA library is really ZLUDA, which runs CUDA programs on an AMD card. It
-  has no NVRTC compiler, so its own-kernel rows say "not available". The library rows need the
-  compiler too (for the error check), so without libnvrtc / libhiprtc they say so and are not run.
+- **CUDA (ZLUDA)**: your CUDA library is really ZLUDA, which runs CUDA programs on an AMD card.
+  Since 2.3 SRS's CUDA kernels are **built in** (pre-compiled as PTX), so every CUDA row runs
+  without the NVIDIA runtime compiler (NVRTC), which ZLUDA does not have. The CUDA column's
+  **software** line says "own kernels built in (PTX)". Only when the graphics driver refuses the
+  built-in kernels do the CUDA rows say "not available" and point to
+  [Options -> NVIDIA CUDA toolkit](#920-the-nvidia-cuda-toolkit-optional).
+- **ROCm / HIP** still needs its runtime compiler (hipRTC, part of ROCm) for its own-kernel rows
+  and, for the error check, its library rows; without it they say so and are not run.
+- **FP64 on OpenCL**: some OpenCL drivers (often Mesa's Rusticl) have no double precision. The
+  FP64 rows then say "not available: this OpenCL driver has no FP64 (double precision)".
 - Every **OpenCL driver** is its own column, for example "OpenCL (ROCm)" and "OpenCL (Rusticl)" on
   the same card. Drivers that run on the CPU (PoCL) are marked CPU.
 - **not installed** means that back end is not on this PC; the line under the table says what to
@@ -1917,7 +1929,75 @@ SRS never changes clocks, voltages or fans. The result is saved to
 HIP, CUDA and OpenCL were not run on real hardware by the author - see the note at the start of
 this chapter.
 
-**GPU words used in 9.17-9.19.**
+### 9.20 The NVIDIA CUDA toolkit (optional)
+
+**In plain words:** the NVIDIA CUDA toolkit is NVIDIA's free set of developer tools for running
+programs on NVIDIA graphics cards. SRS only needs one small part of it: the **runtime compiler
+(NVRTC)**, which turns SRS's test code into instructions the graphics card understands while SRS
+is running. Since SRS 2.3 the CUDA tests come **pre-built**, so most people do not need the
+toolkit: GPU Burnin and every CUDA row of the GPU Compute comparison run without it. SRS only
+uses the compiler when the graphics driver refuses the pre-built tests. The toolkit can be large
+(on Arch Linux about 2.4 GB to download and 5.2 GB on disk), and on AMD computers that use ZLUDA,
+installing it can break or remove ZLUDA.
+
+**When SRS asks.** The first time you press **Run** in GPU Burnin (back end CUDA) or the GPU
+Compute comparison (CUDA ticked) - and only when it matters: there is an NVIDIA card or a CUDA
+library (also ZLUDA) and NVRTC is not installed. The question explains the above, shows what was
+found, the exact install command and its size, and has three buttons:
+
+- **Install...** - see "Installing" below.
+- **Not now** - not asked again until SRS is restarted. The run goes on with the built-in tests.
+- **Don't ask again** - never asked again (stored as `Ask CUDA Toolkit=0` in SRSDEF.ini).
+
+After **Not now** or **Don't ask again** SRS says once: *You can install it later from Options >
+NVIDIA CUDA toolkit for GPU tests...*. With ZLUDA the question says the toolkit is **not
+recommended**, shows the warning in red, and the button reads **Install anyway...**.
+
+**Options -> NVIDIA CUDA toolkit for GPU tests...** shows the same explanation and the state:
+NVIDIA card found or not, the CUDA library (NVIDIA's, ZLUDA, or none), NVRTC installed (with its
+version and file) or not, and the install command for your Linux. Buttons: **Install...** (greyed
+when NVRTC is already there or your Linux has no command), **Ask me again** (undoes "Don't ask
+again") and **Close**. After an install the window checks again at once; no restart is needed.
+
+![Options -> NVIDIA CUDA toolkit for GPU tests... on a PC with ZLUDA](images/cuda-toolkit.png)
+
+**Installing.** Nothing is installed without your click, and SRS shows the exact command first:
+
+| Linux | Command SRS offers | Size |
+|---|---|---|
+| Arch Linux and Arch-based (CachyOS, EndeavourOS, Manjaro ...) | `sudo pacman -S --needed cuda` (the whole toolkit; Arch has no smaller package) | about 2.4 GB download, 5.2 GB on disk |
+| Debian 13, Ubuntu 24.04 | `sudo apt-get install libnvrtc12` (only the compiler library) | about 20 MB download, 70 MB on disk |
+| Debian 12, Ubuntu 22.04 | `sudo apt-get install libnvrtc11.2` | similar |
+| Debian / Ubuntu without those | `nvidia-cuda-toolkit` if apt knows it; otherwise instructions: turn on Debian's contrib / non-free or Ubuntu's multiverse, then `sudo apt-get update` | several GB |
+| Fedora, openSUSE, others | no command: instructions to add NVIDIA's CUDA repository from <https://developer.nvidia.com/cuda-downloads> and install only its `cuda-nvrtc` package | |
+
+SRS opens a **terminal window** (Konsole, GNOME Terminal, Xfce Terminal, kitty, Alacritty, foot,
+xterm ...) and runs the command there with `sudo`, so you type your password and answer the
+package manager's questions yourself. Without a terminal program it uses `pkexec` (the system's
+password window) and the package manager's "no questions" switch. SRS waits for the result
+(**Stop waiting** lets you go on), then says whether it worked and checks for NVRTC again.
+
+It refuses, with the reason, when: a benchmark or burn-in is running; the package database is
+locked by another update (pacman's `db.lck`); the computer has no network connection; there is no
+`sudo` or `pkexec` to ask for the password. Afterwards it explains a cancelled password prompt,
+a refused one, or an error of the package manager (no internet, a locked database, a conflict with
+an installed package, a "no" answer).
+
+**ZLUDA (AMD cards).** Installing NVIDIA's toolkit is **not recommended** with ZLUDA: on Arch the
+`cuda` package puts NVIDIA's own cuBLAS on the library path, where it can take the place of
+ZLUDA's (and NVIDIA's cuBLAS does not work on an AMD card), and anything that brings NVIDIA's
+driver libraries (`nvidia-utils`) removes ZLUDA, which conflicts with them. SRS's built-in CUDA
+tests already work with ZLUDA. If you still go on, SRS asks twice (Cancel is the default) and
+always uses a terminal window, so you can answer **no** if the package manager offers to remove
+ZLUDA.
+
+**Command line:** `sysreport-search cuda-toolkit` shows the same explanation, state and command;
+`--install` runs it after you type `yes` (in a terminal only; twice with ZLUDA);
+`--never-ask` / `--ask-again` set the "Don't ask again" choice. The command line never asks on its
+own: after a CUDA run without NVRTC it prints a one-line note with the menu path and the command
+(not after "Don't ask again").
+
+**GPU words used in 9.17-9.20.**
 
 - **GPU** - graphics processing unit: the graphics card, or the graphics part of the processor.
 - **Back end** - the "language" a program uses to talk to the GPU: Vulkan, ROCm / HIP, CUDA or OpenCL.
@@ -1930,6 +2010,12 @@ this chapter.
 - **Hotspot / junction temperature** - the hottest point measured on the GPU chip, usually 10-20 °C
   above the **edge** temperature.
 - **ZLUDA** - a layer that lets CUDA programs run on AMD graphics cards.
+- **CUDA toolkit** - NVIDIA's free developer tools for NVIDIA graphics cards. SRS can use one part
+  of it, NVRTC; optional since 2.3 ([9.20](#920-the-nvidia-cuda-toolkit-optional)).
+- **NVRTC** - NVIDIA's runtime compiler: it turns GPU program text into GPU code while a program
+  runs. SRS used it for its CUDA tests before 2.3; now only as a fallback.
+- **PTX** - NVIDIA's portable GPU code. SRS 2.3 carries its CUDA tests as PTX, and the graphics
+  driver (or ZLUDA) finishes it for the card when the test starts.
 - **Lavapipe** - Mesa's software Vulkan driver that runs on the CPU; used to test SRS without a
   real GPU.
 - **Device lost** - the GPU stopped answering and the driver reset it.
@@ -1961,6 +2047,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Show hidden items** | List the items that cannot show anything on this PC (Windows-only, not present, empty), greyed, in All N items, and do not hide their tabs. | off |
 | **Check daily which items have nothing to show** | On: once a day, in the background, SRS reads every item to find the ones with nothing to show on this PC and hides them. Off: only when you choose **Check now**. Windows-only items and hardware that is not present are hidden either way. The network items and Ping are never part of the check. | off |
 | **Check now which items have nothing to show** | Does that check once, now, in the background. | |
+| **NVIDIA CUDA toolkit for GPU tests...** | What the optional NVIDIA CUDA toolkit is for, whether it (its runtime compiler, NVRTC) is installed, the install command for your Linux, **Install...** and **Ask me again** - see [9.20](#920-the-nvidia-cuda-toolkit-optional). | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
 Until you pick a Theme, the main window follows the desktop and the classic view starts light.
@@ -2053,7 +2140,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V2.2.2 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.3.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -2137,6 +2224,7 @@ hand is fine while SRS is closed.
 | `All Items As Tabs` | `true` / `false` | Options -> Show every item as a tab |
 | `Show Hidden Items` | `true` / `false` | Options -> Show hidden items |
 | `Check Empty Items` | `true` / `false` | Options -> Check daily which items have nothing to show (default `false`) |
+| `Ask CUDA Toolkit` | `1` / `0` | `0` = "Don't ask again" in the NVIDIA CUDA toolkit question; Options -> NVIDIA CUDA toolkit -> **Ask me again** or `sysreport-search cuda-toolkit --ask-again` sets `1` (default `1`) |
 | `SIO Sensors` | e.g. `nct6799:AUXTIN1` | Super-I/O inputs the burner should treat as connected |
 
 Section `[Tabs]` holds the main window's tabs as they are now: `Lineup` (the lineup they came
@@ -2282,6 +2370,10 @@ post. Or save only the items you need: `sysreport-search '-save=[processors][sen
 | I cannot find an item | Type part of its name or its id into the search box (**Ctrl+F**), or look under **All N items** on the page. |
 | `-save=[...]` gives "no matches found" in zsh | Quote it: `sysreport-search '-save=[cpuid]'` (the brackets are a pattern in zsh). |
 | Ping item hangs a moment | It waits for your router to answer. Normal. |
+| The CUDA rows say "the CUDA driver refused the built-in kernels ... see Options > NVIDIA CUDA toolkit" | Your graphics driver (or ZLUDA version) does not take SRS's pre-built CUDA tests. Install the runtime compiler from **Options -> NVIDIA CUDA toolkit for GPU tests...** (not recommended with ZLUDA: update ZLUDA instead), see [9.20](#920-the-nvidia-cuda-toolkit-optional). |
+| SRS asks about the NVIDIA CUDA toolkit | Only once, before the first CUDA run, when it is not installed. **Not now** or **Don't ask again** is fine for most people; the CUDA tests are built in. |
+| The CUDA toolkit install says the package database is locked | Another install or update is running. Let it finish, then use **Install...** again. |
+| OpenCL FP64 rows say "this OpenCL driver has no FP64" | That driver (often Mesa's Rusticl) has no double precision. Normal; another OpenCL driver (for example ROCm's) may have it. |
 
 ## 19. Uninstall
 
@@ -2327,6 +2419,12 @@ Nothing was removed: both views show the same items.
 
 **Can I use it over SSH or in a script?**
 Yes. `sysreport-search` needs no desktop. See [CLI-REFERENCE.md](CLI-REFERENCE.md).
+
+**Do I need the NVIDIA CUDA toolkit?**
+Almost certainly not. Since 2.3 SRS's CUDA tests are built in. The toolkit (its runtime compiler,
+NVRTC) is only a fallback when the graphics driver refuses them. If SRS asked and you said **Not
+now** or **Don't ask again**, you can install it later from **Options -> NVIDIA CUDA toolkit for
+GPU tests...**. With ZLUDA, do not install it - see [9.20](#920-the-nvidia-cuda-toolkit-optional).
 
 **Where do device names come from?**
 From the hwdata project's `pci.ids`, `usb.ids` and `pnp.ids` lists on your system, and the systemd

@@ -110,6 +110,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **CTA-861** - An EDID extension block with TV and HDMI data: extra video modes, audio formats and HDR information. *See: [graphics](SECTIONS/graphics.md).*
 - **cuBLAS** - NVIDIA's tuned matrix-maths library for CUDA. *See: [tools](SECTIONS/tools.md).*
 - **CUDA** - NVIDIA's GPU computing platform, used by most AI programs; needs the NVIDIA driver. With ZLUDA, CUDA programs can run on AMD cards. *See: [tools](SECTIONS/tools.md).*
+- **CUDA toolkit (NVIDIA CUDA toolkit)** - NVIDIA's free set of developer tools for running programs on NVIDIA graphics cards. SRS can use one small part of it, NVRTC, as a fallback; since 2.3 it is optional, and with ZLUDA it is not recommended (it can break or remove ZLUDA). Install it later from Options > NVIDIA CUDA toolkit for GPU tests... *See: [User Guide 9.20](USER-GUIDE.md#920-the-nvidia-cuda-toolkit-optional), [tools](SECTIONS/tools.md).*
 - **Curve Optimizer** - an AMD Ryzen BIOS setting that lowers (or raises) the voltage curve of each core. Too negative a value makes a core unstable or slow. *See: [tools](SECTIONS/tools.md).*
 
 ## D
@@ -242,6 +243,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **hidraw** - A Linux device node (`/dev/hidrawN`) that gives programs raw access to a HID device. *See: [buses-1](SECTIONS/buses-1.md).*
 - **HIP** - AMD's CUDA-like programming language for GPU computing, part of ROCm. *See: [graphics](SECTIONS/graphics.md).*
 - **hipBLAS** - AMD's tuned matrix-maths library for ROCm / HIP. *See: [tools](SECTIONS/tools.md).*
+- **hipRTC** - ROCm's runtime compiler, the HIP counterpart of NVRTC. The ROCm / HIP rows of GPU Burnin and the GPU Compute comparison still need it. *See: [tools](SECTIONS/tools.md).*
 - **Holder** - A Linux block device built on top of another one (for example an encrypted volume on a partition). *See: [storage](SECTIONS/storage.md).*
 - **Host bridge** - The PCI device that connects the CPU to the PCI bus (class 0600). *See: [buses-1](SECTIONS/buses-1.md).*
 - **Hotspot temperature** - the hottest point measured on a GPU chip; AMD calls it junction temperature. Usually 10-20 °C above the edge temperature. *See: [tools](SECTIONS/tools.md).*
@@ -390,6 +392,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **NUMA node** - A group of CPUs and memory that are close to each other. Desktops have one node, which Linux shows as -1 for PCI devices. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
 - **NVMe** - Non-Volatile Memory Express: the protocol fast SSDs use over PCIe. *See: [storage](SECTIONS/storage.md).*
 - **NVMe Composite** - An NVMe drive's own summary temperature, used for its thermal throttling. *See: [sensors](SECTIONS/sensors.md).*
+- **NVRTC (NVIDIA runtime compiler)** - the part of the CUDA toolkit that turns GPU program text into GPU code while a program runs (`libnvrtc`). SRS used it for its CUDA tests before 2.3; now only when the driver refuses the built-in PTX. ZLUDA has none. *See: [User Guide 9.20](USER-GUIDE.md#920-the-nvidia-cuda-toolkit-optional), [tools](SECTIONS/tools.md).*
 - **NX / XD** - No-Execute (AMD) / Execute Disable (Intel); marks memory as data-only so it cannot be run as code. *See: [processors](SECTIONS/processors.md).*
 
 ## O
@@ -452,6 +455,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **PSS (Proportional Set Size)** - a process's RAM use with shared pages split fairly among the processes sharing them. *See: [linux-os](SECTIONS/linux-os.md).*
 - **PSU efficiency (80 PLUS, Cybenetics)** - the share of the wall power that reaches the parts; 90 % means 10 % turns into heat in the power supply. 80 PLUS and Cybenetics certify it at set loads. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **PTP (Picture Transfer Protocol)** - the older camera file-transfer protocol that MTP is built on; uses USB class 06 (Still Image). *See: [buses-2](SECTIONS/buses-2.md).*
+- **PTX (Parallel Thread Execution)** - NVIDIA's portable GPU code, a step between program text and the code of one GPU. SRS 2.3 carries its CUDA tests as PTX; the graphics driver (or ZLUDA) finishes it for the card when a test starts. *See: [tools](SECTIONS/tools.md).*
 - **PWM (pulse-width modulation)** - A way to control fan speed by switching power on and off quickly; the duty cycle sets the speed. *See: [graphics](SECTIONS/graphics.md), [sensors](SECTIONS/sensors.md).*
 
 ## Q
