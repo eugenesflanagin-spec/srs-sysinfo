@@ -1185,13 +1185,144 @@ static void s_msrs(srs_out *o)
     so_kv(o, "Source", C_PURPLE, "/dev/cpu/*/msr (msr module), read by the srs-root helper (Menu > Run as root)");
 }
 
+/* MSR Setup (2.3.1): how SRS gets MSRs, and a plain-English reading of the cached ones (srs-root's msrs.txt, read as root
+   once; nothing is ever written). AMD family 17h / 19h: PStateDef CpuFid[7:0], CpuDfsId[13:8], MHz = Fid / Dfs * 200
+   (checked on a Ryzen 7 7800X3D, family 19h: 0x4ab248a8 = 4200 MHz, 0x479e4878 = 3000 MHz). Voltages are not shown: the VID
+   encoding changed with SVI3 and could not be checked here. */
+typedef struct { char name[40]; unsigned long long v[256]; int have[256]; } msrrow;
+static int msr_cpu_of(const char *hdr) { return strncmp(hdr, "CPU-", 4) ? -1 : atoi(hdr + 4); }
+static const msrrow *msr_find(const msrrow *r, int n, const char *name)
+{
+    int i;
+    for (i = 0; i < n; i++) if (!strcmp(r[i].name, name)) return &r[i];
+    return NULL;
+}
 static void s_msr_setup(srs_out *o)
 {
-    static const int tabs[] = { 200 };
+    static const int tabs[] = { 230 };
+    static const int t2[] = { 70, 150, 230, 330, 450 };
+    char mfp[1200] = "", cfp[1200] = "", *txt = NULL, when[80] = "", rel[300];
+    const char *mf, *cf;
+    if ((mf = so_root_file("msrs.txt"))) snprintf(mfp, sizeof mfp, "%s", mf);   /* so_root_file has one static buffer */
+    if ((cf = so_root_file("collected.txt"))) snprintf(cfp, sizeof cfp, "%s", cf);
+    mf = *mfp ? mfp : NULL;
+    cf = *cfp ? cfp : NULL;
+    static msrrow rows[32];
+    int nrow = 0, ncpu = 0, cols[256], i, builtin = 0;
+    struct utsname u;
+    so_siv_header(o, "MSR Setup");
     so_tabs(o, tabs, 1);
-    so_kv(o, "msr module", C_BLACK, path_exists("/dev/cpu/0/msr") ? "loaded (/dev/cpu/N/msr present)" : "not loaded");
-    so_kv(o, "cpuid module", C_BLACK, path_exists("/dev/cpu/0/cpuid") ? "loaded" : "not loaded");
-    so_kv(o, "Access", C_GRAY, "root only; srs-gui reads MSRs through srs-root, never writes them");
+    if (uname(&u) == 0) {   /* msr built into the kernel, or a module */
+        char mb[400], *b = NULL;
+        snprintf(mb, sizeof mb, "/lib/modules/%s/modules.builtin", u.release);
+        if (rd_all(mb, &b) > 0) builtin = strstr(b, "/msr.ko") != NULL;
+        free(b);
+    }
+    so_kv(o, "msr driver", path_exists("/dev/cpu/0/msr") ? C_GREEN : C_ORANGE,
+          path_exists("/dev/cpu/0/msr") ? (builtin ? "built into the kernel (/dev/cpu/N/msr present)" : "module loaded (/dev/cpu/N/msr present)")
+          : (builtin ? "built in, but /dev/cpu/N/msr is missing" : "module not loaded (srs-root loads it when it reads the MSRs)"));
+    so_kv(o, "cpuid driver", C_BLACK, path_exists("/dev/cpu/0/cpuid") ? "available" : "not loaded");
+    so_kv(o, "Running as root now", C_BLACK, geteuid() == 0 ? "yes" : "no - MSRs come from the root cache below");
+    so_kv(o, "Access", C_GRAY, "root only; srs-gui reads MSRs through srs-root once and never writes them");
+    if (cf && rd_str(cf, when, sizeof when)) so_kv(o, "MSRs last read", C_VALUE, when);
+    so_kv(o, "Cache", C_GRAY, mf ? mf : "~/.cache/srs/root/msrs.txt (not there yet)");
+    if (!mf || rd_all(mf, &txt) <= 0) {
+        so_par(o);
+        so_note(o, "No MSR cache yet. Read them once with Menu > Run as root (one password prompt, read-only); then this page decodes them.");
+        free(txt);
+        return;
+    }
+    {   /* parse: header "MSR Name CPU-a CPU-b ..." (in the file's order), then one row per MSR */
+        char *save = NULL, *line = strtok_r(txt, "\n", &save);
+        int nc = 0;
+        if (line) {
+            char *t, *s2 = NULL;
+            int k = 0;
+            for (t = strtok_r(line, " ", &s2); t; t = strtok_r(NULL, " ", &s2), k++)
+                if (k >= 2 && nc < 256) { cols[nc] = msr_cpu_of(t); if (cols[nc] + 1 > ncpu) ncpu = cols[nc] + 1; nc++; }
+        }
+        while ((line = strtok_r(NULL, "\n", &save)) && nrow < 32) {
+            char *t, *s2 = NULL;
+            int k = 0;
+            memset(&rows[nrow], 0, sizeof rows[nrow]);
+            for (t = strtok_r(line, " ", &s2); t; t = strtok_r(NULL, " ", &s2), k++) {
+                if (k == 1) snprintf(rows[nrow].name, sizeof rows[nrow].name, "%s", t);
+                else if (k >= 2 && k - 2 < nc && cols[k - 2] >= 0 && cols[k - 2] < 256 && strcmp(t, "n/a")) {
+                    rows[nrow].v[cols[k - 2]] = strtoull(t, NULL, 16);
+                    rows[nrow].have[cols[k - 2]] = 1;
+                }
+            }
+            if (rows[nrow].name[0]) nrow++;
+        }
+    }
+    free(txt);
+    so_kvf(o, "In the cache", C_VALUE, "%d registers x %d CPUs - every value: the MSRs item", nrow, ncpu);
+    so_kv(o, "Refresh", C_GRAY, "Menu > Run as root");
+    so_par(o);
+    so_head(o, "Decoded (CPU 0 unless a table says otherwise; raw value in brackets)");
+    so_tabs(o, tabs, 1);
+    for (i = 0; i < 8; i++) {   /* P-state definitions */
+        char nm[24];
+        const msrrow *r;
+        snprintf(nm, sizeof nm, "PSTATE_DEF_%d", i);
+        if (!(r = msr_find(rows, nrow, nm)) || !r->have[0]) continue;
+        {
+            unsigned long long v = r->v[0];
+            unsigned fid = (unsigned)(v & 0xff), dfs = (unsigned)((v >> 8) & 0x3f);
+            char lbl[40];
+            snprintf(lbl, sizeof lbl, "P-state P%d", i);
+            if (!(v >> 63)) so_kvf(o, lbl, C_GRAY, "not used (0x%016llx)", v);
+            else if (dfs) so_kvf(o, lbl, C_GREEN, "enabled, %u MHz (FID %u / DFS %u x 200) (0x%016llx)", fid * 200 / dfs, fid, dfs, v);
+            else so_kvf(o, lbl, C_ORANGE, "enabled, divider 0 - not decoded (0x%016llx)", v);
+        }
+    }
+    {
+        const msrrow *r = msr_find(rows, nrow, "HWCR");
+        if (r && r->have[0]) so_kvf(o, "Core Performance Boost", (r->v[0] >> 25 & 1) ? C_ORANGE : C_GREEN, "%s (HWCR CpbDis bit 25 = %llu) (0x%016llx)",
+                                     (r->v[0] >> 25 & 1) ? "off - boost disabled" : "on", r->v[0] >> 25 & 1, r->v[0]);
+        r = msr_find(rows, nrow, "EFER");
+        if (r && r->have[0]) so_kvf(o, "AMD-V (SVM) in EFER", C_VALUE, "%s (SVME bit 12 = %llu) (0x%016llx)",
+                                     (r->v[0] >> 12 & 1) ? "on - the kernel or a hypervisor has enabled SVM on this CPU" : "off on this CPU right now",
+                                     r->v[0] >> 12 & 1, r->v[0]);
+        r = msr_find(rows, nrow, "CPPC_ENABLE");
+        if (r && r->have[0]) so_kvf(o, "CPPC", C_VALUE, "%s (CPPC_ENABLE bit 0) (0x%016llx)", (r->v[0] & 1) ? "enabled" : "not enabled", r->v[0]);
+        r = msr_find(rows, nrow, "RAPL_PWR_UNIT");
+        if (r && r->have[0]) {
+            unsigned eu = (unsigned)((r->v[0] >> 8) & 0x1f), tu = (unsigned)((r->v[0] >> 16) & 0xf);
+            so_kvf(o, "RAPL energy unit", C_VALUE, "1/2^%u J = %.2f uJ, time unit 1/2^%u s (0x%016llx)", eu, 1e6 / (double)(1ULL << eu), tu, r->v[0]);
+            so_kv(o, "Energy counters", C_GRAY, "a counter means nothing alone: power needs two readings over time - see Power & Cost");
+        }
+    }
+    {   /* CPPC_CAP1 per CPU, ordered by highest performance like the kernel's amd_pstate preferred-core ranking */
+        const msrrow *r = msr_find(rows, nrow, "CPPC_CAP1");
+        int order[256], n = 0, a, b;
+        if (r) {
+            static const char *const head[] = { "CPU", "Highest", "Nominal", "Lowest nonlinear", "Lowest", "Rank" };
+            char rk[16];
+            for (a = 0; a < ncpu && a < 256; a++) if (r->have[a]) order[n++] = a;
+            for (a = 1; a < n; a++)   /* by highest perf (bits 31:24), high first; CPU number breaks ties */
+                for (b = a; b > 0 && ((r->v[order[b]] >> 24) & 0xff) > ((r->v[order[b - 1]] >> 24) & 0xff); b--) { int t = order[b]; order[b] = order[b - 1]; order[b - 1] = t; }
+            so_par(o);
+            so_head(o, "CPPC capabilities per CPU (CPPC_CAP1, highest performance first)");
+            so_tabs(o, t2, 5);
+            for (a = 0; a < 6; a++) { so_b(o, C_LABEL, head[a]); if (a < 5) so_tab(o); }
+            so_par(o);
+            for (a = 0; a < n; a++) {
+                unsigned long long v = r->v[order[a]] & 0xffffffffULL;   /* the low 32 bits */
+                snprintf(rk, sizeof rk, "%d", a + 1);
+                so_f(o, C_VALUE, "CPU-%d", order[a]); so_tab(o);
+                so_f(o, C_GREEN, "%llu", v >> 24 & 0xff); so_tab(o);
+                so_f(o, C_VALUE, "%llu", v >> 16 & 0xff); so_tab(o);
+                so_f(o, C_VALUE, "%llu", v >> 8 & 0xff); so_tab(o);
+                so_f(o, C_VALUE, "%llu", v & 0xff); so_tab(o);
+                so_t(o, C_GRAY, rk); so_par(o);
+            }
+            so_note(o, "The CPUs with the highest value are the ones the scheduler prefers (amd_pstate preferred cores).");
+        }
+    }
+    snprintf(rel, sizeof rel, "Raw values of every register and CPU: the MSRs item. Nothing here was written to any register.");
+    so_par(o);
+    so_note(o, rel);
 }
 
 static void s_cpu_volts(srs_out *o)

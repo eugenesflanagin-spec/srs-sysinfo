@@ -43,10 +43,11 @@ command -v smbstatus >/dev/null && smbstatus > smbstatus.txt 2>&1
 modprobe msr 2>/dev/null
 {
   printf "%-12s %-34s" "MSR" "Name"
-  for c in /dev/cpu/[0-9]*; do printf " %-18s" "CPU-${c##*/}"; done; echo
+  CPUS=$(printf '%s\n' /dev/cpu/[0-9]* | sort -V)   # CPU-0, 1, 2 ... 15 (the glob gave 0, 1, 10, 11 ... 2)
+  for c in $CPUS; do printf " %-18s" "CPU-${c##*/}"; done; echo
   while read -r addr name; do
     printf "%-12s %-34s" "$addr" "$name"
-    for c in /dev/cpu/[0-9]*; do
+    for c in $CPUS; do
       v=$(dd if="$c/msr" bs=8 count=1 skip=$((addr)) iflag=skip_bytes 2>/dev/null | od -An -tx8 | tr -d ' ')
       printf " %-18s" "${v:-n/a}"
     done
