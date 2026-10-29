@@ -2,13 +2,13 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has buttons that open the CPU Benchmark, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, IPI Delay, Memory Latency, CPU Burnin and CPU Stress windows, and tabs with the last results and the benchmark history. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root and the Classic view; its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the CPU Burnin and CPU Stress load tests, a core-to-core delay test, a memory latency test, and the
 look-up and search tools (device ID lookup, report search, configuration search, ping). Open the
 items from **Menu -> Tools -> item** (each entry shows as "Title [id]"). The live tool windows are
-in **Menu -> Benchmarks & stress**: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
+in **Menu -> Benchmarks & Stress**: CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
 Latency..., SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage Benchmark...,
 OS Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU Benchmark..., GPU
 Burnin... and GPU Comparison (Vulkan, HIP, CUDA, OpenCL)...; Device ID Lookup... and Find in
@@ -142,7 +142,7 @@ Whetstone at the same time. This is the "whole chip, fully loaded" score.
 | Total | Sum of the column. | The overall score for the mode. |
 | Footer | Board maker, model and BIOS version. | Ties the result to a BIOS version. |
 
-If a mode has never been run, the item instead shows `Status Not run yet`, `Run it` (Benchmarks & stress >
+If a mode has never been run, the item instead shows `Status Not run yet`, `Run it` (Benchmarks & Stress >
 Benchmark, then Run), `Command line` (for example `srs-gui bench ac`) and the note "Benchmarks are
 never started by -save; this section shows the last result."
 
@@ -409,7 +409,7 @@ Each pair is measured once, so the table is a mirror: the CPU-3 -> CPU-5 cell al
 CPU-5 -> CPU-3. If it has never been run, the item shows `Status Not run yet`, `Run it` (Benchmarks &
 stress > IPI Delay, then Run) and `Command line srs-gui ipi [--cpus N] [--rounds R]`.
 
-The GUI window (Menu -> Benchmarks & stress -> IPI Delay...) has a CPUs box (test only the first N CPUs), a Rounds per pair
+The GUI window (Menu -> Benchmarks & Stress -> IPI Delay...) has a CPUs box (test only the first N CPUs), a Rounds per pair
 box, a Run button (it asks first: two CPU threads busy at a time, about a second at the defaults;
 `sysreport-search ipi` asks the same, `--yes` starts at once), and a heat map under the text. With
 CPUs = 1 (or a one-CPU system) there is no pair to measure: nothing runs, the window says "Not
@@ -498,7 +498,7 @@ with the smallest cache it fits in, and DRAM above the last level. Labels are in
 in the Latency column are the real boundaries (compare [Cache Levels](processors.md#cache-levels), `cache`). If never run, the item
 shows `Status Not run yet` and `Command line srs-gui latency [--max MB]`.
 
-The GUI window (Menu -> Benchmarks & stress -> Latency...) has a "Largest block (MB)" box, a Run button (it asks first: one
+The GUI window (Menu -> Benchmarks & Stress -> Latency...) has a "Largest block (MB)" box, a Run button (it asks first: one
 CPU thread and that much memory, about 3 seconds at 256 MB; `sysreport-search latency` asks the
 same, `--yes` starts at once) and a line graph of latency against block size.
 
@@ -1461,7 +1461,7 @@ starts a run.
 
 | Field | Meaning |
 |---|---|
-| State | `Running`, or `Idle (start it from Benchmarks & stress > CPU Burnin)`. |
+| State | `Running`, or `Idle (start it from Benchmarks & Stress > CPU Burnin)`. |
 | Worker threads | How many CPUs can get a worker thread ("16 CPUs available"). |
 | Hottest CPU sensor | The hottest CPU temperature right now, with chip and label (k10temp, coretemp or zenpower). |
 | Hottest SIO sensor | The hottest motherboard Super I/O sensor right now. |
@@ -1469,7 +1469,7 @@ starts a run.
 | Command line | `srs-gui burn [--threads N \| --cpus 0,2] [--seconds S] [--mode same\|swap] [--limit C]`. |
 | Safety note | Never auto-starts; stops at the temperature limit (default 90 C) and the time cap. |
 
-**What you see in the CPU Burnin window** (Menu -> Benchmarks & stress -> CPU Burnin...).
+**What you see in the CPU Burnin window** (Menu -> Benchmarks & Stress -> CPU Burnin...).
 - Settings: Burn Time (0-750, in minutes, or in hours if "Hours" is ticked; default 15 minutes),
   Cool Time (0-900 seconds idle between burns, default 60), Cycles (1-99 burn/cool rounds, default 1),
   Temperature limit °C (50-100, default 90), **Same CPU (Whetstone)** or **Swap CPU (affinity
@@ -1556,7 +1556,7 @@ stay 100 % busy until you press Stop (or a safety limit hits). Use it to watch t
 for as long as you like.
 
 **What you see.** In a report: exactly the same lines as [CPU Burnin](#cpu-burnin) (State, Worker
-threads, sensors, GPU, Command line, Safety note). In the CPU Stress window (Menu -> Benchmarks & stress -> CPU Stress...):
+threads, sensors, GPU, Command line, Safety note). In the CPU Stress window (Menu -> Benchmarks & Stress -> CPU Stress...):
 the same sensor table, thread table, graph and controls as CPU Burnin, but without Burn Time, Cool
 Time and Cycles.
 

@@ -1,4 +1,4 @@
-/* power.c - SRS "Power & cost": the page in srs-gui's main window, the recorder, and the
+/* power.c - SRS "Power & Cost": the page in srs-gui's main window, the recorder, and the
  * headless background recorder (`srs-gui --power-recorder`).
  *
  * Tabs: Now (live estimate with its range, cost at this draw, recording), History (graphs by
@@ -1457,7 +1457,7 @@ static char *export_note(void)
     int i;
     localtime_r(&now, &tm);
     strftime(t, sizeof t, "%Y-%m-%d %H:%M %Z", &tm);
-    g_string_append_printf(g, "SRS Power & cost history, exported %s\n", t);
+    g_string_append_printf(g, "SRS Power & Cost history, exported %s\n", t);
     g_string_append_printf(g, "%s Do not use it for billing, safety decisions or as proof of energy use.\n", g_disclaimer_short);
     g_string_append(g, "kwh_estimate is SRS's centre estimate at the wall; kwh_low / kwh_high are the likely range. CPU and GPU are the "
                        "measured parts (inside the PC); everything else is estimated from the parts list below.\n");
@@ -2051,7 +2051,7 @@ static GtkWidget *build_price(void)
         G.c_rate_info = wrap_lbl("", NULL);
         gtk_box_pack_start(GTK_BOX(box), G.c_rate_info, FALSE, FALSE, 0);
         snprintf(s, sizeof s, "Built into SRS, nothing is sent anywhere. Averages for an area, not your plan, and they may be out of date: "
-                 "%s. Sources and licences: Guide, \"Power & cost\".", prt_tables_date());
+                 "%s. Sources and licences: Guide, \"Power & Cost\".", prt_tables_date());
         gtk_box_pack_start(GTK_BOX(box), wrap_lbl(s, "dim-label"), FALSE, FALSE, 0);
         g_signal_connect(G.c_rate_country, "changed", G_CALLBACK(on_rate_country), NULL);
         g_signal_connect(G.c_rate_region, "changed", G_CALLBACK(on_rate_region), NULL);
@@ -2330,8 +2330,8 @@ static void on_bg_toggle(GtkToggleButton *t, gpointer d)
         const char *const r1[] = { "systemctl", "--user", "daemon-reload", NULL };
         const char *const r2[] = { "systemctl", "--user", "enable", "--now", "srs-power-recorder.service", NULL };
         g_mkdir_with_parents(dir, 0755);
-        txt = g_strdup_printf("# Written by SRS (Power & cost > Setup). Remove it there, or delete this file.\n"
-                              "[Unit]\nDescription=SRS power recorder (Power & cost history)\nStartLimitIntervalSec=600\nStartLimitBurst=5\n\n"
+        txt = g_strdup_printf("# Written by SRS (Power & Cost > Setup). Remove it there, or delete this file.\n"
+                              "[Unit]\nDescription=SRS power recorder (Power & Cost history)\nStartLimitIntervalSec=600\nStartLimitBurst=5\n\n"
                               "[Service]\nExecStart=\"%s\" --power-recorder\nRestart=on-failure\nRestartSec=30\nNice=10\n\n"
                               "[Install]\nWantedBy=default.target\n", exe ? exe : "srs-gui");
         if (!g_file_set_contents(p, txt, -1, NULL)) fail = "Could not write the service file in ~/.config/systemd/user.";
@@ -2828,7 +2828,7 @@ static GtkWidget *build_sources(void)
 /* ====================================================================== page */
 static void show_disclaimer(GtkWidget *parent, int first)
 {
-    GtkWidget *dlg = gtk_dialog_new_with_buttons("Power & cost: estimates only", GTK_WINDOW(gtk_widget_get_toplevel(parent)),
+    GtkWidget *dlg = gtk_dialog_new_with_buttons("Power & Cost: estimates only", GTK_WINDOW(gtk_widget_get_toplevel(parent)),
                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, first ? "I _understand" : "_Close",
                                                  GTK_RESPONSE_ACCEPT, NULL);
     GtkWidget *l = gtk_label_new(NULL), *ca = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
@@ -2920,7 +2920,7 @@ GtkWidget *power_page_new(void (*open_item)(const char *id))
         gtk_box_pack_start(GTK_BOX(tr), gtk_image_new_from_icon_name(ic, GTK_ICON_SIZE_DND), FALSE, FALSE, 0);
     }
     v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-    gtk_box_pack_start(GTK_BOX(v), lbl("Power & cost", "srs-h1", 0), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(v), lbl("Power & Cost", "srs-h1", 0), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(v), wrap_lbl("How much power this PC uses, what it costs, and its history. The processor and graphics "
                                             "card are measured; the rest is estimated, so every figure is a range.", "dim-label"), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(tr), v, TRUE, TRUE, 0);

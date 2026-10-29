@@ -1,4 +1,4 @@
-/* power_rates.h - SRS "Power & cost": offline electricity price and grid-CO2 tables.
+/* power_rates.h - SRS "Power & Cost": offline electricity price and grid-CO2 tables.
  *
  * Built into SRS (power_rates_data.inc, made by tools/gen_power_rates.py from public data; sources,
  * dates and licences in that file's header and in the user guide). The US ZIP -> utility table is

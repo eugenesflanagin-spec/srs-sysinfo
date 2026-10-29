@@ -23,8 +23,15 @@ typedef struct {
     int cycles;                /* burn/cool cycles, 0 = 1 */
     double temp_limit_c;       /* Fail when hottest CPU temp exceeds this (0 = off) */
     double cap_s;              /* hard cap on the whole run, seconds */
-    const char *gpu_cmd;       /* optional external GPU load command (NULL = none) */
+    const char *gpu_cmd;       /* optional external GPU load command, run through /bin/sh (NULL = none) */
+    const char *const *gpu_argv; /* the built-in GPU Burnin (srs-gui --gpu-burn-child ...), run directly; wins over gpu_cmd */
+    const char *gpu_label;     /* its name in the status lines (NULL = "GPU load command") */
+    int gpu_follow;            /* 1: the GPU part pauses in each cool phase (synced to the CPU burn phases); 0: it runs once
+                                  from Start for its own time. Either way it ends with the run. No CPU enabled = GPU only. */
 } burn_cfg;
+
+/* exit codes of the built-in GPU Burnin child (srs-gui --gpu-burn-child) */
+enum { GPUB_EXIT_PASS = 0, GPUB_EXIT_STOPPED = 10, GPUB_EXIT_FAIL = 11, GPUB_EXIT_NOTSTARTED = 12, GPUB_EXIT_EARLY = 13 };
 
 typedef struct {
     int cpu, busy, cur_cpu, apic_ok, apic_errors;
@@ -44,6 +51,8 @@ typedef struct {
     char status[160];
     char gpu_msg[300];         /* GPU load command state ("" = no command): running / finished / failed (exit code) */
     int gpu_bad;               /* 1 when the GPU load command failed or was not found */
+    int gpu_running;           /* the GPU part's process is running (or still stopping) */
+    int gpu_exit;              /* the built-in GPU Burnin's last exit code (GPUB_EXIT_*), -1 = none yet */
     int nthreads;
     burn_thread th[BURN_MAXCPU];
     double per_cpu_user[BURN_MAXCPU], per_cpu_sys[BURN_MAXCPU], per_cpu_mhz[BURN_MAXCPU];
@@ -55,6 +64,7 @@ int  burn_start(const burn_cfg *c);          /* 0 ok, -1 already running / no CP
 void burn_stop(void);
 void burn_tick(burn_status *st);            /* call ~1/s: samples sensors, advances phases */
 int  burn_active(void);
+int  burn_gpu_running(void);                 /* the GPU part (built-in or command) has not ended yet */
 void burn_sample_now(burn_sample *s);        /* one sensor sample (no load) */
 double whetstone_mwips(long loops, double *secs); /* single run on the calling thread */
 

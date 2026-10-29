@@ -53,7 +53,7 @@ echo "### toolchain"
 apt-get update -qq
 # libgtk-3-bin / libgdk-pixbuf2.0-bin / librsvg2-common: what linuxdeploy-plugin-gtk bundles
 # (IM modules, pixbuf loaders incl. SVG for icons);
-# libayatana-appindicator3-1: the optional tray icon (srs-gui dlopen()s it); libsqlite3-dev: Power & cost history.
+# libayatana-appindicator3-1: the optional tray icon (srs-gui dlopen()s it); libsqlite3-dev: Power & Cost history.
 # Not bundled: zlib / zstd / lz4 / liblzma (Everyday Work benchmark), libcurl (Network benchmark's internet test) and
 # libvulkan, ROCm / HIP, CUDA, OpenCL and CLBlast (GPU benchmarks; must match the host's GPU driver),
 # loaded from the host with dlopen when present.

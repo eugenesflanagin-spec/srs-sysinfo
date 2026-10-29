@@ -328,7 +328,7 @@ From top to bottom:
 | Part | What it is |
 |---|---|
 | **Title bar** | **Refresh** (left; also **F5**) reads the page again. Next to it the **badge** says whether SRS can read everything: **Full access** or **Limited (user)** with a **Run as root...** button ([6.10](#610-full-access-or-limited-the-badge)). The **search box** finds any item or text ([6.4](#64-search)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Lineup, Options, Run as root and more ([6.5](#65-the-menu)). |
-| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, Power & cost, USB & PCI devices, Operating system, Benchmarks & stress, Tools. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=** and **Alt+Backspace** jump straight to them, in that order ([12](#12-keyboard-shortcuts)). Below the list: **Classic view**, the tab **lineup** in use ([6.7](#67-arranging-the-tabs-and-lineups)) and the SRS version. |
+| **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & Audio, Storage, Network, Sensors, Power & Cost, USB & PCI devices, Operating system, Benchmarks & Stress, Tools. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=** and **Alt+Backspace** jump straight to them, in that order ([12](#12-keyboard-shortcuts)). Below the list: **Classic view**, the tab **lineup** in use ([6.7](#67-arranging-the-tabs-and-lineups)) and the SRS version. |
 | **Page** (right) | What you picked. The title bar's second line names it. |
 
 The window follows your desktop's light or dark theme (see **Options -> Theme** in [10](#10-options)).
@@ -344,14 +344,14 @@ as **Sensor status** or **SMART drives**; there are 558 of them.
 | **Processor** | The CPU: model, cores and threads, clocks, features, caches | CPU Summary, Processors, CPU Clocks, CPUID Features, Cache Levels, CPUID, Microcode, Speculation Control |
 | **Memory** | RAM: installed, in use, the sticks and their timings | Memory, DIMMs, SPD (DIMMs), Memory timings, DIMM status/temperatures, Physical memory map, NUMA |
 | **Motherboard & BIOS** | The board and its firmware | Machine, Hardware summary, Firmware, BIOS / SMBIOS tables, UEFI information, ACPI tables, TPM device |
-| **Graphics & audio** | Graphics cards, monitors, sound | Graphics, GPU information, GPU clock speeds, GPU temperatures, Monitors, OpenCL, Audio devices |
+| **Graphics & Audio** | Graphics cards, monitors, sound | Graphics, GPU information, GPU clock speeds, GPU temperatures, Monitors, OpenCL, Audio devices |
 | **Storage** | Drives, file systems, drive health | Disk drives, Volumes, SMART drives, Partitions, Disk performance, USB disk drives |
 | **Network** | Adapters, addresses, Wi-Fi, Bluetooth, connections | Network adapters, IP address, Wi-Fi SSIDs, Bluetooth radios, Routing table, TCP V4 ports, TCP/IP counters |
 | **Sensors** | Temperatures, fans, voltages, power | Sensor status, Hardware status, Cooling status (fans), Power status |
-| **Power & cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
+| **Power & Cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
 | **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
-| **Benchmarks & stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
+| **Benchmarks & Stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark history (the last results) |
 | **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
 
 The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
@@ -462,15 +462,15 @@ Right-click the text for Copy, Select All, the guide link and the Classic Menu. 
 heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab for Keep, Replace
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
-The **Benchmarks & stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
+The **Benchmarks & Stress** page has buttons that open the CPU Benchmark, IPI Delay, Memory Latency,
 Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU
 Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU Burnin and CPU Stress windows ([9](#9-tools)); nothing runs until you press **Run** or
 **Start** there. Its tabs show the last results. The **Tools** page opens Device ID Lookup, Find in
 a system report, Save Report, Run as root and the Classic view.
 
-![Benchmarks & stress page](images/benchmarks-page.png)
+![Benchmarks & Stress page](images/benchmarks-page.png)
 
-*The Benchmarks & stress page (light theme): a button for each tool, with what it measures and how long it keeps the PC busy. Only the first launchers show here; scroll for the rest. The tabs below show the last results.*
+*The Benchmarks & Stress page (light theme): a button for each tool, with what it measures and how long it keeps the PC busy. Only the first launchers show here; scroll for the rest. The tabs below show the last results.*
 
 ![Tools page](images/tools-page.png)
 
@@ -710,7 +710,7 @@ The badge left of the title says what SRS can read right now:
 
 With **Options -> Refresh root data at boot** the badge says Full access from the start.
 
-### 6.11 Power & cost
+### 6.11 Power & Cost
 
 > **Estimates only. Please read.** SRS shows how much power your computer **probably** uses and
 > what it **might** cost. These numbers are **estimates**, not a meter reading and not a bill.
@@ -735,10 +735,10 @@ centre figure with a likely range, for example **about 160 W, likely between 116
 wall**. Recording keeps one line per minute, so you can see days, weeks and months, with the cost
 at your price.
 
-The page is in the sidebar right under **Sensors** (**Power & cost**, **Alt+9**). Open it from the
-command line with `srs-gui --gui-open=power-cost`. The classic view has no Power & cost page.
+The page is in the sidebar right under **Sensors** (**Power & Cost**, **Alt+9**). Open it from the
+command line with `srs-gui --gui-open=power-cost`. The classic view has no Power & Cost page.
 
-![Power & cost, Now tab (this PC idling)](images/power-now.png)
+![Power & Cost, Now tab (this PC idling)](images/power-now.png)
 
 #### Now
 
@@ -773,7 +773,7 @@ Sessions tab's level, 50 % by default) against the rest.
   minute keeps the price that applied when it was recorded (so a time-of-use or tiered price is
   exact to the minute); use this after correcting a wrong price.
 
-![Power & cost, History tab (example data)](images/power-history.png)
+![Power & Cost, History tab (example data)](images/power-history.png)
 
 *The history picture uses made-up example data.*
 
@@ -1070,7 +1070,7 @@ This is the classic view's Menu. Press **Menu** on the classic main window, pres
 classic window, right-click the text of any panel and choose **SRS Menu**, or use **Menu ->
 Classic Menu** in the main window. It has:
 
-1. **Benchmarks & stress** (a submenu): CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
+1. **Benchmarks & Stress** (a submenu): CPU Burnin..., CPU Stress..., Benchmark..., IPI Delay...,
    Latency..., SRS Pi..., Crypto Benchmark..., Prime Sieve..., Cache & Memory..., Storage
    Benchmark..., OS Latency..., CPU Compute..., Everyday Work..., Network Benchmark..., GPU
    Benchmark..., GPU Burnin... and GPU Comparison...; then **Device ID Lookup...**, **Find in
@@ -1081,9 +1081,9 @@ Classic Menu** in the main window. It has:
 
    *The classic Menu, opened with the Menu button on the classic main window.*
 
-   ![The classic Menu, Benchmarks & stress submenu](images/classic-bench-menu.png)
+   ![The classic Menu, Benchmarks & Stress submenu](images/classic-bench-menu.png)
 
-   *The Benchmarks & stress submenu of the classic Menu.*
+   *The Benchmarks & Stress submenu of the classic Menu.*
 
 2. **Every item, grouped** (the same groups as the Section Reference):
    - Processors
@@ -1173,9 +1173,9 @@ overclocks, undervolts (Curve Optimizer) or power limits.
 
 ![CPU Burnin window](images/cpu-burnin.png)
 
-Open: the **Benchmarks & stress** page -> **CPU Burnin...** / **CPU Stress...**, the menu entry
+Open: the **Benchmarks & Stress** page -> **CPU Burnin...** / **CPU Stress...**, the menu entry
 "SRS CPU Burnin & Stress", or in the classic view Processors -> CPU Burnin / CPU Stress or
-Menu -> Benchmarks & stress.
+Menu -> Benchmarks & Stress.
 
 The difference:
 
@@ -1246,8 +1246,8 @@ comparing very different CPUs.
 
 ![Benchmark window](images/benchmark.png)
 
-Open: the **Benchmarks & stress** page -> **Benchmark...**, the menu entry "SRS Benchmark", or in
-the classic view Processors -> Benchmark or Menu -> Benchmarks & stress. The page's **CPU Benchmarks** tab shows
+Open: the **Benchmarks & Stress** page -> **Benchmark...**, the menu entry "SRS Benchmark", or in
+the classic view Processors -> Benchmark or Menu -> Benchmarks & Stress. The page's **CPU Benchmarks** tab shows
 the last results.
 
 Controls: **Mode**, **Seconds per measurement** (0.1-60, default 1), **Run** (asks first: the
@@ -1348,7 +1348,7 @@ What the numbers show, step by step:
 
 ### 9.2.2 Reading the CPU IPI Delay table - a worked example
 
-**In plain words:** the IPI Delay tool (Benchmarks & stress > IPI Delay, section 9.3) times how long one
+**In plain words:** the IPI Delay tool (Benchmarks & Stress > IPI Delay, section 9.3) times how long one
 CPU takes to hand a small piece of data to another CPU, for every pair of CPUs. When two threads of
 a program share data (a lock, a queue, a game engine's job list), this is the delay they pay each
 time. The result is a big grid of numbers. This page shows how to read it, using one real result.
@@ -1436,7 +1436,7 @@ the two dies. The exact numbers depend on the CPU, the memory and fabric clocks,
 for every pair of CPUs. Shows as a table in nanoseconds and a colour heat map (green = fast,
 red = slow). Cores that share a cache or a chip answer faster; cores on different chips
 (for example two CCDs on a Ryzen 9) answer slower.
-Open: the **Benchmarks & stress** page -> **IPI Delay...**, or Menu -> Benchmarks & stress -> IPI Delay... in
+Open: the **Benchmarks & Stress** page -> **IPI Delay...**, or Menu -> Benchmarks & Stress -> IPI Delay... in
 the classic view.
 Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run** (asks first;
 two CPU threads are busy at a time, for about a second at the defaults). With **CPUs** at 1 there is
@@ -1451,7 +1451,7 @@ looks like), see [9.2.2 Reading the CPU IPI Delay table - a worked example](#922
 **In plain words:** measures how long one memory read takes, for blocks from tiny to large. Small
 blocks fit in L1 and answer in about 1 ns; as the block grows past each cache, the time steps up:
 L2, L3, then RAM. The steps in the graph show you your cache sizes.
-Open: the **Benchmarks & stress** page -> **Latency...**, or Menu -> Benchmarks & stress -> Latency... in the
+Open: the **Benchmarks & Stress** page -> **Latency...**, or Menu -> Benchmarks & Stress -> Latency... in the
 classic view.
 Controls: **Largest block (MB)** (1-4096, default 256), **Run** (asks first; one CPU thread and
 that much memory, about 3 seconds at the default). Command line: `sysreport-search latency` (asks
@@ -1522,7 +1522,7 @@ If there is no report yet, Find tells you to run SRS Full System Report first.
 **In plain words:** SRS works out pi to many decimal places and checks every digit. The time shows
 how fast one core does heavy number work; a wrong digit means the PC made a mistake (often an
 unstable overclock or memory).
-Open: the **Benchmarks & stress** page -> **SRS Pi...**, or Menu -> Benchmarks & stress -> SRS Pi... in the
+Open: the **Benchmarks & Stress** page -> **SRS Pi...**, or Menu -> Benchmarks & Stress -> SRS Pi... in the
 classic view. On the command line: `sysreport-search pi --digits 1m`.
 Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
 author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
@@ -1541,7 +1541,7 @@ is 1,000,000 - tick **SuperPi sizes** for the same digit counts as SuperPi. 32 m
 
 **In plain words:** how fast the CPU encrypts (AES-128) and fingerprints (SHA-256) data, with and
 without its built-in crypto instructions (AES-NI, SHA-NI).
-Open: the **Benchmarks & stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
+Open: the **Benchmarks & Stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
 Controls: **Threads** (right-hand column; the left column is always one thread), **Seconds per
 measurement** (default 1; about 8 seconds in all), **Run** (asks first; with all threads - the
 default - every CPU thread is 100% busy, so **No** is the default answer). The official FIPS test
@@ -1551,7 +1551,7 @@ vectors are checked before every run. On the command line it asks the same; `--y
 
 **In plain words:** counts the prime numbers up to 100 million, 1 billion, 10 billion or
 100 billion and checks the count. Simple integer and cache work that scales with threads.
-Open: the **Benchmarks & stress** page -> **Prime Sieve...**. Command line:
+Open: the **Benchmarks & Stress** page -> **Prime Sieve...**. Command line:
 `sysreport-search prime --limit 1e10`.
 Controls: **Count primes up to**, **Threads** (default all), **Run** (asks first; from 10 billion
 or with all threads - the defaults - it warns about unstable overclocks and **No** is the default
@@ -1561,7 +1561,7 @@ answer), **Stop**. On the command line it asks the same; `--yes` starts at once.
 
 Every SRS Pi, Crypto, Prime Sieve, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin and GPU Compute comparison run adds a line to
 `~/.cache/srs/bench-history.tsv`
-(time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & stress
+(time, test, settings, result, build). The **Benchmark history** tab on the Benchmarks & Stress
 page shows it, newest first. Compare only lines with the same settings and the same **Build**: a
 package built for any x86-64 CPU (`-march=x86-64 -O2`) can score well below a build made for your
 own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1 s on a 7800X3D.
@@ -1570,7 +1570,7 @@ own CPU (`-march=native -O3`) - for example SRS Pi 1 million digits 3.1 s vs 2.1
 
 **In plain words:** how fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long
 they take to answer. Use it after a BIOS, EXPO/XMP or memory-timing change.
-Open: the **Benchmarks & stress** page -> **Cache & Memory...**, or Menu -> Benchmarks & stress -> Cache &
+Open: the **Benchmarks & Stress** page -> **Cache & Memory...**, or Menu -> Benchmarks & Stress -> Cache &
 Memory... in the classic view. Command line: `sysreport-search cachemem`.
 Controls: **Threads** (default all; the bandwidth results need all of them), **Seconds per test**
 (default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
@@ -1589,7 +1589,7 @@ engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS.
 many small pieces at once, and one small piece at a time (how snappy it feels) - plus the response
 time of single reads and writes. It uses its **own temporary test file only**; your files are never
 touched, and nothing is left behind, even if SRS is stopped or crashes.
-Open: the **Benchmarks & stress** page -> **Storage...**, or Menu -> Benchmarks & stress -> Storage Benchmark...
+Open: the **Benchmarks & Stress** page -> **Storage...**, or Menu -> Benchmarks & Stress -> Storage Benchmark...
 in the classic view. Command line: `sysreport-search storage --dir FOLDER`.
 Controls: **Folder** (the line below it names the drive, its connection, the file system and the
 free space - never the serial number), **Test file** (256 MB, 1 GB, 4 GB, 16 GB), **Seconds per
@@ -1606,7 +1606,7 @@ to the kernel takes (a *system call*), how fast it switches between two programs
 switch*), how long it takes to start a thread or a program, how soon a sleeping program wakes up,
 how late a timer fires, and what a new page of memory or a small file costs. **Lower is better.**
 Steady numbers (95% and 99% close to the median) mean a smooth, responsive desktop.
-Open: the **Benchmarks & stress** page -> **OS Latency...**, or Menu -> Benchmarks & stress -> OS Latency... in
+Open: the **Benchmarks & Stress** page -> **OS Latency...**, or Menu -> Benchmarks & Stress -> OS Latency... in
 the classic view. Command line: `sysreport-search os-latency`.
 Controls: **Samples** (1,000-200,000, default 20,000; the slower tests use a tenth or less),
 **Tick test (s)** (1-30, default 3: how long a 1 ms timer is watched), **Run** (asks first),
@@ -1642,7 +1642,7 @@ single and DGEMM in double precision), **peak multiply-add** (the most sums the 
 reflections). Each runs on one thread and then on all threads at once. **Higher is better.**
 Every answer is checked against a known result: a wrong answer is shown as **WRONG** in red
 instead of a score, which points to an unstable overclock or undervolt.
-Open: the **Benchmarks & stress** page -> **CPU Compute...**, or Menu -> Benchmarks & stress -> CPU Compute...
+Open: the **Benchmarks & Stress** page -> **CPU Compute...**, or Menu -> Benchmarks & Stress -> CPU Compute...
 in the classic view. Command line: `sysreport-search compute`.
 Controls: **Threads** (default all), **Seconds per test** (default 0.5), **Code** (the best
 instruction set the CPU has - SSE2, AVX2 or AVX-512 - or a chosen one), **1 thread only** (skips
@@ -1673,7 +1673,7 @@ damaged files), **searching and checking text** (finding words, checking JSON an
 one thread and on all threads. **Higher is better.** Every result is checked (unpacked data must
 equal the original, sorted lists must be in order and complete, checksums must match known
 values), so a wrong answer is reported instead of a fast number.
-Open: the **Benchmarks & stress** page -> **Everyday Work...**, or Menu -> Benchmarks & stress -> Everyday
+Open: the **Benchmarks & Stress** page -> **Everyday Work...**, or Menu -> Benchmarks & Stress -> Everyday
 Work... in the classic view. Command line: `sysreport-search work`.
 Controls: **Threads** (default all), **Seconds per test** (default 0.5), **1 thread only**, the
 test groups (Compression, Sorting, Checksums and hashes, Text processing, Bytecode interpreter)
@@ -1708,7 +1708,7 @@ computer, and the network card is not involved. **Internet speed test** (optiona
 real connection with Cloudflare's public speed test server (speed.cloudflare.com): how long a name
 lookup takes (DNS), how long it takes to connect, and your download and upload speed with one and
 with several connections at once.
-Open: the **Benchmarks & stress** page -> **Network...**, or Menu -> Benchmarks & stress -> Network Benchmark...
+Open: the **Benchmarks & Stress** page -> **Network...**, or Menu -> Benchmarks & Stress -> Network Benchmark...
 in the classic view. Command line: `sysreport-search net` (loopback) and `sysreport-search net
 --internet`.
 Controls: **On this computer (loopback)** (ticked), **Internet speed test (asks first)** (not
@@ -1748,7 +1748,7 @@ pieces of work on the GPU through **Vulkan** (the graphics and compute interface
 Linux GPU driver offers - the same one many games use) and checks every answer, so a wrong answer
 is reported instead of a fast number. **Higher is better**, except for the latency row, where
 lower is better.
-Open: the **Benchmarks & stress** page -> **GPU Benchmark...**, or Menu -> Benchmarks & stress ->
+Open: the **Benchmarks & Stress** page -> **GPU Benchmark...**, or Menu -> Benchmarks & Stress ->
 GPU Benchmark... in the classic view. Command line: `sysreport-search gpu`.
 Controls: **GPU** (Default = the first discrete graphics card; open the list to pick another - SRS
 reads the list only when you open it: like `vulkaninfo`, opening the list names your GPUs through
@@ -1802,7 +1802,7 @@ long as you choose, and checks every single result. A healthy card gets the same
 time; a card that is pushed too far (overclocked, undervolted, too hot, short of power) sooner or
 later gets one wrong. **0 errors = PASS.** While it runs you see the temperatures, power, clock
 and fan speed live.
-Open: the **Benchmarks & stress** page -> **GPU Burnin...**, or Menu -> Benchmarks & stress -> GPU
+Open: the **Benchmarks & Stress** page -> **GPU Burnin...**, or Menu -> Benchmarks & Stress -> GPU
 Burnin... in the classic view. Command line: `sysreport-search gpu-burn`.
 Controls: **Back end** (see below; Auto = Vulkan), **GPU** (the first GPU, All GPUs, or one from
 the list; the list always comes from Vulkan, like `vulkaninfo`: it names your GPUs and sends them no
@@ -1882,7 +1882,7 @@ see the note at the start of this chapter.
 that you have installed (the four back ends explained in [9.18](#918-gpu-burnin)), on the same
 card, and shown side by side. It tells you which one is fastest on your PC, and how much faster
 the maker's own tuned library is than a plain program.
-Open: the **Benchmarks & stress** page -> **GPU Comparison...**, or Menu -> Benchmarks & stress ->
+Open: the **Benchmarks & Stress** page -> **GPU Comparison...**, or Menu -> Benchmarks & Stress ->
 GPU Comparison (Vulkan, HIP, CUDA, OpenCL)... in the classic view. Command line:
 `sysreport-search gpu-compare`.
 Controls: **GPU** (the card, picked by its Vulkan device; the other back ends find the same card
@@ -2097,7 +2097,7 @@ In the main window:
 
 | Keys | Action |
 |---|---|
-| **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=**, **Alt+Backspace** | Go to page 1 to 13, in sidebar order: Overview (Alt+1) ... Sensors (Alt+8), Power & cost (Alt+9), USB & PCI devices (Alt+0), Operating system (Alt+-), Benchmarks & stress (Alt+=), Tools (Alt+Backspace) |
+| **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=**, **Alt+Backspace** | Go to page 1 to 13, in sidebar order: Overview (Alt+1) ... Sensors (Alt+8), Power & Cost (Alt+9), USB & PCI devices (Alt+0), Operating system (Alt+-), Benchmarks & Stress (Alt+=), Tools (Alt+Backspace) |
 | **Ctrl+F** | Search box ([6.4](#64-search)) |
 | **Enter** in the search box | Find the text on the current tab |
 | **F3 / Shift+F3** | Next / previous match on the tab |
@@ -2224,7 +2224,7 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `/usr/lib/systemd/system/srs-root@.service` | The boot-time collector unit. |
 | `/usr/share/doc/srs-sysinfo/` | README, CHANGELOG, EVIDENCE, CHECKLIST.tsv (the full item list), this guide as `SRS-User-Guide.pdf`, `html/SRS-User-Guide.html` and the Markdown sources (`USER-GUIDE.md`, `CLI-REFERENCE.md`, `GLOSSARY.md`, `SECTIONS/`, `images/`). |
 | `/usr/share/applications/srs-user-guide.desktop` | The **SRS User Guide (PDF)** menu entry. |
-| `~/.local/share/srs/power.db`, `~/.config/srs/power.ini` | **Power & cost** history and settings ([6.11](#611-power--cost)). |
+| `~/.local/share/srs/power.db`, `~/.config/srs/power.ini` | **Power & Cost** history and settings ([6.11](#611-power--cost)). |
 
 `SRSDEF.ini` keys (section `[SRSDEF]`). You normally change these through the menus; editing by
 hand is fine while SRS is closed.
@@ -2342,7 +2342,7 @@ publicly:
   and the SMBIOS items).
 - **Disk serial numbers**, volume serials and partition IDs (the Storage page).
 - **MAC addresses**, IP addresses, Wi-Fi network names (the Network page).
-- **Monitor serial numbers** and the GPU unique ID (the Graphics & audio page).
+- **Monitor serial numbers** and the GPU unique ID (the Graphics & Audio page).
 - USB device serial numbers (Properties, on the USB & PCI devices page).
 - The **kernel command line**, which contains your root file system's UUID (General Info and
   Speculation Control; the classic Linux panel).
@@ -2362,7 +2362,7 @@ vendor half (`04:7c:16:XX:XX:XX`), which is useful for telling network chips apa
 first line ends with `(identifiers redacted)`. Published constants such as GPT partition-type GUIDs
 are not masked.
 
-The **Power & cost** history (`~/.local/share/srs/power.db`) is not part of any report; it says when
+The **Power & Cost** history (`~/.local/share/srs/power.db`) is not part of any report; it says when
 the PC was in use, so think before sharing an export of it. Nothing on that page goes online.
 
 Not masked: **IP addresses** and **Wi-Fi network names**. Look for them (or use Find) before you

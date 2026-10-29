@@ -6,7 +6,7 @@
  * Classic view (--gui-classic, Menu -> Classic view): laid out the way SIV64X is. Its main window
  * shows [overview] with SIV's button row; every SIV item (538, see sec.h / CHECKLIST.tsv) opens
  * as a panel with SIV's own sub-button row, and Menu lists them all.
- * Tool windows: CPU Burnin, CPU Stress, Benchmark, IPI Delay, Latency, Device ID Lookup, Find.
+ * Tool windows: Stress & Burnin (CPU / GPU), Benchmark, IPI Delay, Latency, Device ID Lookup, Find.
  * With command-line arguments the same binary runs the CLI ("SIV64X -save" style). */
 #ifndef _DEFAULT_SOURCE
 #define _DEFAULT_SOURCE
@@ -57,6 +57,8 @@ static int g_update_ms = 0;
 static char g_env_theme[256];
 static GDBusProxy *g_portal;
 static void theme_apply(void);
+/* Stress & Burnin window choices, kept in SRSDEF.ini: GPU Burnin on, its minutes, sync, back end (0 = Auto), FP64, limit, Until Stop */
+static int g_sb_gpu, g_sb_gpumin = 15, g_sb_sync = 1, g_sb_back, g_sb_prec, g_sb_limit = 100, g_sb_until, g_sb_gpuopts;
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
@@ -70,6 +72,7 @@ static int g_opt_sort = 1;     /* Options > Sortable tables (SRSDEF.ini "Sortabl
 
 typedef enum { W_SECTION, W_IDLOOKUP, W_FIND, W_BURN, W_BENCH, W_HOME } wkind;
 enum { BK_BENCH, BK_IPI, BK_LAT, BK_PI, BK_CRYPTO, BK_PRIME, BK_CACHEMEM, BK_STORAGE, BK_OSLAT, BK_COMPUTE, BK_WORK, BK_NET, BK_GPU, BK_GPUBURN, BK_GPUCOMPARE, BK_LAST = BK_GPUCOMPARE };
+/* BK_GPUBURN stays for its result file and guide item: since 2.3.1 GPU Burnin is part of the Stress & Burnin window (W_BURN) */
 /* --gui-open / menu / launcher names of the 2.2 benchmark windows (the older ones are listed where they are used) */
 static int bench_tool_sub(const char *t)
 {
@@ -86,7 +89,7 @@ static int bench_tool_sub(const char *t)
 typedef struct swin {
     wkind kind;
     char id[160];
-    int is_main, sub;                     /* sub: W_BURN 0 burnin / 1 stress; W_BENCH BK_* */
+    int is_main, sub;                     /* sub: W_BURN always 0 (one Stress & Burnin window); W_BENCH BK_* */
     int embedded, shown, paused, cat;     /* a panel shown as a tab in the main window (not its own window) */
     int rendered;                         /* embedded: drawn at least once (static items are not redrawn on every show) */
     GtkWidget *page;                      /* embedded: the tab's page widget */
@@ -107,6 +110,11 @@ typedef struct swin {
     GPtrArray *marks;
     /* burn */
     GtkWidget *b_time, *b_hours, *b_cool, *b_cycles, *b_limit, *b_same, *b_gpu, *b_gpucmd, *b_start, *b_stop;
+    GtkWidget *b_cpuon, *b_timed, *b_until, *b_timedrow, *b_cpurow, *b_selall, *b_deselall;   /* Stress & Burnin: the CPU part */
+    GtkWidget *b_gb, *b_gbrow, *b_gbtime, *b_gbsync;   /* the built-in GPU Burnin: on, its options, minutes, sync to the CPU time */
+    char gb_arg[16][720], gb_live[700];                /* its command line (srs-gui --gpu-burn-child ...) and live-status file */
+    const char *gb_argv[17];
+    int gb_used;                                       /* this window started a built-in GPU Burnin: show its live page / result */
     GtkWidget *b_cpu[BURN_MAXCPU];
     int nb_cpu;
     double hist[4][600];
@@ -709,6 +717,17 @@ static void settings_load(void)
         if (c && strlen(c) == 6) snprintf(g_findcol, sizeof g_findcol, "#%s", c);
         if (!e) g_highlight = h; else g_error_free(e);
         if (gc) snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gc);
+        {   /* Stress & Burnin (2.3.1) */
+            static const char *const keys[] = { "Stress GPU Burnin", "Stress GPU Minutes", "Stress GPU Sync", "Stress GPU Backend",
+                                                "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open" };
+            int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts };
+            int k;
+            for (k = 0; k < 8; k++) {
+                GError *e4 = NULL;
+                int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e4);
+                if (!e4) *vars[k] = v; else g_error_free(e4);
+            }
+        }
         {
             GError *e3 = NULL;
             int u = g_key_file_get_integer(kf, "SRSDEF", "Update Interval", &e3);
@@ -746,6 +765,14 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Highlight Matches", g_highlight);
     g_key_file_set_string(kf, "SRSDEF", "Font Name", "Tahoma");
     g_key_file_set_string(kf, "SRSDEF", "GPU Load Command", g_gpucmd);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Burnin", g_sb_gpu);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Minutes", g_sb_gpumin);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Sync", g_sb_sync);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Backend", g_sb_back);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Precision", g_sb_prec);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Limit", g_sb_limit);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Until Stop", g_sb_until);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Options Open", g_sb_gpuopts);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
@@ -905,6 +932,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     (void)mi;
     if (!strcmp(t, "burn")) open_tool(W_BURN, 0);
     else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+    else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
     else if (!strcmp(t, "lat")) open_tool(W_BENCH, BK_LAT);
@@ -933,18 +961,18 @@ static GtkWidget *menu_add(GtkWidget *menu, const char *label)
 }
 
 /* The classic Menu has more entries than there are letters, so the benchmarks and stress tests are in their own
-   submenu (like the main window's Benchmarks & stress page). Every entry of a menu has its own Alt+letter:
+   submenu (like the main window's Benchmarks & Stress page). Every entry of a menu has its own Alt+letter:
    tools/check-mnemonics.py checks the MNEMONIC-MENU regions. */
 static void build_menu(GtkWidget *menu)
 {
     /* MNEMONIC-MENU: classic-benchmarks */
     static const struct { const char *label, *tool; } bench[] = {
-        { "CPU B_urnin...", "burn" }, { "CPU _Stress...", "stress" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
+        { "Stress & B_urnin (CPU / GPU)...", "stressburn" }, { "_Benchmark...", "bench" }, { "_IPI Delay...", "ipi" },
         { "_Latency...", "lat" }, { "SRS _Pi...", "pi" }, { "C_rypto Benchmark...", "crypto" }, { "Prime Sie_ve...", "prime" },
         { "_Cache & Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "OS La_tency...", "oslatency" },
         { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
         { "Net_work Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
-        { "GPU Bur_nin...", "gpuburn" }, { "GPU Comp_arison (Vulkan, HIP, CUDA, OpenCL)...", "gpucompare" }, { NULL, NULL } };
+        { "GPU Comp_arison (Vulkan, HIP, CUDA, OpenCL)...", "gpucompare" }, { NULL, NULL } };
     /* MNEMONIC-END */
     /* MNEMONIC-MENU: classic-menu */
     static const struct { const char *group, *label; } groups[] = {
@@ -958,7 +986,7 @@ static void build_menu(GtkWidget *menu)
     {
         GtkWidget *sub = gtk_menu_new();
         for (i = 0; bench[i].label; i++) g_signal_connect(menu_add(sub, bench[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)bench[i].tool);
-        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_add(menu, "Ben_chmarks & stress")), sub);
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_add(menu, "Ben_chmarks & Stress")), sub);
     }
     for (i = 0; tools[i].label; i++) g_signal_connect(menu_add(menu, tools[i].label), "activate", G_CALLBACK(on_menu_tool), (gpointer)tools[i].tool);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), gtk_separator_menu_item_new());
@@ -1622,14 +1650,51 @@ static void on_latest(GtkWidget *x, gpointer data)
 }
 
 /* ======================================================================
- * CPU Burnin / CPU Stress window
+ * Stress & Burnin window (CPU Burnin, CPU Stress and GPU Burnin in one)
  * ====================================================================== */
+static void gb_live_render(const gpuburn_snap *s, srs_out *o);
+#define GB_LIVE_MAGIC 0x53524231u
+typedef struct gb_live_s {
+    unsigned magic, size;
+    int done, rc;                 /* rc: bench_gpuburn's return (0 PASS, 1 stopped, 2 FAIL, -1 not started, -2 ended early) */
+    char why[300];
+    gpuburn_snap snap;
+} gb_live;
+
+static int gb_live_read(const char *path, gb_live *l)
+{
+    FILE *f = path && *path ? fopen(path, "rb") : NULL;
+    int ok;
+    if (!f) return 0;
+    ok = fread(l, sizeof *l, 1, f) == 1 && l->magic == GB_LIVE_MAGIC && l->size == sizeof *l;
+    fclose(f);
+    if (ok) l->why[sizeof l->why - 1] = 0;
+    return ok;
+}
+
+static void burn_sens(swin *w);
+/* the summary, then (when this window started the built-in GPU Burnin) its live page or its result */
 static void render_burn(swin *w)
 {
     srs_out o;
     gctx g;
     out_begin_live(w, &o, &g, NULL);
     burn_render(&o, &w->st);
+    if (w->gb_used) {
+        struct gb_live_s l;
+        int have = gb_live_read(w->gb_live, &l);
+        so_par(&o);
+        if (have && !l.done && w->st.gpu_running) gb_live_render(&l.snap, &o);
+        else if (w->st.gpu_running) so_note(&o, "GPU Burnin is starting...");
+        else if (have && l.done && l.rc == -1) {
+            char b[400];
+            snprintf(b, sizeof b, "GPU Burnin did not start: %s", l.why[0] ? l.why : "see ~/.cache/srs/gpu-load.log");
+            so_err(&o, b);
+        } else {
+            if (have && l.done && l.why[0]) so_err(&o, l.why);
+            if (!bench_show_last("gpuburn", &o)) so_note(&o, "No GPU Burnin result yet (see ~/.cache/srs/gpu-load.log).");
+        }
+    }
 }
 
 /* A run has just ended (Pass, Fail or Stopped): keep its summary in ~/.cache/srs/burnin-*.txt. */
@@ -1659,6 +1724,7 @@ static gboolean burn_timer(gpointer data)
     render_burn(w);
     gtk_widget_set_sensitive(w->b_start, !burn_active());
     gtk_widget_set_sensitive(w->b_stop, burn_active());
+    burn_sens(w);
     gtk_widget_queue_draw(w->plot);
     return G_SOURCE_CONTINUE;
 }
@@ -1755,18 +1821,6 @@ static int gpu_cmd_ok(swin *w, const char *cmd)
 /* one benchmark at a time across all windows, and no burner while one runs: two loads at once
    would spoil each other's results */
 static int g_bench_busy;
-/* GPU Burnin: the latest live snapshot, written by the engine's callback on the worker thread */
-static GMutex g_gb_mu;
-static gpuburn_snap g_gb_snap;
-static int g_gb_have;
-static void gb_live_cb(const gpuburn_snap *s, void *ud)
-{
-    (void)ud;
-    g_mutex_lock(&g_gb_mu);
-    g_gb_snap = *s;
-    g_gb_have = 1;
-    g_mutex_unlock(&g_gb_mu);
-}
 static void gb_val(char *b, size_t n, double v, const char *fmt)
 {
     if (v < 0) snprintf(b, n, "not available");
@@ -1812,25 +1866,124 @@ static void gb_live_render(const gpuburn_snap *s, srs_out *o)
 
 static int g_gpu_software_only;   /* SRS_GPU_SOFTWARE_ONLY=1 (tests): the GPU windows refuse every device that is not a software renderer */
 
+/* Stress & Burnin (2.3.1): one window for the CPU load (timed burn / cool cycles with Pass or Fail, or until Stop) and
+   the GPU load (the built-in GPU Burnin, or a custom command). The built-in GPU Burnin runs as a separate process
+   (srs-gui --gpu-burn-child): a GPU driver that hangs cannot freeze this window, Stop reaches it at once, and it ends
+   when SRS ends. It reports live through a small file (gb_live) and writes its result like the CLI gpu-burn. */
+
+static void on_gpu_back(GtkWidget *x, gpointer data);
+static void gpu_device_combo(swin *w, GtkWidget *row);
+static void gpu_av_start(swin *w);
+static void ctk_maybe_ask(GtkWindow *parent, int force);   /* the NVIDIA CUDA toolkit question (below) */
+static void settings_save(void);
+
+/* which controls can be used: follows CPU load / Timed / GPU Burnin / Sync / custom command, all off while a run is on */
+static void on_gb_expander(GtkWidget *x, GParamSpec *ps, gpointer data)
+{
+    (void)ps; (void)data;
+    g_sb_gpuopts = gtk_expander_get_expanded(GTK_EXPANDER(x));
+    settings_save();
+}
+static void burn_sens(swin *w)
+{
+    int idle = !burn_active(), cpu = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpuon));
+    int timed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_timed));
+    int gb = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gb)), sync = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gbsync));
+    int i;
+    gtk_widget_set_sensitive(w->b_cpuon, idle);
+    gtk_widget_set_sensitive(w->b_timed, idle && cpu);
+    gtk_widget_set_sensitive(w->b_until, idle && cpu);
+    gtk_widget_set_sensitive(w->b_timedrow, idle && cpu && timed);
+    gtk_widget_set_sensitive(w->b_cpurow, idle && cpu);
+    gtk_widget_set_sensitive(w->b_same, idle && cpu);
+    gtk_widget_set_sensitive(w->b_limit, idle && cpu);
+    if (w->b_selall) { gtk_widget_set_sensitive(w->b_selall, idle && cpu); gtk_widget_set_sensitive(w->b_deselall, idle && cpu); }
+    for (i = 0; i < w->nb_cpu; i++) gtk_widget_set_sensitive(w->b_cpu[i], idle && cpu);
+    gtk_widget_set_sensitive(w->b_gb, idle);
+    gtk_widget_set_sensitive(w->b_gbrow, idle && gb);
+    gtk_widget_set_sensitive(w->b_gbsync, idle && gb && cpu);
+    gtk_widget_set_sensitive(w->b_gbtime, idle && gb && !(sync && cpu));
+    gtk_button_set_label(GTK_BUTTON(w->b_gbsync), timed ? "Sync to CPU burn time" : "Sync to CPU stress time");
+    gtk_widget_set_sensitive(w->b_gpu, idle);
+    gtk_widget_set_sensitive(w->b_gpucmd, idle && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gpu)));
+}
+static void on_burn_opt(GtkWidget *x, gpointer data)
+{
+    swin *w = data;
+    /* the built-in GPU Burnin and the custom command are either-or */
+    if (x == w->b_gb && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x))) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gpu), FALSE);
+    if (x == w->b_gpu && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(x))) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gb), FALSE);
+    burn_sens(w);
+}
+
+/* the menu entries open this one window in a starting layout: 0 CPU Burnin (timed), 1 CPU Stress (until Stop),
+   2 GPU Burnin (GPU only). Nothing changes while a run is on. */
+static void burn_preset(swin *w, int p)
+{
+    if (burn_active() || p < 0 || p > 2) { burn_sens(w); return; }   /* 3 = as last used */
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpuon), p != 2);
+    if (p == 0) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_timed), TRUE);
+    else if (p == 1) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_until), TRUE);
+    else gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gb), TRUE);
+    burn_sens(w);
+}
+
+/* the built-in GPU Burnin's command line: this same program in child mode, found through /proc/self/exe (also
+   inside an AppImage, whose mount stays while SRS runs). Returns 0 and says why when it cannot be used. */
+static int gb_child_argv(swin *w, int back, int dev, const char *pci, int prec, double secs, double limit, char *why, size_t wn)
+{
+    char *exe = g_file_read_link("/proc/self/exe", NULL);
+    const char *tb = getenv("SRS_TEST_GPU_BACKEND");   /* tests: the child must use this back end (vulkan + lavapipe only) */
+    int n = 0;
+    if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return 0; }
+    if (tb && *tb) {
+        int k;
+        for (k = 0; k < GB_N; k++) if (!g_ascii_strncasecmp(tb, gb_name[k], strlen(tb))) back = k;
+    }
+    snprintf(w->gb_live, sizeof w->gb_live, "%s/srs/gpuburn-live-%d.bin", g_get_user_cache_dir(), (int)getpid());
+    {
+        char *dir = g_path_get_dirname(w->gb_live);
+        g_mkdir_with_parents(dir, 0755);
+        g_free(dir);
+    }
+    g_unlink(w->gb_live);
+#define GBA(...) snprintf(w->gb_arg[n], sizeof w->gb_arg[n], __VA_ARGS__), w->gb_argv[n] = w->gb_arg[n], n++
+    GBA("%s", exe);
+    GBA("--gpu-burn-child");
+    GBA("--backend"); GBA("%d", back);
+    GBA("--device"); GBA("%d", dev);
+    GBA("--pci"); GBA("%s", pci);
+    GBA("--prec"); GBA("%d", prec);
+    GBA("--seconds"); GBA("%.0f", secs);
+    GBA("--limit"); GBA("%.0f", limit);
+    GBA("--live"); GBA("%s", w->gb_live);
+#undef GBA
+    w->gb_argv[n] = NULL;
+    g_free(exe);
+    return 1;
+}
+
 static void on_burn_start(GtkWidget *x, gpointer data)
 {
     swin *w = data;
     burn_cfg c;
-    int i, n = 0;
+    int i, n = 0, cpu, timed, gb, cmd;
+    char gpuask[1600] = "";
     (void)x;
-    if (g_bench_busy) {
-        GtkWidget *d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
-                                              "A benchmark is running. Start the burner when it has finished.");
-        gtk_dialog_run(GTK_DIALOG(d));
-        gtk_widget_destroy(d);
-        return;
-    }
+    if (g_bench_busy) { gtk_widget_error_bell(w->win); return; }
     burn_cfg_default(&c);
-    for (i = 0; i < w->nb_cpu; i++) { c.enabled[i] = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpu[i])); n += c.enabled[i]; }
+    cpu = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpuon));
+    timed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_timed));
+    gb = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gb));
+    cmd = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gpu));
+    for (i = 0; i < w->nb_cpu && i < BURN_MAXCPU; i++) {
+        c.enabled[i] = cpu && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpu[i]));
+        n += c.enabled[i];
+    }
     c.mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_same)) ? BURN_SAME : BURN_SWAP;
     gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_limit));
     c.temp_limit_c = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->b_limit));
-    if (w->sub == 0) {
+    if (cpu && timed) {
         double t;
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_time));
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_cool));
@@ -1841,37 +1994,132 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         c.cycles = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_cycles));
         if (c.burn_s <= 0) c.burn_s = 60;
     } else {
-        c.burn_s = 0;   /* CPU Stress: until stopped (capped) */
+        c.burn_s = 0;   /* until stopped (capped); GPU only: until the GPU part ends */
         c.cool_s = 0;
     }
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gpu))) {
+    if (cpu && !n) {
+        gtk_widget_error_bell(w->win);
+        snprintf(w->st.status, sizeof w->st.status, "Not started: tick at least one CPU, or untick CPU load to test only the GPU");
+        render_burn(w);
+        return;
+    }
+    if (!cpu && !gb && !cmd) {
+        gtk_widget_error_bell(w->win);
+        snprintf(w->st.status, sizeof w->st.status, "Not started: tick CPU load, GPU Burnin, a custom GPU command, or more than one");
+        render_burn(w);
+        return;
+    }
+    if (cmd) {
         snprintf(g_gpucmd, sizeof g_gpucmd, "%s", gtk_entry_get_text(GTK_ENTRY(w->b_gpucmd)));
         settings_save();
         c.gpu_cmd = *g_gpucmd ? g_gpucmd : NULL;
+        if (!c.gpu_cmd && !cpu) { gtk_widget_error_bell(w->win); return; }
         if (c.gpu_cmd && !gpu_cmd_ok(w, c.gpu_cmd)) return;
+        c.gpu_follow = 1;   /* as before 2.3.1: the command pauses in each cool phase */
     }
-    if (!n) { gtk_widget_error_bell(w->win); return; }
-    if (!getenv("SRS_TEST_NOCONFIRM")) {   /* SIV-style warning before making CPUs 100% busy */
-        char msg[700];
+    w->gb_used = 0;
+    if (gb) {
+        char hint[300], devname[300], bk[80], why[300], pci[16] = "", when[200];
+        int sel = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gp_dev)), back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
+        int dev = sel <= 0 ? -1 : sel == 1 ? GPUBURN_ALL : sel - 2, prec = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_prec)) == 1 ? GP_FP64 : GP_FP32;
+        int sync = cpu && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gbsync));
+        double secs, limit, mins;
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_gbtime));
+        gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
+        mins = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->b_gbtime));
+        limit = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->gb_limit));
+        if (back >= 0 && !gb_table[back]->available(hint, sizeof hint)) {   /* dlopen only */
+            snprintf(w->st.status, sizeof w->st.status, "Not started - not available: %s %.100s", gb_name[back], hint);
+            render_burn(w);
+            return;
+        }
+        if (back == GB_CUDA) ctk_maybe_ask(GTK_WINDOW(w->win), 0);   /* once: the optional NVIDIA CUDA toolkit */
+        if (dev >= 0) {   /* a GPU picked from the (Vulkan) list */
+            if (back < 0) back = GB_VULKAN;   /* Auto + a picked GPU: the list's own back end */
+            if (back != GB_VULKAN) {   /* HIP / CUDA / OpenCL find the same card by its PCI address after Yes */
+                if (dev >= GPU_MAXDEV || !w->gp_pci[dev][0]) {
+                    snprintf(w->st.status, sizeof w->st.status, "Not started: the Vulkan driver does not tell this GPU's PCI address - "
+                                                                "choose \"The first GPU\" or the Vulkan back end");
+                    render_burn(w);
+                    return;
+                }
+                snprintf(pci, sizeof pci, "%s", w->gp_pci[dev]);
+                dev = -1;
+            }
+        }
+        if (sync && timed) { secs = c.burn_s + 30; c.gpu_follow = 1; snprintf(when, sizeof when, "during each CPU burn phase (it pauses while the CPUs cool)"); }
+        else if (sync) { secs = 86400; c.gpu_follow = 1; snprintf(when, sizeof when, "until you press Stop, like the CPU load"); }
+        else {
+            secs = mins * 60 < 1 ? 60 : mins * 60 > 86400 ? 86400 : mins * 60;
+            c.gpu_follow = 0;
+            snprintf(when, sizeof when, "for %.0f minute%s from Start%s", secs / 60, secs == 60 ? "" : "s", cpu ? " (it ends with the CPU run at the latest)" : "");
+        }
+        if (!gb_child_argv(w, back < 0 ? GPUBURN_AUTO : back, dev, pci, prec, secs, limit, why, sizeof why)) {
+            snprintf(w->st.status, sizeof w->st.status, "Not started: %.150s", why);
+            render_burn(w);
+            return;
+        }
+        c.gpu_argv = w->gb_argv;
+        c.gpu_label = "GPU Burnin (built-in)";
+        c.gpu_cmd = NULL;
+        w->gb_used = 1;
+        snprintf(bk, sizeof bk, "%s", back < 0 ? "Vulkan (or the first back end that has a GPU)" : gb_name[back]);
+        if (dev == GPUBURN_ALL) snprintf(devname, sizeof devname, "every GPU of that back end");
+        else if (sel >= 2) {
+            gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w->gp_dev));
+            snprintf(devname, sizeof devname, "%.250s", t ? t : "the chosen GPU");
+            g_free(t);
+        } else snprintf(devname, sizeof devname, "the first GPU");
+        snprintf(gpuask, sizeof gpuask,
+            "GPU Burnin keeps %s fully busy through %s %s with large %s matrix multiplications, and counts every wrong result. "
+            "The GPU draws a lot of power and gets hot; close games and other GPU programs first. A bad GPU overclock or undervolt "
+            "can crash the PC or the display driver under this load, and a weak power supply or poor cooling can make the PC shut "
+            "down. It stops by itself at %.0f °C (hotspot / junction when the card reports it, else edge), on a driver error, when "
+            "the GPU stops answering, and on Stop. SRS never changes clocks, voltages or fans.",
+            devname, bk, when, prec == GP_FP64 ? "FP64" : "FP32", limit);
+        g_sb_back = back < 0 ? 0 : back + 1;
+        g_sb_prec = prec == GP_FP64;
+        g_sb_limit = (int)limit;
+        g_sb_gpumin = (int)mins;
+        g_sb_sync = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gbsync));
+    }
+    g_sb_gpu = gb;
+    g_sb_until = !timed;
+    settings_save();
+    if (!getenv("SRS_TEST_NOCONFIRM")) {   /* SIV-style warning before making CPUs / the GPU 100% busy */
+        char msg[2600];
         GtkWidget *m;
         int ok;
-        snprintf(msg, sizeof msg, "%s will make %d CPU%s 100%% busy %s.\n\nThe run stops automatically if the hottest CPU sensor "
-                 "reaches %.0f°C, or on Stop / closing this window.%s\n\nStart now?", w->sub ? "CPU Stress" : "CPU Burnin", n, n == 1 ? "" : "s",
-                 w->sub ? "until you press Stop" : "for the configured burn time", c.temp_limit_c,
-                 c.gpu_cmd ? "\nThe GPU load command will run too." : "");
+        if (cpu) snprintf(msg, sizeof msg, "This will make %d CPU%s 100%% busy %s. The CPU load stops automatically if the hottest CPU sensor "
+                          "reaches %.0f°C, or on Stop / closing this window.", n, n == 1 ? "" : "s",
+                          timed ? "for the configured burn time" : "until you press Stop", c.temp_limit_c);
+        else snprintf(msg, sizeof msg, "No CPU load: only the GPU is tested.");
+        if (*gpuask) { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\n%s", gpuask); }
+        else if (c.gpu_cmd) { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\nThe custom GPU command will run too: %.300s", c.gpu_cmd); }
+        { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\nStart now?"); }
         m = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK_CANCEL, "%s", msg);
-        gtk_window_set_title(GTK_WINDOW(m), "Start CPU load?");
+        gtk_window_set_title(GTK_WINDOW(m), cpu && (gb || cmd) ? "Start CPU and GPU load?" : cpu ? "Start CPU load?" : "Start GPU load?");
         ok = gtk_dialog_run(GTK_DIALOG(m)) == GTK_RESPONSE_OK;
         gtk_widget_destroy(m);
-        if (!ok) return;
+        if (!ok) { w->gb_used = 0; return; }
     }
     if (getenv("SRS_TEST_MAXSECS")) c.cap_s = atof(getenv("SRS_TEST_MAXSECS"));   /* test hook: hard cap */
     w->nhist = 0;
-    burn_start(&c);
+    if (burn_start(&c) != 0) w->gb_used = 0;
     burn_timer(w);
 }
 
 static void on_burn_stop(GtkWidget *x, gpointer data) { (void)x; burn_stop(); burn_timer(data); }
+/* tests: SRS_TEST_BURN_AUTOSTART=N presses Start once the window is up, with only the first N CPUs ticked (0 = none) */
+static gboolean burn_autostart(gpointer data)
+{
+    swin *w = data;
+    int i, n = atoi(getenv("SRS_TEST_BURN_AUTOSTART"));
+    if (!g_ptr_array_find(g_wins, w, NULL)) return G_SOURCE_REMOVE;
+    for (i = 0; i < w->nb_cpu; i++) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpu[i]), i < n);
+    on_burn_start(NULL, w);
+    return G_SOURCE_REMOVE;
+}
 static void on_burn_all(GtkWidget *x, gpointer data)
 {
     swin *w = data;
@@ -1889,46 +2137,114 @@ static GtkWidget *spin(double lo, double hi, double step, double val)
 static void build_burn(swin *w, GtkWidget *vb)
 {
     GtkWidget *grid = gtk_grid_new(), *cpus = gtk_flow_box_new(), *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6), *b, *swap;
-    int i, ncpu = burn_ncpu();
+    GtkWidget *trow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6), *grow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    GtkWidget *gline = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    GtkWidget *irow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    int i, ncpu = burn_ncpu(), k;
     gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
     gtk_grid_set_row_spacing(GTK_GRID(grid), 4);
-    i = 0;
-    if (w->sub == 0) {
-        gtk_grid_attach(GTK_GRID(grid), lbl("Burn Time"), 0, 0, 1, 1);
-        w->b_time = spin(0, 750, 1, 15);
-        gtk_grid_attach(GTK_GRID(grid), w->b_time, 1, 0, 1, 1);
-        w->b_hours = gtk_check_button_new_with_label("Hours (otherwise Minutes)");
-        gtk_grid_attach(GTK_GRID(grid), w->b_hours, 2, 0, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), lbl("Cool Time"), 3, 0, 1, 1);
-        w->b_cool = spin(0, 900, 5, 60);
-        gtk_grid_attach(GTK_GRID(grid), w->b_cool, 4, 0, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), lbl("Seconds   Cycles"), 5, 0, 1, 1);
-        w->b_cycles = spin(1, 99, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), w->b_cycles, 6, 0, 1, 1);
-        i = 1;
-    }
-    gtk_grid_attach(GTK_GRID(grid), lbl("Temperature limit °C"), 0, i, 1, 1);
+    /* row 0: the CPU part */
+    w->b_cpuon = gtk_check_button_new_with_mnemonic("C_PU load");
+    gtk_widget_set_tooltip_text(w->b_cpuon, "Make the ticked CPUs 100 % busy. Untick it to test only the GPU.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpuon), TRUE);
+    w->b_timed = gtk_radio_button_new_with_mnemonic(NULL, "T_imed (burn / cool cycles, Pass or Fail)");
+    w->b_until = gtk_radio_button_new_with_mnemonic_from_widget(GTK_RADIO_BUTTON(w->b_timed), "_Until Stop");
+    gtk_widget_set_tooltip_text(w->b_timed, "CPU Burnin: run for the Burn Time, rest for the Cool Time, repeat for the Cycles, then Pass or Fail.");
+    gtk_widget_set_tooltip_text(w->b_until, "CPU Stress: keep the CPUs busy until you press Stop (safety cap 750 hours).");
+    if (g_sb_until) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_until), TRUE);
+    gtk_grid_attach(GTK_GRID(grid), w->b_cpuon, 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), w->b_timed, 1, 0, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), w->b_until, 3, 0, 1, 1);
+    /* row 1: timed settings */
+    gtk_box_pack_start(GTK_BOX(trow), lbl("Burn Time"), FALSE, FALSE, 0);
+    w->b_time = spin(0, 750, 1, 15);
+    gtk_box_pack_start(GTK_BOX(trow), w->b_time, FALSE, FALSE, 0);
+    w->b_hours = gtk_check_button_new_with_label("Hours (otherwise Minutes)");
+    gtk_box_pack_start(GTK_BOX(trow), w->b_hours, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(trow), lbl("Cool Time"), FALSE, FALSE, 0);
+    w->b_cool = spin(0, 900, 5, 60);
+    gtk_box_pack_start(GTK_BOX(trow), w->b_cool, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(trow), lbl("Seconds   Cycles"), FALSE, FALSE, 0);
+    w->b_cycles = spin(1, 99, 1, 1);
+    gtk_box_pack_start(GTK_BOX(trow), w->b_cycles, FALSE, FALSE, 0);
+    w->b_timedrow = trow;
+    gtk_grid_attach(GTK_GRID(grid), trow, 1, 1, 6, 1);
+    /* row 2: temperature and Same / Swap */
+    gtk_grid_attach(GTK_GRID(grid), lbl("CPU temperature limit °C"), 0, 2, 1, 1);
     w->b_limit = spin(50, 100, 1, 90);
-    gtk_grid_attach(GTK_GRID(grid), w->b_limit, 1, i, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), w->b_limit, 1, 2, 1, 1);
     w->b_same = gtk_radio_button_new_with_label(NULL, "Same CPU (Whetstone)");
     swap = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(w->b_same), "Swap CPU (affinity test)");
-    gtk_grid_attach(GTK_GRID(grid), w->b_same, 2, i, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), swap, 3, i, 2, 1);
-    w->b_gpu = gtk_check_button_new_with_label("GPU Load command:");
+    gtk_grid_attach(GTK_GRID(grid), w->b_same, 2, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), swap, 3, 2, 2, 1);
+    w->b_cpurow = swap;
+    /* row 3: the built-in GPU Burnin */
+    w->b_gb = gtk_check_button_new_with_mnemonic("_GPU Burnin (built-in)");
+    gtk_widget_set_tooltip_text(w->b_gb, "Load the graphics card too, with SRS's own GPU Burnin: large matrix multiplications that count every "
+                                         "wrong result (Vulkan, ROCm / HIP, CUDA or OpenCL). It runs as its own process, so a GPU driver "
+                                         "that hangs cannot freeze SRS.");
+    gtk_grid_attach(GTK_GRID(grid), w->b_gb, 0, 3, 1, 1);
+    gtk_box_pack_start(GTK_BOX(grow), lbl("Back end"), FALSE, FALSE, 0);
+    w->gb_back = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), "Auto (Vulkan)");
+    for (k = 0; k < GB_N; k++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), gb_name[k]);   /* gpu_av_start marks the missing ones */
+    gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_back), g_sb_back >= 0 && g_sb_back <= GB_N ? g_sb_back : 0);
+    gtk_widget_set_tooltip_text(w->gb_back, "Vulkan works with every modern GPU driver. ROCm / HIP is AMD's compute platform, CUDA NVIDIA's "
+                                            "(or ZLUDA on AMD), OpenCL the older cross-vendor one. Auto = Vulkan when it has a GPU.");
+    g_signal_connect(w->gb_back, "changed", G_CALLBACK(on_gpu_back), w);
+    gtk_box_pack_start(GTK_BOX(grow), w->gb_back, FALSE, FALSE, 0);
+    gpu_device_combo(w, grow);
+    w->gb_prec = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP32");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP64");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_prec), g_sb_prec ? 1 : 0);
+    gtk_widget_set_tooltip_text(w->gb_prec, "FP32 (single precision) loads most GPUs hardest. FP64 checks the double-precision units, slow on most gaming cards.");
+    gtk_box_pack_start(GTK_BOX(grow), w->gb_prec, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(grow), lbl("Stop at °C"), FALSE, FALSE, 0);
+    w->gb_limit = spin(50, 120, 1, g_sb_limit >= 50 && g_sb_limit <= 120 ? g_sb_limit : 100);
+    gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge).");
+    gtk_box_pack_start(GTK_BOX(grow), w->gb_limit, FALSE, FALSE, 0);
+    /* row 4: device, back end, precision and limit sit in a "GPU options" expander, closed by default
+       (Auto back end, the first GPU, FP32, 100 °C) */
+    w->b_gbrow = gtk_expander_new_with_mnemonic("GPU optio_ns (back end, GPU, precision, temperature limit)");
+    gtk_expander_set_expanded(GTK_EXPANDER(w->b_gbrow), g_sb_gpuopts);
+    gtk_container_add(GTK_CONTAINER(w->b_gbrow), grow);
+    g_signal_connect(w->b_gbrow, "notify::expanded", G_CALLBACK(on_gb_expander), NULL);
+    gtk_grid_attach(GTK_GRID(grid), w->b_gbrow, 1, 4, 6, 1);
+    /* row 3, beside the GPU Burnin box: how long the GPU part runs */
+    gtk_box_pack_start(GTK_BOX(gline), lbl("Time (min)"), FALSE, FALSE, 0);
+    w->b_gbtime = spin(1, 1440, 1, g_sb_gpumin >= 1 && g_sb_gpumin <= 1440 ? g_sb_gpumin : 15);
+    gtk_widget_set_tooltip_text(w->b_gbtime, "How long the GPU part runs, from Start. 1 minute is a quick check; 10-30 minutes checks a GPU "
+                                             "overclock or undervolt properly. It always ends with the CPU run at the latest.");
+    gtk_box_pack_start(GTK_BOX(gline), w->b_gbtime, FALSE, FALSE, 0);
+    w->b_gbsync = gtk_check_button_new_with_label("Sync to CPU stress time");
+    gtk_widget_set_tooltip_text(w->b_gbsync, "Run the GPU exactly as long as the CPU load: Until Stop - until you press Stop; "
+                                             "Timed - during each burn phase, pausing while the CPUs cool.");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gbsync), g_sb_sync);
+    gtk_box_pack_start(GTK_BOX(gline), w->b_gbsync, FALSE, FALSE, 0);
+    gtk_grid_attach(GTK_GRID(grid), gline, 1, 3, 6, 1);
+    /* row 5: the custom command (any GPU stress program) */
+    w->b_gpu = gtk_check_button_new_with_mnemonic("Custo_m GPU command:");
+    gtk_widget_set_tooltip_text(w->b_gpu, "Run your own GPU stress program instead of the built-in GPU Burnin (for example gpu-burn-rocm). "
+                                          "It pauses in each cool phase and stops with the run.");
     w->b_gpucmd = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(w->b_gpucmd), g_gpucmd);
     gtk_entry_set_placeholder_text(GTK_ENTRY(w->b_gpucmd), "e.g. gpu-burn-rocm 600  (none by default)");
     gtk_widget_set_hexpand(w->b_gpucmd, TRUE);
-    gtk_grid_attach(GTK_GRID(grid), w->b_gpu, 0, i + 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), w->b_gpucmd, 1, i + 1, 6, 1);
+    gtk_grid_attach(GTK_GRID(grid), w->b_gpu, 0, 5, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), w->b_gpucmd, 1, 5, 6, 1);
+    w->gb_info = lbl("Checking which GPU back ends are installed...");
+    gtk_box_pack_start(GTK_BOX(irow), w->gb_info, FALSE, FALSE, 0);
+    gtk_grid_attach(GTK_GRID(grid), irow, 1, 6, 6, 1);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gb), g_sb_gpu);
     gtk_box_pack_start(GTK_BOX(vb), grid, FALSE, FALSE, 0);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(cpus), 16);
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(cpus), GTK_SELECTION_NONE);
     w->nb_cpu = ncpu;
     for (i = 0; i < ncpu; i++) {
-        char n[32];
-        snprintf(n, sizeof n, "CPU-%d", i);
-        w->b_cpu[i] = gtk_check_button_new_with_label(n);
+        char nm[32];
+        snprintf(nm, sizeof nm, "CPU-%d", i);
+        w->b_cpu[i] = gtk_check_button_new_with_label(nm);
         gtk_widget_set_tooltip_text(w->b_cpu[i], "Make this CPU busy or idle");
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpu[i]), TRUE);
         gtk_container_add(GTK_CONTAINER(cpus), w->b_cpu[i]);
@@ -1937,18 +2253,26 @@ static void build_burn(swin *w, GtkWidget *vb)
     b = sbtn("_Select All"); g_object_set_data(G_OBJECT(b), "on", GINT_TO_POINTER(1)); g_signal_connect(b, "clicked", G_CALLBACK(on_burn_all), w);
     gtk_widget_set_tooltip_text(b, "Select all the Worker Threads");
     gtk_box_pack_start(GTK_BOX(row), b, FALSE, FALSE, 0);
+    w->b_selall = b;
     b = sbtn("_Deselect All"); g_object_set_data(G_OBJECT(b), "on", GINT_TO_POINTER(0)); g_signal_connect(b, "clicked", G_CALLBACK(on_burn_all), w);
     gtk_widget_set_tooltip_text(b, "Deselect all the Worker Threads");
     gtk_box_pack_start(GTK_BOX(row), b, FALSE, FALSE, 0);
+    w->b_deselall = b;
     w->b_start = sbtn("S_tart");
     g_signal_connect(w->b_start, "clicked", G_CALLBACK(on_burn_start), w);
     gtk_box_pack_start(GTK_BOX(row), w->b_start, FALSE, FALSE, 0);
     w->b_stop = sbtn("St_op");
     g_signal_connect(w->b_stop, "clicked", G_CALLBACK(on_burn_stop), w);
     gtk_box_pack_start(GTK_BOX(row), w->b_stop, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(row), lbl(w->sub ? "  CPU Stress: worker threads stay busy until Stop" :
-                                         "  CPU Burnin: burn / cool cycles, Pass or Fail at the end"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), lbl("  Nothing starts until you press Start and confirm. Stop ends the CPU and the GPU load at once."), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
+    g_signal_connect(w->b_cpuon, "toggled", G_CALLBACK(on_burn_opt), w);
+    g_signal_connect(w->b_timed, "toggled", G_CALLBACK(on_burn_opt), w);
+    g_signal_connect(w->b_gb, "toggled", G_CALLBACK(on_burn_opt), w);
+    g_signal_connect(w->b_gbsync, "toggled", G_CALLBACK(on_burn_opt), w);
+    g_signal_connect(w->b_gpu, "toggled", G_CALLBACK(on_burn_opt), w);
+    burn_sens(w);
+    gpu_av_start(w);
 }
 
 /* ======================================================================
@@ -1961,8 +2285,6 @@ typedef struct {
     unsigned groups, libs;                /* Everyday Work: test groups, compression libraries */
     int net_local, net_internet, ipv;     /* Network: loopback part, internet part (only after its own yes), IP version */
     int device;                           /* GPU windows: device index, -1 = default */
-    int backend, prec;                    /* GPU Burnin: GB_* or GPUBURN_AUTO, GP_FP32 / GP_FP64 */
-    char pci[16];                         /* GPU Burnin with HIP / CUDA / OpenCL: the picked GPU, found by PCI address after Yes */
     double secs, limit, size_mb;
     long max;
     size_t digits;
@@ -2020,15 +2342,7 @@ static gboolean bench_done(gpointer data)
         gtk_widget_set_sensitive(w->bm_run, TRUE);
         if (w->bm_stop) gtk_widget_set_sensitive(w->bm_stop, FALSE);
         if (w->commit_id) { g_source_remove(w->commit_id); w->commit_id = 0; }   /* a live refresh still waiting */
-        if (j->sub == BK_GPUBURN) {
-            char b[400];
-            snprintf(b, sizeof b, "%s%s%s", j->rc == 0 ? "PASS - no compute errors" : j->rc == 1 ? "Stopped - no errors so far" :
-                                          j->rc == 2 ? "FAIL - compute errors found (see the result)" :
-                                          j->rc == -1 ? "Not started: " : j->why[0] && strstr(j->why, "no GPU could start") ? "Could not start: " : "Ended early by a safety rule: ",
-                     j->rc < 0 ? j->why : "", j->rc >= 0 && j->why[0] ? (j->rc == 0 ? "; " : ". ") : "");
-            if (j->rc >= 0 && j->why[0]) { size_t k = strlen(b); snprintf(b + k, sizeof b - k, "%s", j->why); }
-            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
-        } else if (j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) {
+        if (j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) {
             char b[400];
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == 2 ? "Finished - a result was WRONG (see the table)" :
@@ -2049,13 +2363,13 @@ static gboolean bench_done(gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), j->rc == -2 ? "Stopped - no result" : j->rc == -3 ? "Not enough memory for this size" :
                                                     j->rc == 1 ? "Finished - the result is WRONG (see Check)" : "Finished");
         out_begin(w, &o, &g, NULL);
-        if ((j->sub == BK_GPU || j->sub == BK_GPUBURN || j->sub == BK_GPUCOMPARE) && j->rc == -1) {   /* not started: say why, then the last finished result */
+        if ((j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) && j->rc == -1) {   /* not started: say why, then the last finished result */
             char b[400];
             snprintf(b, sizeof b, "Not started: %s. The last finished result is below.", j->why);
             so_err(&o, b);
             so_par(&o);
             if (!bench_show_last(name, &o)) so_note(&o, "No finished run yet.");
-        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU || j->sub == BK_GPUBURN ||
+        } else if (j->sub == BK_STORAGE || j->sub == BK_NET || j->sub == BK_GPU ||
                    j->sub == BK_GPUCOMPARE) {
             if (!bench_show_last(name, &o)) so_note(&o, "No result yet.");
         } else if (j->rc == -4) {
@@ -2119,7 +2433,7 @@ static gpointer bench_worker(gpointer data)
         c.single_only = j->single;
         j->rc = bench_compute(&c, NULL, &j->cancel);
         if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
-        else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "CPU Burnin / Stress is running, or out of memory"); }
+        else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "Stress & Burnin is running, or out of memory"); }
     } else if (j->sub == BK_WORK) {
         wk_cfg c;
         wk_cfg_default(&c);
@@ -2130,7 +2444,7 @@ static gpointer bench_worker(gpointer data)
         c.single_only = j->single;
         j->rc = bench_work(&c, NULL, &j->cancel);
         if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
-        else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "CPU Burnin / Stress is running, or out of memory"); }
+        else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "Stress & Burnin is running, or out of memory"); }
     } else if (j->sub == BK_NET) {
         net_cfg c;
         net_cfg_default(&c);
@@ -2148,21 +2462,6 @@ static gpointer bench_worker(gpointer data)
         c.mem_mib = j->size_mb;
         c.software_only = g_gpu_software_only;
         j->rc = bench_gpu(&c, NULL, &j->cancel, j->why, sizeof j->why);
-    } else if (j->sub == BK_GPUBURN) {
-        gpuburn_cfg c;
-        gpuburn_cfg_default(&c);
-        c.backend = j->backend;
-        c.device = j->device;
-        snprintf(c.device_pci, sizeof c.device_pci, "%s", j->pci);
-        c.prec = j->prec;
-        c.seconds = j->secs;
-        c.limit_c = j->limit;
-        c.software_only = g_gpu_software_only;
-        c.cb = gb_live_cb;
-        g_mutex_lock(&g_gb_mu);
-        g_gb_have = 0;
-        g_mutex_unlock(&g_gb_mu);
-        j->rc = bench_gpuburn(&c, NULL, &j->cancel, j->why, sizeof j->why);
     } else if (j->sub == BK_GPUCOMPARE) {
         gpucmp_cfg c;
         gpucmp_cfg_default(&c);
@@ -2191,21 +2490,6 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_WORK) snprintf(b, sizeof b, "Running %.0f s: %s", el, wk_stage());
     else if (w->sub == BK_GPU) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpu_stage());
     else if (w->sub == BK_GPUCOMPARE) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpucmp_stage());
-    else if (w->sub == BK_GPUBURN) {
-        gpuburn_snap sn;
-        int have;
-        g_mutex_lock(&g_gb_mu);
-        have = g_gb_have;
-        if (have) sn = g_gb_snap;
-        g_mutex_unlock(&g_gb_mu);
-        snprintf(b, sizeof b, "Running %.0f s: %s", el, *gpuburn_stage() ? gpuburn_stage() : "starting");
-        if (have) {
-            srs_out o;
-            gctx g;
-            out_begin_live(w, &o, &g, NULL);
-            gb_live_render(&sn, &o);
-        }
-    }
     else if (w->sub == BK_NET) {
         double mb = net_live_mbps();
         if (mb > 0) snprintf(b, sizeof b, "Running %.0f s: %s - %.0f Mbit/s", el, net_stage(), mb);
@@ -2234,7 +2518,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     (void)x;
     if (w->running || g_bench_busy || burn_active()) {
         gtk_widget_error_bell(w->win);
-        gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - CPU Burnin / Stress is running"
+        gtk_label_set_text(GTK_LABEL(w->bm_status), burn_active() ? "Not started - Stress & Burnin is running"
                                                                   : "Not started - another benchmark is running; wait for it to finish");
         return;
     }
@@ -2463,68 +2747,6 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         j->groups = mask;
         j->secs = secs;
     } else
-    if (w->sub == BK_GPUBURN) {
-        GtkWidget *d;
-        char hint[300], devname[300], bk[80];
-        int ok, sel = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gp_dev)), back = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back)) - 1;
-        int dev = sel <= 0 ? -1 : sel == 1 ? GPUBURN_ALL : sel - 2, prec = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_prec)) == 1 ? GP_FP64 : GP_FP32;
-        char pci[16] = "";
-        double secs, limit;
-        gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
-        gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
-        secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
-        limit = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->gb_limit));
-        if (back >= 0 && !gb_table[back]->available(hint, sizeof hint)) {   /* dlopen only */
-            char b[400];
-            snprintf(b, sizeof b, "Not available: %s %s", gb_name[back], hint);
-            gtk_label_set_text(GTK_LABEL(w->bm_status), b);
-            return;
-        }
-        if (back == GB_CUDA) ctk_maybe_ask(GTK_WINDOW(w->win), 0);   /* once: the optional NVIDIA CUDA toolkit */
-        if (dev >= 0) {   /* a GPU picked from the (Vulkan) list */
-            if (back < 0) back = GB_VULKAN;   /* Auto + a picked GPU: the list's own back end */
-            if (back != GB_VULKAN) {   /* HIP / CUDA / OpenCL find the same card by its PCI address after Yes */
-                if (dev >= GPU_MAXDEV || !w->gp_pci[dev][0]) {
-                    gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: the Vulkan driver does not tell this GPU's PCI address, so it cannot be "
-                                                                "found in the other back end's list. Choose \"The first GPU\" or the Vulkan back end.");
-                    return;
-                }
-                snprintf(pci, sizeof pci, "%s", w->gp_pci[dev]);
-                dev = -1;
-            }
-        }
-        snprintf(bk, sizeof bk, "%s", back < 0 ? "Vulkan (or the first back end that has a GPU)" : gb_name[back]);
-        /* the device's name is known only when its list was opened; no HIP / CUDA / OpenCL runtime is started before Yes */
-        if (dev == GPUBURN_ALL) snprintf(devname, sizeof devname, "every GPU of that back end");
-        else if (sel >= 2) {
-            gchar *t = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w->gp_dev));
-            snprintf(devname, sizeof devname, "%.250s", t ? t : "the chosen GPU");
-            g_free(t);
-        } else snprintf(devname, sizeof devname, "the first GPU");
-        d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
-                                   "Start GPU Burnin?");
-        gtk_window_set_title(GTK_WINDOW(d), "GPU Burnin");
-        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
-            "GPU Burnin keeps %s fully busy through %s for %.0f %s with large %s matrix multiplications, and counts every wrong result.\n\n"
-            "The GPU draws a lot of power and gets hot: expect the highest temperatures and fan speeds it reaches, and close games "
-            "and other GPU programs first. A bad GPU overclock or undervolt can crash the PC or the display driver under this "
-            "load, and a weak power supply or poor cooling can make the PC shut down.\n\n"
-            "It stops by itself at %.0f °C (hotspot / junction when the card reports it, else edge), on a driver error, when the GPU "
-            "stops answering or a piece of work takes far too long, and when you press Stop. "
-            "SRS never changes clocks, voltages or fans.",
-            devname, bk, secs >= 120 ? secs / 60 : secs, secs >= 120 ? "minutes" : "seconds", prec == GP_FP64 ? "FP64" : "FP32", limit);
-        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
-        gtk_widget_destroy(d);
-        if (!ok || w->running || g_bench_busy || burn_active()) return;
-        j = g_new0(benchjob, 1);
-        j->backend = back < 0 ? GPUBURN_AUTO : back;
-        j->device = dev;
-        snprintf(j->pci, sizeof j->pci, "%s", pci);
-        j->prec = prec;
-        j->secs = secs;
-        j->limit = limit;
-    } else
     if (w->sub == BK_NET) {
         GtkWidget *d;
         int local = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->nt_local)), inet = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->nt_inet));
@@ -2644,7 +2866,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     } else if (w->sub == BK_LAT) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_max));
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max)) * 1024 * 1024;
-    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN || w->sub == BK_GPUCOMPARE) {
+    } else if (w->sub == BK_STORAGE || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUCOMPARE) {
         /* filled in above */
     } else if (w->sub == BK_OSLAT) {
         j->max = (long)gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_max));
@@ -2680,7 +2902,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU || w->sub == BK_GPUBURN ||
+    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU ||
                  w->sub == BK_GPUCOMPARE ? &j->cancel : NULL;
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
@@ -2775,7 +2997,7 @@ static void on_gpu_devs(GObject *x, GParamSpec *ps, gpointer data)
 static void gpu_device_defaults(swin *w)
 {
     gtk_combo_box_text_remove_all(GTK_COMBO_BOX_TEXT(w->gp_dev));
-    if (w->sub == BK_GPUBURN) {
+    if (w->kind == W_BURN) {
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "The first GPU");
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "All GPUs");
     } else gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gp_dev), "Default (the first discrete GPU)");
@@ -2794,7 +3016,7 @@ static gboolean gpu_av_done(gpointer data)
     int k;
     if (w && g_ptr_array_find(g_wins, w, NULL)) {
         w->avw = NULL;
-        if (w->sub == BK_GPUCOMPARE)
+        if (w->kind == W_BENCH && w->sub == BK_GPUCOMPARE)
             for (k = 0; k < GB_N; k++) {
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->gc_back[k]), a->av[k]);
                 gtk_widget_set_sensitive(w->gc_back[k], a->av[k]);
@@ -2802,7 +3024,7 @@ static gboolean gpu_av_done(gpointer data)
                                                                        : k == GB_CUDA ? "Installed. Labelled CUDA (ZLUDA) when the CUDA library is ZLUDA."
                                                                        : "Installed.") : a->hint[k]);
             }
-        else if (w->sub == BK_GPUBURN) {
+        else if (w->kind == W_BURN) {
             char b[900] = "";
             int act = gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_back));
             g_signal_handlers_block_by_func(w->gb_back, G_CALLBACK(on_gpu_back), w);
@@ -3075,41 +3297,6 @@ static void build_bench(swin *w, GtkWidget *vb)
                                             "Back ends that are not installed are greyed (the tooltip says what to install)."), FALSE, FALSE, 0);
         w->wk_row = r2;
         gpu_av_start(w);
-    } else if (w->sub == BK_GPUBURN) {
-        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-        char hint[300], b[900];
-        int k;
-        gtk_box_pack_start(GTK_BOX(row), lbl("Back end"), FALSE, FALSE, 0);
-        w->gb_back = gtk_combo_box_text_new();
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), "Auto (Vulkan)");
-        snprintf(b, sizeof b, "Checking which GPU back ends are installed...");
-        for (k = 0; k < GB_N; k++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_back), gb_name[k]);   /* gpu_av_start marks the missing ones */
-        (void)hint;
-        gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_back), 0);
-        gtk_widget_set_tooltip_text(w->gb_back, "Vulkan works with every modern GPU driver. ROCm / HIP is AMD's compute platform, CUDA NVIDIA's "
-                                                "(or ZLUDA on AMD), OpenCL the older cross-vendor one. Auto = Vulkan when it has a GPU.");
-        g_signal_connect(w->gb_back, "changed", G_CALLBACK(on_gpu_back), w);
-        gtk_box_pack_start(GTK_BOX(row), w->gb_back, FALSE, FALSE, 0);
-        gpu_device_combo(w, row);
-        gtk_box_pack_start(GTK_BOX(row), lbl("Precision"), FALSE, FALSE, 0);
-        w->gb_prec = gtk_combo_box_text_new();
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP32");
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->gb_prec), "FP64");
-        gtk_combo_box_set_active(GTK_COMBO_BOX(w->gb_prec), 0);
-        gtk_widget_set_tooltip_text(w->gb_prec, "FP32 (single precision) loads most GPUs hardest. FP64 checks the double-precision units, slow on most gaming cards.");
-        gtk_box_pack_start(GTK_BOX(row), w->gb_prec, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(row), lbl("Seconds"), FALSE, FALSE, 0);
-        w->bm_secs = spin(1, 86400, 10, 60);
-        gtk_widget_set_tooltip_text(w->bm_secs, "How long to run. 60 s is a quick check; 10-30 minutes (600-1800 s) checks an overclock or undervolt properly.");
-        gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(row), lbl("Stop at °C"), FALSE, FALSE, 0);
-        w->gb_limit = spin(50, 120, 1, 100);
-        gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge).");
-        gtk_box_pack_start(GTK_BOX(row), w->gb_limit, FALSE, FALSE, 0);
-        w->gb_info = lbl(b);
-        gtk_box_pack_start(GTK_BOX(r2), w->gb_info, FALSE, FALSE, 0);
-        w->wk_row = r2;
-        gpu_av_start(w);
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
@@ -3128,7 +3315,7 @@ static void build_bench(swin *w, GtkWidget *vb)
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
     if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET ||
-        w->sub == BK_GPU || w->sub == BK_GPUBURN || w->sub == BK_GPUCOMPARE) {
+        w->sub == BK_GPU || w->sub == BK_GPUCOMPARE) {
         w->bm_stop = sbtn("S_top");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
@@ -3138,7 +3325,6 @@ static void build_bench(swin *w, GtkWidget *vb)
                        w->sub == BK_OSLAT ? "Not run - press Run (asks first; one or two CPUs busy for about 6 seconds)" :
                        w->sub == BK_NET ? "Not run - press Run (asks first; the internet test asks separately)" :
                        w->sub == BK_GPU ? "Not run - press Run (asks first; the GPU works at full load for about 15 seconds)" :
-                       w->sub == BK_GPUBURN ? "Not run - press Run (asks first; full GPU load, high power and heat)" :
                        w->sub == BK_GPUCOMPARE ? "Not run - press Run (asks first; full GPU load, about 20 seconds per back end)" :
                        "Not run - press Run (asks first; the CPUs will be busy while it runs)");
     if (w->sub == BK_STORAGE) {   /* the status goes on a second line: the first one is full */
@@ -3164,18 +3350,28 @@ static void open_tool(wkind k, int sub)
     static const btn row_tool[] = { B("_OK", "!close"), B("_Copy", "!copy"), B("Me_nu", "!menu"), B("_Help", "help"), B(NULL, NULL) };
     static const btn row_find[] = { B("_OK", "!close"), B("_Copy", "!copy"), B("_Next", "!next"), B("Pre_v", "!prev"),
         B("_Highlight", "!hilite"), B("Co_lour", "!colour"), B("_Lookup", "!idlookup"), B("_Help", "help"), B(NULL, NULL) };
-    swin *w = find_win(k, "", sub);
+    swin *w;
     GtkWidget *vb, *row, *b;
     const char *title;
     char t[200];
-    if (w) { gtk_window_present(GTK_WINDOW(w->win)); return; }
+    int preset = -1;
+    /* 2.3.1: CPU Burnin, CPU Stress and GPU Burnin are one Stress & Burnin window; the old entries open it in
+       their starting layout (burn_preset) */
+    if (k == W_BENCH && sub == BK_GPUBURN) { k = W_BURN; sub = 2; }
+    if (k == W_BURN) { preset = sub; sub = 0; }
+    w = find_win(k, "", sub);
+    if (w) {
+        if (preset >= 0) burn_preset(w, preset);
+        gtk_window_present(GTK_WINDOW(w->win));
+        return;
+    }
     w = g_new0(swin, 1);
     w->kind = k;
     w->sub = sub;
-    title = k == W_BURN ? (sub ? "CPU Stress" : "CPU Burnin") : k == W_BENCH ? bk_title(sub)
+    title = k == W_BURN ? "Stress & Burnin (CPU / GPU)" : k == W_BENCH ? bk_title(sub)
           : k == W_IDLOOKUP ? "Device ID Lookup" : "Find";
     snprintf(t, sizeof t, "%s - %s", g_image, title);
-    make_window(w, t, 1180, k == W_BURN ? 760 : 600);
+    make_window(w, t, 1180, k == W_BURN ? 820 : 600);
     vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
     gtk_container_set_border_width(GTK_CONTAINER(vb), 4);
     gtk_container_add(GTK_CONTAINER(w->win), vb);
@@ -3261,7 +3457,12 @@ static void open_tool(wkind k, int sub)
     gtk_widget_show_all(w->win);
     if (k == W_IDLOOKUP) { set_mode_box(w); render_idlookup(w); gtk_widget_grab_focus(w->l_id); }
     else if (k == W_FIND) { render_find(w); gtk_widget_grab_focus(w->f_pat); }
-    else if (k == W_BURN) { burn_timer(w); w->timer = g_timeout_add(1000, burn_timer, w); }
+    else if (k == W_BURN) {
+        burn_preset(w, preset);
+        burn_timer(w);
+        w->timer = g_timeout_add(1000, burn_timer, w);
+        if (getenv("SRS_TEST_BURN_AUTOSTART")) g_timeout_add(1500, burn_autostart, w);
+    }
     else {
         srs_out o;
         gctx g;
@@ -3281,7 +3482,7 @@ static const char *guide_item(const swin *w)
     switch (w->kind) {
     case W_IDLOOKUP: return "id-lookup";
     case W_FIND: return "find";
-    case W_BURN: return w->sub ? "cpu-stress" : "burnin";
+    case W_BURN: return "burnin";
     case W_BENCH: return bk_item(w->sub);
     default: return w->id;
     }
@@ -3418,6 +3619,7 @@ static void on_tray_open(GtkMenuItem *mi, gpointer d)
     (void)mi;
     if (!strcmp(t, "burnin")) open_tool(W_BURN, 0);
     else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+    else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
     else open_item(t);
@@ -3427,7 +3629,7 @@ static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g
 static void tray_build_menu(void)
 {
     static const struct { const char *label, *target; } quick[] = {
-        { "Sensors", "sensors" }, { "Processors", "processors" }, { "CPU Burnin...", "burnin" }, { "CPU Stress...", "stress" },
+        { "Sensors", "sensors" }, { "Processors", "processors" }, { "Stress & Burnin (CPU / GPU)...", "stressburn" },
         { "Benchmark...", "bench" }, { "Find...", "find" }, { NULL, NULL } };
     GtkWidget *m = gtk_menu_new(), *it, *sub;
     int i;
@@ -4248,7 +4450,7 @@ static const catdef g_cats[CAT_N] = {
     { "board", "Motherboard & BIOS", "motherboard-symbolic|application-x-firmware-symbolic|emblem-system-symbolic",
       "The main circuit board and its firmware (BIOS / UEFI), as the board describes itself.",
       { "machine", "hardware", "firmware", "bios-tables", "uefi-info", "acpi-tables", "tpm-device", NULL } },
-    { "graphics", "Graphics & audio", "video-display-symbolic",
+    { "graphics", "Graphics & Audio", "video-display-symbolic",
       "Graphics cards, monitors and sound devices.",
       { "graphics", "gpu-info", "gpu-clocks", "gpu-temp", "monitors", "opencl", "audio", NULL } },
     { "storage", "Storage", "drive-harddisk-symbolic",
@@ -4261,7 +4463,7 @@ static const catdef g_cats[CAT_N] = {
       "Temperatures, fan speeds, voltages and power, read live from the hardware monitor chips.",
       { "sensors", "hw-status", "cooling", "power", NULL } },
     /* 2.2: its own page (power.c), not section tabs; under Sensors (Alt+9) */
-    { "power", "Power & cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
+    { "power", "Power & Cost", "battery-level-100-charged-symbolic|power-profile-balanced-symbolic|battery-full-symbolic",
       "How much power this PC uses, what it costs, and its history. Estimates: the CPU and graphics card are measured, the rest is guessed.",
       { NULL } },
     { "devices", "USB & PCI devices", "preferences-system-devices-symbolic|drive-removable-media-symbolic",
@@ -4270,7 +4472,7 @@ static const catdef g_cats[CAT_N] = {
     { "os", "Operating system", "distributor-logo-symbolic|applications-system-symbolic",
       "Linux itself: distribution, kernel, drivers, running programs and services.",
       { "windows", "drivers", "processes", "startup", "software", "environment", "users", NULL } },
-    { "bench", "Benchmarks & stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
+    { "bench", "Benchmarks & Stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
       { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "gpu-compare", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
@@ -5329,6 +5531,7 @@ static void on_launch(GtkButton *b, gpointer d)
     (void)b;
     if (!strcmp(t, "burn")) open_tool(W_BURN, 0);
     else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+    else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
     else if (!strcmp(t, "lat")) open_tool(W_BENCH, BK_LAT);
@@ -5693,12 +5896,6 @@ static GtkWidget *build_cat_page(int cat)
                 "Uses Vulkan; every result is checked.",
                 "The GPU works at full load for about 15 seconds. Asks before it starts. Needs a Vulkan driver.",
                 "GPU Benc_hmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("GPU Burnin", "Keeps the graphics card fully busy with large matrix multiplications and counts every wrong "
-                "result - the way to check a GPU overclock or undervolt, the cooling and the power supply. Live temperature, power, clock and fan. "
-                "Vulkan, ROCm / HIP, CUDA or OpenCL.",
-                "Full GPU load, high power and heat, for as long as you choose (default 1 minute). Asks first; stops by itself at the "
-                "temperature limit (default 100 °C) or on a driver error. Never changes clocks, voltages or fans.",
-                "GPU B_urnin...", "gpuburn", "Open the GPU Burnin window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", "Runs the same GPU work through every compute back end "
                 "you have installed, on the same graphics card, side by side: SRS's own kernel and the vendor's library (hipBLAS, cuBLAS, "
                 "CLBlast), the fastest marked and each as a percentage of Vulkan.",
@@ -5711,12 +5908,13 @@ static GtkWidget *build_cat_page(int cat)
                 "Busy for about 8 seconds.", "Cr_ypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
             grid_add3(fb, launcher("Prime Sieve", "Counts the prime numbers up to 10 billion and checks the count. Simple integer and cache work that scales with threads.",
                 "Busy for about a second on all threads.", "Prime Sie_ve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
-            grid_add3(fb, launcher("CPU Burnin", "Burn and cool cycles with a Pass or Fail at the end: tests cooling and stability.",
-                "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit (90 °C by default).",
-                "CPU Burn_in...", "burn", "Open the CPU Burnin window. Nothing starts until you press Start and confirm."));
-            grid_add3(fb, launcher("CPU Stress", "Keeps the chosen CPUs busy until you press Stop, while showing clocks and temperatures.",
-                "Makes the chosen CPUs 100 % busy. Asks before it starts and stops at the temperature limit.",
-                "CPU _Stress...", "stress", "Open the CPU Stress window. Nothing starts until you press Start and confirm."));
+            grid_add3(fb, launcher("Stress & Burnin (CPU and GPU)", "Loads the CPUs, the graphics card or both: timed burn and cool cycles "
+                "with a Pass or Fail at the end, or until you press Stop. The built-in GPU Burnin counts every wrong GPU result "
+                "(Vulkan, ROCm / HIP, CUDA or OpenCL) and can run for its own time or in sync with the CPU load; a custom GPU command "
+                "works too. Live clocks, temperatures, power and fan.",
+                "Makes the chosen CPUs and / or the GPU 100 % busy. Asks before it starts; stops at the temperature limits (CPU 90 °C, "
+                "GPU 100 °C by default) or on a GPU driver error. Never changes clocks, voltages or fans.",
+                "Stress & B_urnin...", "stressburn", "Open the Stress & Burnin window. Nothing starts until you press Start and confirm."));
             /* MNEMONIC-END */
         } else {   /* MNEMONIC-MENU: tools-page */
             grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
@@ -6198,13 +6396,86 @@ static void home_open(int as_main)
     g_home->tick = g_timeout_add(3000, home_tick, NULL);
 }
 
+/* srs-gui --gpu-burn-child: the built-in GPU Burnin of the Stress & Burnin window, as its own process. Reports through
+   the --live file (gb_live) about twice a second, writes the result and the history line like the CLI gpu-burn
+   (~/.cache/srs/bench-gpuburn.txt), and ends cleanly on SIGTERM / SIGINT (Stop, or SRS closing). */
+static volatile int g_gbc_cancel;
+static const char *g_gbc_live;
+static gpuburn_snap g_gbc_snap;
+static void gbc_sig(int sig) { (void)sig; g_gbc_cancel = 1; }
+static void gbc_write(int done, int rc, const char *why)
+{
+    char tmp[800];
+    FILE *f;
+    gb_live l;
+    if (!g_gbc_live) return;
+    memset(&l, 0, sizeof l);
+    l.magic = GB_LIVE_MAGIC;
+    l.size = sizeof l;
+    l.done = done;
+    l.rc = rc;
+    snprintf(l.why, sizeof l.why, "%s", why ? why : "");
+    l.snap = g_gbc_snap;
+    snprintf(tmp, sizeof tmp, "%s.tmp", g_gbc_live);
+    if (!(f = fopen(tmp, "wb"))) return;
+    if (fwrite(&l, sizeof l, 1, f) == 1 && fclose(f) == 0) rename(tmp, g_gbc_live);   /* the reader never sees half a file */
+    else { fclose(f); unlink(tmp); }
+}
+static void gbc_cb(const gpuburn_snap *sn, void *ud)
+{
+    (void)ud;
+    g_gbc_snap = *sn;
+    gbc_write(0, 0, "");
+}
+static int gpu_burn_child_main(int argc, char **argv)
+{
+    gpuburn_cfg c;
+    srs_out o;
+    struct sigaction sa;
+    char why[300] = "";
+    int i, rc;
+    gpuburn_cfg_default(&c);
+    for (i = 2; i + 1 < argc; i += 2) {
+        const char *a = argv[i], *v = argv[i + 1];
+        if (!strcmp(a, "--backend")) c.backend = atoi(v);
+        else if (!strcmp(a, "--device")) c.device = atoi(v);
+        else if (!strcmp(a, "--pci")) snprintf(c.device_pci, sizeof c.device_pci, "%s", v);
+        else if (!strcmp(a, "--prec")) c.prec = atoi(v) == GP_FP64 ? GP_FP64 : GP_FP32;
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--limit")) c.limit_c = atof(v);
+        else if (!strcmp(a, "--live")) g_gbc_live = v;
+    }
+    if (c.backend < GPUBURN_AUTO || c.backend >= GB_N) c.backend = GPUBURN_AUTO;
+    if (c.seconds < 1) c.seconds = 1;
+    if (c.seconds > 86400) c.seconds = 86400;
+    if (c.limit_c < 50 || c.limit_c > 120) c.limit_c = 100;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = gbc_sig;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    gpu_quiet_layers();
+    if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    if (getenv("SRS_TEST_GB_NMAX")) c.n_max = atoi(getenv("SRS_TEST_GB_NMAX"));   /* tests: small matrices on lavapipe */
+    c.cb = gbc_cb;
+    so_text_init(&o, stdout);
+    gbc_write(0, 0, "");
+    rc = bench_gpuburn(&c, &o, &g_gbc_cancel, why, sizeof why);
+    if (why[0]) fprintf(stderr, "GPU Burnin: %s\n", why);
+    gbc_write(1, rc, why);
+    fflush(stdout);
+    fflush(stderr);
+    /* _exit: a driver thread left behind after a hung call must not keep the process alive in exit handlers */
+    _exit(rc == 0 ? GPUB_EXIT_PASS : rc == 1 ? GPUB_EXIT_STOPPED : rc == 2 ? GPUB_EXIT_FAIL : rc == -1 ? GPUB_EXIT_NOTSTARTED : GPUB_EXIT_EARLY);
+}
+
 int main(int argc, char **argv)
 {
     const char *autop;
     char *base = g_path_get_basename(argv[0]);
     snprintf(g_image, sizeof g_image, "%s", base);
     g_free(base);
-    if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & cost, no window */
+    if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & Cost, no window */
+    if (argc > 1 && !strcmp(argv[1], "--gpu-burn-child")) return gpu_burn_child_main(argc, argv);   /* Stress & Burnin's GPU part */
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
     if (argc > 1 && !strcmp(argv[1], "--gui-scan-empty")) return scan_empty_main();   /* child of the main window */
     gethostname(g_host, sizeof g_host);
@@ -6250,6 +6521,7 @@ int main(int argc, char **argv)
         for (t = strtok_r(tmp, ",", &save); t; t = strtok_r(NULL, ",", &save)) {
             if (!strcmp(t, "burnin")) open_tool(W_BURN, 0);
             else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
+            else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
             else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
             else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
             else if (!strcmp(t, "latency")) open_tool(W_BENCH, BK_LAT);

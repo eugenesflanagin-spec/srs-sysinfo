@@ -23,8 +23,8 @@ Run or Start, and every benchmark asks before it starts.
 SRS is not affiliated with or endorsed by RH Software.
 .PP
 The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
-Motherboard & BIOS, Graphics & audio, Storage, Network, Sensors, Power & cost, USB & PCI
-devices, Operating system, Benchmarks & stress and Tools; \fBAlt+1\fR ... \fBAlt+9\fR,
+Motherboard & BIOS, Graphics & Audio, Storage, Network, Sensors, Power & Cost, USB & PCI
+devices, Operating system, Benchmarks & Stress and Tools; \fBAlt+1\fR ... \fBAlt+9\fR,
 \fBAlt+0\fR, \fBAlt+\-\fR, \fBAlt+=\fR and \fBAlt+Backspace\fR go to them in that order. The Overview answers "Is my PC OK?" with a
 status light per check (temperatures against each sensor's own limit, drive health, hardware
 errors, free disk space, memory in use, sensor alarms) and cards with the key facts. Each other
@@ -45,7 +45,7 @@ autostart entries and services off and on without deleting anything (Undo, Resto
 to startup). A badge in the title bar says "Full access"
 or "Limited (user)".
 .PP
-\fBPower & cost\fR (new in 2.2) estimates how much power the whole PC draws at the wall, with a
+\fBPower & Cost\fR (new in 2.2) estimates how much power the whole PC draws at the wall, with a
 likely range: the processor (zenergy, amd_energy or a readable RAPL counter) and the graphics card
 (amdgpu, Intel, nouveau) are measured, everything else is estimated from an editable parts list and
 a power-supply efficiency curve. It shows the cost at your price (flat, tiered or time-of-use, any
@@ -78,10 +78,10 @@ start in the main window with the sidebar (Overview and one page per category), 
 "Start in classic view" is set in the options.
 .TP
 .B \-\-gui\-open=power\-cost
-open the Power & cost page.
+open the Power & Cost page.
 .TP
 .B \-\-power\-recorder
-record Power & cost history with no window, following the recording setting on the page (used by
+record Power & Cost history with no window, following the recording setting on the page (used by
 the optional systemd user service ~/.config/systemd/user/srs-power-recorder.service, which the
 page's Setup tab writes and removes). Only one process records at a time.
 .TP
@@ -112,7 +112,7 @@ panels to open at start, as for \fB\-\-gui\-open\fR.
 directory holding the user guide (default /usr/share/doc/srs-sysinfo).
 .TP
 .BR SRS_POWER_DB ", " SRS_POWER_INI
-use another Power & cost history database or settings file (for tests).
+use another Power & Cost history database or settings file (for tests).
 .TP
 .B SRS_DATA_DIR
 directory holding power-zip-rates.tsv (default: next to the program, then /usr/share/srs-sysinfo).
@@ -157,10 +157,10 @@ Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto and P
 settings, result, build).
 .TP
 .I ~/.local/share/srs/power.db
-Power & cost history (SQLite, one row per minute, mode 0600), with power.db.lock beside it.
+Power & Cost history (SQLite, one row per minute, mode 0600), with power.db.lock beside it.
 .TP
 .I ~/.config/srs/power.ini
-Power & cost settings: parts, power supply, price, recording, alarms.
+Power & Cost settings: parts, power supply, price, recording, alarms.
 .TP
 .I /usr/share/srs-sysinfo/power-zip-rates.tsv
 US ZIP code to electric utility table (NREL, CC BY 4.0) for the offline price lookup.

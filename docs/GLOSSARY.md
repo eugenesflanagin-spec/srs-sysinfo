@@ -506,7 +506,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SDMA (system DMA)** - The GPU's copy engines, which move data between memory areas without using the 3D engine. *See: [graphics](SECTIONS/graphics.md).*
 - **Section (ELF)** - one named part of a program file: `.text` code, `.data` variables, `.rodata` fixed data, `.bss` zeroed memory. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Secure Boot** - a UEFI feature that only starts boot loaders and kernels signed with trusted keys. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
-- **Session (busy session)** - in Power & cost, a stretch of heavy use (a game, a render) found from the CPU and graphics load; its energy is the whole PC's while it lasted. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Session (busy session)** - in Power & Cost, a stretch of heavy use (a game, a render) found from the CPU and graphics load; its energy is the whole PC's while it lasted. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **Setup Mode** - UEFI Secure Boot state with no Platform Key installed, in which keys can be changed freely. *See: [machine](SECTIONS/machine.md).*
 - **SEV** - Secure Encrypted Virtualization; AMD server feature that encrypts virtual machine memory. *See: [processors](SECTIONS/processors.md).*
 - **SHA-256, SHA-NI** - SHA-256 makes a 256-bit "fingerprint" of data (package checks, backups, git); SHA-NI are CPU instructions that speed it up. *See: [tools](SECTIONS/tools.md).*
@@ -531,7 +531,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **spd5118** - the SPD hub chip on DDR5 sticks, and its Linux driver; it also provides a temperature sensor. *See: [machine](SECTIONS/machine.md).*
 - **Speculative execution** - the CPU guessing ahead to run faster; flaws in it (Spectre, Meltdown) can leak data and are closed by mitigations. *See: [processors](SECTIONS/processors.md).*
 - **SPIR-V** - the compiled form of a Vulkan compute or graphics program (shader); SRS ships its GPU shaders pre-compiled as SPIR-V. *See: [tools](SECTIONS/tools.md).*
-- **SQLite** - a small database kept in one file; SRS keeps the Power & cost history in one. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **SQLite** - a small database kept in one file; SRS keeps the Power & Cost history in one. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **srs-root** - the SRS root helper, started from Menu > Run as root; it saves root-only data (such as real resource addresses) for SRS to read. *See: [buses-2](SECTIONS/buses-2.md), [srs-items](SECTIONS/srs-items.md).*
 - **SSD** - Solid-state drive: storage on flash memory, with no moving parts. *See: [storage](SECTIONS/storage.md).*
 - **SSDT** - Secondary System Description Table; extra ACPI code tables, often one per firmware module. *See: [machine](SECTIONS/machine.md).*

@@ -18,7 +18,7 @@ Files (laid out like /usr):
 
 Needed at run time
   - glibc @GLIBC@+, GTK 3 (libgtk-3-0 / gtk3), GLib, Pango, Cairo
-  - SQLite 3 (libsqlite3-0 / sqlite / sqlite-libs) for srs-gui (the Power & cost history)
+  - SQLite 3 (libsqlite3-0 / sqlite / sqlite-libs) for srs-gui (the Power & Cost history)
   - hwdata (PCI/USB name database, read from /usr/share/hwdata)
   - optional: libayatana-appindicator3 (tray icon), polkit (srs-root prompt),
     dmidecode, smartmontools, nvme-cli, i2c-tools, pciutils, usbutils, lm-sensors,

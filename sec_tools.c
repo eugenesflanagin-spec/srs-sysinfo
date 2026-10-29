@@ -41,7 +41,7 @@ static void s_bench_mode(srs_out *o, bench_mode m)
         }
     }
     snprintf(cli, sizeof cli, "srs-gui bench %s", bench_mode_id(m) + 10);
-    not_run(o, "Benchmarks & stress > Benchmark, then Run", cli);
+    not_run(o, "Benchmarks & Stress > Benchmark, then Run", cli);
 }
 #define BM(fn, m) static void fn(srs_out *o) { s_bench_mode(o, m); }
 BM(s_b_ac, BM_AC) BM(s_b_as, BM_AS) BM(s_b_dd, BM_DD) BM(s_b_dw, BM_DW) BM(s_b_ec, BM_EC)
@@ -72,35 +72,35 @@ static void s_ipi(srs_out *o)
 {
     if (bench_show_last("ipi-delay", o)) return;
     so_siv_header(o, "CPU IPI Delay");
-    not_run(o, "Benchmarks & stress > IPI Delay, then Run", "srs-gui ipi [--cpus N] [--rounds R]");
+    not_run(o, "Benchmarks & Stress > IPI Delay, then Run", "srs-gui ipi [--cpus N] [--rounds R]");
 }
 
 static void s_latency(srs_out *o)
 {
     if (bench_show_last("latency", o)) return;
     so_siv_header(o, "Memory Latency");
-    not_run(o, "Benchmarks & stress > Latency, then Run", "srs-gui latency [--max MB]");
+    not_run(o, "Benchmarks & Stress > Latency, then Run", "srs-gui latency [--max MB]");
 }
 
 static void s_pi(srs_out *o)
 {
     if (bench_show_last("pi", o)) return;
     so_siv_header(o, "SRS Pi");
-    not_run(o, "Benchmarks & stress > SRS Pi, then Run", "srs-gui pi [--digits 1m] [--threads N] [--method chudnovsky|agm]");
+    not_run(o, "Benchmarks & Stress > SRS Pi, then Run", "srs-gui pi [--digits 1m] [--threads N] [--method chudnovsky|agm]");
 }
 
 static void s_cachemem(srs_out *o)
 {
     if (bench_show_last("cachemem", o)) return;
     so_siv_header(o, "Cache & Memory benchmark");
-    not_run(o, "Benchmarks & stress > Cache & Memory, then Run", "srs-gui cachemem [--threads N] [--seconds S] [--yes]");
+    not_run(o, "Benchmarks & Stress > Cache & Memory, then Run", "srs-gui cachemem [--threads N] [--seconds S] [--yes]");
 }
 
 static void s_storage(srs_out *o)
 {
     if (bench_show_last("storage", o)) return;
     so_siv_header(o, "Storage benchmark");
-    not_run(o, "Benchmarks & stress > Storage, then choose a folder and Run",
+    not_run(o, "Benchmarks & Stress > Storage, then choose a folder and Run",
             "srs-gui storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--yes]");
 }
 
@@ -108,28 +108,28 @@ static void s_oslat(srs_out *o)
 {
     if (bench_show_last("os-latency", o)) return;
     so_siv_header(o, "OS latency");
-    not_run(o, "Benchmarks & stress > OS Latency, then Run", "srs-gui os-latency [--samples N] [--tick-seconds S] [--yes]");
+    not_run(o, "Benchmarks & Stress > OS Latency, then Run", "srs-gui os-latency [--samples N] [--tick-seconds S] [--yes]");
 }
 
 static void s_compute(srs_out *o)
 {
     if (bench_show_last("compute", o)) return;
     so_siv_header(o, "CPU compute benchmark");
-    not_run(o, "Benchmarks & stress > CPU Compute, then Run", "srs-gui compute [--threads N] [--seconds S] [--single] [--yes]");
+    not_run(o, "Benchmarks & Stress > CPU Compute, then Run", "srs-gui compute [--threads N] [--seconds S] [--single] [--yes]");
 }
 
 static void s_work(srs_out *o)
 {
     if (bench_show_last("work", o)) return;
     so_siv_header(o, "Everyday work benchmark");
-    not_run(o, "Benchmarks & stress > Everyday Work, then Run", "srs-gui work [--threads N] [--seconds S] [--single] [--yes]");
+    not_run(o, "Benchmarks & Stress > Everyday Work, then Run", "srs-gui work [--threads N] [--seconds S] [--single] [--yes]");
 }
 
 static void s_net(srs_out *o)
 {
     if (bench_show_last("net", o)) return;
     so_siv_header(o, "Network benchmark");
-    not_run(o, "Benchmarks & stress > Network, then Run (the internet test asks separately)",
+    not_run(o, "Benchmarks & Stress > Network, then Run (the internet test asks separately)",
             "srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes]");
 }
 
@@ -137,7 +137,7 @@ static void s_gpu(srs_out *o)
 {
     if (bench_show_last("gpu", o)) return;
     so_siv_header(o, "GPU benchmark");
-    not_run(o, "Benchmarks & stress > GPU Benchmark, then Run (asks first)",
+    not_run(o, "Benchmarks & Stress > GPU Benchmark, then Run (asks first)",
             "srs-gui gpu [--device N] [--seconds S] [--only fp32,read,...] [--list] [--yes]");
 }
 
@@ -145,7 +145,7 @@ static void s_gpuburn(srs_out *o)
 {
     if (bench_show_last("gpuburn", o)) return;
     so_siv_header(o, "GPU Burnin");
-    not_run(o, "Benchmarks & stress > GPU Burnin, then Run (asks first)",
+    not_run(o, "Benchmarks & Stress > GPU Burnin, then Run (asks first)",
             "srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--yes]");
 }
 
@@ -153,7 +153,7 @@ static void s_gpucompare(srs_out *o)
 {
     if (bench_show_last("gpucompare", o)) return;
     so_siv_header(o, "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL");
-    not_run(o, "Benchmarks & stress > GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL, then Run (asks first)",
+    not_run(o, "Benchmarks & Stress > GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL, then Run (asks first)",
             "srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]");
 }
 
@@ -161,14 +161,14 @@ static void s_crypto(srs_out *o)
 {
     if (bench_show_last("crypto", o)) return;
     so_siv_header(o, "Crypto benchmark");
-    not_run(o, "Benchmarks & stress > Crypto, then Run", "srs-gui crypto [--threads N] [--seconds S]");
+    not_run(o, "Benchmarks & Stress > Crypto, then Run", "srs-gui crypto [--threads N] [--seconds S]");
 }
 
 static void s_prime(srs_out *o)
 {
     if (bench_show_last("prime", o)) return;
     so_siv_header(o, "Prime sieve");
-    not_run(o, "Benchmarks & stress > Prime Sieve, then Run", "srs-gui prime [--limit 1e10] [--threads N]");
+    not_run(o, "Benchmarks & Stress > Prime Sieve, then Run", "srs-gui prime [--limit 1e10] [--threads N]");
 }
 
 /* [bench-history] - the run history of SRS Pi, Crypto and Prime sieve, newest first */
@@ -470,7 +470,7 @@ static void s_burnin(srs_out *o)
     burn_sample_now(&s);
     so_siv_header(o, "CPU Burnin");
     so_tabs(o, tabs, 1);
-    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Benchmarks & stress > CPU Burnin)");
+    so_kv(o, "State", C_ORANGE, burn_active() ? "Running" : "Idle (start it from Benchmarks & Stress > CPU Burnin)");
     so_kvf(o, "Worker threads", C_BLACK, "%d CPUs available", burn_ncpu());
     so_kvf(o, "Hottest CPU sensor", C_BLACK, "%s %.1f°C", s.cpu_temp_name, s.cpu_temp);
     so_kvf(o, "Hottest SIO sensor", C_BLACK, "%s %.1f°C", s.sio_name, s.sio_temp);

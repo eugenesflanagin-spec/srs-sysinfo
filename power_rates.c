@@ -1,4 +1,4 @@
-/* power_rates.c - SRS "Power & cost": offline price and grid-CO2 tables. See power_rates.h.
+/* power_rates.c - SRS "Power & Cost": offline price and grid-CO2 tables. See power_rates.h.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */
 #ifndef _DEFAULT_SOURCE

@@ -1,4 +1,4 @@
-/* power_model.c - SRS "Power & cost": counters, clocks, estimate, PSU curve, prices, units, alarms.
+/* power_model.c - SRS "Power & Cost": counters, clocks, estimate, PSU curve, prices, units, alarms.
  * Pure C (libm only); see power_model.h.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */

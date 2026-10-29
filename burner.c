@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -375,11 +376,12 @@ static burn_sample g_sum, g_max, g_roll;
 static char g_status[160] = "Idle";
 static char g_saved[1100];   /* where this run's summary was saved ("" = not yet) */
 static pid_t g_gpu_pid;
-static double g_gpu_t0;
+static double g_gpu_t0, g_gpu_stop_t;   /* g_gpu_stop_t: when Stop asked the GPU part to end (0 = not stopping) */
 static char g_gpu_msg[300], g_gpu_log[600];
-static int g_gpu_bad;
+static int g_gpu_bad, g_gpu_killed, g_gpu_cooling;
+static int g_gpu_exit = -1;   /* the built-in GPU Burnin's last exit code (GPUB_EXIT_*), -1 = none yet */
 
-/* the GPU load command's own output goes to ~/.cache/srs/gpu-load.log so errors are not lost */
+/* the GPU part's own output goes to ~/.cache/srs/gpu-load.log so errors are not lost */
 static void gpu_log_path(void)
 {
     const char *x = getenv("XDG_CACHE_HOME"), *h = getenv("HOME");
@@ -392,18 +394,56 @@ static void gpu_log_path(void)
     snprintf(g_gpu_log, sizeof g_gpu_log, "%s/gpu-load.log", dir);
 }
 
-/* reap the GPU load command if it ended by itself and say why */
+static const char *gpu_name(void) { return g_cfg.gpu_label && *g_cfg.gpu_label ? g_cfg.gpu_label : "GPU load command"; }
+static int gpu_configured(void) { return g_cfg.gpu_argv ? g_cfg.gpu_argv[0] != NULL : g_cfg.gpu_cmd && *g_cfg.gpu_cmd; }
+
+/* reap the GPU part if it ended and say why. Never blocks: a GPU program stuck in a driver call must not
+   freeze the window. A part asked to stop gets SIGKILL when it has not ended after a grace time. */
 static void gpu_check(void)
 {
     int ws;
     pid_t r;
     if (!g_gpu_pid) return;
     r = waitpid(g_gpu_pid, &ws, WNOHANG);
-    if (r != g_gpu_pid) return;
+    if (r != g_gpu_pid) {
+        if (g_gpu_stop_t > 0 && !g_gpu_killed && now_s() - g_gpu_stop_t > (g_cfg.gpu_argv ? 20 : 5)) {
+            kill(-g_gpu_pid, SIGKILL);
+            g_gpu_killed = 1;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s did not end after Stop and was killed  - see %s", gpu_name(), g_gpu_log);
+            g_gpu_bad = 1;
+        }
+        return;
+    }
     g_gpu_pid = 0;
+    if (g_gpu_stop_t > 0 && !g_gpu_killed) {   /* asked to stop: that is the expected end */
+        g_gpu_stop_t = 0;
+        if (g_cfg.gpu_argv && WIFEXITED(ws)) g_gpu_exit = WEXITSTATUS(ws);
+        if (g_cfg.gpu_argv && g_gpu_exit == GPUB_EXIT_FAIL) {
+            g_gpu_bad = 1;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s: FAIL - compute errors found (see the GPU result below)", gpu_name());
+        } else if (g_gpu_cooling)
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s paused for the cool phase; it starts again with the next burn phase", gpu_name());
+        else snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s stopped with the CPU load", gpu_name());
+        return;
+    }
+    g_gpu_stop_t = 0;
+    if (g_gpu_killed) return;   /* the message was set when it was killed */
     if (WIFEXITED(ws)) {
         int rc = WEXITSTATUS(ws);
         double secs = now_s() - g_gpu_t0;
+        if (g_cfg.gpu_argv) {   /* the built-in GPU Burnin: its exit code says how the run ended */
+            g_gpu_exit = rc;
+            g_gpu_bad = rc != GPUB_EXIT_PASS && rc != GPUB_EXIT_STOPPED;
+            switch (rc) {
+            case GPUB_EXIT_PASS: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s finished after %.0f s: PASS - no compute errors", gpu_name(), secs); break;
+            case GPUB_EXIT_STOPPED: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s stopped after %.0f s - no compute errors so far", gpu_name(), secs); break;
+            case GPUB_EXIT_FAIL: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s: FAIL - compute errors found (see the GPU result below)", gpu_name()); break;
+            case GPUB_EXIT_NOTSTARTED: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s could not start (the reason is below)", gpu_name()); break;
+            case GPUB_EXIT_EARLY: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s ended early by a safety rule after %.0f s (the reason is below)", gpu_name(), secs); break;
+            default: snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s ended with exit code %d after %.0f s  - see %s", gpu_name(), rc, secs, g_gpu_log);
+            }
+            return;
+        }
         g_gpu_bad = rc != 0;
         if (rc == 127) snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command not found (exit 127): %s  - see %s", g_cfg.gpu_cmd, g_gpu_log);
         else if (rc == 126) snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command is not executable (exit 126): %s  - see %s", g_cfg.gpu_cmd, g_gpu_log);
@@ -411,11 +451,12 @@ static void gpu_check(void)
         else snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command finished (exit 0) after %.0f s; the CPU run continues", secs);
     } else if (WIFSIGNALED(ws)) {
         g_gpu_bad = 1;
-        snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command was killed by signal %d  - see %s", WTERMSIG(ws), g_gpu_log);
+        snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s was killed by signal %d  - see %s", gpu_name(), WTERMSIG(ws), g_gpu_log);
     }
 }
 
 int burn_active(void) { return __atomic_load_n(&g_active, __ATOMIC_SEQ_CST); }
+int burn_gpu_running(void) { gpu_check(); return g_gpu_pid != 0; }
 
 void burn_cfg_default(burn_cfg *c)
 {
@@ -429,6 +470,7 @@ void burn_cfg_default(burn_cfg *c)
     c->cycles = 1;
     c->temp_limit_c = 90;
     c->cap_s = 750.0 * 3600;
+    c->gpu_follow = 1;
 }
 
 static void set_run(int v)
@@ -437,35 +479,45 @@ static void set_run(int v)
     for (i = 0; i < g_nw; i++) g_w[i].run = v;
 }
 
+/* start (on) or stop the GPU part: the custom command through /bin/sh, the built-in GPU Burnin run directly.
+   It gets its own process group, so Stop reaches everything it started, and it ends when SRS ends. */
 static void gpu_load(int on)
 {
-    if (on && g_cfg.gpu_cmd && *g_cfg.gpu_cmd && !g_gpu_pid) {
-        pid_t p;
+    if (on && gpu_configured() && !g_gpu_pid) {
+        pid_t p, parent = getpid();
         gpu_log_path();
         p = fork();
         if (p == 0) {
             int fd = open(g_gpu_log, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
             setpgid(0, 0);
+            prctl(PR_SET_PDEATHSIG, SIGTERM);   /* SRS closed or crashed: the GPU load ends too */
+            if (getppid() != parent) _exit(GPUB_EXIT_STOPPED);
             if (fd >= 0) { dup2(fd, 1); dup2(fd, 2); }
-            execl("/bin/sh", "sh", "-c", g_cfg.gpu_cmd, (char *)NULL);
+            if (g_cfg.gpu_argv) execv(g_cfg.gpu_argv[0], (char *const *)g_cfg.gpu_argv);
+            else execl("/bin/sh", "sh", "-c", g_cfg.gpu_cmd, (char *)NULL);
             _exit(127);
         }
         if (p > 0) {
             g_gpu_pid = p;
             g_gpu_t0 = now_s();
-            g_gpu_bad = 0;
-            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command running (pid %d): %s", (int)p, g_cfg.gpu_cmd);
+            g_gpu_bad = g_gpu_killed = g_gpu_cooling = 0;
+            g_gpu_stop_t = 0;
+            if (g_cfg.gpu_argv) snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s running (pid %d)", gpu_name(), (int)p);
+            else snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command running (pid %d): %s", (int)p, g_cfg.gpu_cmd);
         } else {
             g_gpu_bad = 1;
-            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command could not be started: %s", strerror(errno));
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s could not be started: %s", gpu_name(), strerror(errno));
         }
     } else if (!on && g_gpu_pid) {
         gpu_check();   /* it may already have ended by itself */
-        if (g_gpu_pid) {
+        if (g_gpu_pid && g_gpu_stop_t <= 0) {
+            /* the built-in one ends its run cleanly on SIGTERM (result file and history line); gpu_check
+               reaps it later and kills it if it hangs */
             kill(-g_gpu_pid, SIGTERM);
-            waitpid(g_gpu_pid, NULL, 0);
-            g_gpu_pid = 0;
-            snprintf(g_gpu_msg, sizeof g_gpu_msg, "GPU load command stopped with the CPU load");
+            g_gpu_stop_t = now_s();
+            g_gpu_cooling = g_state == BURN_COOLING;
+            snprintf(g_gpu_msg, sizeof g_gpu_msg, "%s stopping...", gpu_name());
+            gpu_check();
         }
     }
 }
@@ -482,13 +534,19 @@ int burn_start(const burn_cfg *c)
         snprintf(g_status, sizeof g_status, "[CPU Burnin] not started: %s", t);
         return -1;
     }
+    gpu_check();
+    if (g_gpu_pid) {   /* the GPU part of the last run has not ended yet (it gets killed after a grace time) */
+        snprintf(g_status, sizeof g_status, "Not started: the GPU part of the last run is still stopping - try again in a few seconds");
+        return -1;
+    }
     g_cfg = *c;
     if (g_cfg.cycles < 1) g_cfg.cycles = 1;
     load_apic_map();
     g_ncpus = 0;
     for (i = 0; i < c->ncpu && i < BURN_MAXCPU; i++)
         if (c->enabled[i]) g_cpus[g_ncpus++] = i;
-    if (!g_ncpus) return -1;
+    if (!g_ncpus && !gpu_configured()) return -1;   /* no CPU is fine when the GPU part runs on its own */
+    g_gpu_exit = -1;
     g_nw = g_ncpus;
     for (i = 0; i < g_nw; i++) {
         memset(&g_w[i], 0, sizeof g_w[i]);
@@ -517,7 +575,8 @@ int burn_start(const burn_cfg *c)
         return -1;
     }
     gpu_load(1);
-    snprintf(g_status, sizeof g_status, "[CPU Burnin] will use %d worker thread%s", g_nw, g_nw == 1 ? "" : "s");
+    if (!g_nw) snprintf(g_status, sizeof g_status, "[Stress & Burnin] GPU only - no CPU load");
+    else snprintf(g_status, sizeof g_status, "[CPU Burnin] will use %d worker thread%s", g_nw, g_nw == 1 ? "" : "s");
     return 0;
 }
 
@@ -526,6 +585,10 @@ static void finish(int state, const char *why)
     int i;
     set_run(-1);
     gpu_load(0);
+    if (g_cfg.gpu_argv) {   /* give the built-in GPU Burnin up to 3 s to end cleanly, so its verdict counts in this run's result */
+        for (i = 0; i < 60 && g_gpu_pid; i++) { usleep(50000); gpu_check(); }
+        if (g_gpu_exit == GPUB_EXIT_FAIL && state != BURN_FAIL) { state = BURN_FAIL; why = "Fail - GPU Burnin found compute errors"; }
+    }
     for (i = 0; i < g_nw; i++) if (g_w[i].started) pthread_join(g_w[i].tid, NULL);
     g_state = state;
     __atomic_store_n(&g_active, 0, __ATOMIC_SEQ_CST);
@@ -560,7 +623,16 @@ void burn_tick(burn_status *st)
         MAXV(g_max.gpu_mhz, s.gpu_mhz);
         for (i = 0; i < g_nw; i++) apic_bad += g_w[i].st.apic_errors;
         /* safety first */
-        if (g_cfg.temp_limit_c > 0 && s.cpu_temp >= g_cfg.temp_limit_c) {
+        if (g_cfg.gpu_argv && g_gpu_exit == GPUB_EXIT_FAIL) {
+            finish(BURN_FAIL, "Fail - GPU Burnin found compute errors");
+        } else if (g_cfg.gpu_argv && g_gpu_exit == GPUB_EXIT_EARLY) {
+            finish(BURN_FAIL, "Fail - GPU Burnin ended early by a safety rule (temperature, driver error or a GPU that stopped answering)");
+        } else if (!g_nw && !g_gpu_pid) {   /* GPU only: the run is over when the GPU part has ended */
+            if (!g_cfg.gpu_argv) finish(g_gpu_bad ? BURN_FAIL : BURN_PASS, g_gpu_bad ? "Fail - the GPU load command failed" : "Pass - the GPU load command finished");
+            else if (g_gpu_exit == GPUB_EXIT_PASS) finish(BURN_PASS, "Pass - GPU Burnin finished with no compute errors");
+            else if (g_gpu_exit == GPUB_EXIT_STOPPED) finish(BURN_STOPPED, "Stopped - GPU Burnin was stopped");
+            else finish(BURN_FAIL, g_gpu_exit == GPUB_EXIT_NOTSTARTED ? "Not run - GPU Burnin could not start" : "Fail - GPU Burnin ended with an error");
+        } else if (g_cfg.temp_limit_c > 0 && s.cpu_temp >= g_cfg.temp_limit_c) {
             char why[160];
             snprintf(why, sizeof why, "Fail - %s %.1f C reached the %.0f C limit", s.cpu_temp_name, s.cpu_temp, g_cfg.temp_limit_c);
             finish(BURN_FAIL, why);
@@ -570,9 +642,9 @@ void burn_tick(burn_status *st)
             finish(BURN_PASS, "Pass - time cap reached");
         } else if (g_state == BURN_RUNNING && g_cfg.burn_s > 0 && t - g_phase_t0 >= g_cfg.burn_s) {
             if (g_cycle >= g_cfg.cycles) finish(BURN_PASS, "Pass - Finished");
-            else { g_state = BURN_COOLING; g_phase_t0 = t; set_run(0); gpu_load(0); snprintf(g_status, sizeof g_status, "Cooling"); }
+            else { g_state = BURN_COOLING; g_phase_t0 = t; set_run(0); if (g_cfg.gpu_follow) gpu_load(0); snprintf(g_status, sizeof g_status, "Cooling"); }
         } else if (g_state == BURN_COOLING && t - g_phase_t0 >= g_cfg.cool_s) {
-            g_state = BURN_RUNNING; g_phase_t0 = t; g_cycle++; set_run(1); gpu_load(1);
+            g_state = BURN_RUNNING; g_phase_t0 = t; g_cycle++; set_run(1); if (g_cfg.gpu_follow) gpu_load(1);
             snprintf(g_status, sizeof g_status, "Burning, cycle %d of %d", g_cycle, g_cfg.cycles);
         }
     }
@@ -595,6 +667,8 @@ void burn_tick(burn_status *st)
     snprintf(st->status, sizeof st->status, "%s", g_status);
     snprintf(st->gpu_msg, sizeof st->gpu_msg, "%s", g_gpu_msg);
     st->gpu_bad = g_gpu_bad;
+    st->gpu_running = g_gpu_pid != 0;
+    st->gpu_exit = g_gpu_exit;
     st->nthreads = g_nw;
     for (i = 0; i < g_nw; i++) {
         pthread_mutex_lock(&g_w[i].mu);

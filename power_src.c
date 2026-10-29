@@ -1,4 +1,4 @@
-/* power_src.c - SRS "Power & cost": measured sources (sysfs), clocks and the default parts list.
+/* power_src.c - SRS "Power & Cost": measured sources (sysfs), clocks and the default parts list.
  *
  * CPU: the zenergy driver (or amd_energy) when present: AMD's RAPL counters, readable by normal
  * users by design (rate-limited). Otherwise powercap RAPL, which Linux 5.10+ keeps root-only

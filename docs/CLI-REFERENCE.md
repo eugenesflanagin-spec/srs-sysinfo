@@ -166,7 +166,7 @@ Benchmarks and stress (load the CPU, the drive, the network or the GPU; run only
 srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
-        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window
+        --gui-open=power-cost the Power & Cost page; --power-recorder record its history with no window
 ```
 
 `--gui-scan-empty` (not listed) is internal: the main window runs it in a child process to find the
@@ -863,7 +863,7 @@ Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu
 | `--gui-tray` | Start hidden in the system tray (used by the autostart entry). |
 | `--gui-classic` | Start in the classic view: SIV's main window with its button row, every item in its own panel (as in SRS 1.1). |
 | `--gui-new` | Start in the main window with the sidebar, even when **Start in classic view** is on. |
-| `--power-recorder` | Record **Power & cost** history with no window, following the page's Recording setting (Off / For a set time / Always). Used by the optional systemd user service that **Power & cost -> Setup -> Keep recording when SRS is closed** writes. Only one process records at a time (a lock file beside the database); stop it with Ctrl+C or SIGTERM. |
+| `--power-recorder` | Record **Power & Cost** history with no window, following the page's Recording setting (Off / For a set time / Always). Used by the optional systemd user service that **Power & Cost -> Setup -> Keep recording when SRS is closed** writes. Only one process records at a time (a lock file beside the database); stop it with Ctrl+C or SIGTERM. |
 | any other argument | Run as the command line (`srs-gui -save` = `sysreport-search -save`). |
 
 `WHAT` can be any item id from `--list` (e.g. `sensors`, `processors`, `pci-bus`, `processor:4`),
@@ -892,7 +892,7 @@ or one of these tool names:
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
-| `power-cost` | Shows the Power & cost page (the item `power` is the expert Power status tab on Sensors) |
+| `power-cost` | Shows the Power & Cost page (the item `power` is the expert Power status tab on Sensors) |
 
 Opening a tool **never starts it**. Example: `srs-gui --gui-open=sensors,burnin`.
 The environment variable `SRS_OPEN=sensors,burnin` does the same.
@@ -963,7 +963,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_SMART_USB=1` | `srs-root`: include USB disks in SMART |
 | `SRS_KWH_COST`, `SRS_CURRENCY` | Price per kWh and currency symbol for the kWh Cost item (default `$` 0.15) |
 | `SRS_OPEN` | Same as `--gui-open=` |
-| `SRS_POWER_DB`, `SRS_POWER_INI` | Power & cost: use another history database / settings file instead of `~/.local/share/srs/power.db` and `~/.config/srs/power.ini` (for tests) |
+| `SRS_POWER_DB`, `SRS_POWER_INI` | Power & Cost: use another history database / settings file instead of `~/.local/share/srs/power.db` and `~/.config/srs/power.ini` (for tests) |
 | `SRS_DATA_DIR` | Folder holding `power-zip-rates.tsv` for the offline US ZIP price lookup (default: next to the program, then `/usr/share/srs-sysinfo`) |
 | `SRS_DOC_DIR` | Folder holding `SRS-User-Guide.pdf` / `html/` for `guide`, F1 and the Guide button (default `/usr/share/doc/srs-sysinfo`) |
 | `SRS_VULKAN_LIB` | GPU benchmarks: open this file instead of `libvulkan.so.1` (a name that does not exist = "not installed"; for tests) |

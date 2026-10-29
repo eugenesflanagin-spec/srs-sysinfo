@@ -1449,7 +1449,7 @@ static void tabs_dialog(int cat)
     grid = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
     gtk_box_pack_start(GTK_BOX(grid), gtk_label_new_with_mnemonic("_Page:"), FALSE, FALSE, 0);
     td->combo = gtk_combo_box_text_new();
-    for (c = 1; c < CAT_N; c++)   /* Power & cost is its own page, without item tabs */
+    for (c = 1; c < CAT_N; c++)   /* Power & Cost is its own page, without item tabs */
         if (c != CAT_POWER) gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(td->combo), g_cats[c].name, g_cats[c].title);
     gtk_box_pack_start(GTK_BOX(grid), td->combo, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(ca), grid, FALSE, FALSE, 0);

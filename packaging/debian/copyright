@@ -25,7 +25,7 @@ License: public-domain and Eurostat-reuse and Ofgem-published and CC-BY-4.0 and 
 Comment: Each figure comes from one source: the U.S. prices from EIA (public domain), the European
  prices from Eurostat, the GB price cap from Ofgem, the CO2 intensities from Ember (CC BY 4.0). The
  sources and dates are listed at the top of the file, in CREDITS.md and in the user guide,
- "Power & cost". The C code itself is GPL-2+.
+ "Power & Cost". The C code itself is GPL-2+.
 
 License: public-domain
  Data of the U.S. Energy Information Administration are a work of the U.S. government and are in

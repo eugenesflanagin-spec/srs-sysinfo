@@ -1,4 +1,4 @@
-/* power.h - SRS "Power & cost" page for srs-gui, and its headless background recorder.
+/* power.h - SRS "Power & Cost" page for srs-gui, and its headless background recorder.
  *
  * The page shows the whole-PC power estimate with its range, what it costs, history graphs and
  * CSV export, the parts / power-supply / price setup and alarms. Recording (off / for a set time /

@@ -1,4 +1,4 @@
-/* power_db.h - SRS "Power & cost" history in SQLite (~/.local/share/srs/power.db).
+/* power_db.h - SRS "Power & Cost" history in SQLite (~/.local/share/srs/power.db).
  * The only part of SRS that links SQLite. One row per minute, plus gaps and a few settings.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */

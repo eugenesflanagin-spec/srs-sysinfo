@@ -10,7 +10,7 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 | What | Used for | Licence |
 |---|---|---|
 | GTK 3, GLib, Pango, cairo | the GUI | LGPL-2.1-or-later (cairo: LGPL-2.1 / MPL-1.1) |
-| SQLite | the Power & cost history (`srs-gui` only) | public domain |
+| SQLite | the Power & Cost history (`srs-gui` only) | public domain |
 | libcurl (<https://curl.se/libcurl/>) | the Network benchmark's HTTPS and speed tests; the system's own library, loaded at run time when installed, not shipped or linked; no code copied | curl licence (MIT-style) |
 | zlib (or zlib-ng in zlib mode), Zstandard, LZ4, XZ Utils liblzma | Everyday Work's compression rows; the system's own libraries, loaded at run time when installed, not shipped or linked | zlib licence; BSD-3-Clause / GPL-2.0; BSD-2-Clause (library); 0BSD / public domain |
 | Vulkan loader (`libvulkan.so.1`) and your GPU's Vulkan driver | the GPU benchmarks; the system's own, loaded at run time when installed, not shipped or linked | Apache-2.0 (loader); the driver's own |
@@ -22,7 +22,7 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 | Mesa lavapipe (<https://www.mesa3d.org>) | the software Vulkan renderer the GPU tests run on, so they never touch a real GPU (test only, not shipped) | MIT |
 | hwdata (`pci.ids`, `usb.ids`, `pnp.ids`) | device names (not part of SRS) | GPL-2.0-or-later / BSD-3-Clause |
 
-## Data in the Power & cost page
+## Data in the Power & Cost page
 
 SRS shows these figures unchanged, apart from unit conversion (cents to currency units) and
 reformatting. The organisations below are not responsible for SRS's use of their data. The tables

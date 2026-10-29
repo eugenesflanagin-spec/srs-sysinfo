@@ -377,7 +377,7 @@ static void s_cache(srs_out *o)
                (const int[]){ C_VALUE, C_BLACK, C_TEAL, C_TEAL, C_GRAY, C_ORANGE, C_PURPLE });
     }
     so_par(o);
-    so_note(o, "Cache latency per level is measured by the Latency tool (Benchmarks & stress > Latency).");
+    so_note(o, "Cache latency per level is measured by the Latency tool (Benchmarks & Stress > Latency).");
 }
 
 /* [cpu-levels]: C-states (cpuidle) */
@@ -1374,7 +1374,7 @@ static void s_numa_speeds(srs_out *o)
         so_lines(o, C_BLACK, txt);
         free(txt);
     } else {
-        so_kv(o, "Memory latency", C_ORANGE, "Not measured yet - Benchmarks & stress > Latency, then Run");
+        so_kv(o, "Memory latency", C_ORANGE, "Not measured yet - Benchmarks & Stress > Latency, then Run");
     }
 }
 

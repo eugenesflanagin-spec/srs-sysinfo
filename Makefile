@@ -88,7 +88,7 @@ $(DIST)/win/SRS32X.exe: $(WINSRC) $(HDRS) $(DIST)/win/srs32.res.o
 	$(MINGW32) $(BASE) -DSRS_NO_MAIN -o $@ $(WINSRC) $(DIST)/win/srs32.res.o $(PE32) $(WINLIBS)
 
 # native Linux GUI: plain C + GTK3, same core, glibc + GTK only (no wine).
-# The Power & cost page (power*.c) is GUI-only and the only user of SQLite, so the CLI images and
+# The Power & Cost page (power*.c) is GUI-only and the only user of SQLite, so the CLI images and
 # their i686 / aarch64 cross builds keep linking libm alone.
 GTKFLAGS := $(shell pkg-config --cflags gtk+-3.0 sqlite3)
 GTKLIBS  := $(shell pkg-config --libs gtk+-3.0 sqlite3)

@@ -1,4 +1,4 @@
-/* power_src.h - SRS "Power & cost": where the measured numbers come from (sysfs), the clocks,
+/* power_src.h - SRS "Power & Cost": where the measured numbers come from (sysfs), the clocks,
  * and a first guess at the parts list from the detected hardware.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */

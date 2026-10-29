@@ -1,4 +1,4 @@
-/* tests/test_power.c - unit tests for SRS "Power & cost" (power_model.c, power_db.c) with synthetic
+/* tests/test_power.c - unit tests for SRS "Power & Cost" (power_model.c, power_db.c) with synthetic
  * counter data. Build and run: make test-power
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */

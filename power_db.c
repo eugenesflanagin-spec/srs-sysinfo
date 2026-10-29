@@ -1,4 +1,4 @@
-/* power_db.c - SRS "Power & cost" history in SQLite. See power_db.h.
+/* power_db.c - SRS "Power & Cost" history in SQLite. See power_db.h.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */
 #ifndef _DEFAULT_SOURCE

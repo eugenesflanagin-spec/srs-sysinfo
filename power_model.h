@@ -1,4 +1,4 @@
-/* power_model.h - SRS "Power & cost": the arithmetic, with no GTK, SQLite or sysfs in it.
+/* power_model.h - SRS "Power & Cost": the arithmetic, with no GTK, SQLite or sysfs in it.
  *
  * Energy counters (unwrap, resets, sanity limits), clocks (sleep / reboot / stall gaps), the
  * whole-PC estimate (measured CPU + GPU, estimated parts, PSU efficiency band), prices (flat,

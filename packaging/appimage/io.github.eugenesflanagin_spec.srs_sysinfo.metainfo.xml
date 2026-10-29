@@ -34,7 +34,7 @@
     <p>Also included:</p>
     <ul>
       <li>CPU and GPU burn-in and stress tests; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
-      <li>Power &amp; cost: an estimate of the whole PC's power use and its cost, with recorded history (estimates, not a meter reading)</li>
+      <li>Power &amp; Cost: an estimate of the whole PC's power use and its cost, with recorded history (estimates, not a meter reading)</li>
       <li>Tabs you can arrange and save as lineups, sortable tables and a startup manager</li>
       <li>Device ID lookup for PCI and USB devices</li>
       <li>Reports saved as text, and a command-line report search</li>

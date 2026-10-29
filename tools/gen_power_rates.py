@@ -4,7 +4,7 @@
   python3 -I tools/gen_power_rates.py DOWNLOAD_DIR
 writes power_rates_data.inc (compiled into srs-gui) and data/power-zip-rates.tsv (installed to
 /usr/share/srs-sysinfo/). Run from the repository root. It never downloads anything itself: fetch
-the files below into DOWNLOAD_DIR first (see docs/USER-GUIDE.md, "Power & cost", for the licences).
+the files below into DOWNLOAD_DIR first (see docs/USER-GUIDE.md, "Power & Cost", for the licences).
 
   eia_table_5_06_b.xlsx    https://www.eia.gov/electricity/monthly/xls/table_5_06_b.xlsx
                            U.S. EIA, Electric Power Monthly Table 5.6.B (year to date). U.S. government
