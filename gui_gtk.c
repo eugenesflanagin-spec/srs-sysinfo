@@ -4414,6 +4414,10 @@ static void load_css(void)
         ".srs-strip button { padding: 2px 10px; }"
         "notebook.srs-nb > header.left tab { padding: 3px 10px; min-height: 0; }"
         ".srs-tool button { min-height: 0; }"
+        /* 2.3.1: the compact sections of the Benchmarks & Stress and Tools pages (not Basic) */
+        ".srs-health-compact { background-color: @theme_base_color; border: 1px solid @borders; border-radius: 6px; padding: 1px 8px; }"
+        ".srs-health-compact flowboxchild { padding: 0; }"
+        ".srs-mini { padding: 0 8px; min-height: 0; font-size: smaller; }"
         /* 2.3.1: tool tabs and tool windows in the new view: small controls, so the results get the height */
         ".srs-compact button { padding: 1px 6px; min-height: 0; min-width: 0; }"
         ".srs-compact entry, .srs-compact spinbutton { min-height: 0; padding-top: 0; padding-bottom: 0; }"
@@ -6105,9 +6109,37 @@ static GtkWidget *build_overview(void)
 
 /* a launcher card on the Benchmarks and Tools pages: opens an existing tool window (nothing starts by itself) */
 /* a launcher row on the Benchmarks and Tools pages: opens an existing tool window (nothing starts by itself) */
+/* 2.3.1: the Benchmarks & Stress and Tools sections are compact (a small title, one short line, a small button)
+   in every lineup but Basic, which keeps the full descriptions for beginners. Set while those pages are built. */
+static int g_launch_compact;
+static GtkWidget *launcher_compact(const char *title, const char *text, const char *btn, const char *target, const char *tip)
+{
+    GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8), *l, *b;
+    char first[200];
+    size_t n = strcspn(text, ".:");   /* the first sentence (or up to a colon) is the short line */
+    snprintf(first, sizeof first, "%.*s", (int)(n < sizeof first - 1 ? n : sizeof first - 1), text);
+    gtk_widget_set_margin_top(row, 1);
+    gtk_widget_set_margin_bottom(row, 1);
+    l = label_cls(title, "srs-val srs-cap", 0);
+    gtk_label_set_ellipsize(GTK_LABEL(l), PANGO_ELLIPSIZE_END);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 22);
+    gtk_box_pack_start(GTK_BOX(row), l, FALSE, FALSE, 0);
+    l = label_cls(first, "dim-label srs-cap", 0);
+    gtk_label_set_ellipsize(GTK_LABEL(l), PANGO_ELLIPSIZE_END);
+    gtk_widget_set_tooltip_text(l, text);
+    gtk_box_pack_start(GTK_BOX(row), l, TRUE, TRUE, 0);
+    b = gtk_button_new_with_mnemonic(btn);
+    gtk_style_context_add_class(gtk_widget_get_style_context(b), "srs-mini");
+    gtk_widget_set_valign(b, GTK_ALIGN_CENTER);
+    gtk_widget_set_tooltip_text(b, tip);
+    g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)target);
+    gtk_box_pack_end(GTK_BOX(row), b, FALSE, FALSE, 0);
+    return row;
+}
 static GtkWidget *launcher(const char *title, const char *text, const char *note, const char *btn, const char *target, const char *tip)
 {
     GtkWidget *row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 16), *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2), *l, *b;
+    if (g_launch_compact) { gtk_widget_destroy(row); gtk_widget_destroy(v); return launcher_compact(title, text, btn, target, tip); }
     gtk_widget_set_margin_top(row, 8);
     gtk_widget_set_margin_bottom(row, 8);
     l = label_cls(title, "srs-val", 0);
@@ -6154,26 +6186,29 @@ static gint item_title_cmp(gconstpointer a, gconstpointer b)
 static GtkWidget *build_cat_page(int cat)
 {
     const catdef *d = &g_cats[cat];
-    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8), *tr, *img, *l, *nb;
-    gtk_widget_set_margin_start(head, 20);
-    gtk_widget_set_margin_end(head, 20);
-    gtk_widget_set_margin_top(head, 16);
-    gtk_widget_set_margin_bottom(head, 12);
+    GtkWidget *vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0), *head, *tr, *img, *l, *nb;
+    int tight;
+    g_launch_compact = (cat == CAT_BENCH || cat == CAT_TOOLS) && strcmp(g_lineup, "Basic") != 0;
+    tight = g_launch_compact;
+    head = gtk_box_new(GTK_ORIENTATION_VERTICAL, tight ? 3 : 8);
+    gtk_widget_set_margin_start(head, tight ? 8 : 20);
+    gtk_widget_set_margin_end(head, tight ? 8 : 20);
+    gtk_widget_set_margin_top(head, tight ? 4 : 16);
+    gtk_widget_set_margin_bottom(head, tight ? 4 : 12);
     tr = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
     img = gtk_image_new_from_icon_name(icon_pick(d->icons), GTK_ICON_SIZE_DND);
     gtk_box_pack_start(GTK_BOX(tr), img, FALSE, FALSE, 0);
     {
         GtkWidget *v = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-        gtk_box_pack_start(GTK_BOX(v), label_cls(d->title, "srs-h1", 0), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(v), label_cls(d->title, tight ? "srs-h2" : "srs-h1", 0), FALSE, FALSE, 0);
         l = label_cls(d->blurb, "dim-label", 0);
         gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
-        gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
+        if (!tight) gtk_box_pack_start(GTK_BOX(v), l, FALSE, FALSE, 0);
+        else { gtk_widget_set_tooltip_text(v, d->blurb); gtk_widget_destroy(l); }
         gtk_box_pack_start(GTK_BOX(tr), v, TRUE, TRUE, 0);
     }
     gtk_box_pack_start(GTK_BOX(head), tr, FALSE, FALSE, 0);
-    if (cat == CAT_BENCH) {
-        /* 2.3.1: no heading and no launchers - every tool is a tab (its controls and live results), so the results get the height */
-    } else if (cat != CAT_TOOLS) {
+    if (cat != CAT_BENCH && cat != CAT_TOOLS) {
         factsui *u = &g_home->facts[cat];
         u->box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
         gtk_box_pack_start(GTK_BOX(head), u->box, FALSE, FALSE, 0);
@@ -6181,12 +6216,66 @@ static GtkWidget *build_cat_page(int cat)
         GtkWidget *fb = gtk_flow_box_new();   /* launcher rows in a framed box */
         gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(fb), GTK_SELECTION_NONE);
         gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(fb), FALSE);   /* each row as tall as its own launchers */
-        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(fb), 1);
+        gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(fb), g_launch_compact ? 2 : 1);   /* compact rows ellipsize: two always fit */
         gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(fb), 2);
-        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), 32);
+        gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(fb), g_launch_compact ? 20 : 32);
         gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(fb), 0);
-        gtk_style_context_add_class(gtk_widget_get_style_context(fb), "srs-health");
-        {   /* MNEMONIC-MENU: tools-page */
+        gtk_style_context_add_class(gtk_widget_get_style_context(fb), g_launch_compact ? "srs-health-compact" : "srs-health");
+        if (cat == CAT_BENCH) {   /* MNEMONIC-MENU: benchmarks-page (one Alt+letter each, also unlike the tab bar's) */
+            grid_add3(fb, launcher("CPU Benchmark", "Dhrystone and Whetstone scores per CPU, in ten modes. Compare before and after a BIOS, kernel or cooling change.",
+                "Busy for a few seconds to a minute, only while you press Run.", "_Benchmark...", "bench", "Open the Benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("CPU IPI Delay", "How long the cores take to hand data to each other (core-to-core latency), as a table and heat map.",
+                "Busy for a few seconds while it measures.", "IPI _Delay...", "ipi", "Open the IPI Delay window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Memory Latency", "How quickly the caches and the RAM answer, by block size, with a graph.",
+                "Busy for a few seconds while it measures.", "Late_ncy...", "lat", "Open the Latency window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Cache & Memory", "How fast the RAM and the L1, L2 and L3 caches read, write and copy, and how long they take to answer.",
+                "Uses every CPU thread and the memory bus for about 20 seconds. Asks before it starts.", "C_ache & Memory...", "cachemem",
+                "Open the Cache & Memory window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Storage", "How fast the drive that holds a folder you choose reads and writes: sequential, 4K random and response time.",
+                "Works on its own temporary test file only; never touches your files. USB drives only when you allow them. Asks before it starts.",
+                "S_torage...", "storagebench", "Open the Storage benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("OS Latency", "How quickly the operating system answers a program: system calls, task switches, "
+                "starting threads and programs, wake-ups, timer lateness (with the CPU scheduler in use), page faults and small-file operations.",
+                "Busy on one or two CPUs for about 6 seconds. Asks before it starts.", "_OS Latency...", "oslatency",
+                "Open the OS Latency window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("CPU Compute", "Floating-point number crunching: matrix multiply, peak multiply-add, FFT, N-body gravity, "
+                "Mandelbrot and a small ray tracer, on one thread and on all threads, with the best vector code the CPU has. Every answer is checked.",
+                "All threads 100 % busy for about 10 seconds (AVX-512 where the CPU has it). Asks before it starts; \"1 thread only\" keeps it light.",
+                "CPU Co_mpute...", "compute", "Open the CPU Compute window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Everyday Work", "The work a PC does all day: compressing files (zlib, zstd, lz4, xz), sorting, checksums, "
+                "searching and checking text, and running a small program, on one thread and on all threads. Every result is checked.",
+                "All threads busy for about half a minute. Uses generated data, never your files. Asks before it starts.",
+                "_Everyday Work...", "work", "Open the Everyday Work window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Network", "On this computer: how fast Linux moves network data between two programs (loopback). "
+                "Optional internet speed test: DNS, connect time, download and upload speed against Cloudflare's public speed test.",
+                "Loopback: a few CPUs for about 20 seconds, nothing leaves the PC. The internet test asks separately and says how much data it uses.",
+                "Networ_k...", "netbench", "Open the Network benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("GPU Benchmark", "How fast the graphics card computes (FP32, FP16, FP64 and whole-number multiply-add), "
+                "how fast its video memory reads, writes and copies, how fast data moves to and from it, and how quickly it answers. "
+                "Uses Vulkan; every result is checked.",
+                "The GPU works at full load for about 15 seconds. Asks before it starts. Needs a Vulkan driver.",
+                "GPU Benc_hmark...", "gpubench", "Open the GPU Benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", "Runs the same GPU work through every compute back end "
+                "you have installed, on the same graphics card, side by side: SRS's own kernel and the vendor's library (hipBLAS, cuBLAS, "
+                "CLBlast), the fastest marked and each as a percentage of Vulkan.",
+                "Full GPU load for about 20 seconds per back end. Asks first. Back ends that are not installed say so.",
+                "GPU Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
+                "A classic single-thread test; a wrong digit points to an unstable overclock.",
+                "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Crypto", "How fast the CPU encrypts (AES-128) and hashes (SHA-256), with and without its built-in crypto instructions.",
+                "Busy for about 8 seconds.", "Cr_ypto...", "crypto", "Open the Crypto benchmark window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Prime Sieve", "Counts the prime numbers up to 10 billion and checks the count. Simple integer and cache work that scales with threads.",
+                "Busy for about a second on all threads.", "Prime Sie_ve...", "prime", "Open the Prime Sieve window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("Stress & Burnin (CPU and GPU)", "Loads the CPUs, the graphics card or both: timed burn and cool cycles "
+                "with a Pass or Fail at the end, or until you press Stop. The built-in GPU Burnin counts every wrong GPU result "
+                "(Vulkan, ROCm / HIP, CUDA or OpenCL) and can run for its own time or in sync with the CPU load; a custom GPU command "
+                "works too. Live clocks, temperatures, power and fan.",
+                "Makes the chosen CPUs and / or the GPU 100 % busy. Asks before it starts; stops at the temperature limits (CPU 90 °C, "
+                "GPU 100 °C by default) or on a GPU driver error. Never changes clocks, voltages or fans.",
+                "Stress & B_urnin...", "stressburn", "Open the Stress & Burnin window. Nothing starts until you press Start and confirm."));
+            /* MNEMONIC-END */
+        } else {   /* MNEMONIC-MENU: tools-page */
             grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
                 "Ctrl+L. Also: double-click a device line on any page.", "Loo_kup...", "idlookup", "Open the Device ID Lookup window"));
             grid_add3(fb, launcher("Find in a system report", "Search every section of a full text report made by SRS Full System Report (srs-sysreport).",
@@ -6204,14 +6293,13 @@ static GtkWidget *build_cat_page(int cat)
             GtkWidget *sc = gtk_scrolled_window_new(NULL, NULL);
             gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sc), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
             gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sc), TRUE);
-            gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(sc), 160);
-            gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(sc), 440);   /* the result tabs below keep most of the page */
+            gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(sc), g_launch_compact ? 60 : 160);
+            gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(sc), g_launch_compact ? 150 : 440);   /* the result tabs below keep most of the page */
             gtk_container_add(GTK_CONTAINER(sc), fb);
             gtk_box_pack_start(GTK_BOX(head), sc, TRUE, TRUE, 0);
         }
     }
-    if (cat == CAT_BENCH) gtk_widget_destroy(head);   /* the header bar already names the page */
-    else gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vb), head, FALSE, FALSE, 0);
 
     nb = tabs_area(cat);
     page_fill(cat);
