@@ -165,6 +165,15 @@ static swin *open_section(const char *id);
 static void open_guide(swin *w);
 static void render(swin *w);
 static void open_tool(wkind k, int sub);
+/* tool tabs of the new main window (2.3.1) */
+static int tool_inline_ok(void);
+static int home_close_guard(GtkWidget *win);
+static int tool_open_tab(wkind k, int sub, int preset);
+static struct swin *bench_running_tab(void);
+static int tool_leave_guard(struct swin *t, const char *where);
+static void item_title(const char *id, char *out, size_t n);
+static void home_go(int cat);
+static struct swin *tab_add_at(int cat, const char *id, int select, int temp, int pos);
 static void tabs_options(GtkWidget *menu);   /* gui_tabs.inc */
 static void lineup_menu(GtkWidget *m);
 static int scan_empty_main(void);
@@ -2141,8 +2150,8 @@ static void build_burn(swin *w, GtkWidget *vb)
     GtkWidget *gline = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     GtkWidget *irow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     int i, ncpu = burn_ncpu(), k;
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 4);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), w->embedded ? 6 : 8);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), w->embedded ? 1 : 4);
     /* row 0: the CPU part */
     w->b_cpuon = gtk_check_button_new_with_mnemonic("C_PU load");
     gtk_widget_set_tooltip_text(w->b_cpuon, "Make the ticked CPUs 100 % busy. Untick it to test only the GPU.");
@@ -3359,6 +3368,7 @@ static void open_tool(wkind k, int sub)
        their starting layout (burn_preset) */
     if (k == W_BENCH && sub == BK_GPUBURN) { k = W_BURN; sub = 2; }
     if (k == W_BURN) { preset = sub; sub = 0; }
+    if (tool_inline_ok() && tool_open_tab(k, k == W_BURN ? 0 : sub, preset)) return;   /* the new main window: its tab */
     w = find_win(k, "", sub);
     if (w) {
         if (preset >= 0) burn_preset(w, preset);
@@ -4193,6 +4203,7 @@ static void build_options(GtkWidget *menu)
 static gboolean on_main_delete(GtkWidget *wid, GdkEvent *ev, gpointer d)
 {
     (void)wid; (void)ev; (void)d;
+    if (home_close_guard(wid)) return TRUE;   /* a tool tab still running: stop it, or keep the window */
     if (g_opt_close_tray && tray_active()) { srs_hide_all(); return TRUE; }
     return FALSE;
 }
@@ -4320,6 +4331,14 @@ static void load_css(void)
         ".srs-strip button { padding: 2px 10px; }"
         "notebook.srs-nb > header.left tab { padding: 3px 10px; min-height: 0; }"
         ".srs-tool button { min-height: 0; }"
+        /* 2.3.1: tool tabs and tool windows in the new view: small controls, so the results get the height */
+        ".srs-compact button { padding: 1px 6px; min-height: 0; min-width: 0; }"
+        ".srs-compact entry, .srs-compact spinbutton { min-height: 0; padding-top: 0; padding-bottom: 0; }"
+        ".srs-compact spinbutton button { padding: 0 4px; }"
+        ".srs-compact combobox button { padding: 0 6px; }"
+        ".srs-compact checkbutton, .srs-compact radiobutton { padding: 0; min-height: 0; }"
+        ".srs-compact expander title { padding: 0; }"
+        ".srs-compact flowboxchild { padding: 0; min-height: 0; }"
         ".srs-main #panel, .srs-main #panel text { font: 9pt Tahoma; }";
     GString *css = g_string_new(NULL);
     if (!c) {
@@ -5369,6 +5388,188 @@ static swin *tab_find(int cat, const char *id, int *index)
     return NULL;
 }
 
+/* ---- tool tabs (2.3.1): on the Benchmarks & Stress page each tool is a tab of its own, its controls and live results
+   in the page itself (Classic View keeps the separate windows). The same builders as the windows (build_burn,
+   build_bench), into the tab's box. "on" = converted; the others still open their window. ---- */
+typedef struct { const char *id; wkind k; int sub, on; } toolitem;
+static const toolitem g_toolitems[] = {
+    { "burnin", W_BURN, 3, 1 },
+};
+static const toolitem *tool_item(const char *id)
+{
+    size_t i;
+    for (i = 0; i < sizeof g_toolitems / sizeof g_toolitems[0]; i++) if (!strcmp(g_toolitems[i].id, id)) return &g_toolitems[i];
+    return NULL;
+}
+static const toolitem *tool_item_of(wkind k, int sub)
+{
+    size_t i;
+    for (i = 0; i < sizeof g_toolitems / sizeof g_toolitems[0]; i++)
+        if (g_toolitems[i].k == k && (k == W_BURN || g_toolitems[i].sub == sub)) return &g_toolitems[i];
+    return NULL;
+}
+/* the old CPU Stress and GPU Burnin items are the Stress & Burnin tab */
+static const char *tool_alias(const char *id) { return !strcmp(id, "cpu-stress") || !strcmp(id, "gpu-burnin") ? "burnin" : id; }
+
+/* a tool that is running a load right now (W_BURN: CPU or GPU part; W_BENCH: a run that Stop can end) */
+static int tool_busy(const swin *t)
+{
+    if (!t) return 0;
+    if (t->kind == W_BURN) return burn_active() || burn_gpu_running();
+    if (t->kind == W_BENCH) return t->running && t->cancelp;
+    return 0;
+}
+static void tool_stop(swin *t)
+{
+    if (t->kind == W_BURN) { burn_stop(); burn_tick(&t->st); burn_saved(t); }
+    else if (t->kind == W_BENCH && t->running && t->cancelp) *t->cancelp = 1;
+}
+/* leaving a tool tab (another tab, another page, closing the window) while it runs: stop it, or stay. 1 = stay */
+static int tool_leave_guard(swin *t, const char *where)
+{
+    GtkWidget *d;
+    char title[200];
+    int r;
+    if (!tool_busy(t)) return 0;
+    item_title(t->id, title, sizeof title);
+    d = gtk_message_dialog_new(GTK_WINDOW(g_home->w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
+                               "%s is still running", title);
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "Stop it and %s, or keep it running and stay here?", where);
+    gtk_dialog_add_buttons(GTK_DIALOG(d), "_Keep running", GTK_RESPONSE_CANCEL, "_Stop it", GTK_RESPONSE_OK, NULL);
+    gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_CANCEL);
+    r = gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    if (r != GTK_RESPONSE_OK) return 1;
+    tool_stop(t);
+    return 0;
+}
+static swin *bench_running_tab(void)
+{
+    GtkNotebook *nb;
+    int i, n;
+    if (!g_home || !g_home->nb[CAT_BENCH]) return NULL;
+    nb = GTK_NOTEBOOK(g_home->nb[CAT_BENCH]);
+    n = gtk_notebook_get_n_pages(nb);
+    for (i = 0; i < n; i++) {
+        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
+        if (tool_busy(x)) return x;
+    }
+    return NULL;
+}
+static gboolean bench_back_idle(gpointer d)
+{
+    swin *t = d;
+    int at;
+    if (g_home && g_ptr_array_find(g_wins, t, NULL) && tab_find(CAT_BENCH, t->id, &at))
+        gtk_notebook_set_current_page(GTK_NOTEBOOK(g_home->nb[CAT_BENCH]), at);
+    return G_SOURCE_REMOVE;
+}
+/* another tab of the Benchmarks & Stress page: the tool being left may not keep loading the PC unseen without a yes */
+static void on_bench_switch(GtkNotebook *nb, GtkWidget *child, guint n, gpointer d)
+{
+    int cur = gtk_notebook_get_current_page(nb);   /* still the old tab (this handler runs before the switch) */
+    swin *old = cur >= 0 ? g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, cur)), "swin") : NULL;
+    (void)child; (void)n; (void)d;
+    if (g_tabs_busy || !old || old == g_object_get_data(G_OBJECT(child), "swin")) return;
+    if (tool_leave_guard(old, "switch tabs")) g_idle_add(bench_back_idle, old);
+}
+
+/* Copy and Guide at the end of the tool's own control row (no extra row: the results get the height) */
+static void tool_tail(swin *t, GtkWidget *row)
+{
+    static const char *const lab[2] = { "Copy", "Guide" }, *const tgt[2] = { "!copy", "!guide" };
+    int i;
+    for (i = 1; i >= 0; i--) {
+        GtkWidget *b = sbtn(lab[i]);
+        g_object_set_data(G_OBJECT(b), "target", (gpointer)tgt[i]);
+        g_signal_connect(b, "clicked", G_CALLBACK(on_btn), t);
+        gtk_widget_set_tooltip_text(b, i ? "Open the user guide at this tool (F1)" : "Copy all of the results text");
+        gtk_box_pack_end(GTK_BOX(row), b, FALSE, FALSE, 0);
+    }
+}
+
+static gboolean burn_autostart(gpointer data);
+static swin *tool_tab_new(int cat, const toolitem *ti, int select, int pos)
+{
+    GtkNotebook *nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    GtkWidget *page;
+    swin *t = g_new0(swin, 1);
+    int i;
+    t->kind = ti->k;
+    t->sub = ti->k == W_BURN ? 0 : ti->sub;
+    t->embedded = 1;
+    t->cat = cat;
+    t->win = g_home->w->win;   /* dialogs open over the main window */
+    snprintf(t->id, sizeof t->id, "%s", ti->id);
+    page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+    gtk_container_set_border_width(GTK_CONTAINER(page), 2);
+    gtk_style_context_add_class(gtk_widget_get_style_context(page), "srs-compact");
+    g_object_set_data(G_OBJECT(page), "swin", t);
+    t->page = page;
+    if (t->kind == W_BURN) build_burn(t, page); else build_bench(t, page);
+    gtk_box_pack_start(GTK_BOX(page), make_view(t), TRUE, TRUE, 0);
+    if (t->kind == W_BURN || (t->kind == W_BENCH && (t->sub == BK_IPI || t->sub == BK_LAT))) {
+        t->plot = gtk_drawing_area_new();
+        gtk_widget_set_size_request(t->plot, -1, t->kind == W_BURN ? 110 : 150);
+        g_signal_connect(t->plot, "draw", G_CALLBACK(draw_plot), t);
+        gtk_box_pack_start(GTK_BOX(page), t->plot, FALSE, FALSE, 0);
+    }
+    tool_tail(t, gtk_widget_get_parent(t->kind == W_BURN ? t->b_start : t->bm_run));
+    g_signal_connect(page, "destroy", G_CALLBACK(on_destroy), t);   /* closing the tab stops its run, like closing the window */
+    g_ptr_array_add(g_wins, t);
+    gtk_widget_show_all(page);
+    i = gtk_notebook_insert_page(nb, page, NULL, pos);
+    tab_label_new(t);
+    gtk_notebook_set_tab_reorderable(nb, page, TRUE);
+    if (t->kind == W_BURN) {
+        burn_preset(t, ti->sub);
+        burn_timer(t);
+        t->timer = g_timeout_add(1000, burn_timer, t);
+        if (getenv("SRS_TEST_BURN_AUTOSTART")) g_timeout_add(1500, burn_autostart, t);
+    } else {
+        srs_out o;
+        gctx g;
+        out_begin(t, &o, &g, NULL);
+        if (t->sub == BK_BENCH) srs_section_render(srs_section_find("benchmark"), &o);
+        else if (!bench_show_last(bk_result(t->sub, -1), &o)) so_note(&o, "Not run yet. Press Run.");
+    }
+    if (select) gtk_notebook_set_current_page(nb, i);
+    return t;
+}
+
+/* a tool opened from the main window, the tray or the menu entries: its tab (preset: Stress & Burnin's starting layout) */
+static int tool_open_tab(wkind k, int sub, int preset)
+{
+    const toolitem *ti = tool_item_of(k, sub);
+    swin *t;
+    if (!g_home || !ti || !ti->on) return 0;
+    home_go(CAT_BENCH);
+    t = tab_add_at(CAT_BENCH, ti->id, 1, 0, -1);
+    if (t && t->kind == W_BURN && preset >= 0) burn_preset(t, preset);
+    gtk_window_present(GTK_WINDOW(g_home->w->win));
+    return t != NULL;
+}
+
+/* open tools as tabs of the new main window, unless a classic window asked (its buttons and menu keep their windows) */
+static int tool_inline_ok(void)
+{
+    guint i;
+    if (!g_home) return 0;
+    for (i = 0; i < g_wins->len; i++) {
+        swin *x = g_ptr_array_index(g_wins, i);
+        if (!x->embedded && x->kind != W_HOME && x->win && gtk_window_is_active(GTK_WINDOW(x->win))) return 0;
+    }
+    return 1;
+}
+
+/* closing (or hiding) the new main window while a tool tab runs: 1 = keep the window */
+static int home_close_guard(GtkWidget *win)
+{
+    swin *t;
+    if (!g_home || win != g_home->w->win || !(t = bench_running_tab())) return 0;
+    return tool_leave_guard(t, g_opt_close_tray && tray_active() ? "hide the window" : "close SRS");
+}
+
 /* temp: opened from the item list, search, Details or a lookup (not kept); pos -1 = at the end */
 static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
 {
@@ -5378,6 +5579,15 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     swin *t;
     char s[600];
     int i;
+    if (cat == CAT_BENCH) {
+        const toolitem *ti;
+        id = tool_alias(id);
+        if ((ti = tool_item(id)) && ti->on) {
+            if ((t = tab_find(cat, id, &i))) { if (select) gtk_notebook_set_current_page(nb, i); return t; }
+            (void)temp;
+            return tool_tab_new(cat, ti, select, pos);
+        }
+    }
     if ((t = tab_find(cat, id, &i))) {
         if (!temp && t->temp) { t->temp = 0; tab_label_new(t); tabs_changed(cat); }   /* kept from now on */
         if (select) gtk_notebook_set_current_page(nb, i);
@@ -5501,12 +5711,17 @@ static void home_go(int cat)
     if (r) gtk_list_box_select_row(GTK_LIST_BOX(g_home->side), r);
 }
 
+static int g_side_back;   /* home_go back to the Benchmarks & Stress page after "Keep running" */
 static void on_side_row(GtkListBox *lb, GtkListBoxRow *row, gpointer d)
 {
     int c;
     (void)lb; (void)d;
     if (!row || !g_home) return;
     c = gtk_list_box_row_get_index(row);
+    if (g_home->cur == CAT_BENCH && c != CAT_BENCH && !g_side_back) {   /* leaving a tool that still runs: stop it, or stay */
+        swin *t = bench_running_tab();
+        if (t && tool_leave_guard(t, "leave this page")) { g_side_back = 1; home_go(CAT_BENCH); g_side_back = 0; return; }
+    }
     g_home->cur = c;
     gtk_stack_set_visible_child_name(GTK_STACK(g_home->stack), g_cats[c].name);
     home_subtitle(NULL);

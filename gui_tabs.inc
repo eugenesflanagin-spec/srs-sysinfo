@@ -562,8 +562,16 @@ static void page_fill(int cat)
     int n;
     if (!g_home || !g_home->nb[cat]) return;
     nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    if (cat == CAT_BENCH) {   /* 2.3.1: every converted tool is a tab here, first and always (Stress & Burnin leads) */
+        size_t k;
+        for (k = 0; k < sizeof g_toolitems / sizeof g_toolitems[0]; k++)
+            if (g_toolitems[k].on && !g_hash_table_contains(seen, g_toolitems[k].id)) {
+                g_hash_table_add(seen, (gpointer)g_toolitems[k].id);
+                g_ptr_array_add(want, g_strdup(g_toolitems[k].id));
+            }
+    }
     for (i = 0; ps->tabs && i < ps->tabs->len; i++) {
-        const char *id = g_ptr_array_index(ps->tabs, i);
+        const char *id = cat == CAT_BENCH ? tool_alias(g_ptr_array_index(ps->tabs, i)) : g_ptr_array_index(ps->tabs, i);
         if (g_hash_table_contains(seen, id) || !srs_section_find(id) || (!g_opt_showhidden && item_hidden(id))) continue;
         g_hash_table_add(seen, (gpointer)id);
         g_ptr_array_add(want, g_strdup(id));
@@ -572,6 +580,7 @@ static void page_fill(int cat)
         GPtrArray *v = page_items(cat);
         for (i = 0; i < v->len; i++) {
             const char *id = ((const srs_item *)g_ptr_array_index(v, i))->id;
+            if (cat == CAT_BENCH) id = tool_alias(id);
             if (g_hash_table_contains(seen, id) || (!g_opt_showhidden && item_hidden(id))) continue;
             g_hash_table_add(seen, (gpointer)id);
             g_ptr_array_add(want, g_strdup(id));
@@ -1541,6 +1550,7 @@ static GtkWidget *tabs_area(int cat)
     g_signal_connect(nb, "page-removed", G_CALLBACK(on_nb_changed), GINT_TO_POINTER(cat));
     g_signal_connect(nb, "page-added", G_CALLBACK(on_nb_added), GINT_TO_POINTER(cat));
     g_signal_connect(nb, "switch-page", G_CALLBACK(on_nb_switch), GINT_TO_POINTER(cat));
+    if (cat == CAT_BENCH) g_signal_connect(nb, "switch-page", G_CALLBACK(on_bench_switch), NULL);
     g_home->pagebox[cat] = vb;
     return vb;
 }

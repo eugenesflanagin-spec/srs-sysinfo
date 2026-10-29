@@ -514,7 +514,7 @@ const srs_item sec_tools[] = {
     { "id-lookup", "tools", "Device ID Lookup", B_LINUX, 0, "hwdata pci.ids / usb.ids", s_id_lookup, 0, "tools" },
     { "find", "tools", "Find", B_LINUX, 0, "~/sysreports newest report", s_find, 0, "tools" },
     { "all-dev", "hardware", "ALL Devices", B_LINUX, 0, "sysfs + hwdata", s_all_dev, 0, "tools" },
-    { "burnin", "tools", "CPU Burnin", B_LINUX, 0, "built-in burner", s_burnin, 2000, "tools" },
+    { "burnin", "tools", "Stress & Burnin", B_LINUX, 0, "built-in burner (CPU) and GPU Burnin", s_burnin, 2000, "tools" },
     { "cpu-stress", "tools", "CPU Stress", B_LINUX, 0, "built-in burner", s_burnin, 2000, "tools" },
     { NULL, NULL, NULL, B_LINUX, 0, NULL, NULL, 0, NULL }
 };
