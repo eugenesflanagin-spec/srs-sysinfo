@@ -73,6 +73,18 @@ int gb_bind_check(int backend, char *detail, size_t dn);
 int gb_rt_bind_check(int cuda, char *detail, size_t dn);     /* gpuburn_rt.c: HIP (0) or CUDA (1) */
 int gb_cl_bind_check(char *detail, size_t dn);             /* gpuburn_cl.c */
 
+/* CUDA as the NVIDIA CUDA toolkit question sees it (gpuburn_rt.c; dlopen only, no runtime start). recheck = 1 looks
+   for libnvrtc again (after an install). Returns libcuda != 0. Always 0 / empty off 64-bit Linux. */
+typedef struct {
+    int libcuda;               /* a libcuda loaded (NVIDIA's or ZLUDA's) */
+    int runtime_ok;            /* ... and has every symbol SRS uses */
+    int zluda;                 /* that libcuda is ZLUDA (CUDA translated to an AMD GPU) */
+    int nvrtc;                 /* the runtime compiler libnvrtc loaded */
+    int nvrtc_major, nvrtc_minor;
+    char cuda_lib[256], nvrtc_lib[256];
+} gb_cuda_state;
+int gb_cuda_probe(gb_cuda_state *st, int recheck);
+
 /* the test mode is on: the caller asked for it (so) or SRS_GPU_SOFTWARE_ONLY=1 is set. Every open() checks this,
    so a test run can never start a real GPU runtime */
 int gb_software_only(int so);

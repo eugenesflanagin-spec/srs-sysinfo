@@ -2,7 +2,13 @@
  * (see gpu_backend.h). One file because the two driver APIs are twins: the same calls with a hip or cu
  * prefix. Everything is opened with dlopen / dlsym at run time (no build dependency):
  *   HIP : libamdhip64 (runtime), libhiprtc (own kernels, compiled at run time), libhipblas (library GEMM)
- *   CUDA: libcuda (driver), libnvrtc (own kernels), libcublas (library GEMM)
+ *   CUDA: libcuda (driver), libnvrtc (own kernels, only as a fallback), libcublas (library GEMM)
+ * CUDA's own kernels come precompiled as PTX text (gpu_kernels_ptx.inc, made by clang from gpu_kernels.h):
+ * cuModuleLoadData takes PTX directly and the driver (or ZLUDA) finishes it for the GPU, so CUDA needs no
+ * runtime compiler. The built-in PTX is always tried first (the same kernels on every PC); NVRTC builds the
+ * same source only when the driver refuses the PTX. HIP has no such portable form: hipModuleLoadData wants
+ * a code object for the exact GPU (gfx1201, gfx1100, ...), one per GPU generation, megabytes each and
+ * changing with every ROCm release, so HIP keeps compiling with hipRTC.
  * If libcuda turns out to be ZLUDA (CUDA calls translated to an AMD GPU), the column says so.
  * Not tested on real hardware by the author: the binding is checked with dlsym only. All calls for one
  * context must come from the thread that opened it. */
@@ -26,6 +32,8 @@
 #include <fcntl.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "gpu_kernels_ptx.inc"
 
 #define MEM_SEED 0x5EED1234u
 #define WATCHDOG_S 5.0
@@ -230,9 +238,53 @@ int gb_rt_bind_check(int cuda, char *detail, size_t dn)
         snprintf(detail, dn, "not installed");
         return -1;
     }
-    snprintf(detail, dn, "%s: all runtime symbols found; compiler %s, GEMM library %s%s", r->libpath, r->have_rtc ? "found" : "missing",
-             r->have_blas ? "found" : "missing", r->zluda ? "; this is ZLUDA" : "");
+    snprintf(detail, dn, "%s: all runtime symbols found; %scompiler %s, GEMM library %s%s", r->libpath, cuda ? "own kernels built in (PTX), " : "",
+             r->have_rtc ? "found" : "missing", r->have_blas ? "found" : "missing", r->zluda ? "; this is ZLUDA" : "");
     return 0;
+}
+
+/* the NVIDIA CUDA toolkit question (cuda_toolkit.c): is libcuda there, is it ZLUDA, is NVRTC there and which version.
+   dlopen / dlsym and nvrtcVersion only (a plain function of the compiler library): never starts a GPU runtime.
+   recheck = 1 looks for libnvrtc again (after an install) when it was missing. */
+int gb_cuda_probe(gb_cuda_state *st, int recheck)
+{
+    rt_api *r = &g_rt[1];
+    memset(st, 0, sizeof *st);
+    pthread_mutex_lock(&g_bind_mu);
+    rt_bind_once(1);
+    if (recheck && r->ok && !r->have_rtc) {
+        const char *const cu_rtc[] = { "libnvrtc.so.13", "libnvrtc.so.12", "libnvrtc.so.11.2", "libnvrtc.so", NULL };
+        const char *envc = getenv("SRS_CUDA_RTC"), *only[2] = { envc, NULL };
+        char save[96];
+        if (r->rtc) { dlclose(r->rtc); r->rtc = NULL; }
+        r->rtc = envc && *envc ? open_one(only, NULL, 0) : open_one(cu_rtc, NULL, 0);
+        if (r->rtc) {
+            snprintf(save, sizeof save, "%.90s", r->miss);
+            r->miss[0] = 0;
+            SYM(r->rtc, RtcCreate, "hiprtcCreateProgram", "nvrtcCreateProgram");
+            SYM(r->rtc, RtcCompile, "hiprtcCompileProgram", "nvrtcCompileProgram");
+            SYM(r->rtc, RtcSize, "hiprtcGetCodeSize", "nvrtcGetPTXSize");
+            SYM(r->rtc, RtcCode, "hiprtcGetCode", "nvrtcGetPTX");
+            SYM(r->rtc, RtcLogSize, "hiprtcGetProgramLogSize", "nvrtcGetProgramLogSize");
+            SYM(r->rtc, RtcLog, "hiprtcGetProgramLog", "nvrtcGetProgramLog");
+            SYM(r->rtc, RtcDestroy, "hiprtcDestroyProgram", "nvrtcDestroyProgram");
+            r->have_rtc = !r->miss[0];
+            snprintf(r->miss, sizeof r->miss, "%.90s", save);
+        }
+    }
+    st->libcuda = r->lib != NULL;
+    st->runtime_ok = r->ok;
+    st->zluda = r->zluda;
+    st->nvrtc = r->ok && r->have_rtc;
+    snprintf(st->cuda_lib, sizeof st->cuda_lib, "%s", r->lib ? r->libpath : "");
+    if (st->nvrtc) {
+        int (*ver)(int *, int *) = (int (*)(int *, int *))dlsym(r->rtc, "nvrtcVersion");
+        Dl_info di;
+        if (ver && ver(&st->nvrtc_major, &st->nvrtc_minor)) st->nvrtc_major = st->nvrtc_minor = 0;
+        if (dladdr((void *)r->RtcCreate, &di) && di.dli_fname) snprintf(st->nvrtc_lib, sizeof st->nvrtc_lib, "%s", di.dli_fname);
+    }
+    pthread_mutex_unlock(&g_bind_mu);
+    return st->libcuda;
 }
 
 /* ---------------------------------------------------------------- listing */
@@ -294,7 +346,9 @@ static int rt_list_x(int cuda, gb_info *out, int max, char *why, size_t wn)
         o->has_lib = r->have_blas;
         o->fp16 = o->fp64 = 1;
         snprintf(o->runtime, sizeof o->runtime, "%s %s (driver %s)%s%s", cuda ? "CUDA" : "HIP", vr, vd,
-                 r->zluda ? ", translated to AMD by ZLUDA" : "", r->have_rtc ? "" : "; no runtime compiler, own kernels unavailable");
+                 r->zluda ? ", translated to AMD by ZLUDA" : "",
+                 cuda ? (r->have_rtc ? "; own kernels built in (PTX), NVRTC as fallback" : "; own kernels built in (PTX), no NVRTC")
+                      : (r->have_rtc ? "" : "; no runtime compiler (libhiprtc), own kernels unavailable"));
     }
     return n < max ? n : max;
 }
@@ -392,12 +446,22 @@ static const char *rt_error(gb_ctx *c) { return c->err; }
 static int build_module(gb_ctx *c, int fp64)
 {
     rt_api *r = c->r;
-    char *src, *code = NULL, *log = NULL;
+    char *src = NULL, *code = NULL, *log = NULL, ptxerr[180] = "";
     void *prog = NULL, *mod = NULL, *f[5] = { NULL, NULL, NULL, NULL, NULL };
     size_t sz = 0, ls = 0;
     int e, rc = GBP_ERROR;
     if (c->mod[fp64]) return GBP_OK;
-    if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (%s) is not installed, so the own kernels cannot be built", r->cuda ? "libnvrtc" : "libhiprtc"); return GBP_UNSUPPORTED; }
+    if (r->cuda) {   /* CUDA: the built-in PTX first; NVRTC only when the driver refuses it */
+        char eb[160];
+        if (!(e = r->ModuleLoadData(&mod, fp64 ? gk_ptx_fp64 : gk_ptx_fp32))) goto loaded;
+        mod = NULL;
+        snprintf(ptxerr, sizeof ptxerr, "%.150s", err_text(r, e, eb, sizeof eb));
+        if (!r->have_rtc) {
+            snprintf(c->err, sizeof c->err, "the CUDA driver refused the built-in kernels (%.50s) and libnvrtc is not installed: "
+                     "see Options > NVIDIA CUDA toolkit", ptxerr);
+            return GBP_UNSUPPORTED;
+        }
+    } else if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (libhiprtc) is not installed, so the own kernels cannot be built"); return GBP_UNSUPPORTED; }
     if (!(src = gk_source(GKD_CUDA_HIP, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
     if ((e = r->RtcCreate(&prog, src, "srs_kernels.cu", 0, NULL, NULL))) { seterr(c, e, "kernel compiler"); goto out; }
     if ((e = r->RtcCompile(prog, 0, NULL))) {
@@ -407,7 +471,12 @@ static int build_module(gb_ctx *c, int fp64)
         goto out;
     }
     if ((e = r->RtcSize(prog, &sz)) || !(code = malloc(sz + 1)) || (e = r->RtcCode(prog, code))) { seterr(c, e, "kernel compiler"); goto out; }
-    if ((e = r->ModuleLoadData(&mod, code))) { seterr(c, e, "loading the kernels"); mod = NULL; goto out; }
+    if ((e = r->ModuleLoadData(&mod, code))) {
+        char what[220];
+        snprintf(what, sizeof what, "%s%s%s", ptxerr[0] ? "loading the kernels (the built-in ones were refused too: " : "loading the kernels", ptxerr, ptxerr[0] ? ")" : "");
+        seterr(c, e, what); mod = NULL; goto out;
+    }
+loaded:
     /* all five kernels or none: a half-loaded module must never be remembered as built (a NULL function crashes the driver) */
     if ((e = r->ModuleGetFunction(&f[0], mod, "gemm_r")) || (e = r->ModuleGetFunction(&f[1], mod, "fma_r")) ||
         (e = r->ModuleGetFunction(&f[2], mod, "copy_u4")) || (e = r->ModuleGetFunction(&f[3], mod, "cmp_u32")) ||
@@ -417,6 +486,10 @@ static int build_module(gb_ctx *c, int fp64)
     c->fn_gemm[fp64] = f[0]; c->fn_fma[fp64] = f[1]; c->fn_copy = f[2]; c->fn_cmp = f[3]; c->fn_tick = f[4];
     rc = GBP_OK;
 out:
+    if (rc && ptxerr[0] && !strstr(c->err, "built-in")) {   /* say that the built-in kernels were tried first */
+        size_t l = strlen(c->err);
+        snprintf(c->err + l, sizeof c->err - l, " (after the built-in kernels were refused: %.60s)", ptxerr);
+    }
     if (mod) r->ModuleUnload(mod);
     if (prog) r->RtcDestroy(&prog);
     free(src); free(code); free(log);
@@ -545,8 +618,9 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through the GEMM library only"); rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB && !r->have_blas) { snprintf(c->err, sizeof c->err, "%s is not installed", r->cuda ? "cuBLAS" : "hipBLAS"); rc = GBP_UNSUPPORTED; break; }
-        /* the error check (cmp_u32) is one of our own kernels, so the library variant needs the module too */
-        if (variant == GV_LIB && !r->have_rtc) {
+        /* the error check (cmp_u32) is one of our own kernels, so the library variant needs the module too
+           (CUDA has it built in; HIP has to compile it) */
+        if (variant == GV_LIB && !r->cuda && !r->have_rtc) {
             snprintf(c->err, sizeof c->err, "%s needs the runtime compiler (%s) for the error check, and it is not installed", r->cuda ? "cuBLAS" : "hipBLAS", r->cuda ? "libnvrtc" : "libhiprtc");
             rc = GBP_UNSUPPORTED; break;
         }
@@ -743,6 +817,7 @@ const gb_ops gb_cuda = { GB_CUDA, cuda_available, cuda_list, cuda_open, rt_close
 
 #else   /* not 64-bit Linux */
 int gb_rt_bind_check(int cuda, char *d, size_t n) { (void)cuda; snprintf(d, n, "64-bit Linux only"); return -1; }
+int gb_cuda_probe(gb_cuda_state *st, int recheck) { (void)recheck; memset(st, 0, sizeof *st); return 0; }
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "64-bit Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "64-bit Linux only"); return -1; }
 const gb_ops gb_hip = { GB_HIP, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL };

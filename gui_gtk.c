@@ -28,6 +28,7 @@
 #include "power.h"
 #include "tblsort.h"
 #include "gui_startup.h"
+#include "cuda_toolkit.h"
 
 #include <dlfcn.h>
 #include <signal.h>
@@ -36,6 +37,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -2223,6 +2225,7 @@ static void on_bench_stop(GtkWidget *x, gpointer data)
     if (w->running && w->cancelp) { *w->cancelp = 1; gtk_label_set_text(GTK_LABEL(w->bm_status), "Stopping..."); }
 }
 
+static void ctk_maybe_ask(GtkWindow *parent, int force);   /* the NVIDIA CUDA toolkit question (below) */
 static void on_bench_run(GtkWidget *x, gpointer data)
 {
     swin *w = data;
@@ -2433,6 +2436,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
                                                               : "Not started: tick at least one back end that is installed");
             return;
         }
+        if (mask >> GB_CUDA & 1) ctk_maybe_ask(GTK_WINDOW(w->win), 0);   /* once: the optional NVIDIA CUDA toolkit */
         n = gpu_list(dv, GPU_MAXDEV, why, sizeof why);   /* the Vulkan list only: no HIP / CUDA / OpenCL runtime before Yes */
         if (n > 0) {
             if (dev >= n) dev = -1;
@@ -2474,6 +2478,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
             return;
         }
+        if (back == GB_CUDA) ctk_maybe_ask(GTK_WINDOW(w->win), 0);   /* once: the optional NVIDIA CUDA toolkit */
         if (dev >= 0) {   /* a GPU picked from the (Vulkan) list */
             if (back < 0) back = GB_VULKAN;   /* Auto + a picked GPU: the list's own back end */
             if (back != GB_VULKAN) {   /* HIP / CUDA / OpenCL find the same card by its PCI address after Yes */
@@ -3607,6 +3612,262 @@ static void on_interval(GtkCheckMenuItem *mi, gpointer d)
     }
 }
 
+/* ======================================================================
+ * the optional NVIDIA CUDA toolkit (cuda_toolkit.c): the question before the first CUDA run, the Options entry
+ * and the install. Nothing is installed without two looks at the exact command (three with ZLUDA), never while a
+ * benchmark or burn-in runs, and never as root without the user's click (the password prompt is the system's).
+ * ====================================================================== */
+static int g_ctk_not_now;   /* "Not now" this session */
+
+static GtkWidget *ctk_label(const char *text, int warn)
+{
+    GtkWidget *l = gtk_label_new(text);
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 78);
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_label_set_selectable(GTK_LABEL(l), TRUE);
+    gtk_widget_set_can_focus(l, FALSE);
+    if (warn) gtk_style_context_add_class(gtk_widget_get_style_context(l), "srs-bad");
+    return l;
+}
+
+static void ctk_msg(GtkWindow *parent, GtkMessageType t, const char *title, const char *body)
+{
+    GtkWidget *d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, t, GTK_BUTTONS_OK, "%s", title);
+    gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit");
+    if (body) gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", body);
+    gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+}
+
+/* the status file the terminal writes when the package manager has finished */
+typedef struct { GtkWidget *dlg; char file[1100]; int status, have; GPid pid; } ctk_wait;
+static gboolean ctk_poll(gpointer data)
+{
+    ctk_wait *w = data;
+    FILE *f;
+    if (w->have) return G_SOURCE_REMOVE;
+    if ((f = fopen(w->file, "r"))) {
+        int v;
+        if (fscanf(f, "%d", &v) == 1) { w->status = v; w->have = 1; }
+        fclose(f);
+        if (w->have) { gtk_dialog_response(GTK_DIALOG(w->dlg), GTK_RESPONSE_OK); return G_SOURCE_REMOVE; }
+    }
+    return G_SOURCE_CONTINUE;
+}
+static void ctk_child_done(GPid pid, gint st, gpointer data)
+{
+    ctk_wait *w = data;
+    g_spawn_close_pid(pid);
+    if (w->have) return;
+    w->status = WIFEXITED(st) ? WEXITSTATUS(st) : 128;
+    w->have = 1;
+    if (w->dlg) gtk_dialog_response(GTK_DIALOG(w->dlg), GTK_RESPONSE_OK);
+}
+
+/* run the plan: in a terminal window (the user sees and answers the package manager), else pkexec. Returns the exit status,
+   -1 = could not start, -2 = the user stopped waiting */
+static int ctk_run(GtkWindow *parent, const ctk_plan *pl, const char *term)
+{
+    static ctk_wait w;   /* the child watch may outlive this call if the user stops waiting */
+    static int busy;     /* ... so a second install waits until the first pkexec has ended */
+    char script[1800], *dir;
+    const char *argv[16];
+    GError *err = NULL;
+    guint timer = 0;
+    int resp;
+    if (busy && !w.have) return -3;
+    busy = 1;
+    memset(&w, 0, sizeof w);
+    dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
+    g_mkdir_with_parents(dir, 0700);
+    snprintf(w.file, sizeof w.file, "%s/cuda-install-%ld-%ld.status", dir, (long)getpid(), (long)time(NULL));
+    g_free(dir);
+    unlink(w.file);
+    if (term) {
+        ctk_terminal_script(pl, w.file, script, sizeof script);
+        if (!ctk_terminal_argv(term, script, argv, 16)) return -1;
+        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &err)) { g_clear_error(&err); return -1; }
+    } else {
+        int n = 0, k;
+        argv[n++] = "pkexec";
+        for (k = 0; k < pl->argc && n < 14; k++) argv[n++] = pl->argv[k];
+        if (pl->noninteractive[0]) argv[n++] = pl->noninteractive;
+        argv[n] = NULL;
+        if (!g_spawn_async(NULL, (char **)argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD, NULL, NULL, &w.pid, &err)) { g_clear_error(&err); return -1; }
+        g_child_watch_add(w.pid, ctk_child_done, &w);
+    }
+    w.dlg = gtk_dialog_new_with_buttons("NVIDIA CUDA toolkit - installing", parent, GTK_DIALOG_MODAL, "_Stop waiting", GTK_RESPONSE_CANCEL, NULL);
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(w.dlg))),
+                       ctk_label(term ? "The install runs in the terminal window that just opened. Type your password there and answer the "
+                                        "package manager's questions (it may ask you to confirm). SRS shows the result when it has finished."
+                                      : "The install runs in the background: type your password when the system asks for it. "
+                                        "SRS shows the result when it has finished.", 0), TRUE, TRUE, 12);
+    gtk_widget_show_all(w.dlg);
+    if (term) timer = g_timeout_add(1000, ctk_poll, &w);
+    resp = w.have ? GTK_RESPONSE_OK : gtk_dialog_run(GTK_DIALOG(w.dlg));
+    if (timer && !w.have) g_source_remove(timer);
+    gtk_widget_destroy(w.dlg);
+    w.dlg = NULL;
+    if (resp == GTK_RESPONSE_OK && term) ctk_poll(&w);
+    unlink(w.file);
+    return w.have ? w.status : -2;
+}
+
+/* Install... : every check, the command shown, a yes (two with ZLUDA), then the run and the result */
+static void ctk_install(GtkWindow *parent)
+{
+    ctk_state st;
+    ctk_plan pl;
+    char why[700], term[64], body[2400], res[900];
+    const char *t;
+    GtkWidget *d;
+    int ok, rc;
+    if (g_bench_busy || burn_active()) {
+        ctk_msg(parent, GTK_MESSAGE_WARNING, "Not now: a benchmark or burn-in is running.",
+                "Let it finish (or stop it), then install the toolkit. A package install while the GPU is under test can change the results or the libraries in use.");
+        return;
+    }
+    ctk_detect(&st, 1);
+    ctk_plan_install(&pl);
+    if (st.cu.nvrtc) { ctk_msg(parent, GTK_MESSAGE_INFO, "The runtime compiler (NVRTC) is already installed.", NULL); return; }
+    if (pl.manual) { ctk_msg(parent, GTK_MESSAGE_INFO, "Install it by hand on this Linux", pl.manual_text); return; }
+    t = ctk_find_terminal(term, sizeof term);
+    if (st.cu.zluda && !t) {
+        ctk_msg(parent, GTK_MESSAGE_WARNING, "Not started: no terminal window program was found.",
+                "With ZLUDA the install has to run where you can see and refuse the package manager's questions (for example a request to remove ZLUDA). Run it yourself in a terminal if you really want it.");
+        return;
+    }
+    if (ctk_precheck(&pl, t != NULL, why, sizeof why)) { ctk_msg(parent, GTK_MESSAGE_WARNING, "The install was not started.", why); return; }
+    snprintf(body, sizeof body, "%s%sSRS will %s and run, as administrator:\n\n    %s %s%s\n\n%s.\nThe system asks for your password%s. %s",
+             st.cu.zluda ? ctk_zluda_warning() : "", st.cu.zluda ? "\n\n" : "",
+             t ? "open a terminal window" : "ask for the password (pkexec)", t ? (ctk_root_tool() ? ctk_root_tool() : "sudo") : "pkexec", pl.cmd,
+             t ? "" : (pl.noninteractive[0] ? " " : ""), pl.size, t ? " and the package manager may ask questions: answer them in that window" : "",
+             "SRS cannot undo the install; your package manager can remove it later.");
+    if (!t && pl.noninteractive[0]) {
+        size_t l = strlen(body);
+        snprintf(body + l, sizeof body - l, "\n(No terminal was found, so it runs without questions: %s.)", pl.noninteractive);
+    }
+    d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, st.cu.zluda ? GTK_MESSAGE_WARNING : GTK_MESSAGE_QUESTION, GTK_BUTTONS_NONE,
+                               st.cu.zluda ? "Install the NVIDIA CUDA toolkit anyway? (not recommended with ZLUDA)" : "Install the NVIDIA CUDA runtime compiler?");
+    gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit");
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", body);
+    gtk_dialog_add_buttons(GTK_DIALOG(d), "_Cancel", GTK_RESPONSE_CANCEL, st.cu.zluda ? "Install _anyway" : "_Install", GTK_RESPONSE_YES, NULL);
+    gtk_dialog_set_default_response(GTK_DIALOG(d), st.cu.zluda ? GTK_RESPONSE_CANCEL : GTK_RESPONSE_YES);
+    ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+    gtk_widget_destroy(d);
+    if (ok && st.cu.zluda) {   /* the extra confirmation */
+        d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE, "Really install it? ZLUDA may stop working or be removed.");
+        gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "SRS's built-in CUDA tests already work with ZLUDA. If the package manager offers to remove ZLUDA (zluda) or nvidia-utils conflicts, answer no in the terminal.");
+        gtk_dialog_add_buttons(GTK_DIALOG(d), "_Cancel", GTK_RESPONSE_CANCEL, "_Yes, install", GTK_RESPONSE_YES, NULL);
+        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_CANCEL);
+        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        gtk_widget_destroy(d);
+    }
+    if (!ok) { ctk_msg(parent, GTK_MESSAGE_INFO, "Nothing was installed.", ctk_later_hint()); return; }
+    if (g_bench_busy || burn_active()) { ctk_msg(parent, GTK_MESSAGE_WARNING, "Not started: a benchmark or burn-in started meanwhile.", NULL); return; }
+    if (ctk_dry_run()) {
+        snprintf(res, sizeof res, "SRS_CTK_DRY_RUN is set, so nothing ran. It would run: %s %s%s%s", t ? (ctk_root_tool() ? ctk_root_tool() : "sudo") : "pkexec", pl.cmd,
+                 t ? " in " : "", t ? t : "");
+        ctk_msg(parent, GTK_MESSAGE_INFO, "Dry run", res);
+        return;
+    }
+    rc = ctk_run(parent, &pl, t);
+    ctk_detect(&st, 1);
+    ctk_result_text(&pl, rc, &st, res, sizeof res);
+    ctk_msg(parent, rc == 0 && st.cu.nvrtc ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING, rc == 0 && st.cu.nvrtc ? "Installed" : "Not installed", res);
+}
+
+/* the dialog body both windows share: what it is, how things stand, the ZLUDA warning */
+static void ctk_fill(GtkWidget *box, const ctk_state *st, const ctk_plan *pl)
+{
+    char b[2000];
+    gtk_box_pack_start(GTK_BOX(box), ctk_label(ctk_explain(), 0), FALSE, FALSE, 4);
+    ctk_status_text(st, pl, b, sizeof b);
+    gtk_box_pack_start(GTK_BOX(box), ctk_label(b, 0), FALSE, FALSE, 4);
+    if (pl->manual) gtk_box_pack_start(GTK_BOX(box), ctk_label(pl->manual_text, 0), FALSE, FALSE, 4);
+    if (st->cu.zluda) gtk_box_pack_start(GTK_BOX(box), ctk_label(ctk_zluda_warning(), 1), FALSE, FALSE, 4);
+}
+
+/* Options > NVIDIA CUDA toolkit for GPU tests... */
+static void ctk_dialog(GtkWindow *parent)
+{
+    for (;;) {
+        ctk_state st;
+        ctk_plan pl;
+        GtkWidget *d, *box, *ask;
+        int r;
+        ctk_detect(&st, 1);
+        ctk_plan_install(&pl);
+        d = gtk_dialog_new();
+        gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit - SRS");
+        if (parent) gtk_window_set_transient_for(GTK_WINDOW(d), parent);
+        gtk_window_set_modal(GTK_WINDOW(d), TRUE);
+        box = gtk_dialog_get_content_area(GTK_DIALOG(d));
+        gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+        ctk_fill(box, &st, &pl);
+        gtk_box_pack_start(GTK_BOX(box), ctk_label(ctk_ask_get() ? "SRS asks about it once, the first time a CUDA test starts."
+                                                                 : "SRS does not ask about it (you chose \"Don't ask again\").", 0), FALSE, FALSE, 4);
+        /* MNEMONIC-MENU: cuda-toolkit-dialog */
+        gtk_widget_set_sensitive(gtk_dialog_add_button(GTK_DIALOG(d), st.cu.zluda ? "_Install anyway..." : "_Install...", 1), !st.cu.nvrtc && !pl.manual);
+        ask = gtk_dialog_add_button(GTK_DIALOG(d), "_Ask me again", 2);
+        gtk_dialog_add_button(GTK_DIALOG(d), "_Close", GTK_RESPONSE_CLOSE);
+        /* MNEMONIC-END */
+        gtk_widget_set_sensitive(ask, !ctk_ask_get());
+        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_CLOSE);
+        gtk_widget_show_all(d);
+        r = gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+        if (r == 1) { ctk_install(parent); continue; }   /* back to the (refreshed) status */
+        if (r == 2) { ctk_ask_set(1); g_ctk_not_now = 0; continue; }
+        break;
+    }
+}
+
+/* before a GPU Burnin / GPU Compute comparison run that uses CUDA: ask once, when it matters */
+static void ctk_maybe_ask(GtkWindow *parent, int force)
+{
+    ctk_state st;
+    ctk_plan pl;
+    GtkWidget *d, *box;
+    int r;
+    if (!force && (g_ctk_not_now || !ctk_ask_get())) return;
+    ctk_detect(&st, 0);
+    if (!st.relevant) return;
+    ctk_plan_install(&pl);
+    d = gtk_dialog_new();
+    gtk_window_set_title(GTK_WINDOW(d), "NVIDIA CUDA toolkit - SRS");
+    if (parent) gtk_window_set_transient_for(GTK_WINDOW(d), parent);
+    gtk_window_set_modal(GTK_WINDOW(d), TRUE);
+    box = gtk_dialog_get_content_area(GTK_DIALOG(d));
+    gtk_container_set_border_width(GTK_CONTAINER(box), 12);
+    {
+        GtkWidget *h = gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(h), st.cu.zluda ? "<b>The NVIDIA CUDA toolkit is not installed (and not recommended on this computer).</b>"
+                                                       : "<b>The NVIDIA CUDA toolkit is not installed. Install it?</b>");
+        gtk_label_set_xalign(GTK_LABEL(h), 0);
+        gtk_box_pack_start(GTK_BOX(box), h, FALSE, FALSE, 4);
+    }
+    ctk_fill(box, &st, &pl);
+    gtk_box_pack_start(GTK_BOX(box), ctk_label("Without it the CUDA tests run from SRS's built-in kernels. This question comes once; " CTK_MENU_PATH " has it any time.", 0), FALSE, FALSE, 4);
+    /* MNEMONIC-MENU: cuda-toolkit-ask */
+    gtk_widget_set_sensitive(gtk_dialog_add_button(GTK_DIALOG(d), st.cu.zluda ? "_Install anyway..." : "_Install...", 1), !pl.manual);
+    gtk_dialog_add_button(GTK_DIALOG(d), "_Not now", 2);
+    gtk_dialog_add_button(GTK_DIALOG(d), "_Don't ask again", 3);
+    /* MNEMONIC-END */
+    gtk_dialog_set_default_response(GTK_DIALOG(d), 2);
+    gtk_widget_show_all(d);
+    r = gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    if (r == 1) { ctk_install(parent); return; }
+    if (r == 3) ctk_ask_set(0);
+    g_ctk_not_now = 1;   /* Not now, Don't ask again or the window closed: not again this session */
+    ctk_msg(parent, GTK_MESSAGE_INFO, "Continuing without the NVIDIA CUDA toolkit.", ctk_later_hint());
+}
+static void on_ctk_menu(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; ctk_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL); }
+static gboolean ctk_open_idle(gpointer d) { if (GPOINTER_TO_INT(d)) ctk_maybe_ask(g_main ? GTK_WINDOW(g_main->win) : NULL, 0); else on_ctk_menu(NULL, NULL); return G_SOURCE_REMOVE; }
+
 static void build_options(GtkWidget *menu)
 {
     /* MNEMONIC-MENU: options (tabs_options in gui_tabs.inc adds to the same menu) */
@@ -3673,6 +3934,13 @@ static void build_options(GtkWidget *menu)
     if (!have) {
         GtkWidget *it = gtk_menu_item_new_with_label("(tray needs libayatana-appindicator)");
         gtk_widget_set_sensitive(it, FALSE);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+    {
+        GtkWidget *it = gtk_menu_item_new_with_mnemonic("NVIDIA CUDA toolkit for _GPU tests...");
+        gtk_widget_set_tooltip_text(it, "The optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): what it is for, whether it is "
+                                        "installed, install it, or let SRS ask about it again");
+        g_signal_connect(it, "activate", G_CALLBACK(on_ctk_menu), NULL);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
     {
@@ -5957,6 +6225,8 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "idlookup")) open_tool(W_IDLOOKUP, 0);
             else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
             else if (!strcmp(t, "menu")) popup_menu(g_main->win);
+            else if (!strcmp(t, "cudatoolkit")) g_idle_add(ctk_open_idle, GINT_TO_POINTER(0));   /* Options > NVIDIA CUDA toolkit */
+            else if (!strcmp(t, "cudaask")) g_idle_add(ctk_open_idle, GINT_TO_POINTER(1));       /* the question before a CUDA run */
             else if (!strcmp(t, "power-cost") && g_home) home_go(CAT_POWER);
             else open_item(t);
         }

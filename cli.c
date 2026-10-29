@@ -17,7 +17,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -102,12 +102,17 @@ static const char *HELP =
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
     "        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once\n"
+    "  cuda-toolkit [--check|--install|--ask-again|--never-ask]\n"
+    "        the optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): whether it is installed, what it\n"
+    "        is for, the install command for this distribution; --install runs that command after you type\n"
+    "        yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built\n"
+    "        in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it\n"
     "  prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads);\n"
     "        asks first, --yes starts at once\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & cost page; --power-recorder record its history with no window\n"
@@ -309,6 +314,7 @@ static int cmd_devices(opts *o)
 
 #if defined(__linux__) && defined(SRS_HAVE_SECTIONS)
 #include "burner.h"
+static void cuda_toolkit_hint(void);   /* the NVIDIA CUDA toolkit note after a CUDA run (cuda-toolkit command, below) */
 #include <signal.h>
 #include <unistd.h>
 
@@ -1096,6 +1102,7 @@ static int cmd_gpu_burn(int argc, char **argv)
     if (c.cb) fputc('\n', stderr);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);
     else if (rc >= 0 && why[0]) fprintf(stderr, "gpu-burn: note - %s\n", why);   /* All GPUs: a card that could not start */
+    if (c.backend == GB_CUDA) cuda_toolkit_hint();
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
@@ -1170,6 +1177,7 @@ static int cmd_gpu_compare(int argc, char **argv)
     rc = bench_gpucompare(&c, NULL, &o, &g_gpu_cancel, why, sizeof why);
     signal(SIGINT, SIG_DFL);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-compare: %s%s\n", rc == -1 ? "not started - " : "", why);
+    if (strstr(list, gb_name[GB_CUDA])) cuda_toolkit_hint();
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 
@@ -1252,6 +1260,109 @@ static int cmd_bench2(int argc, char **argv)
         return rc == 0 ? 0 : 1;
     }
 }
+
+#include "cuda_toolkit.h"
+#include <sys/wait.h>
+#include <errno.h>
+
+/* after a run that used CUDA: when the NVIDIA runtime compiler is missing and could matter, say once how to get it.
+   The CLI never installs anything without the cuda-toolkit command and a typed yes. */
+static void cuda_toolkit_hint(void)
+{
+    ctk_state st;
+    ctk_plan pl;
+    if (!ctk_ask_get()) return;   /* "Don't ask again" (GUI or cuda-toolkit --never-ask) also silences this note */
+    ctk_detect(&st, 0);
+    if (!st.relevant) return;
+    ctk_plan_install(&pl);
+    fprintf(stderr, "note: the NVIDIA CUDA runtime compiler (NVRTC) is not installed. SRS used its built-in CUDA tests, so it is "
+                    "optional%s.\n      %s\n", st.cu.zluda ? " (and NOT recommended with ZLUDA: it can break ZLUDA)" : "", ctk_later_hint());
+    if (!pl.manual) fprintf(stderr, "      Command: %s %s\n", ctk_root_tool() ? ctk_root_tool() : "sudo", pl.cmd);
+}
+
+static int yes_typed(const char *prompt)
+{
+    char ans[32];
+    fprintf(stderr, "%s", prompt);
+    fflush(stderr);
+    if (!fgets(ans, sizeof ans, stdin)) return 0;
+    ans[strcspn(ans, "\r\n")] = 0;
+    return !strcmp(ans, "yes") || !strcmp(ans, "YES") || !strcmp(ans, "Yes");
+}
+
+/* cuda-toolkit [--check|--install|--ask-again|--never-ask] */
+static int cmd_cuda_toolkit(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]\n"
+        "  --check       (default) what the toolkit is for, whether it is installed, the install command\n"
+        "  --install     run the install command after you type yes (in a terminal only; asks twice with ZLUDA)\n"
+        "  --ask-again   let the GUI ask about it again (the first time a CUDA test starts)\n"
+        "  --never-ask   the GUI never asks (the same as its \"Don't ask again\" button)\n"
+        "Nothing is installed without --install and a typed yes. SRS_CTK_DRY_RUN=1 shows the command and runs nothing.";
+    const char *mode = "--check";
+    ctk_state st;
+    ctk_plan pl;
+    char b[2000], why[600], ini[1100];
+    int i, status = -1;
+    for (i = 2; i < argc; i++) {
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) { puts(usage); return 0; }
+        if (!strcmp(argv[i], "--check") || !strcmp(argv[i], "--install") || !strcmp(argv[i], "--ask-again") || !strcmp(argv[i], "--never-ask")) mode = argv[i];
+        else { fprintf(stderr, "cuda-toolkit: unknown option '%s'\n%s\n", argv[i], usage); return 2; }
+    }
+    if (!strcmp(mode, "--ask-again") || !strcmp(mode, "--never-ask")) {
+        int on = !strcmp(mode, "--ask-again");
+        if (ctk_ask_set(on)) { fprintf(stderr, "cuda-toolkit: could not write %s\n", ctk_ini_path(ini, sizeof ini)); return 1; }
+        printf("The GUI %s about the NVIDIA CUDA toolkit (%s).\n", on ? "will ask again" : "will not ask", ctk_ini_path(ini, sizeof ini));
+        return 0;
+    }
+    ctk_detect(&st, 0);
+    ctk_plan_install(&pl);
+    ctk_status_text(&st, &pl, b, sizeof b);
+    printf("NVIDIA CUDA toolkit (optional)\n\n%s\n\n%s", ctk_explain(), b);
+    if (pl.manual) printf("How to install: %s\n", pl.manual_text);
+    else if (pl.manual_text[0]) printf("Note: %s\n", pl.manual_text);
+    if (st.cu.zluda) printf("\nWARNING: %s\n", ctk_zluda_warning());
+    printf("The GUI %s about it the first time a CUDA test starts.\n", ctk_ask_get() ? "asks" : "does not ask (\"Don't ask again\"; --ask-again turns it back on)");
+    if (strcmp(mode, "--install")) {
+        if (!st.cu.nvrtc) printf("%s\n", ctk_later_hint());
+        return 0;
+    }
+    if (st.cu.nvrtc) { printf("\nThe runtime compiler is already installed: nothing to do.\n"); return 0; }
+    if (pl.manual) { fprintf(stderr, "\ncuda-toolkit: SRS has no install command for %s; follow the steps above.\n", pl.distro); return 1; }
+    if (ctk_precheck(&pl, 1, why, sizeof why)) { fprintf(stderr, "\ncuda-toolkit: not started - %s\n", why); return 1; }
+    if (!isatty(0) || !isatty(2)) {
+        fprintf(stderr, "\ncuda-toolkit: not started - --install asks for a typed yes and runs only in a terminal.\n"
+                        "              Or run it yourself: %s %s\n", ctk_root_tool(), pl.cmd);
+        return 2;
+    }
+    fprintf(stderr, "\nThis runs, as administrator: %s %s\n(%s)\n", ctk_root_tool(), pl.cmd, pl.size);
+    if (!yes_typed("Type yes to install it, anything else to cancel: ")) { fprintf(stderr, "cuda-toolkit: cancelled, nothing installed. %s\n", ctk_later_hint()); return 2; }
+    if (st.cu.zluda && !yes_typed("ZLUDA is in use and may stop working or be removed. Type yes AGAIN to install anyway: ")) {
+        fprintf(stderr, "cuda-toolkit: cancelled, nothing installed (recommended with ZLUDA).\n");
+        return 2;
+    }
+    if (ctk_dry_run()) { printf("dry run (SRS_CTK_DRY_RUN): would run: %s %s\n", ctk_root_tool(), pl.cmd); return 0; }
+    {
+        const char *av[12];
+        int n = 0, k;
+        pid_t p;
+        av[n++] = ctk_root_tool();
+        for (k = 0; k < pl.argc && n < 11; k++) av[n++] = pl.argv[k];
+        av[n] = NULL;
+        fflush(stdout);
+        if ((p = fork()) == 0) { execvp(av[0], (char *const *)av); _exit(127); }
+        if (p > 0) {
+            int ws = 0;
+            while (waitpid(p, &ws, 0) < 0 && errno == EINTR) {}
+            status = WIFEXITED(ws) ? WEXITSTATUS(ws) : 128 + (WIFSIGNALED(ws) ? WTERMSIG(ws) : 0);
+        }
+    }
+    ctk_detect(&st, 1);
+    ctk_result_text(&pl, status, &st, b, sizeof b);
+    printf("\n%s\n", b);
+    return status == 0 && st.cu.nvrtc ? 0 : 1;
+}
 #endif
 
 int srs_cli_main(int argc, char **argv)
@@ -1306,6 +1417,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "gpu")) return cmd_gpu(argc, argv);
     if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
     if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
+    if (!strcmp(cmd, "cuda-toolkit")) return cmd_cuda_toolkit(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

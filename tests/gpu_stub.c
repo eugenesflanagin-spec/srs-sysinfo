@@ -1,6 +1,7 @@
 /* tests/gpu_stub.c - a FAKE GPU runtime for tests/gpu-stub-test.sh. It stands in for libcuda / libamdhip64, libnvrtc /
- * libhiprtc and libcublas / libhipblas all at once (one file, every symbol), so the HIP and CUDA back ends of GPU Burnin and
- * the GPU Compute comparison (gpuburn_rt.c) can be driven end to end WITHOUT a GPU, a driver or a compiler.
+ * libhiprtc, libcublas / libhipblas, libOpenCL and libclblast all at once (one file, every symbol), so the HIP, CUDA and
+ * OpenCL back ends of GPU Burnin and the GPU Compute comparison (gpuburn_rt.c, gpuburn_cl.c) can be driven end to end
+ * WITHOUT a GPU, a driver or a compiler.
  *
  * "Device memory" is ordinary host memory. The kernels the back end asks for (gemm_r, fma_r, copy_u4, cmp_u32, tick) are
  * carried out on the host, so every result checks out and the run ends with exit 0. What matters for the test:
@@ -8,8 +9,14 @@
  *   - every launch and library call is counted; the totals go to the file named by STUB_LOG when the program ends.
  * Time is fake and constant (STUB_MS, default 30 ms per timed piece), so the run lengths do not depend on the PC.
  *
+ * cuModuleLoadData also takes PTX text (SRS's built-in kernels): it checks that all five .entry names are there, counts it
+ * as "ptxload" and remembers whether it was the FP64 module.
+ *
  * Switches (environment): STUB_RTC_FAIL=1   the "compiler" rejects the kernels (the own kernels cannot be built)
+ *                         STUB_PTX_FAIL=1   cuModuleLoadData refuses PTX text (error 218, CUDA_ERROR_INVALID_PTX)
  *                         STUB_NO_FN=name   cuModuleGetFunction says OK but returns a NULL function for that kernel
+ *                         STUB_CL_FP64=1    the fake OpenCL device has FP64 (default: it has none, like Rusticl often)
+ *                         STUB_CL_BUILD_FAIL=1  clBuildProgram fails (error -11) and gives an EMPTY build log
  *                         STUB_MS=n         fake milliseconds per timed piece
  *                         STUB_LOG=file     write the launch counts here at exit
  * Built by the test as a shared object; nothing here is part of SRS itself. Written for SRS. */
@@ -26,7 +33,7 @@ typedef struct { const char *name; int fp64; } stub_fn;
 typedef struct { int fp64; } stub_mod;
 typedef struct { int fp64; } stub_prog;
 
-static long n_launch[8], n_blas, n_null;
+static long n_launch[8], n_blas, n_null, n_ptx, n_rtc, n_clbuild[2];
 static const char *const kname[5] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick" };
 static stub_fn g_fn[2][5];
 
@@ -44,6 +51,7 @@ __attribute__((destructor)) static void stub_report(void)
     if (!f || !*f || !(o = fopen(f, "a"))) return;
     for (i = 0; i < 5; i++) fprintf(o, "launch %s %ld\n", kname[i], n_launch[i]);
     fprintf(o, "blas %ld\n", n_blas);
+    fprintf(o, "ptxload %ld\nrtccompile %ld\nclbuild32 %ld\nclbuild64 %ld\n", n_ptx, n_rtc, n_clbuild[0], n_clbuild[1]);
     fclose(o);
 }
 
@@ -146,8 +154,18 @@ EXPORT int hipMemsetD32(void *p, unsigned v, size_t n) { return memset32(p, v, n
 
 EXPORT int cuModuleLoadData(void **m, const void *code)
 {
-    stub_mod *s = malloc(sizeof *s);
-    s->fp64 = strstr((const char *)code, "FP64") != NULL;
+    const char *t = code;
+    stub_mod *s;
+    if (strstr(t, ".entry")) {   /* PTX text */
+        static const char *const want[5] = { ".entry gemm_r(", ".entry fma_r(", ".entry copy_u4(", ".entry cmp_u32(", ".entry tick(" };
+        int i;
+        if (getenv("STUB_PTX_FAIL")) return 218;
+        if (strncmp(t, "//", 2) || !strstr(t, "\n.version ") || !strstr(t, "\n.target ") || !strstr(t, "\n.address_size 64")) return 218;
+        for (i = 0; i < 5; i++) if (!strstr(t, want[i])) return 218;
+        n_ptx++;
+    }
+    s = malloc(sizeof *s);
+    s->fp64 = strstr(t, "FP64") != NULL;
     *m = s;
     return 0;
 }
@@ -170,18 +188,11 @@ EXPORT int cuModuleGetFunction(void **f, void *m, const char *name)
 }
 EXPORT int hipModuleGetFunction(void **f, void *m, const char *name) { return cuModuleGetFunction(f, m, name); }
 
-static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
+/* carry out one kernel on the host; a[i] points to argument i (a buffer argument = a pointer to the data pointer) */
+static void stub_exec(const stub_fn *f, void **a)
 {
-    const stub_fn *f = fn;
     int i;
-    (void)gx; (void)gy;
-    if (!f) {
-        n_null++;
-        fprintf(stderr, "gpu_stub: LAUNCH WITH A NULL FUNCTION HANDLE (grid %ux%u) - a real driver crashes here\n", gx, gy);
-        fflush(stderr);
-        abort();
-    }
-    for (i = 0; i < 5; i++) if (f->name == kname[i]) n_launch[i]++;
+    for (i = 0; i < 5; i++) if (!strcmp(f->name, kname[i])) n_launch[i]++;
     if (!strcmp(f->name, "gemm_r")) {
         mat_mul(*(void **)a[0], *(void **)a[1], *(void **)a[2], *(int *)a[3], f->fp64 ? 8 : 4);
     } else if (!strcmp(f->name, "fma_r")) {
@@ -198,6 +209,18 @@ static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
     } else if (!strcmp(f->name, "tick")) {
         (*(unsigned **)a[0])[0] += 1;
     }   /* cmp_u32: the data is equal, the error counter stays 0 */
+}
+
+static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
+{
+    const stub_fn *f = fn;
+    if (!f) {
+        n_null++;
+        fprintf(stderr, "gpu_stub: LAUNCH WITH A NULL FUNCTION HANDLE (grid %ux%u) - a real driver crashes here\n", gx, gy);
+        fflush(stderr);
+        abort();
+    }
+    stub_exec(f, a);
     return 0;
 }
 EXPORT int cuLaunchKernel(void *f, unsigned gx, unsigned gy, unsigned gz, unsigned bx, unsigned by, unsigned bz, unsigned sh, void *st, void **args, void **extra)
@@ -231,7 +254,7 @@ static int rtc_create(void **p, const char *src)
     *p = s;
     return 0;
 }
-static int rtc_compile(void) { return getenv("STUB_RTC_FAIL") ? 6 : 0; }
+static int rtc_compile(void) { n_rtc++; return getenv("STUB_RTC_FAIL") ? 6 : 0; }
 static int rtc_size(void *p, size_t *n) { (void)p; *n = 16; return 0; }
 static int rtc_code(void *p, char *b) { strcpy(b, ((stub_prog *)p)->fp64 ? "STUBCODE FP64" : "STUBCODE FP32"); return 0; }
 static int rtc_logsize(void *p, size_t *n) { (void)p; *n = 40; return 0; }
@@ -271,3 +294,151 @@ GEMM_SIG(cublasDgemm_v2, double) GEMM_BODY(8)
 GEMM_SIG(hipblasDgemm, double) GEMM_BODY(8)
 GEMM_SIG(cublasHgemm, uint16_t) GEMM_BODY(2)
 GEMM_SIG(hipblasHgemm, uint16_t) GEMM_BODY(2)
+
+/* ---------------------------------------------------------------- OpenCL (one platform, one GPU device) + CLBlast */
+typedef struct { int magic; void *p; size_t n; } cl_buf;
+typedef struct { int fp64; } cl_prog;
+typedef struct { stub_fn fn; unsigned char val[8][16]; } cl_kern;
+typedef struct { uint64_t t0, t1; } cl_ev;
+#define BUF_MAGIC 0x5742
+static cl_buf *g_bufs[64];
+static uint64_t g_clock = 1000000;
+static int g_plat, g_dev, g_ctx, g_q;
+
+static int is_buf(const void *h) { int i; for (i = 0; i < 64; i++) if (g_bufs[i] && g_bufs[i] == h) return 1; return 0; }
+static void new_ev(void **ev)
+{
+    cl_ev *e;
+    uint64_t d = (uint64_t)(fake_ms() * 1e6);
+    if (!ev) return;
+    e = malloc(sizeof *e);
+    e->t0 = g_clock; g_clock += d; e->t1 = g_clock;
+    *ev = e;
+}
+static int put_str(const char *s, size_t n, void *v, size_t *r)
+{
+    size_t l = strlen(s) + 1;
+    if (r) *r = l;
+    if (v) { if (n < l) return -30; memcpy(v, s, l); }
+    return 0;
+}
+static int put_u64(uint64_t x, size_t n, void *v, size_t *r) { if (r) *r = 8; if (v) { if (n < 8) return -30; memcpy(v, &x, 8); } return 0; }
+
+EXPORT int clGetPlatformIDs(unsigned n, void **p, unsigned *np) { if (np) *np = 1; if (p && n) p[0] = &g_plat; return 0; }
+EXPORT int clGetPlatformInfo(void *p, unsigned w, size_t n, void *v, size_t *r)
+{
+    (void)p;
+    return put_str(w == 0x0902 ? "SRS stub OpenCL" : w == 0x0901 ? "OpenCL 3.0 stub" : "SRS test", n, v, r);
+}
+EXPORT int clGetDeviceIDs(void *p, uint64_t t, unsigned n, void **d, unsigned *nd) { (void)p; (void)t; if (nd) *nd = 1; if (d && n) d[0] = &g_dev; return 0; }
+EXPORT int clGetDeviceInfo(void *d, unsigned w, size_t n, void *v, size_t *r)
+{
+    int fp64 = getenv("STUB_CL_FP64") && atoi(getenv("STUB_CL_FP64"));
+    (void)d;
+    switch (w) {
+    case 0x102B: return put_str("SRS test stub OpenCL GPU", n, v, r);
+    case 0x102D: return put_str("stub 1.0", n, v, r);
+    case 0x1000: return put_u64(4, n, v, r);   /* CL_DEVICE_TYPE_GPU */
+    case 0x101F: return put_u64((uint64_t)512 << 20, n, v, r);
+    case 0x1032: return put_u64(fp64 ? 0x3f : 0, n, v, r);   /* CL_DEVICE_DOUBLE_FP_CONFIG */
+    case 0x1030: return put_str(fp64 ? "cl_khr_byte_addressable_store cl_khr_fp64" : "cl_khr_byte_addressable_store", n, v, r);
+    default: return -30;   /* CL_INVALID_VALUE: no PCI address etc. */
+    }
+}
+EXPORT void *clCreateContext(const void *pr, unsigned n, void *const *d, void *cb, void *u, int *e) { (void)pr; (void)n; (void)d; (void)cb; (void)u; if (e) *e = 0; return &g_ctx; }
+EXPORT int clReleaseContext(void *c) { (void)c; return 0; }
+EXPORT void *clCreateCommandQueue(void *c, void *d, uint64_t p, int *e) { (void)c; (void)d; (void)p; if (e) *e = 0; return &g_q; }
+EXPORT int clReleaseCommandQueue(void *q) { (void)q; return 0; }
+EXPORT void *clCreateBuffer(void *c, uint64_t f, size_t n, void *h, int *e)
+{
+    cl_buf *b = calloc(1, sizeof *b);
+    int i;
+    (void)c; (void)f; (void)h;
+    b->magic = BUF_MAGIC; b->n = n; b->p = calloc(1, n ? n : 1);
+    for (i = 0; i < 64 && g_bufs[i]; i++) {}
+    if (i == 64 || !b->p) { if (e) *e = -4; free(b->p); free(b); return NULL; }
+    g_bufs[i] = b;
+    if (e) *e = 0;
+    return b;
+}
+EXPORT int clReleaseMemObject(void *m)
+{
+    int i;
+    for (i = 0; i < 64; i++) if (g_bufs[i] == m) { g_bufs[i] = NULL; free(((cl_buf *)m)->p); free(m); return 0; }
+    return -38;
+}
+EXPORT int clEnqueueWriteBuffer(void *q, void *m, unsigned bl, size_t off, size_t n, const void *p, unsigned ne, void *const *wl, void **ev)
+{
+    (void)q; (void)bl; (void)ne; (void)wl;
+    memcpy((char *)((cl_buf *)m)->p + off, p, n); new_ev(ev); return 0;
+}
+EXPORT int clEnqueueReadBuffer(void *q, void *m, unsigned bl, size_t off, size_t n, void *p, unsigned ne, void *const *wl, void **ev)
+{
+    (void)q; (void)bl; (void)ne; (void)wl;
+    memcpy(p, (char *)((cl_buf *)m)->p + off, n); new_ev(ev); return 0;
+}
+EXPORT void *clCreateProgramWithSource(void *c, unsigned n, const char **src, const size_t *l, int *e)
+{
+    cl_prog *p = malloc(sizeof *p);
+    (void)c; (void)n; (void)l;
+    p->fp64 = strstr(src[0], "#define REAL double") != NULL;
+    if (e) *e = 0;
+    return p;
+}
+EXPORT int clBuildProgram(void *p, unsigned n, void *const *d, const char *o, void *cb, void *u)
+{
+    (void)n; (void)d; (void)o; (void)cb; (void)u;
+    n_clbuild[((cl_prog *)p)->fp64]++;
+    return getenv("STUB_CL_BUILD_FAIL") ? -11 : 0;
+}
+EXPORT int clGetProgramBuildInfo(void *p, void *d, unsigned w, size_t n, void *v, size_t *r) { (void)p; (void)d; (void)w; return put_str("", n, v, r); }
+EXPORT int clReleaseProgram(void *p) { free(p); return 0; }
+EXPORT void *clCreateKernel(void *p, const char *name, int *e)
+{
+    int i;
+    for (i = 0; i < 5; i++)
+        if (!strcmp(name, kname[i])) {
+            cl_kern *k = calloc(1, sizeof *k);
+            k->fn.name = kname[i];
+            k->fn.fp64 = ((cl_prog *)p)->fp64;
+            if (e) *e = 0;
+            return k;
+        }
+    if (e) *e = -46;
+    return NULL;
+}
+EXPORT int clReleaseKernel(void *k) { free(k); return 0; }
+EXPORT int clSetKernelArg(void *k, unsigned i, size_t sz, const void *v)
+{
+    cl_kern *kk = k;
+    if (i >= 8 || sz > 16) return -51;
+    if (sz == sizeof(void *) && is_buf(*(void *const *)v)) { void *data = (*(cl_buf *const *)v)->p; memcpy(kk->val[i], &data, sizeof data); }
+    else memcpy(kk->val[i], v, sz);
+    return 0;
+}
+EXPORT int clEnqueueNDRangeKernel(void *q, void *k, unsigned dim, const size_t *off, const size_t *g, const size_t *l, unsigned ne, void *const *wl, void **ev)
+{
+    cl_kern *kk = k;
+    void *a[8];
+    int i;
+    (void)q; (void)dim; (void)off; (void)g; (void)l; (void)ne; (void)wl;
+    for (i = 0; i < 8; i++) a[i] = kk->val[i];
+    stub_exec(&kk->fn, a);
+    new_ev(ev);
+    return 0;
+}
+EXPORT int clEnqueueMarkerWithWaitList(void *q, unsigned ne, void *const *wl, void **ev) { (void)q; (void)ne; (void)wl; new_ev(ev); return 0; }
+EXPORT int clGetEventInfo(void *ev, unsigned w, size_t n, void *v, size_t *r) { (void)ev; (void)w; if (r) *r = 4; if (v && n >= 4) *(int *)v = 0; return 0; }
+EXPORT int clGetEventProfilingInfo(void *ev, unsigned w, size_t n, void *v, size_t *r) { const cl_ev *e = ev; return put_u64(w == 0x1282 ? e->t0 : e->t1, n, v, r); }
+EXPORT int clReleaseEvent(void *ev) { free(ev); return 0; }
+EXPORT int clFinish(void *q) { (void)q; return 0; }
+EXPORT int clFlush(void *q) { (void)q; return 0; }
+
+/* CLBlast, row-major, no transpose: C = A * B */
+#define BLAST_SIG(name, T) \
+    EXPORT int name(int lay, int ta, int tb, size_t m, size_t n, size_t k, T al, void *a, size_t ao, size_t lda, void *b, size_t bo, size_t ldb, T be, void *c, size_t co, size_t ldc, void **q, void **ev)
+#define BLAST_BODY(es) { (void)lay; (void)ta; (void)tb; (void)m; (void)k; (void)al; (void)ao; (void)lda; (void)bo; (void)ldb; (void)be; (void)co; (void)ldc; (void)q; \
+    n_blas++; mat_mul(((cl_buf *)a)->p, ((cl_buf *)b)->p, ((cl_buf *)c)->p, (int)n, es); new_ev(ev); return 0; }
+BLAST_SIG(CLBlastSgemm, float) BLAST_BODY(4)
+BLAST_SIG(CLBlastDgemm, double) BLAST_BODY(8)
+BLAST_SIG(CLBlastHgemm, uint16_t) BLAST_BODY(2)

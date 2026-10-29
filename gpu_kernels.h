@@ -1,6 +1,8 @@
 /* gpu_kernels.h - the compute kernels that HIP (hipRTC), CUDA (NVRTC) and OpenCL (clBuildProgram) compile
- * at run time (gpuburn_rt.c, gpuburn_cl.c). One source text, two small dialect preambles; the same
- * work as the Vulkan shaders in shaders/gpu/. Internal to SRS. */
+ * at run time (gpuburn_rt.c, gpuburn_cl.c). One source text, small dialect preambles; the same work as
+ * the Vulkan shaders in shaders/gpu/. The CUDA back end normally does not compile at run time: it loads
+ * the same kernels precompiled to PTX (gpu_kernels_ptx.inc, made from this text with the GKD_PTX preamble
+ * by tools/gen-cuda-ptx.sh = make cuda-ptx). Internal to SRS. */
 #ifndef GPU_KERNELS_H
 #define GPU_KERNELS_H
 
@@ -8,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum { GKD_CUDA_HIP, GKD_OPENCL };
+enum { GKD_CUDA_HIP, GKD_OPENCL, GKD_PTX };
 
 static const char gk_pre_cuda[] =
     "#define KERNEL extern \"C\" __global__\n#define GLOBAL\n#define LOCAL __shared__\n"
@@ -23,6 +25,18 @@ static const char gk_pre_cl[] =
     "#define GID_X get_global_id(0)\n#define GID_Y get_global_id(1)\n"
     "#define GSIZE_X get_global_size(0)\n#define BARRIER() barrier(CLK_LOCAL_MEM_FENCE)\n#define ATOMIC_ADD(p, v) atomic_add(p, v)\n"
     "#define FMA32(a, b, c) fma(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n";
+
+/* CUDA for clang without the CUDA headers (tools/gen-cuda-ptx.sh only): clang's own NVPTX builtins in place
+   of threadIdx / atomicAdd / fmaf, and uint4 as a 16-byte vector so copy_u4 moves 16 bytes per load like NVRTC's */
+static const char gk_pre_ptx[] =
+    "#define KERNEL extern \"C\" __attribute__((global))\n#define GLOBAL\n#define LOCAL __attribute__((shared))\n"
+    "#define LID_X ((unsigned)__nvvm_read_ptx_sreg_tid_x())\n#define LID_Y ((unsigned)__nvvm_read_ptx_sreg_tid_y())\n"
+    "#define GID_X ((unsigned)__nvvm_read_ptx_sreg_ctaid_x() * (unsigned)__nvvm_read_ptx_sreg_ntid_x() + (unsigned)__nvvm_read_ptx_sreg_tid_x())\n"
+    "#define GID_Y ((unsigned)__nvvm_read_ptx_sreg_ctaid_y() * (unsigned)__nvvm_read_ptx_sreg_ntid_y() + (unsigned)__nvvm_read_ptx_sreg_tid_y())\n"
+    "#define GSIZE_X ((unsigned)__nvvm_read_ptx_sreg_nctaid_x() * (unsigned)__nvvm_read_ptx_sreg_ntid_x())\n"
+    "#define BARRIER() __syncthreads()\n#define ATOMIC_ADD(p, v) __nvvm_atom_add_gen_i((int *)(p), (int)(v))\n"
+    "#define FMA32(a, b, c) __builtin_fmaf(a, b, c)\n#define FMA64(a, b, c) __builtin_fma(a, b, c)\n"
+    "typedef unsigned uint4 __attribute__((ext_vector_type(4)));\n";
 
 /* REAL / FMAR are set per build: float + FMA32, or double + FMA64 */
 static const char gk_body[] =
@@ -71,7 +85,7 @@ static const char gk_body[] =
 /* malloc'd source text for a dialect and a precision (GP_FP64 = double, anything else float) */
 static inline char *gk_source(int dialect, int fp64)
 {
-    const char *pre = dialect == GKD_OPENCL ? gk_pre_cl : gk_pre_cuda;
+    const char *pre = dialect == GKD_OPENCL ? gk_pre_cl : dialect == GKD_PTX ? gk_pre_ptx : gk_pre_cuda;
     const char *def = fp64 ? "#define REAL double\n#define FMAR(a, b, c) FMA64(a, b, c)\n" : "#define REAL float\n#define FMAR(a, b, c) FMA32(a, b, c)\n";
     const char *ext = dialect == GKD_OPENCL && fp64 ? "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" : "";
     size_t n = strlen(pre) + strlen(def) + strlen(ext) + sizeof gk_body + 8;

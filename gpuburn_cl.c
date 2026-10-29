@@ -80,7 +80,7 @@ static double now_s(void)
 static int cl_bind_once(void)
 {
     cl_api *a = &g_cl;
-    const char *env = getenv("SRS_OPENCL_LIB");
+    const char *env = getenv("SRS_OPENCL_LIB"), *envb = getenv("SRS_CLBLAST_LIB");
     const char *const names[] = { "libOpenCL.so.1", "libOpenCL.so", NULL };
     const char *const bl[] = { "libclblast.so.1", "libclblast.so", NULL };
     int i;
@@ -116,7 +116,9 @@ static int cl_bind_once(void)
     CSYM(a->lib, Flush, "clFlush");
     if (a->miss[0]) return 0;
     *(void **)&a->Marker = dlsym(a->lib, "clEnqueueMarkerWithWaitList");   /* optional: CLBlast timing */
-    for (i = 0; bl[i] && !a->blast; i++) a->blast = dlopen(bl[i], RTLD_NOW | RTLD_LOCAL);
+    /* tests: SRS_CLBLAST_LIB opens exactly that file (a name that does not exist = "not installed") */
+    if (envb && *envb) a->blast = dlopen(envb, RTLD_NOW | RTLD_LOCAL);
+    else for (i = 0; bl[i] && !a->blast; i++) a->blast = dlopen(bl[i], RTLD_NOW | RTLD_LOCAL);
     if (a->blast) {
         char save[96];
         snprintf(save, sizeof save, "%.90s", a->miss);
@@ -242,7 +244,7 @@ struct gb_ctx {
     cl_h plat, dev, ctx, q, prog[2];
     cl_h k_gemm, k_fma, k_copy, k_cmp, k_tick;
     cl_h ba, bb, bc, bref, bcnt;
-    int dead, kind, prec, variant, ready, built_fp64;
+    int dead, kind, prec, variant, ready, built_fp64, has_fp64;
     size_t n, es, bytes, nthreads;
     long prep_wrong, ticks;
     unsigned seed, gx;
@@ -265,6 +267,13 @@ static int cl_open(gb_ctx **cp, const gb_info *d, int so, char *why, size_t wn)
     c->a = a;
     c->plat = g_slots[d->index].plat;
     c->dev = g_slots[d->index].dev;
+    {   /* FP64 only when the driver says so: CL_DEVICE_DOUBLE_FP_CONFIG non-zero or cl_khr_fp64 listed */
+        uint64_t fp = 0;
+        char ext[4096] = "";
+        a->GetDeviceInfo(c->dev, 0x1032, sizeof fp, &fp, NULL);
+        a->GetDeviceInfo(c->dev, 0x1030, sizeof ext - 1, ext, NULL);
+        c->has_fp64 = fp != 0 || strstr(ext, "cl_khr_fp64") != NULL;
+    }
     c->ctx = a->CreateContext(NULL, 1, &c->dev, NULL, NULL, &e);
     if (!c->ctx || e) { snprintf(why, wn, "could not open the OpenCL device (error %d)", e); free(c); return -1; }
     c->q = a->CreateQueue(c->ctx, c->dev, 2, &e);   /* profiling on */
@@ -322,8 +331,12 @@ static int build(gb_ctx *c, int fp64)
         if (!c->prog[fp64] || e) { seterr(c, e, "creating the program"); goto out; }
         if ((e = a->BuildProgram(c->prog[fp64], 1, &c->dev, "", NULL, NULL))) {
             char log[400] = "";
-            a->GetBuildInfo(c->prog[fp64], c->dev, 0x1183, sizeof log - 1, log, NULL);
-            snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build: %.180s", log);
+            size_t ll;
+            if (a->GetBuildInfo(c->prog[fp64], c->dev, 0x1183, sizeof log - 1, log, NULL)) log[0] = 0;
+            log[sizeof log - 1] = 0;
+            for (ll = strlen(log); ll && (log[ll - 1] == '\n' || log[ll - 1] == ' ' || log[ll - 1] == '\r'); ll--) log[ll - 1] = 0;
+            if (log[0]) snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d): %.170s", e, log);
+            else snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d; the driver gave no build log)", e);
             a->ReleaseProgram(c->prog[fp64]);
             c->prog[fp64] = NULL;
             goto out;
@@ -491,6 +504,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through CLBlast only"); rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB && !c->a->have_blast) { snprintf(c->err, sizeof c->err, "CLBlast is not installed"); rc = GBP_UNSUPPORTED; break; }
+        if (prec == GP_FP64 && !c->has_fp64) { snprintf(c->err, sizeof c->err, "this OpenCL driver has no FP64 (double precision)"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, prec == GP_FP64))) break;
         n = n / 16 * 16;
         if (n < 16) n = 16;
@@ -523,6 +537,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         int fp64 = prec == GP_FP64;
         if (prec != GP_FP32 && prec != GP_FP64) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB) { rc = GBP_UNSUPPORTED; break; }
+        if (fp64 && !c->has_fp64) { snprintf(c->err, sizeof c->err, "this OpenCL driver has no FP64 (double precision)"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, fp64))) break;
         c->gx = (unsigned)(n ? n : 1024);
         c->nthreads = (size_t)c->gx * 64;
