@@ -7,6 +7,7 @@
  * cpuidle, /sys/devices/system/node, k10temp/zenergy hwmon, /sys/kernel/ryzen_smu_drv (read). */
 #define _GNU_SOURCE
 #include "sec.h"
+#include <sys/stat.h>
 #include "bench.h"
 
 #if defined(__x86_64__) || defined(__i386__)
@@ -1500,12 +1501,16 @@ static void s_numa_speeds(srs_out *o)
     }
     snprintf(path, sizeof path, "%s/.cache/srs/bench-latency.txt", h ? h : "");
     if (rd_all(path, &txt) >= 0) {
+        struct stat st;
+        char when[64] = "";
+        if (stat(path, &st) == 0) strftime(when, sizeof when, "%Y-%m-%d %H:%M:%S", localtime(&st.st_mtime));
+        so_kv(o, "Last Latency run", C_VALUE, *when ? when : "date not known");
         so_par(o);
-        so_t(o, C_LABEL, "Last Latency run"); so_par(o);
         so_lines(o, C_BLACK, txt);
         free(txt);
     } else {
-        so_kv(o, "Memory latency", C_ORANGE, "Not measured yet - Benchmarks & Stress > Latency, then Run");
+        so_kv(o, "Memory latency", C_ORANGE, o->gui ? "Not measured yet - press Run above (the Memory Latency benchmark), or Benchmarks & Stress > Memory Latency"
+                                                     : "Not measured yet - Benchmarks & Stress > Memory Latency, then Run");
     }
 }
 

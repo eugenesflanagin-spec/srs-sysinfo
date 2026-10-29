@@ -1588,7 +1588,7 @@ static GtkWidget *tabs_area(int cat)
     g_signal_connect(nb, "page-removed", G_CALLBACK(on_nb_changed), GINT_TO_POINTER(cat));
     g_signal_connect(nb, "page-added", G_CALLBACK(on_nb_added), GINT_TO_POINTER(cat));
     g_signal_connect(nb, "switch-page", G_CALLBACK(on_nb_switch), GINT_TO_POINTER(cat));
-    if (cat == CAT_BENCH) g_signal_connect(nb, "switch-page", G_CALLBACK(on_bench_switch), NULL);
+    g_signal_connect(nb, "switch-page", G_CALLBACK(on_bench_switch), NULL);   /* tool tabs (any page): ask before leaving a run */
     g_home->pagebox[cat] = vb;
     return vb;
 }

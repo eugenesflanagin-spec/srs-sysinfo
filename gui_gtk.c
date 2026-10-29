@@ -2650,7 +2650,8 @@ static gboolean bench_done(gpointer data)
                                    : "Not enough memory for this size - try a smaller one. The last finished result is below.");
             so_par(&o);
             if (!bench_show_last(name, &o)) so_note(&o, "No finished run yet.");
-        } else if (!bench_show_last(name, &o)) so_err(&o, "No result (nothing to run in this mode on this CPU)");
+        } else if (!strcmp(w->id, "numa-speeds")) srs_section_render(srs_section_find("numa-speeds"), &o);   /* the page with the new run */
+        else if (!bench_show_last(name, &o)) so_err(&o, "No result (nothing to run in this mode on this CPU)");
         if (w->plot) gtk_widget_queue_draw(w->plot);
     }
     g_free(j->dir);
@@ -3757,7 +3758,7 @@ static const char *guide_item(const swin *w)
     case W_IDLOOKUP: return "id-lookup";
     case W_FIND: return "find";
     case W_BURN: return "burnin";
-    case W_BENCH: return bk_item(w->sub);
+    case W_BENCH: return w->embedded && *w->id && srs_guide_anchor(w->id) ? w->id : bk_item(w->sub);   /* a tool tab: its own item (NUMA memory speed) */
     default: return w->id;
     }
 }
@@ -5721,25 +5722,29 @@ static int tool_leave_guard(swin *t, const char *where)
     tool_stop(t);
     return 0;
 }
-static swin *bench_running_tab(void)
+/* a running tool tab on page cat (-1 = any page) */
+static swin *page_running_tab(int cat)
 {
-    GtkNotebook *nb;
-    int i, n;
-    if (!g_home || !g_home->nb[CAT_BENCH]) return NULL;
-    nb = GTK_NOTEBOOK(g_home->nb[CAT_BENCH]);
-    n = gtk_notebook_get_n_pages(nb);
-    for (i = 0; i < n; i++) {
-        swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
-        if (tool_busy(x)) return x;
+    int c, i, n;
+    if (!g_home) return NULL;
+    for (c = cat < 0 ? 1 : cat; c < CAT_N && (cat < 0 || c == cat); c++) {
+        GtkNotebook *nb = g_home->nb[c] ? GTK_NOTEBOOK(g_home->nb[c]) : NULL;
+        if (!nb) continue;
+        n = gtk_notebook_get_n_pages(nb);
+        for (i = 0; i < n; i++) {
+            swin *x = g_object_get_data(G_OBJECT(gtk_notebook_get_nth_page(nb, i)), "swin");
+            if (tool_busy(x)) return x;
+        }
     }
     return NULL;
 }
+static swin *bench_running_tab(void) { return page_running_tab(-1); }
 static gboolean bench_back_idle(gpointer d)
 {
     swin *t = d;
     int at;
-    if (g_home && g_ptr_array_find(g_wins, t, NULL) && tab_find(CAT_BENCH, t->id, &at))
-        gtk_notebook_set_current_page(GTK_NOTEBOOK(g_home->nb[CAT_BENCH]), at);
+    if (g_home && g_ptr_array_find(g_wins, t, NULL) && tab_find(t->cat, t->id, &at))
+        gtk_notebook_set_current_page(GTK_NOTEBOOK(g_home->nb[t->cat]), at);
     return G_SOURCE_REMOVE;
 }
 /* another tab of the Benchmarks & Stress page: the tool being left may not keep loading the PC unseen without a yes */
@@ -5828,7 +5833,7 @@ static swin *tool_tab_new(int cat, const toolitem *ti, int select, int pos)
         srs_out o;
         gctx g;
         out_begin(t, &o, &g, NULL);
-        if (t->sub == BK_BENCH) srs_section_render(srs_section_find("benchmark"), &o);
+        if (t->sub == BK_BENCH || !strcmp(t->id, "numa-speeds")) srs_section_render(srs_section_find(t->sub == BK_BENCH ? "benchmark" : t->id), &o);
         else if (!bench_show_last(bk_result(t->sub, -1), &o)) so_note(&o, "Not run yet. Press Run.");
     }
     if (select) gtk_notebook_set_current_page(nb, i);
@@ -5884,6 +5889,11 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     swin *t;
     char s[600];
     int i;
+    if (!strcmp(id, "numa-speeds")) {   /* 2.3.1: NUMA memory speed runs the Memory Latency benchmark right here */
+        static const toolitem numa = { "numa-speeds", W_BENCH, BK_LAT, 1 };
+        if ((t = tab_find(cat, id, &i))) { if (select) gtk_notebook_set_current_page(nb, i); return t; }
+        return tool_tab_new(cat, &numa, select, pos);
+    }
     if (cat == CAT_BENCH) {
         const toolitem *ti;
         id = tool_alias(id);
@@ -6023,9 +6033,9 @@ static void on_side_row(GtkListBox *lb, GtkListBoxRow *row, gpointer d)
     (void)lb; (void)d;
     if (!row || !g_home) return;
     c = gtk_list_box_row_get_index(row);
-    if (g_home->cur == CAT_BENCH && c != CAT_BENCH && !g_side_back) {   /* leaving a tool that still runs: stop it, or stay */
-        swin *t = bench_running_tab();
-        if (t && tool_leave_guard(t, "leave this page")) { g_side_back = 1; home_go(CAT_BENCH); g_side_back = 0; return; }
+    if (c != g_home->cur && !g_side_back) {   /* leaving a page with a tool that still runs: stop it, or stay */
+        swin *t = page_running_tab(g_home->cur);
+        if (t && tool_leave_guard(t, "leave this page")) { int back = g_home->cur; g_side_back = 1; home_go(back); g_side_back = 0; return; }
     }
     g_home->cur = c;
     gtk_stack_set_visible_child_name(GTK_STACK(g_home->stack), g_cats[c].name);
