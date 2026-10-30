@@ -2034,14 +2034,28 @@ static void s_opencl(srs_out *o)
     while ((p = next_line(p, l, sizeof l))) {
         char *s = l, *c, k[128], v[512];
         size_t kl;
+        int j;
+        /* two layouts: ROCm's clinfo "  Name:\t\t\t value"; the cross-vendor clinfo (Oblomov, often /usr/bin/clinfo)
+           "  Device Name        value" with no colon, its own key names mapped onto ROCm's below */
+        static const char *const alias[][2] = { { "Device Name", "Name" }, { "Device Vendor", "Vendor" }, { "Device Version", "Version" },
+            { "Device Board Name (AMD)", "Board name" }, { "Device OpenCL C Version", "Device OpenCL C version" }, { "Driver Version", "Driver version" },
+            { "Device Profile", "Profile" }, { "Device Type", "Device Type" }, { NULL, NULL } };
         while (*s == ' ' || *s == '\t') s++;
         c = strchr(s, ':');
-        if (!c) continue;
-        kl = (size_t)(c - s);
+        if (c && (c[1] == '\t' || c[1] == ' ' || !c[1])) {
+            kl = (size_t)(c - s);
+            c++;
+        } else {   /* no "key:": the key ends at the first run of two or more spaces */
+            char *g = strstr(s, "  ");
+            if (!g) continue;
+            kl = (size_t)(g - s);
+            c = g;
+        }
         while (kl && (s[kl - 1] == ' ' || s[kl - 1] == '\t')) kl--;
         snprintf(k, sizeof k, "%.*s", (int)kl, s);
-        c++; while (*c == ' ' || *c == '\t') c++;
+        while (*c == ' ' || *c == '\t') c++;
         snprintf(v, sizeof v, "%s", c);
+        for (j = 0; alias[j][0]; j++) if (!strcmp(k, alias[j][0])) { snprintf(k, sizeof k, "%s", alias[j][1]); break; }
         if (!strcmp(k, "Number of platforms")) { so_kv(o, "Platforms", C_TEAL, v); continue; }
         if (!strcmp(k, "Platform Version")) { snprintf(pver, sizeof pver, "%s", v); continue; }
         if (!strcmp(k, "Platform Name")) {
@@ -2049,7 +2063,22 @@ static void s_opencl(srs_out *o)
 
             next_line(p, nx, sizeof nx);
             if (strstr(nx, "Number of devices")) { so_par(o); so_b(o, C_BLACK, v); so_par(o); }
-            else so_kvf(o, "Platform", C_PURPLE, "%s  (%s)", v, pver);
+            else {
+                if (!*pver) {   /* the cross-vendor clinfo lists the version after the name: look a few lines on */
+                    const char *q = p;
+                    char ln[512], *g;
+                    for (j = 0; j < 6 && (q = next_line(q, ln, sizeof ln)); j++)
+                        if ((g = strstr(ln, "Platform Version"))) {
+                            g += 16;
+                            while (*g == ' ' || *g == '\t' || *g == ':') g++;
+                            snprintf(pver, sizeof pver, "%s", g);
+                            break;
+                        }
+                }
+                if (*pver) so_kvf(o, "Platform", C_PURPLE, "%s  (%s)", v, pver);
+                else so_kv(o, "Platform", C_PURPLE, v);
+                pver[0] = 0;
+            }
             continue;
         }
         if (!strcmp(k, "Platform Vendor")) continue;
