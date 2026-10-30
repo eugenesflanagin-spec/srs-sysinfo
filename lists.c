@@ -161,7 +161,8 @@ int srs_lists_update(int which, char *report, size_t rn)
                 snprintf(nv, sizeof nv, "%ld entries", ne);
                 if (ne <= oe) {   /* nothing new: keep using the copy in use */
                     unlink(tmp);
-                    used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s %s, the same as the copy in use: no newer version yet\n", L->file, nv);
+                    used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s %s, %s the copy in use: kept the copy in use\n", L->file, nv,
+                                             ne == oe ? "the same as" : "fewer entries than");
                     ok++;
                     continue;
                 }

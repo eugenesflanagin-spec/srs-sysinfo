@@ -2569,7 +2569,8 @@ static void s_acpi_eval(srs_out *o)
             static const int ct[] = { 190, 560 };
             char *save = NULL, *ln, *lines[400];
             int n = 0, i;
-            for (ln = strtok_r(t, "\n", &save); ln && n < 400; ln = strtok_r(NULL, "\n", &save)) lines[n++] = ln;
+            for (ln = strtok_r(t, "\n", &save); ln && n < 400; ln = strtok_r(NULL, "\n", &save))
+                if (strchr(ln, '\t') && strchr(strchr(ln, '\t') + 1, '\t')) lines[n++] = ln;   /* whole entries only: the last 30 are 30 rows */
             so_par(o);
             so_head(o, n > 30 ? "Your last 30 evaluations (newest last)" : "Your evaluations (newest last)");
             so_tabs(o, ct, 2);

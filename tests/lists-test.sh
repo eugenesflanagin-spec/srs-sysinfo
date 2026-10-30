@@ -66,7 +66,7 @@ has '^pci\.ids +2099\.01\.01 \(was [0-9.]+, newer\)' && ok "pci.ids 2099.01.01, 
 has '^usb\.ids +2099\.01\.01 \(was [0-9.]+, newer\)' && ok "usb.ids 2099.01.01, newer" || bad "usb.ids report: $(grep '^usb' <<<"$OUT")"
 cmp -s "$SRV/pci.ids" "$LISTS/pci.ids" && cmp -s "$SRV/usb.ids" "$LISTS/usb.ids" && ok "both kept in XDG_DATA_HOME/srs/lists, byte for byte" || bad "the lists were not stored"
 if [ "$SPNP" -gt 1600 ]; then
-    has '^pnp\.ids +1600 entries, the same as the copy in use: no newer version yet' && [ ! -e "$LISTS/pnp.ids" ] && ok "pnp.ids with 1600 entries (system: $SPNP) is not taken" || bad "pnp.ids fewer: $(grep '^pnp' <<<"$OUT")"
+    has '^pnp\.ids +1600 entries, fewer entries than the copy in use: kept the copy in use' && [ ! -e "$LISTS/pnp.ids" ] && ok "pnp.ids with 1600 entries (system: $SPNP) is not taken" || bad "pnp.ids fewer: $(grep '^pnp' <<<"$OUT")"
 else skip "the system pnp.ids has $SPNP entries: the 'fewer' case needs more than 1600"; fi
 ! leftovers && ok "no .download files left behind" || bad "a .download file was left"
 ls "$LISTS"/*.old >/dev/null 2>&1 && bad "a .old copy without an earlier copy" || ok "no .old yet (there was no earlier copy)"
@@ -84,7 +84,7 @@ has '^usb\.ids +not updated: only 50 entries \(at least 10000 expected\)' && ok 
 cmp -s "$LISTS/pci.ids" <(mk_pci 2099.01.01 20500) && cmp -s "$LISTS/usb.ids" <(mk_usb 2099.01.01 10500) && ok "the copies in use are unchanged" || bad "a refused download replaced the copy in use"
 ls "$LISTS"/*.old >/dev/null 2>&1 && bad "a refused download made a .old copy" || ok "no .old made by a refused download"
 if [ "$SPNP" -ge 1500 ]; then
-    has "^pnp\.ids +$SPNP entries, the same as the copy in use: no newer version yet" && [ ! -e "$LISTS/pnp.ids" ] && ok "pnp.ids with as many entries as the system's ($SPNP) is not taken" || bad "pnp.ids equal: $(grep '^pnp' <<<"$OUT")"
+    has "^pnp\.ids +$SPNP entries, the same as the copy in use: kept the copy in use" && [ ! -e "$LISTS/pnp.ids" ] && ok "pnp.ids with as many entries as the system's ($SPNP) is not taken" || bad "pnp.ids equal: $(grep '^pnp' <<<"$OUT")"
 else skip "the system pnp.ids has $SPNP entries (fewer than the 1500 a download needs): the 'equal' case is not checked"; fi
 ! leftovers && ok "no .download files left behind" || bad "a .download file was left"
 
@@ -107,7 +107,7 @@ echo "== 4: a list that does not start like pci.ids is refused; the same pnp.ids
 { echo "# Some other list"; seq 1 21000 | awk '{ printf "%04x  x\n", $1 % 65536 }'; } > "$SRV/pci.ids"
 run --yes
 has '^pci\.ids +not updated: it does not start like pci\.ids' && cmp -s "$LISTS/pci.ids" <(mk_pci 2099.02.01 20600) && ok "no 'List of PCI ID' header: refused, the copy stays" || bad "no magic: $(grep '^pci' <<<"$OUT")"
-has "^pnp\.ids +$NP entries, the same as the copy in use: no newer version yet" && ok "the same pnp.ids again: not taken" || bad "pnp same: $(grep '^pnp' <<<"$OUT")"
+has "^pnp\.ids +$NP entries, the same as the copy in use: kept the copy in use" && ok "the same pnp.ids again: not taken" || bad "pnp same: $(grep '^pnp' <<<"$OUT")"
 
 echo "== 5: a copy older than the system's is not used"
 mk_usb 2000.01.01 10500 > "$LISTS/usb.ids"
