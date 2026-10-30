@@ -218,3 +218,56 @@ const char *mt_jep106(unsigned code)
     for (i = 0; i < sizeof t / sizeof t[0]; i++) if (t[i].c == code) return t[i].n;
     return NULL;
 }
+
+/* ---------------------------------------------------------------- AOD table
+   Ryzen 7000 (Raphael) layout from ZenStates-Core (AodDataDictionaryV1): 32-bit values from MemClk at byte 8924:
+   MemClk, tCL, tRCD, tRP, tRAS, tRC, tWR, tRFC, tRFC2, tRFCsb, tRTP, tRRD_L, tRRD_S, tFAW, tWTR_L, tWTR_S, eight
+   turnarounds, tWRRD, tRDWR, then CAD bus / proc data / ProcODT / DRAM data drive strengths, RttNomWr, RttNomRd, RttWr,
+   RttPark, RttParkDqs (MemClk + 104 .. + 136) and the memory VDD, VDDQ, VPP and CPU VDDIO in mV (MemClk + 172 .. + 184).
+   The block is found at 8924, else at the last place the MEMCLK value appears, and used only when its timings match the
+   live ones. Checked on a Ryzen 7 7800X3D (ASUS BIOS 1805, AGESA 1.2.x). */
+static int i32(const unsigned char *d, size_t n, size_t o) { int v; if (o + 4 > n) return -1; memcpy(&v, d + o, 4); return v; }
+int mt_aod_decode(const unsigned char *d, size_t n, int memclk, int cl, int rcd, mt_aod *a)
+{
+    size_t cand[2] = { 8924, 0 }, k;
+    int j;
+    memset(a, 0, sizeof *a);
+    if (!d || n < 9200 || memclk <= 0) return 0;
+    for (k = n - 4; k > 0; k--) if (d[k] == (memclk & 0xFF) && d[k + 1] == ((memclk >> 8) & 0xFF) && !d[k + 2] && !d[k + 3]) { cand[1] = k; break; }
+    for (j = 0; j < 2; j++) {
+        size_t b = cand[j];
+        if (!b || b + 188 > n || i32(d, n, b) != memclk || i32(d, n, b + 4) != cl || i32(d, n, b + 8) != rcd) continue;
+        a->ok = 1; a->base = (int)b;
+        a->memclk = memclk; a->cl = cl; a->rcd = rcd; a->rp = i32(d, n, b + 12); a->ras = i32(d, n, b + 16);
+        a->cadbus = i32(d, n, b + 104); a->procdrv = i32(d, n, b + 108); a->procodt = i32(d, n, b + 112); a->dramdrv = i32(d, n, b + 116);
+        a->rttnomwr = i32(d, n, b + 120); a->rttnomrd = i32(d, n, b + 124); a->rttwr = i32(d, n, b + 128);
+        a->rttpark = i32(d, n, b + 132); a->rttparkdqs = i32(d, n, b + 136);
+        a->vdd = i32(d, n, b + 172); a->vddq = i32(d, n, b + 176); a->vpp = i32(d, n, b + 180); a->vddio = i32(d, n, b + 184);
+        return 1;
+    }
+    return 0;
+}
+
+/* code -> meaning (ZenStates-Core EncodedValueDictionaries; RZQ = 240 ohm) */
+void mt_aod_text(int kind, int code, char *b, size_t n)
+{
+    static const struct { int c; const char *t; } odt[] = {
+        { 0, "Hi-Z" }, { 1, "480.0" }, { 2, "240.0" }, { 3, "160.0" }, { 4, "120.0" }, { 5, "96.0" }, { 6, "80.0" }, { 7, "68.6" },
+        { 12, "60.0" }, { 13, "53.3" }, { 14, "48.0" }, { 15, "43.6" }, { 28, "40.0" }, { 29, "36.9" }, { 30, "34.3" }, { 31, "32.0" },
+        { 60, "30.0" }, { 61, "28.2" }, { 62, "26.7" }, { 63, "25.3" } };
+    static const char *const dram[] = { "34.0", "40.0", "48.0" };
+    size_t i;
+    if (kind == 0 || kind == 1) {   /* ProcODT and proc data drive strength share the code table */
+        for (i = 0; i < sizeof odt / sizeof odt[0]; i++)
+            if (odt[i].c == code && (kind == 0 || !(code & 1) || code == 0)) { snprintf(b, n, "%s%s", odt[i].t, code ? " Ω" : ""); return; }
+    } else if (kind == 2) {
+        if (code >= 0 && code <= 2) { snprintf(b, n, "%s Ω", dram[code]); return; }
+    } else if (kind == 3) {
+        if (code == 0) { snprintf(b, n, "Hi-Z"); return; }
+        if (code == 30 || code == 40 || code == 60 || code == 120) { snprintf(b, n, "%d.0 Ω", code); return; }
+    } else if (kind == 4) {
+        if (code == 0) { snprintf(b, n, "Off"); return; }
+        if (code >= 1 && code <= 7) { snprintf(b, n, "RZQ/%d (%.0f Ω)", code, 240.0 / code); return; }
+    }
+    snprintf(b, n, "code %d", code);
+}

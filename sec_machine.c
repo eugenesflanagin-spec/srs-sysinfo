@@ -2939,6 +2939,44 @@ static void s_mem_tweak(srs_out *o)
             if (mt_reg(&ch[first], 0x50284, &nv))
                 so_kvf(o, "Nitro mode (Rx / Tx / Ctrl)", C_VALUE, "%u / %u / %u", (nv >> 8) & 3, (nv >> 4) & 3, nv & 3);
         }
+        {   /* the BIOS's own memory settings (AOD table), when srs-root could read it */
+            const char *af = so_root_file("aod.bin");
+            char afp[1200] = "", why[400] = "";
+            unsigned char *ad = NULL;
+            int an = 0;
+            mt_aod a;
+            if (af) { snprintf(afp, sizeof afp, "%s", af); an = rd_all(afp, (char **)&ad); }
+            {
+                const char *tf = so_root_file("aod.txt");
+                if (tf) rd_str(tf, why, sizeof why);
+            }
+            so_par(o);
+            so_head(o, "BIOS memory settings (AMD AOD table)");
+            if (an > 0 && mt_aod_decode(ad, (size_t)an, mts / 2, mt_field(&ch[first], 0x50204, 5, 0), mt_field(&ch[first], 0x50204, 21, 16), &a)) {
+                char t1[48], t2[48];
+                mt_aod_text(0, a.procodt, t1, sizeof t1); so_kv(o, "ProcODT", C_VALUE, t1);
+                mt_aod_text(1, a.procdrv, t1, sizeof t1); so_kv(o, "Proc data drive strength", C_VALUE, t1);
+                mt_aod_text(2, a.dramdrv, t1, sizeof t1); so_kv(o, "DRAM data drive strength", C_VALUE, t1);
+                mt_aod_text(3, a.cadbus, t1, sizeof t1); so_kv(o, "CAD bus drive strength", C_VALUE, t1);
+                mt_aod_text(4, a.rttnomwr, t1, sizeof t1); mt_aod_text(4, a.rttnomrd, t2, sizeof t2);
+                so_kvf(o, "RttNomWr / RttNomRd", C_VALUE, "%s / %s", t1, t2);
+                mt_aod_text(4, a.rttwr, t1, sizeof t1); so_kv(o, "RttWr", C_VALUE, t1);
+                mt_aod_text(4, a.rttpark, t1, sizeof t1); mt_aod_text(4, a.rttparkdqs, t2, sizeof t2);
+                so_kvf(o, "RttPark / RttParkDqs", C_VALUE, "%s / %s", t1, t2);
+                if (a.vdd > 500 && a.vdd < 3000) so_kvf(o, "DIMM VDD / VDDQ / VPP (set)", C_VALUE, "%.3f / %.3f / %.3f V", a.vdd / 1000.0, a.vddq / 1000.0, a.vpp / 1000.0);
+                if (a.vddio > 500 && a.vddio < 3000) so_kvf(o, "CPU VDDIO (memory)", C_VALUE, "%.3f V", a.vddio / 1000.0);
+                so_kv(o, "Source", C_GRAY, "the BIOS's AOD table; its timings match the live ones above, so the layout fits this BIOS");
+            } else if (an > 0) {
+                so_kv(o, "Status", C_GRAY, "the AOD table was read, but its layout is not known for this processor / BIOS yet (please report it)");
+            } else if (*why && !strncmp(why, "not readable", 12)) {
+                so_kv(o, "Status", C_GRAY, "not readable on this kernel: the table sits in memory that the kernel keeps from programs");
+                so_kv(o, "Why", C_GRAY, "Linux kernels built with IO_STRICT_DEVMEM (most) block it unless booted with iomem=relaxed, which weakens");
+                so_kv(o, "", C_GRAY, "that protection. SRS does not ask you to change it; the timings above do not need it.");
+            } else {
+                so_kv(o, "Status", C_GRAY, "not read yet (Menu > Run as root), or this BIOS has no AOD table");
+            }
+            free(ad);
+        }
         so_par(o);
         so_head(o, "Timings (memory controller clocks; time at the current speed)");
         so_tabs(o, ttabs, 4);

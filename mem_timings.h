@@ -54,6 +54,19 @@ const mt_def *mt_defs(int *n);
 
 /* decode one DDR5 SPD image (1024 bytes) */
 void mt_spd_decode(const unsigned char *d, size_t n, mt_spd *s);
+/* the BIOS's AMD Overclocking Data (AOD) table (srs-root's aod.bin, readable only when the kernel allows /dev/mem
+   there): the memory settings it holds. ok = its timing block matched the live timings (expect: MEMCLK MHz, tCL, tRCDRD) */
+typedef struct {
+    int ok, base;
+    int memclk, cl, rcd, rp, ras;
+    int procodt, procdrv, dramdrv, cadbus, rttnomwr, rttnomrd, rttwr, rttpark, rttparkdqs;
+    int vdd, vddq, vpp, vddio;                       /* mV */
+} mt_aod;
+int mt_aod_decode(const unsigned char *d, size_t n, int memclk, int cl, int rcd, mt_aod *a);
+/* the meaning of an AOD code: kind 0 ProcODT, 1 proc data drive strength, 2 DRAM data drive strength, 3 CAD bus drive
+   strength, 4 RTT. Writes e.g. "48.0 Ω" or "RZQ/5 (48 Ω)"; "code N" when not known */
+void mt_aod_text(int kind, int code, char *b, size_t n);
+
 /* JEP106 maker name for a decoded code, or NULL when not in SRS's short list */
 const char *mt_jep106(unsigned code);
 
