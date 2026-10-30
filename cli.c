@@ -43,7 +43,7 @@ static const char *HELP =
 #ifdef __linux__
     "\n"
     "Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
-    "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
+    "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]\n"
     "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
     "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]\n"
     "        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);\n"
@@ -93,7 +93,7 @@ static const char *HELP =
     "        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;\n"
     "        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once\n"
     "  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]\n"
-    "           [--limit C] [--list] [--yes]\n"
+    "           [--limit C] [--accept-high-limit] [--list] [--yes]\n"
     "        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted\n"
     "        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default\n"
     "        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages\n"
@@ -327,12 +327,25 @@ static const char g_risk[] = "Use at your own risk: SRS comes without any warran
                              "(see the licence, GNU GPL v2).";
 static const char g_risk_yes[] = "--yes starts without asking; using it counts as agreeing to that.";
 static void help_risk(void) { puts(g_risk); puts(g_risk_yes); }
+/* 2.4: stop limits 50..100 C as before; 101..110 only with --accept-high-limit (the GUI asks once, Yes / No) */
+static const char g_hot_help[] = "--accept-high-limit  allow a --limit of 101..110 C: above 100 C many CPUs and GPUs are already at or near\n"
+                                 "                     their own maximum; you accept the risk of running there";
+static int limit_ok(const char *cmd, double lim, int accept)
+{
+    if (lim < 50 || lim > 110) { fprintf(stderr, "%s: --limit must be 50..110 (C)\n", cmd); return 0; }
+    if (lim > 100 && !accept) {
+        fprintf(stderr, "%s: a --limit over 100 C needs --accept-high-limit (above 100 C many CPUs and GPUs are already at or near "
+                        "their own maximum; using it means you accept that risk)\n", cmd);
+        return 0;
+    }
+    return 1;
+}
 
 static int cmd_burn(int argc, char **argv)
 {
     burn_cfg c;
     burn_status st;
-    int i, threads = -1, rc;
+    int i, threads = -1, rc, hot = 0;
     const char *cpus = NULL;
     burn_cfg_default(&c);
     c.burn_s = 10;
@@ -340,8 +353,11 @@ static int cmd_burn(int argc, char **argv)
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
-            puts("usage: sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]\n"
-                 "  starts at once (no question): makes the chosen CPUs 100 % busy, stops at the temperature limit (default 90 C) or Ctrl+C");
+            puts("usage: sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit]\n"
+                 "                             [--cool S] [--cycles N]\n"
+                 "  starts at once (no question): makes the chosen CPUs 100 % busy, stops at the temperature limit (default 90 C,\n"
+                 "  50..100; up to 110 with --accept-high-limit) or Ctrl+C");
+            puts(g_hot_help);
             puts(g_risk);
             puts("Starting it counts as agreeing to that.");
             return 0;
@@ -352,10 +368,12 @@ static int cmd_burn(int argc, char **argv)
         else if (!strcmp(a, "--cool") && v) { c.cool_s = atof(v); i++; }
         else if (!strcmp(a, "--cycles") && v) { c.cycles = atoi(v); i++; }
         else if (!strcmp(a, "--limit") && v) { c.temp_limit_c = atof(v); i++; }
+        else if (!strcmp(a, "--accept-high-limit")) hot = 1;
         else if (!strcmp(a, "--mode") && v) { c.mode = !strcmp(v, "swap") ? BURN_SWAP : BURN_SAME; i++; }
-        else return usage_error("burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]");
+        else return usage_error("burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]");
     }
     if (c.burn_s <= 0 || c.burn_s > 750.0 * 3600) return usage_error("--seconds must be 1..2700000");
+    if (!limit_ok("burn", c.temp_limit_c, hot)) return 2;
     if (cpus) {
         char tmp[1024], *t;
         memset(c.enabled, 0, sizeof c.enabled);
@@ -1022,13 +1040,14 @@ static int cmd_gpu_burn(int argc, char **argv)
 {
     static const char usage[] =
         "usage: sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]\n"
-        "                                 [--fp32|--fp64] [--limit C] [--list] [--yes]\n"
+        "                                 [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]\n"
         "  --seconds N   how long, 1..86400 (default 60)\n"
         "  --backend B   vulkan, hip (ROCm), cuda, opencl or auto (default: Vulkan when it has a GPU)\n"
         "  --device N    the device number of that back end (see --list), or all (default: the first)\n"
         "  --fp32/--fp64 the precision of the matrix multiplications (default fp32)\n"
-        "  --limit C     stop when the GPU reaches this temperature in C, 50..120 (default 100;\n"
-        "                hotspot / junction when the card reports it, else edge)\n"
+        "  --limit C     stop when the GPU reaches this temperature in C, 50..100 (default 100;\n"
+        "                hotspot / junction when the card reports it, else edge); up to 110 with\n"
+        "  --accept-high-limit  (above 100 C many GPUs are already at or near their own maximum)\n"
         "  --list        list the devices of each installed back end and exit (starts each runtime;\n"
         "                runs no work on a GPU)\n"
         "  --yes         start without asking\n"
@@ -1036,7 +1055,7 @@ static int cmd_gpu_burn(int argc, char **argv)
     srs_out o;
     gpuburn_cfg c;
     char why[300], what[1200], dev[300], bk[80];
-    int i, yes = 0, list = 0, rc;
+    int i, yes = 0, list = 0, rc, hot = 0;
     gpuburn_cfg_default(&c);
     so_text_init(&o, stdout);
     for (i = 2; i < argc; i++) {
@@ -1052,6 +1071,7 @@ static int cmd_gpu_burn(int argc, char **argv)
         else if (!strcmp(a, "--fp64")) c.prec = GP_FP64;
         else if (!strcmp(a, "--list")) list = 1;
         else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else if (!strcmp(a, "--accept-high-limit")) hot = 1;
         else if (!strcmp(a, "--device")) {
             if (!strcmp(v, "all")) c.device = GPUBURN_ALL;
             else if (!gpu_parse_device("gpu-burn", v, &c.device)) return 2;
@@ -1066,7 +1086,7 @@ static int cmd_gpu_burn(int argc, char **argv)
         } else { fprintf(stderr, "gpu-burn: unknown option '%s'\n", a); return 2; }
     }
     if (c.seconds < 1 || c.seconds > 86400) return usage_error("gpu-burn: --seconds must be 1..86400");
-    if (c.limit_c < 50 || c.limit_c > 120) return usage_error("gpu-burn: --limit must be 50..120 (C)");
+    if (!limit_ok("gpu-burn", c.limit_c, hot)) return 2;
     gpu_quiet_layers();
     if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
     if (list) {

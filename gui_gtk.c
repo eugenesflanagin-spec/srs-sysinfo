@@ -60,6 +60,10 @@ static void theme_apply(void);
 /* Stress & Burnin window choices, kept in SRSDEF.ini: GPU Burnin on, its minutes, sync, back end (0 = Auto), FP64, limit, Until Stop */
 static int g_tray_notice_off;   /* SRSDEF.ini "Tray Close Notice Off": the one-time close-to-tray notice was seen */
 static int g_terms;   /* load test terms: the version agreed (SRSDEF.ini "Accepted Load Test Terms"), 0 = not yet */
+static int g_hot_ok;  /* 2.4: stop limits over 100 °C accepted once (SRSDEF.ini "Accepted High Temperature Limits") */
+static int g_sb_cpulimit = 90;   /* 2.4: the CPU stop limit is remembered too ("Stress CPU Limit") */
+#define LIMIT_SAFE 100   /* stop limits up to this need no extra question */
+#define LIMIT_MAX 110    /* the most either limit can be set to (GPU hotspot / junction critical on most cards) */
 static int g_sb_gpu, g_sb_gpumin = 15, g_sb_sync = 1, g_sb_back, g_sb_prec, g_sb_limit = 100, g_sb_until, g_sb_gpuopts;
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
@@ -149,6 +153,7 @@ typedef struct swin {
     /* main-window tab (2.2): a temporary tab is not kept in the page's tab list */
     int temp;
     GtkWidget *tablbl, *tabtxt;
+    guint hot_id;   /* Stress & Burnin: the pending "over 100 °C?" check (2.4) */
 } swin;
 
 static GPtrArray *g_wins;
@@ -871,15 +876,20 @@ static void settings_load(void)
         {   /* Stress & Burnin (2.3.1) */
             static const char *const keys[] = { "Stress GPU Burnin", "Stress GPU Minutes", "Stress GPU Sync", "Stress GPU Backend",
                                                 "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open",
-                                                "Accepted Load Test Terms", "Tray Close Notice Off" };
+                                                "Accepted Load Test Terms", "Tray Close Notice Off", "Accepted High Temperature Limits",
+                                                "Stress CPU Limit" };
             int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts, &g_terms,
-                            &g_tray_notice_off };
+                            &g_tray_notice_off, &g_hot_ok, &g_sb_cpulimit };
             int k;
-            for (k = 0; k < 10; k++) {
+            for (k = 0; k < 12; k++) {
                 GError *e4 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e4);
                 if (!e4) *vars[k] = v; else g_error_free(e4);
             }
+            /* a limit over 100 °C without the yes (an older or hand-edited SRSDEF.ini) goes back to 100 */
+            if (g_sb_cpulimit < 50 || g_sb_cpulimit > LIMIT_MAX) g_sb_cpulimit = 90;
+            if (g_sb_limit < 50 || g_sb_limit > LIMIT_MAX) g_sb_limit = 100;
+            if (!g_hot_ok) { if (g_sb_cpulimit > LIMIT_SAFE) g_sb_cpulimit = LIMIT_SAFE; if (g_sb_limit > LIMIT_SAFE) g_sb_limit = LIMIT_SAFE; }
         }
         {
             GError *e3 = NULL;
@@ -928,6 +938,8 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Stress GPU Options Open", g_sb_gpuopts);
     g_key_file_set_integer(kf, "SRSDEF", "Accepted Load Test Terms", g_terms);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Close Notice Off", g_tray_notice_off);
+    g_key_file_set_integer(kf, "SRSDEF", "Accepted High Temperature Limits", g_hot_ok);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress CPU Limit", g_sb_cpulimit);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
@@ -981,6 +993,34 @@ static int terms_dialog(GtkWindow *parent, int from_menu)
 }
 /* before any Start / Run: 1 = go on */
 static int terms_ok(GtkWindow *parent) { return g_terms >= TERMS_VER || terms_dialog(parent, 0); }
+
+/* 2.4: a stop limit over 100 °C (up to 110) is asked about once, Yes / No; No keeps 100. */
+static int hot_dialog(GtkWindow *parent, const char *part, int val)
+{
+    const char *t = getenv("SRS_TEST_HOT_ANSWER");   /* tests: yes / no without a click */
+    int r;
+    if (t && *t) {
+        fprintf(stderr, "SRS-TEST: high temperature limit question shown (%s %d)\n", part, val);
+        r = !strcmp(t, "yes") ? GTK_RESPONSE_YES : GTK_RESPONSE_NO;
+    } else {
+        GtkWidget *d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE,
+                                              "Stop limits over %d °C: at your own risk", LIMIT_SAFE);
+        gtk_window_set_title(GTK_WINDOW(d), "Temperature limit");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
+            "You set the %s stop limit to %d °C. Above %d °C the stress test keeps running where many processors and graphics "
+            "cards are already at or near their own maximum (often 89-110 °C): the chip then slows itself down, and with poor "
+            "cooling, a worn-out thermal paste or an overclock a fault becomes more likely. The chip's own protection stays on; "
+            "SRS never changes clocks, voltages or fans.\n\n"
+            "Do you accept the risk of stop limits up to %d °C? You are asked only once (both the CPU and the GPU limit); "
+            "No sets the limit back to %d °C.", part, val, LIMIT_SAFE, LIMIT_MAX, LIMIT_SAFE);
+        gtk_dialog_add_buttons(GTK_DIALOG(d), "_No", GTK_RESPONSE_NO, "_Yes, I accept the risk", GTK_RESPONSE_YES, NULL);
+        gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
+        r = gtk_dialog_run(GTK_DIALOG(d));
+        gtk_widget_destroy(d);
+    }
+    if (r == GTK_RESPONSE_YES) { g_hot_ok = 1; settings_save(); return 1; }
+    return 0;
+}
 static gboolean on_terms_link(GtkLabel *l, const char *uri, gpointer d)
 {
     GtkWidget *top = gtk_widget_get_toplevel(GTK_WIDGET(l));
@@ -1119,6 +1159,7 @@ static void on_destroy(GtkWidget *wid, gpointer data)
     (void)wid;
     if (w->timer) g_source_remove(w->timer);
     if (w->commit_id) g_source_remove(w->commit_id);
+    if (w->hot_id) g_source_remove(w->hot_id);
     if (w->scratch) g_object_unref(w->scratch);
     if (w->kind == W_BURN && burn_active()) { burn_stop(); burn_tick(&w->st); burn_saved(w); }
     if (w->kind == W_BURN && w->gb_live[0]) g_unlink(w->gb_live);   /* GPU Burnin's live-status file (the run is over) */
@@ -2148,6 +2189,40 @@ static void on_gb_expander(GtkWidget *x, GParamSpec *ps, gpointer data)
     g_sb_gpuopts = gtk_expander_get_expanded(GTK_EXPANDER(x));
     settings_save();
 }
+/* 2.4: the closed "GPU options" line shows what it holds, so the GPU's own stop limit is never hidden */
+static void gb_opts_label(swin *w)
+{
+    char t[200];
+    gchar *b;
+    if (!w->b_gbrow || !w->gb_back || !w->gb_prec || !w->gb_limit) return;
+    b = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w->gb_back));
+    snprintf(t, sizeof t, "GPU optio_ns: %s, %s, stop at %d °C", b ? b : "Auto (Vulkan)",
+             gtk_combo_box_get_active(GTK_COMBO_BOX(w->gb_prec)) == 1 ? "FP64" : "FP32", gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->gb_limit)));
+    g_free(b);
+    gtk_expander_set_label(GTK_EXPANDER(w->b_gbrow), t);
+}
+static void on_gb_label(GtkWidget *x, gpointer data) { (void)x; gb_opts_label(data); }
+/* a limit over 100 °C: asked once, a moment after the change (not inside the spin button's own click) */
+static gboolean hot_check(gpointer data)
+{
+    swin *w = data;
+    GtkWidget *sp[2] = { w->b_limit, w->gb_limit };
+    static const char *const nm[2] = { "CPU", "GPU" };
+    int i, v, no = 0;
+    w->hot_id = 0;
+    for (i = 0; i < 2; i++) {   /* one question for both: after a No the other limit goes back to 100 too, unasked */
+        if (!sp[i] || g_hot_ok || (v = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(sp[i]))) <= LIMIT_SAFE) continue;
+        if (no || !hot_dialog(GTK_WINDOW(w->win), nm[i], v)) { no = 1; gtk_spin_button_set_value(GTK_SPIN_BUTTON(sp[i]), LIMIT_SAFE); }
+    }
+    if (no && w->hot_id) { g_source_remove(w->hot_id); w->hot_id = 0; }   /* the reset itself fired value-changed */
+    return G_SOURCE_REMOVE;
+}
+static void on_limit(GtkWidget *x, gpointer data)
+{
+    swin *w = data;
+    gb_opts_label(w);
+    if (!g_hot_ok && !w->hot_id && gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(x)) > LIMIT_SAFE) w->hot_id = g_timeout_add(250, hot_check, w);
+}
 static void burn_sens(swin *w)
 {
     int idle = !burn_active(), cpu = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpuon));
@@ -2266,7 +2341,11 @@ static void on_burn_start(GtkWidget *x, gpointer data)
     }
     c.mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_same)) ? BURN_SAME : BURN_SWAP;
     gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_limit));
+    gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
+    if (w->hot_id) { g_source_remove(w->hot_id); w->hot_id = 0; }
+    hot_check(w);   /* a limit over 100 °C typed in and Start pressed at once: asked here (No = 100) */
     c.temp_limit_c = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->b_limit));
+    g_sb_cpulimit = (int)c.temp_limit_c;
     if (cpu && timed) {
         double t;
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_time));
@@ -2401,6 +2480,13 @@ static gboolean burn_autostart(gpointer data)
     int i, n = atoi(getenv("SRS_TEST_BURN_AUTOSTART"));
     if (!g_ptr_array_find(g_wins, w, NULL)) return G_SOURCE_REMOVE;
     for (i = 0; i < w->nb_cpu; i++) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_cpu[i]), i < n);
+    if (getenv("SRS_TEST_LIMITS")) {   /* tests: "CPU,GPU" stop limits typed in just before Start */
+        int lc = 0, lg = 0;
+        if (sscanf(getenv("SRS_TEST_LIMITS"), "%d,%d", &lc, &lg) == 2) {
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->b_limit), lc);
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->gb_limit), lg);
+        }
+    }
     on_burn_start(NULL, w);
     return G_SOURCE_REMOVE;
 }
@@ -2456,7 +2542,9 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_grid_attach(GTK_GRID(grid), trow, 1, 1, 6, 1);
     /* row 2: temperature and Same / Swap */
     gtk_grid_attach(GTK_GRID(grid), lbl("CPU temperature limit °C"), 0, 2, 1, 1);
-    w->b_limit = spin(50, 100, 1, 90);
+    w->b_limit = spin(50, LIMIT_MAX, 1, g_sb_cpulimit);
+    gtk_widget_set_tooltip_text(w->b_limit, "The CPU part stops by itself when the hottest CPU sensor reaches this temperature. "
+                                            "Over 100 °C (up to 110) is asked about once.");
     gtk_grid_attach(GTK_GRID(grid), w->b_limit, 1, 2, 1, 1);
     w->b_same = gtk_radio_button_new_with_label(NULL, "Same CPU (Whetstone)");
     swap = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(w->b_same), "Swap CPU (affinity test)");
@@ -2486,8 +2574,9 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_widget_set_tooltip_text(w->gb_prec, "FP32 (single precision) loads most GPUs hardest. FP64 checks the double-precision units, slow on most gaming cards.");
     gtk_box_pack_start(GTK_BOX(grow), w->gb_prec, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(grow), lbl("Stop at °C"), FALSE, FALSE, 0);
-    w->gb_limit = spin(50, 120, 1, g_sb_limit >= 50 && g_sb_limit <= 120 ? g_sb_limit : 100);
-    gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge).");
+    w->gb_limit = spin(50, LIMIT_MAX, 1, g_sb_limit);
+    gtk_widget_set_tooltip_text(w->gb_limit, "GPU Burnin ends by itself when the GPU reaches this temperature (hotspot / junction when the card reports it, else edge). "
+                                             "Over 100 °C (up to 110) is asked about once.");
     gtk_box_pack_start(GTK_BOX(grow), w->gb_limit, FALSE, FALSE, 0);
     /* row 4: device, back end, precision and limit sit in a "GPU options" expander, closed by default
        (Auto back end, the first GPU, FP32, 100 °C) */
@@ -2557,6 +2646,11 @@ static void build_burn(swin *w, GtkWidget *vb)
     g_signal_connect(w->b_gb, "toggled", G_CALLBACK(on_burn_opt), w);
     g_signal_connect(w->b_gbsync, "toggled", G_CALLBACK(on_burn_opt), w);
     g_signal_connect(w->b_gpu, "toggled", G_CALLBACK(on_burn_opt), w);
+    g_signal_connect(w->b_limit, "value-changed", G_CALLBACK(on_limit), w);
+    g_signal_connect(w->gb_limit, "value-changed", G_CALLBACK(on_limit), w);
+    g_signal_connect(w->gb_back, "changed", G_CALLBACK(on_gb_label), w);
+    g_signal_connect(w->gb_prec, "changed", G_CALLBACK(on_gb_label), w);
+    gb_opts_label(w);
     burn_sens(w);
     gpu_av_start(w);
 }
