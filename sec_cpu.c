@@ -1169,7 +1169,8 @@ static void s_amd_fus(srs_out *o)
             if (!rd_long(p, &v)) continue;   /* offline CPU */
             snprintf(c3, sizeof c3, "%ld", v);
             snprintf(c1, sizeof c1, "%d", cpu);
-            snprintf(c2, sizeof c2, "%ld", topo(cpu, "core_id"));
+            v = topo(cpu, "core_id");
+            if (v >= 0) snprintf(c2, sizeof c2, "%ld", v); else snprintf(c2, sizeof c2, "-");
             snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_prefcore_ranking", cpu);
             if (rd_long(p, &v)) { snprintf(c4, sizeof c4, "%ld", v); if (v > top) top = (int)v; }
             snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_max_freq", cpu);

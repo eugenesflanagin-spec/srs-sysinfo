@@ -188,6 +188,8 @@ if [ -e /dev/mem ]; then
   fi
   rm -f ebda.err
   log ebda
+else
+  echo "error /dev/mem is not present on this kernel" > ebda.txt
 fi
 # 2.4: the GPU driver's own cached copy of each AMD VBIOS (debugfs, root only; a memory copy, the GPU is not accessed).
 # The PCI ROM BAR (sysfs .../rom) is never used: reading it needs a write to enable it first.
