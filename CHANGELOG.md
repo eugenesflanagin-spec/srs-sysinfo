@@ -143,8 +143,8 @@ experts.
   live ones. It needs `iomem=relaxed` on kernels with IO_STRICT_DEVMEM; SRS never asks you to change that.
 - The PMIC and embedded controller opt-ins were not checked on real hardware yet; the EBDA dump was not either
   (the author's UEFI PC has no EBDA).
-- GPU Burnin's new kernel was run on the real card with ROCm / HIP and OpenCL; on Vulkan (lavapipe) and CUDA (a
-  fake driver) only in the automatic tests so far.
+- GPU Burnin's new kernel was run on the real card (RX 9070 XT) with all four back ends, CUDA through ZLUDA only:
+  NVIDIA's own CUDA driver was not tried.
 - ACPI method evaluation runs BIOS code and can change hardware state: evaluate only methods you know.
 - The fuse registers on AMD Fuses are still not read, and MSR Setup still shows no voltages.
 

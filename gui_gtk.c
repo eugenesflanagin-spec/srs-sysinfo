@@ -1600,15 +1600,27 @@ static void acpi_eval_dialog(void)
     gtk_widget_show_all(d);
     while (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_APPLY) {
         const char *m = gtk_entry_get_text(GTK_ENTRY(em)), *a = gtk_entry_get_text(GTK_ENTRY(ea));
-        char *argv[16], **av = NULL, *so = NULL, *se = NULL;
+        char *argv[16], *so = NULL, *se = NULL, *copy = NULL;
         int na = 0, i, st = -1;
+        const char *q = a;
         if (!*m) continue;   /* accepted once (above); no question per call */
-        if (*a && !g_shell_parse_argv(a, &na, &av, NULL)) { gtk_label_set_text(GTK_LABEL(out), "The arguments could not be read (check the quotes)."); continue; }
         argv[0] = (char *)"pkexec"; argv[1] = helper; argv[2] = (char *)"--acpi-eval"; argv[3] = (char *)m;
-        for (i = 0; i < na && i < 8; i++) {   /* keep the quotes of a "string": srs-root and acpi_call want them */
-            argv[4 + i] = strchr(a, '"') && !g_ascii_isdigit(av[i][0]) && av[i][0] != 'b' ? g_strdup_printf("\"%s\"", av[i]) : g_strdup(av[i]);
+        while (*q) {   /* split on spaces outside quotes; a "string" keeps its quotes (srs-root and acpi_call want them) */
+            const char *st0;
+            while (*q == ' ') q++;
+            if (!*q) break;
+            st0 = q;
+            if (*q == '"') { q++; while (*q && *q != '"') q++; if (*q == '"') q++; }
+            else while (*q && *q != ' ') q++;
+            if (na == 7) { na = 8; break; }
+            argv[4 + na++] = g_strndup(st0, (gsize)(q - st0));
         }
-        argv[4 + i] = NULL;
+        argv[4 + (na > 7 ? 7 : na)] = NULL;
+        if (na > 7) { for (i = 4; argv[i]; i++) g_free(argv[i]); gtk_label_set_text(GTK_LABEL(out), "At most 7 arguments."); continue; }
+        if (g_getenv("APPIMAGE")) {   /* as for Run as root: root cannot read the AppImage's mount, so run a private copy */
+            if (!(copy = root_helper_copy(helper))) { for (i = 4; argv[i]; i++) g_free(argv[i]); gtk_label_set_text(GTK_LABEL(out), "Could not copy srs-root out of the AppImage."); continue; }
+            argv[1] = copy;
+        }
         if (g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, &so, &se, &st, NULL)) {
             char res[1200];
             snprintf(res, sizeof res, "%s%s", so && *so ? so : "", se && *se ? se : "");
@@ -1616,7 +1628,7 @@ static void acpi_eval_dialog(void)
             gtk_label_set_text(GTK_LABEL(out), *res ? res : (st ? "cancelled or failed" : "(no result)"));
         } else gtk_label_set_text(GTK_LABEL(out), "pkexec could not be started");
         for (i = 4; argv[i]; i++) g_free(argv[i]);
-        g_strfreev(av);
+        if (copy) { char *dir = g_path_get_dirname(copy); g_unlink(copy); g_rmdir(dir); g_free(dir); g_free(copy); }
         g_free(so); g_free(se);
     }
     gtk_widget_destroy(d);

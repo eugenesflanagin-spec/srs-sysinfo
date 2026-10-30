@@ -1270,9 +1270,9 @@ what was tried; in short, not tried on real hardware so far:
   finding every function SRS needs - no HIP, NVIDIA CUDA or OpenCL work was run on a GPU. CUDA through
   ZLUDA: the GPU Compute comparison was run on the author's Radeon RX 9070 XT (2026-10-29), every CUDA
   row from the built-in kernels (PTX, new in 2.3) without NVRTC; only the cuBLAS FP64 row says "not
-  available" (ZLUDA's cuBLAS has none). GPU Burnin with CUDA was not run on the real card. GPU Burnin's
-  2.4 matrix multiply ran on the author's RX 9070 XT with ROCm / HIP (about 13.0 TFLOPS FP32) and OpenCL
-  (about 13.4), 0 errors; with Vulkan and CUDA only on lavapipe and a fake CUDA driver so far. Untested:
+  available" (ZLUDA's cuBLAS has none). GPU Burnin's 2.4 matrix multiply ran on the author's RX 9070 XT
+  with all four back ends, FP32, 0 errors: CUDA via ZLUDA about 17.2 TFLOPS, Vulkan 16.2, OpenCL 13.4,
+  ROCm / HIP 13.0. Untested:
   every other real GPU use (AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs
   for NVIDIA and Intel. The built-in CUDA kernels were never run on NVIDIA hardware. The NVIDIA CUDA
   toolkit install (Options) was tested with fake package managers only.
@@ -2089,8 +2089,8 @@ while Stress & Burnin or another benchmark runs, and Stress & Burnin does not st
 The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
 [Benchmark History](#910-benchmark-history). The idea of comparing every result with the first
 one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on the author's real card with
-ROCm / HIP and OpenCL, and with Vulkan and CUDA only on a software GPU and a fake driver - see the note
-at the start of this chapter.
+all four back ends (CUDA through ZLUDA; NVIDIA's own driver was not tried) - see the note at the start
+of this chapter.
 
 ### 9.19 GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL
 

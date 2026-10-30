@@ -434,8 +434,8 @@ typedef struct {
 /* hwdata's pnp.ids: the newer of the user's copy (Update hardware lists, 2.4) and the system's, or the AppImage's own */
 static const char *pnp_ids(void)
 {
-    static char p[1200];
-    if (!p[0] && !srs_ids_path("pnp.ids", p, sizeof p, NULL)) snprintf(p, sizeof p, "%s/pnp.ids", plat_hwdata_dir());
+    static char p[1200];   /* looked up each time: a list fetched by Update hardware lists counts at once */
+    if (!srs_ids_path("pnp.ids", p, sizeof p, NULL)) snprintf(p, sizeof p, "%s/pnp.ids", plat_hwdata_dir());
     return p;
 }
 

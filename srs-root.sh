@@ -167,7 +167,8 @@ rm -f intel-imc.txt
 if [ "$vend" = GenuineIntel ]; then
   rd=$(dirname "$(readlink -f "$0")")/sysreport-search
   [ -x "$rd" ] || rd=$(command -v sysreport-search)
-  [ -n "$rd" ] && "$rd" intel-imc-dump > intel-imc.txt 2>&1
+  if [ -n "$rd" ]; then "$rd" intel-imc-dump > intel-imc.txt 2>&1
+  else echo "error SRS's own reader (sysreport-search) is not installed next to srs-root, so the Intel timings could not be read" > intel-imc.txt; fi
   log intel-imc
 fi
 # 2.4: the BIOS's AMD Overclocking Data (AOD) table: memory ProcODT, RTT, drive strengths and set voltages. An SSDT names

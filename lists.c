@@ -18,6 +18,7 @@
 
 const srs_list srs_lists[SRS_NLISTS] = {
     { "pci.ids", "PCI device names", "https://pci-ids.ucw.cz/v2.2/pci.ids", "List of PCI ID", 20000 },
+    /* linux-usb.org's https certificate does not match its name (2026-10), so plain http; the download is checked before use */
     { "usb.ids", "USB device names", "http://www.linux-usb.org/usb.ids", "List of USB ID", 10000 },
     { "pnp.ids", "PnP / monitor maker names", "https://raw.githubusercontent.com/vcrhonek/hwdata/master/pnp.ids", NULL, 1500 },
 };
@@ -151,7 +152,7 @@ int srs_lists_update(int which, char *report, size_t rn)
         if (!*ov && *cur) snprintf(ov, sizeof ov, "%ld entries", srs_ids_entries(cur));
         if (fetch(list_url(L, url, sizeof url), tmp, why, sizeof why) || !list_ok(L, tmp, why, sizeof why)) {
             unlink(tmp);
-            used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s not updated: %s (the copy in use stays)\n", L->file, why);
+            used += (size_t)snprintf(report + (used < rn ? used : rn - 1), used < rn ? rn - used : 0, "%-10s not updated: %s (the copy in use stays)\n", L->file, why);
             continue;
         }
         srs_ids_version(tmp, nv, sizeof nv);
@@ -161,7 +162,7 @@ int srs_lists_update(int which, char *report, size_t rn)
                 snprintf(nv, sizeof nv, "%ld entries", ne);
                 if (ne <= oe) {   /* nothing new: keep using the copy in use */
                     unlink(tmp);
-                    used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s %s, %s the copy in use: kept the copy in use\n", L->file, nv,
+                    used += (size_t)snprintf(report + (used < rn ? used : rn - 1), used < rn ? rn - used : 0, "%-10s %s, %s the copy in use: kept the copy in use\n", L->file, nv,
                                              ne == oe ? "the same as" : "fewer entries than");
                     ok++;
                     continue;
@@ -170,12 +171,13 @@ int srs_lists_update(int which, char *report, size_t rn)
         }
         if (!access(dst, F_OK)) rename(dst, old);
         if (rename(tmp, dst)) {
+            rename(old, dst);   /* put the previous copy back */
             unlink(tmp);
-            used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s not updated: could not write %s\n", L->file, dst);
+            used += (size_t)snprintf(report + (used < rn ? used : rn - 1), used < rn ? rn - used : 0, "%-10s not updated: could not write %s\n", L->file, dst);
             continue;
         }
         ok++;
-        used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s %s (was %s, %s)\n", L->file, nv, *ov ? ov : "none",
+        used += (size_t)snprintf(report + (used < rn ? used : rn - 1), used < rn ? rn - used : 0, "%-10s %s (was %s, %s)\n", L->file, nv, *ov ? ov : "none",
                                  strcmp(nv, ov) > 0 || strstr(nv, "entries") ? "newer" : "no newer version yet");
     }
     return ok;

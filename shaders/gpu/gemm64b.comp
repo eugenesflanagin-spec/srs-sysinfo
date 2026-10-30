@@ -10,7 +10,7 @@ layout(push_constant) uniform PC { uint n, u1, u2, u3, u4, u5, u6, u7; } pc;
 layout(std430, binding = 0) readonly buffer A { double a[]; };
 layout(std430, binding = 1) readonly buffer B { double b[]; };
 layout(std430, binding = 2) writeonly buffer C { double c[]; };
-shared double sa[16][65];
+shared double sa[16][64];   // no padding column: 16 KiB in all, the most Vulkan guarantees (FP32 keeps its 65)
 shared double sb[16][64];
 
 void main()

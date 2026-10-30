@@ -179,8 +179,8 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
   - **GPU features, what was and wasn't run.** The Vulkan tests,
     GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) in the automatic
-    tests. GPU Burnin's 2.4 kernel ran on my RX 9070 XT with ROCm / HIP (about 13.0 TFLOPS FP32) and
-    OpenCL (about 13.4), 0 errors; with Vulkan and CUDA only in the automatic tests so far. Nothing was
+    tests. GPU Burnin's 2.4 kernel ran on my RX 9070 XT with all four back ends, FP32, 0 errors: CUDA via
+    ZLUDA about 17.2 TFLOPS, Vulkan 16.2, OpenCL 13.4, ROCm / HIP 13.0. Nothing was
     run on NVIDIA hardware. The built-in CUDA kernels
     (PTX, 2.3) were checked offline and against a fake driver, and the GPU Compute comparison ran every
     CUDA row from them through ZLUDA on my RX 9070 XT (cuBLAS FP64 "not available": ZLUDA's cuBLAS has

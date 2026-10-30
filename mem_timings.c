@@ -347,7 +347,7 @@ int mt_intel_dump(FILE *out)
     if (!(base & 1)) { fprintf(out, "error the memory controller window (MCHBAR) is switched off; SRS does not switch it on\n"); return 1; }
     base &= G->mask;
     fprintf(out, "base 0x%llX\n", base);
-    if (sizeof(off_t) < 8 && base > 0xFFFFFFFFULL) { fprintf(out, "error the window lies above 4 GB, out of reach of this 32-bit build\n"); return 1; }
+    if (sizeof(off_t) < 8 && base > 0x7FFFFFFFULL) { fprintf(out, "error the window lies above 4 GB, out of reach of this 32-bit build\n"); return 1; }
     if ((fd = open("/dev/mem", O_RDONLY | O_SYNC | O_CLOEXEC)) < 0) { fprintf(out, "error /dev/mem: %s\n", strerror(errno)); return 1; }
     w = mmap(NULL, G->window, PROT_READ, MAP_SHARED, fd, (off_t)base);
     close(fd);
