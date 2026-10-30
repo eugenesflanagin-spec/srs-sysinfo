@@ -295,6 +295,24 @@ static char *redact_dup(const char *s)
             p += vl;
         }
     }
+    {   /* 2.4: hexdump lines ("000E  00 1A ...  ..text..", as on System CMOS, which can hold the BIOS password check
+           value): every byte becomes XX and the text column dots, as in a saved report */
+        char *ln = c;
+        while (ln && *ln) {
+            char *e = strchr(ln, '\n'), *q = ln;
+            int nd = 0, nb = 0;
+            while (isxdigit((unsigned char)*q) && nd < 6) { q++; nd++; }
+            if (nd >= 4 && q[0] == ' ' && q[1] == ' ' && isxdigit((unsigned char)q[2]) && isxdigit((unsigned char)q[3]) && q[4] == ' ') {
+                q += 2;
+                while (nb < 16 && isxdigit((unsigned char)q[0]) && isxdigit((unsigned char)q[1]) && (q[2] == ' ' || q[2] == '\n' || !q[2])) {
+                    q[0] = q[1] = 'X'; q += q[2] == ' ' ? 3 : 2; nb++; hit = 1;
+                }
+                while (*q == ' ') q++;
+                while (*q && *q != '\n') *q++ = '.';
+            }
+            ln = e ? e + 1 : NULL;
+        }
+    }
     if (!hit) { free(c); return NULL; }
     return c;
 }
