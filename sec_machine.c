@@ -2438,6 +2438,19 @@ static void s_acpi_pdx(srs_out *o)
     so_board_footer(o);
 }
 
+/* Options > Read the embedded controller (2.4), the SRSDEF.ini key srs-root also reads */
+static int g_opt_ec_on(void)
+{
+    char p[1200], *t = NULL;
+    const char *x = getenv("XDG_CONFIG_HOME");
+    int on = 0;
+    if (x && *x) snprintf(p, sizeof p, "%s/srs/SRSDEF.ini", x);
+    else snprintf(p, sizeof p, "%s/.config/srs/SRSDEF.ini", getenv("HOME") ? getenv("HOME") : "");
+    if (rd_all(p, &t) > 0) on = strstr(t, "\nRead EC=1") != NULL;
+    free(t);
+    return on;
+}
+
 static void s_acpi_ec(srs_out *o)
 {
     static const int tabs[] = { 200 };
@@ -2460,8 +2473,24 @@ static void s_acpi_ec(srs_out *o)
     if (rd_str("/sys/module/acpi/parameters/ec_busy_polling", v, sizeof v)) so_kv(o, "ec_busy_polling", C_GRAY, v);
     if (rd_str("/sys/module/acpi/parameters/ec_max_queries", v, sizeof v)) so_kv(o, "ec_max_queries", C_GRAY, v);
     so_kv(o, "ec_sys module", C_VALUE, path_exists("/sys/module/ec_sys") ? "loaded (register dump via debugfs, root only)" : "not loaded");
-    so_kv(o, "EC register dump", C_ORANGE, "not read: /sys/kernel/debug/ec/ec0/io is root-only and not in the srs-root cache");
-    needs_root(o);
+    {   /* 2.4: opt-in (Options > Read the embedded controller): srs-root loads ec_sys read-only and copies its 256 registers */
+        const char *ef = so_root_file("ec.bin");
+        char *d = NULL;
+        int n = ef ? rd_all(ef, &d) : -1, i;
+        if (n > 0) {
+            char b[200];
+            so_par(o);
+            so_head(o, "EC registers (read once by srs-root, ec_sys loaded read-only)");
+            for (i = 0; i < n && i < 256; i += 16) {
+                int k, p = snprintf(b, sizeof b, "%04X ", i);
+                for (k = 0; k < 16 && i + k < n; k++) p += snprintf(b + p, sizeof b - (size_t)p, " %02X", (unsigned char)d[i + k]);
+                so_m(o, C_VALUE, b); so_par(o);
+            }
+            so_note(o, "The controller's own bytes (fan, battery, temperature, keyboard state ...); their meaning depends on the board maker.");
+        } else if (!g_opt_ec_on()) so_kv(o, "EC register dump", C_GRAY, "off: Menu > Options > Read the embedded controller, then Run as root");
+        else so_kv(o, "EC register dump", C_ORANGE, "not in the srs-root cache yet: Menu > Run as root");
+        free(d);
+    }
     so_board_footer(o);
 }
 
@@ -3279,7 +3308,7 @@ const srs_item sec_machine[] = {
     { "acpi-spb", "hardware", "ACPI SPB (serial peripheral bus) methods", B_LINUX, 0, "/sys/bus/acpi/devices; /sys/bus/i2c/devices (names)", s_acpi_spb, 0, "machine" },
     { "acpi-wmi", "hardware", "ACPI WMI (PNP0C14) methods", B_LINUX, 0, "/sys/bus/wmi/devices", s_acpi_wmi, 0, "machine" },
     { "acpi-pdx", "hardware", "ACPI extension (PDX)", B_LINUX, 0, "/sys/bus/acpi/devices (vendor HIDs)", s_acpi_pdx, 0, "machine" },
-    { "acpi-ec", "hardware", "ACPI embedded controller", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C09:00 (EC registers not read)", s_acpi_ec, 0, "machine" },
+    { "acpi-ec", "hardware", "ACPI embedded controller", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C09:00; ec.bin (opt-in, srs-root with ec_sys read-only)", s_acpi_ec, 0, "machine" },
     { "acpi-eval", "hardware", "ACPI method evaluation", B_LINUX, 1, "Tools > ACPI method evaluation (acpi_call, as root); acpi-calls.txt log", s_acpi_eval, 0, "machine" },
     { "acpi-methods", "hardware", "ACPI methods", B_LINUX, 1, "acpi-tables/DSDT, SSDT* cache (AML MethodOp scan)", s_acpi_methods, 0, "machine" },
     { "acpi-ipf", "hardware", "ACPI IPF (Intel Platform Framework) methods", B_ABSENT, 0, "/sys/bus/acpi/devices (probe INTC1040-1043)", s_acpi_ipf, 0, "machine" },

@@ -71,7 +71,8 @@ static int g_highlight = 1, g_hide_unused;
 static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
 static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
 static int g_opt_pmic = 0;
-static int g_acpi_ok;           /* 2.4: ACPI method evaluation accepted ("Accepted ACPI Evaluation") */     /* 2.4: Options > Read DIMM voltages (PMIC); srs-root reads SRSDEF.ini "Read DIMM PMIC" */
+static int g_acpi_ok;           /* 2.4: ACPI method evaluation accepted ("Accepted ACPI Evaluation") */
+static int g_opt_ec;            /* 2.4: Options > Read the embedded controller ("Read EC"; srs-root reads it) */     /* 2.4: Options > Read DIMM voltages (PMIC); srs-root reads SRSDEF.ini "Read DIMM PMIC" */
 static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "Classic View") */
 static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
 
@@ -905,11 +906,11 @@ static void settings_load(void)
         }
         {
             static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports", "Classic View", "Sortable Tables",
-                                                "Read DIMM PMIC", "Accepted ACPI Evaluation" };
+                                                "Read DIMM PMIC", "Accepted ACPI Evaluation", "Read EC" };
             int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic, &g_opt_sort, &g_opt_pmic,
-                            &g_acpi_ok };
+                            &g_acpi_ok, &g_opt_ec };
             int k;
-            for (k = 0; k < 9; k++) {
+            for (k = 0; k < 10; k++) {
                 GError *e2 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
                 if (!e2) *vars[k] = v; else g_error_free(e2);
@@ -951,6 +952,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Redact Reports", g_opt_redact);
     g_key_file_set_integer(kf, "SRSDEF", "Read DIMM PMIC", g_opt_pmic);
     g_key_file_set_integer(kf, "SRSDEF", "Accepted ACPI Evaluation", g_acpi_ok);
+    g_key_file_set_integer(kf, "SRSDEF", "Read EC", g_opt_ec);
     g_key_file_set_integer(kf, "SRSDEF", "Classic View", g_opt_classic);
     g_key_file_set_integer(kf, "SRSDEF", "Sortable Tables", g_opt_sort);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
@@ -4218,7 +4220,7 @@ static void autostart_set(int on)
     g_free(p);
 }
 
-enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC, OPT_SORT, OPT_PMIC };
+enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC, OPT_SORT, OPT_PMIC, OPT_EC };
 /* "Refresh root data at boot": the packaged srs-root@<user>.service runs srs-root as root
  * once per boot, so the root-only panels are filled without a password prompt. */
 static char *bootroot_unit(void) { return g_strdup_printf("srs-root@%s.service", g_get_user_name()); }
@@ -4263,6 +4265,37 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
             gtk_check_menu_item_set_active(mi, bootroot_on());
             g_signal_handlers_unblock_by_func(mi, on_option, d);
         }
+        return;
+    }
+    if (GPOINTER_TO_INT(d) == OPT_EC) {   /* 2.4: asked before it goes on */
+        int ok = !on;
+        if (on) {
+            const char *t = getenv("SRS_TEST_EC_ANSWER");
+            if (t && *t) ok = !strcmp(t, "yes");
+            else {
+                GtkWidget *m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE,
+                                                      "Read the embedded controller?");
+                gtk_window_set_title(GTK_WINDOW(m), "Embedded controller");
+                gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m),
+                    "The embedded controller (EC) is the board's small helper chip for fans, power buttons, the battery and some sensors. "
+                    "Run as root can copy its 256 registers: it loads the kernel's ec_sys module in read-only mode, reads them once "
+                    "and unloads the module again.\n\nOn a few machines (mostly laptops) reading certain EC registers clears a pending "
+                    "event, such as a battery or key notification, which may then be missed once. That is why this is off by default."
+                    "\n\nRead the embedded controller from the next Run as root on?");
+                gtk_dialog_add_buttons(GTK_DIALOG(m), "_No", GTK_RESPONSE_NO, "_Yes, read it", GTK_RESPONSE_YES, NULL);
+                gtk_dialog_set_default_response(GTK_DIALOG(m), GTK_RESPONSE_NO);
+                ok = gtk_dialog_run(GTK_DIALOG(m)) == GTK_RESPONSE_YES;
+                gtk_widget_destroy(m);
+            }
+        }
+        if (on && !ok) {
+            g_signal_handlers_block_by_func(mi, on_option, d);
+            gtk_check_menu_item_set_active(mi, FALSE);
+            g_signal_handlers_unblock_by_func(mi, on_option, d);
+            return;
+        }
+        g_opt_ec = on;
+        settings_save();
         return;
     }
     if (GPOINTER_TO_INT(d) == OPT_PMIC) {   /* 2.4: asked before it goes on; the next Run as root reads them */
@@ -4646,7 +4679,8 @@ static void build_options(GtkWidget *menu)
         { "R_edact identifiers in saved reports and copied text (serials, UUIDs, MACs, host name)", OPT_REDACT },
         { "Start in c_lassic view (SIV-style main window)", OPT_CLASSIC },
         { "S_ortable tables in the main window (click a column heading)", OPT_SORT },
-        { "Read DIMM voltages _from their PMIC chips (SMBus; from the next Run as root)", OPT_PMIC }, { NULL, 0 } };
+        { "Read DIMM voltages _from their PMIC chips (SMBus; from the next Run as root)", OPT_PMIC },
+        { "Read the embedded controller (e_xpert, read-only; from the next Run as root)", OPT_EC }, { NULL, 0 } };
     int i, have = tray_available();
     if (g_home_open) tabs_options(menu);   /* main window: tab bar, lineups, every item as a tab, hidden items */
     {
@@ -4686,9 +4720,9 @@ static void build_options(GtkWidget *menu)
         int v = opts[i].id == OPT_TRAY ? g_opt_tray : opts[i].id == OPT_CLOSE ? g_opt_close_tray : opts[i].id == OPT_MIN ? g_opt_min_tray
               : opts[i].id == OPT_START ? g_opt_start_tray : opts[i].id == OPT_BOOTROOT ? bootroot_on()
               : opts[i].id == OPT_REDACT ? g_opt_redact : opts[i].id == OPT_CLASSIC ? g_opt_classic
-              : opts[i].id == OPT_SORT ? g_opt_sort : opts[i].id == OPT_PMIC ? g_opt_pmic : autostart_on();
+              : opts[i].id == OPT_SORT ? g_opt_sort : opts[i].id == OPT_PMIC ? g_opt_pmic : opts[i].id == OPT_EC ? g_opt_ec : autostart_on();
         gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), v);
-        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC && opts[i].id != OPT_SORT && opts[i].id != OPT_PMIC)
+        if (!have && opts[i].id != OPT_AUTOSTART && opts[i].id != OPT_BOOTROOT && opts[i].id != OPT_REDACT && opts[i].id != OPT_CLASSIC && opts[i].id != OPT_SORT && opts[i].id != OPT_PMIC && opts[i].id != OPT_EC)
             gtk_widget_set_sensitive(it, FALSE);
         if (opts[i].id == OPT_BOOTROOT && !bootroot_available()) {
             gtk_widget_set_sensitive(it, FALSE);

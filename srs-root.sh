@@ -169,6 +169,16 @@ fi
 # 2.4, opt-in (Options > Read DIMM voltages (PMIC)): the set voltages of each DDR5 module's PMIC, its registers 0x00-0x3F
 # read over SMBus with i2cdump (read byte data; nothing is written to the PMIC; no -f, so a device a driver owns is skipped)
 rm -f pmic-*.txt
+# 2.4, opt-in (Options > Read the embedded controller): the EC's 256 registers through ec_sys, loaded read-only
+# (write_support stays 0); unloaded again if this run loaded it
+rm -f ec.bin
+if grep -qs '^Read EC=1' "$home/.config/srs/SRSDEF.ini"; then
+  had=0; [ -d /sys/module/ec_sys ] && had=1
+  modprobe ec_sys write_support=0 2>/dev/null
+  [ -r /sys/kernel/debug/ec/ec0/io ] && dd if=/sys/kernel/debug/ec/ec0/io of=ec.bin bs=256 count=1 status=none 2>/dev/null
+  [ "$had" = 0 ] && modprobe -r ec_sys 2>/dev/null
+  log ec
+fi
 if grep -qs '^Read DIMM PMIC=1' "$home/.config/srs/SRSDEF.ini" && command -v i2cdump >/dev/null; then
   modprobe i2c-dev 2>/dev/null
   for d in /sys/bus/i2c/drivers/spd5118/*-00[5][0-7]; do

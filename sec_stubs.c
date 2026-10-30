@@ -5,7 +5,7 @@ const srs_item sec_stubs[] = {
     { "about", "tuning", "About SRS", B_LINUX, 0, "internal: program version/build; uname; /etc/os-release; hwdata *.ids", NULL, 0, "siv" },
     { "acpi-buses", "hardware", "ACPI PCI root buses", B_LINUX, 0, "/sys/bus/acpi/devices/PNP0A08:00; /sys/class/pci_bus", NULL, 0, "machine" },
     { "acpi-dev", "hardware", "ACPI devices", B_LINUX, 0, "/sys/bus/acpi/devices", NULL, 0, "machine" },
-    { "acpi-ec", "hardware", "ACPI embedded controller", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C09:00 (EC registers not read)", NULL, 0, "machine" },
+    { "acpi-ec", "hardware", "ACPI embedded controller", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C09:00; ec.bin (opt-in, srs-root with ec_sys read-only)", NULL, 0, "machine" },
     { "acpi-eval", "hardware", "ACPI method evaluation", B_LINUX, 1, "Tools > ACPI method evaluation (acpi_call, as root); acpi-calls.txt log", NULL, 0, "machine" },
     { "acpi-hal", "hardware", "ACPI HAL", B_LINUX, 0, "/sys/firmware/acpi; /sys/module/acpi/parameters", NULL, 0, "machine" },
     { "acpi-int", "hardware", "ACPI interrupts and GPEs", B_LINUX, 0, "/sys/firmware/acpi/interrupts; /proc/interrupts", NULL, 0, "machine" },
