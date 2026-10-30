@@ -1868,9 +1868,10 @@ static void s_system_cmos(srs_out *o)
     char v[128], *raw = NULL;
     const unsigned char *c;
     int n;
+    const char *tf = getenv("SRS_TEST_CMOS_FILE");   /* tests only (tests/root-pages-test.sh): a made-up CMOS image */
     so_siv_header(o, "System CMOS");
     so_tabs(o, tabs, 1);
-    n = rd_all(CMOS_NVMEM, &raw);
+    n = rd_all(tf && *tf ? tf : CMOS_NVMEM, &raw);
     if (n <= 0) {
         so_kv(o, "CMOS RAM", C_ORANGE, path_exists(CMOS_NVMEM) ? "not readable" : "not available: the kernel has no cmos_nvram0 nvmem device (rtc_cmos driver)");
         free(raw);

@@ -103,6 +103,16 @@ static int list_ok(const srs_list *L, const char *path, char *why, size_t wn)
     return 1;
 }
 
+/* where a list is downloaded from. SRS_TEST_LISTS_DIR=/abs/dir (tests only, tests/lists-test.sh) takes it from
+   file:///abs/dir/<file> instead, so the update can be tested without the network */
+static const char *list_url(const srs_list *L, char *b, size_t n)
+{
+    const char *t = getenv("SRS_TEST_LISTS_DIR");
+    if (!t || !*t) return L->url;
+    snprintf(b, n, "file://%s/%s", t, L->file);
+    return b;
+}
+
 static int fetch(const char *url, const char *to, char *why, size_t wn)
 {
     char out[512] = "";
@@ -131,7 +141,7 @@ int srs_lists_update(int which, char *report, size_t rn)
     }
     for (i = 0; i < SRS_NLISTS; i++) {
         const srs_list *L = &srs_lists[i];
-        char tmp[1200], dst[1200], old[1200], why[300] = "", nv[32] = "", ov[32] = "", cur[1200];
+        char tmp[1200], dst[1200], old[1200], why[300] = "", nv[32] = "", ov[32] = "", cur[1200] = "", url[1200];
         const char *src = NULL;
         if (which >= 0 && which != i) continue;
         snprintf(tmp, sizeof tmp, "%s/.%s.download", dir, L->file);
@@ -139,7 +149,7 @@ int srs_lists_update(int which, char *report, size_t rn)
         snprintf(old, sizeof old, "%s/%s.old", dir, L->file);
         if (srs_ids_path(L->file, cur, sizeof cur, &src)) srs_ids_version(cur, ov, sizeof ov);
         if (!*ov && *cur) snprintf(ov, sizeof ov, "%ld entries", srs_ids_entries(cur));
-        if (fetch(L->url, tmp, why, sizeof why) || !list_ok(L, tmp, why, sizeof why)) {
+        if (fetch(list_url(L, url, sizeof url), tmp, why, sizeof why) || !list_ok(L, tmp, why, sizeof why)) {
             unlink(tmp);
             used += (size_t)snprintf(report + used, used < rn ? rn - used : 0, "%-10s not updated: %s (the copy in use stays)\n", L->file, why);
             continue;
