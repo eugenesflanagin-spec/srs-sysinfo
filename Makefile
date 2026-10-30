@@ -23,7 +23,7 @@ BASE      = $(WFLAGS) $(CFLAGS)
 CORE      := core.c cli.c
 HDRS      := srs.h
 # the SIV section engine (Linux images): every SIV item, the burner and the benchmarks
-SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c mem_timings.c sec_sensors.c sec_storage.c sec_network.c \
+SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c mem_timings.c lists.c sec_sensors.c sec_storage.c sec_network.c \
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
              bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c bench_net.c \
              bench_gpu.c bench_gpuburn.c bench_gpucompare.c gpu_vk.c gpu_backend.c gpuburn_vk.c gpuburn_rt.c gpuburn_cl.c cuda_toolkit.c guide.c

@@ -9,6 +9,7 @@
  * Read-only; no network, no driver, no i2c/hidraw. */
 #define _GNU_SOURCE
 #include "sec.h"
+#include "lists.h"
 #include "srs.h"
 
 #include <ctype.h>
@@ -116,7 +117,7 @@ static void data_file_path(int i, char *out, size_t sz)
 {
     if (i == 0) { if (!srs_db_find_file(BUS_PCI, out, sz)) snprintf(out, sz, "%s/pci.ids", plat_hwdata_dir()); }
     else if (i == 1) { if (!srs_db_find_file(BUS_USB, out, sz)) snprintf(out, sz, "%s/usb.ids", plat_hwdata_dir()); }
-    else snprintf(out, sz, "%s/pnp.ids", plat_hwdata_dir());
+    else if (!srs_ids_path("pnp.ids", out, sz, NULL)) snprintf(out, sz, "%s/pnp.ids", plat_hwdata_dir());
 }
 
 static const datafile g_data[] = {

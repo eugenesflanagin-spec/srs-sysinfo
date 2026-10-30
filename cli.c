@@ -1,5 +1,6 @@
 /* cli.c - command-line front end; output matches the original Python tool. */
 #include "srs.h"
+#include "lists.h"
 #ifdef SRS_HAVE_SECTIONS
 #include "sec.h"
 #endif
@@ -17,7 +18,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,update-lists} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -107,6 +108,11 @@ static const char *HELP =
     "        is for, the install command for this distribution; --install runs that command after you type\n"
     "        yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built\n"
     "        in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it\n"
+    "  update-lists [--list] [--yes]\n"
+    "        download fresh pci.ids, usb.ids and pnp.ids from their official sources into\n"
+    "        ~/.local/share/srs/lists (no root); SRS then uses the newer of these and the system's copies.\n"
+    "        Each download is checked first; a failed one leaves the copy in use. --list shows the copies in\n"
+    "        use and their versions; asks first, --yes downloads at once\n"
     "  prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]\n"
     "        count the primes up to the limit, checked against the known count (default 1e9, all threads);\n"
     "        asks first, --yes starts at once\n"
@@ -1330,6 +1336,42 @@ static int yes_typed(const char *prompt)
     return !strcmp(ans, "yes") || !strcmp(ans, "YES") || !strcmp(ans, "Yes");
 }
 
+/* update-lists [--list] [--yes] (2.4) */
+static int cmd_update_lists(int argc, char **argv)
+{
+    int i, yes = 0, list = 0, n;
+    char rep[2000];
+    for (i = 2; i < argc; i++) {
+        if (!strcmp(argv[i], "--yes") || !strcmp(argv[i], "-y")) yes = 1;
+        else if (!strcmp(argv[i], "--list")) list = 1;
+        else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+            puts("usage: sysreport-search update-lists [--list] [--yes]\n"
+                 "  downloads pci.ids, usb.ids and pnp.ids from their official sources into ~/.local/share/srs/lists;\n"
+                 "  SRS uses the newer of these and the system's (hwdata) copies. --list: the copies in use");
+            return 0;
+        } else { fprintf(stderr, "update-lists: unknown option '%s'\n", argv[i]); return 2; }
+    }
+    for (i = 0; i < SRS_NLISTS; i++) {
+        char p[1200], v[32] = "";
+        const char *src = "";
+        int have = srs_ids_path(srs_lists[i].file, p, sizeof p, &src) != NULL;
+        if (have) { srs_ids_version(p, v, sizeof v); if (!*v) snprintf(v, sizeof v, "%ld entries", srs_ids_entries(p)); }
+        printf("%-9s %-13s %s  [%s]\n", srs_lists[i].file, have ? v : "missing", have ? p : "", src);
+    }
+    if (list) return 0;
+    if (!yes) {
+        char a[16] = "";
+        printf("\nDownload fresh copies from:\n");
+        for (i = 0; i < SRS_NLISTS; i++) printf("  %s\n", srs_lists[i].url);
+        printf("Go on? [y/N] ");
+        fflush(stdout);
+        if (!isatty(0) || !fgets(a, sizeof a, stdin) || (a[0] != 'y' && a[0] != 'Y')) { puts("not downloaded"); return 1; }
+    }
+    n = srs_lists_update(-1, rep, sizeof rep);
+    fputs(rep, stdout);
+    return n > 0 ? 0 : 1;
+}
+
 /* cuda-toolkit [--check|--install|--ask-again|--never-ask] */
 static int cmd_cuda_toolkit(int argc, char **argv)
 {
@@ -1463,6 +1505,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
     if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
     if (!strcmp(cmd, "cuda-toolkit")) return cmd_cuda_toolkit(argc, argv);
+    if (!strcmp(cmd, "update-lists")) return cmd_update_lists(argc, argv);
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;

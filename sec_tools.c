@@ -4,6 +4,7 @@
  * runs start only from the GUI Run buttons or the explicit CLI commands. */
 #define _GNU_SOURCE
 #include "sec.h"
+#include "lists.h"
 #include "srs.h"
 #include "bench.h"
 #include "burner.h"
@@ -245,12 +246,16 @@ static void s_lookup(srs_out *o)
     so_tabs(o, tabs, 4);
     so_row(o, 5, (const char *const[]){ "Description", "File Specification", "Current Identification", "Code Page", "WEB Download Location" },
            (const int[]){ C_LABEL, C_PURPLE, C_TEAL, C_ORANGE, C_VALUE });
-    ids_ident("/usr/share/hwdata/pci.ids", id, sizeof id);
-    file_row(o, "PCI Device Names", "/usr/share/hwdata/pci.ids", id, "https://pci-ids.ucw.cz/v2.2/pci.ids");
-    ids_ident("/usr/share/hwdata/usb.ids", id, sizeof id);
-    file_row(o, "USB Device Names", "/usr/share/hwdata/usb.ids", id, "http://www.linux-usb.org/usb.ids");
-    ids_ident("/usr/share/hwdata/pnp.ids", id, sizeof id);
-    file_row(o, "PNP / Monitor Names", "/usr/share/hwdata/pnp.ids", id, "https://uefi.org/pnp_id_list");
+    {   /* 2.4: the copy in use, the user's (Tools > Update hardware lists) or the system's, whichever is newer */
+        static const char *const desc[SRS_NLISTS] = { "PCI Device Names", "USB Device Names", "PNP / Monitor Names" };
+        int k;
+        for (k = 0; k < SRS_NLISTS; k++) {
+            char p[1200];
+            if (!srs_ids_path(srs_lists[k].file, p, sizeof p, NULL)) snprintf(p, sizeof p, "/usr/share/hwdata/%s", srs_lists[k].file);
+            ids_ident(p, id, sizeof id);
+            file_row(o, desc[k], p, id, srs_lists[k].url);
+        }
+    }
     ids_ident("/usr/share/hwdata/oui.txt", id, sizeof id);
     file_row(o, "MAC Vendor Names", "/usr/share/hwdata/oui.txt", id, "https://standards-oui.ieee.org/oui/oui.txt");
     if ((l = readlink("/proc/self/exe", exe, sizeof exe - 1)) > 0) exe[l] = 0;

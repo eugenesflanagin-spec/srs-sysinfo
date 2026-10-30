@@ -15,6 +15,7 @@
 #define _GNU_SOURCE
 #include "srs.h"
 #include "sec.h"
+#include "lists.h"
 
 #include <ctype.h>
 #include <dirent.h>
@@ -430,11 +431,11 @@ typedef struct {
     unsigned char ext_tags[8];
 } edid_t;
 
-/* hwdata's pnp.ids: the system's, or the AppImage's own copy on systems without hwdata */
+/* hwdata's pnp.ids: the newer of the user's copy (Update hardware lists, 2.4) and the system's, or the AppImage's own */
 static const char *pnp_ids(void)
 {
     static char p[1200];
-    if (!p[0]) snprintf(p, sizeof p, "%s/pnp.ids", plat_hwdata_dir());
+    if (!p[0] && !srs_ids_path("pnp.ids", p, sizeof p, NULL)) snprintf(p, sizeof p, "%s/pnp.ids", plat_hwdata_dir());
     return p;
 }
 

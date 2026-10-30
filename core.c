@@ -1,5 +1,8 @@
 /* core.c - portable core: .ids database, lookup chain, regex VM, report find, devices. */
 #include "srs.h"
+#ifdef SRS_HAVE_SECTIONS
+#include "lists.h"
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
@@ -152,6 +155,9 @@ const char *srs_db_find_file(enum srs_bus bus, char *out, size_t outsz)
         join(out, outsz, dir, fn);
         if ((f = fopen(out, "rb"))) { fclose(f); return out; }
     }
+#ifdef SRS_HAVE_SECTIONS
+    if (srs_ids_path(fn, out, outsz, NULL)) return out;   /* 2.4: the newer of the user's (Update hardware lists) and the system's */
+#endif
     if (plat_hwdata_dir()) {
         join(out, outsz, plat_hwdata_dir(), fn);
         if ((f = fopen(out, "rb"))) { fclose(f); return out; }

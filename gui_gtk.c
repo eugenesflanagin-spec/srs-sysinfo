@@ -14,6 +14,7 @@
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
 #include "srs.h"
+#include "lists.h"
 #include "sec.h"
 #include "burner.h"
 #include "bench.h"
@@ -1238,6 +1239,7 @@ static void save_dialog(int all);
 static void build_options(GtkWidget *menu);
 static void run_root(void);
 static void acpi_eval_dialog(void);
+static void lists_update_dialog(void);
 static void on_menu_item(GtkMenuItem *mi, gpointer data) { (void)mi; open_section(data); }
 static void on_menu_tool(GtkMenuItem *mi, gpointer data)
 {
@@ -1262,7 +1264,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "saveall")) save_dialog(1);
     else if (!strcmp(t, "root")) run_root();
     else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
-    else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
+    else if (!strcmp(t, "lists")) lists_update_dialog();
     else if (!strcmp(t, "home")) home_open(0);
     else if (!strcmp(t, "classic")) open_main(0);
     else if (!strcmp(t, "exit") && g_main) gtk_widget_destroy(g_main->win);
@@ -1471,6 +1473,55 @@ static void run_root(void)
             root_done(0, -1, copy);
     }
     gtk_widget_destroy(m);
+}
+
+/* ======================================================================
+ * Update hardware lists (2.4): pci.ids / usb.ids / pnp.ids from their official sources (lists.c), off the GUI thread
+ * ====================================================================== */
+typedef struct { char rep[2000]; int n; } lists_job;
+static gboolean lists_done(gpointer d)
+{
+    lists_job *j = d;
+    GtkWidget *m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL,
+                                          j->n > 0 ? GTK_MESSAGE_INFO : GTK_MESSAGE_WARNING, GTK_BUTTONS_OK, "%s",
+                                          j->n > 0 ? "Hardware lists checked" : "The hardware lists could not be updated");
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m), "%s\nSRS uses the newer of your copies (~/.local/share/srs/lists) and the "
+                                             "system's. Pages show the new names the next time they are opened or refreshed.", j->rep);
+    if (getenv("SRS_TEST_LISTS_ANSWER")) fprintf(stderr, "SRS-TEST: lists result: %s", j->rep);
+    else gtk_dialog_run(GTK_DIALOG(m));
+    gtk_widget_destroy(m);
+    g_free(j);
+    return G_SOURCE_REMOVE;
+}
+static gpointer lists_thread_main(gpointer d)
+{
+    lists_job *j = d;
+    j->n = srs_lists_update(-1, j->rep, sizeof j->rep);
+    g_idle_add(lists_done, d);
+    return NULL;
+}
+static void lists_update_dialog(void)
+{
+    GString *t = g_string_new("Download fresh device-name lists from their official sources?\n\n");
+    GtkWidget *m;
+    int i, r;
+    for (i = 0; i < SRS_NLISTS; i++) {
+        char p[1200], v[32] = "";
+        const char *src = "";
+        if (srs_ids_path(srs_lists[i].file, p, sizeof p, &src)) { srs_ids_version(p, v, sizeof v); if (!*v) snprintf(v, sizeof v, "%ld entries", srs_ids_entries(p)); }
+        g_string_append_printf(t, "%s (%s): now %s, %s\n    from %s\n", srs_lists[i].file, srs_lists[i].name, *v ? v : "missing", src, srs_lists[i].url);
+    }
+    g_string_append(t, "\nThey go to ~/.local/share/srs/lists (no root). Each is checked before it is used; a failed download changes nothing.");
+    if (getenv("SRS_TEST_LISTS_ANSWER")) r = !strcmp(getenv("SRS_TEST_LISTS_ANSWER"), "yes") ? GTK_RESPONSE_OK : GTK_RESPONSE_CANCEL;
+    else {
+        m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_OK_CANCEL, "%s", "Update hardware lists");
+        gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m), "%s", t->str);
+        r = gtk_dialog_run(GTK_DIALOG(m));
+        gtk_widget_destroy(m);
+    }
+    g_string_free(t, TRUE);
+    if (r != GTK_RESPONSE_OK) return;
+    g_thread_unref(g_thread_new("srs-lists", lists_thread_main, g_new0(lists_job, 1)));
 }
 
 /* ======================================================================
@@ -6367,6 +6418,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "saveall")) save_dialog(1);
     else if (!strcmp(t, "root")) run_root();
     else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
+    else if (!strcmp(t, "lists")) lists_update_dialog();
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "classic")) open_main(0);
 }
@@ -6780,6 +6832,9 @@ static GtkWidget *build_cat_page(int cat)
                 "Save SRS's default set of items (Ctrl+S). Menu > Save All Items saves every item."));
             grid_add3(fb, launcher("Collect root data", "Memory stick details, drive health and serial numbers need administrator rights.",
                 "One password prompt. Read-only; the results are cached in ~/.cache/srs/root.", "_Run as root...", "root", "Run srs-root with pkexec"));
+            grid_add3(fb, launcher("Update hardware lists", "Get the newest PCI, USB and monitor maker name lists from their official sources.",
+                "Downloads only when you ask; no root. SRS uses the newer of these and the system's lists.", "_Update...", "lists",
+                "Download fresh pci.ids, usb.ids and pnp.ids"));
             grid_add3(fb, launcher("ACPI method evaluation", "Run one ACPI method of the BIOS as root and see its result (for experts).",
                 "Can change hardware state. Off until you accept the warning once; every call is logged.", "_Evaluate...", "acpieval",
                 "Open the ACPI method evaluation window"));
@@ -7464,6 +7519,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
             else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
             else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
+            else if (!strcmp(t, "lists")) lists_update_dialog();
             else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
             else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
             else if (!strcmp(t, "latency")) open_tool(W_BENCH, BK_LAT);
