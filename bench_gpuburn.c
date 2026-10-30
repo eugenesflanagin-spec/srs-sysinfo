@@ -513,6 +513,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
             smax(&k->d.max, &sn);
             k->d.gflops_avg = k->tsum > 0 ? k->wsum / k->tsum / 1e9 : 0;
             k->d.elapsed = s->elapsed;
+            k->d.iter_per_s = s->elapsed > 0 ? (double)k->d.iterations / s->elapsed : 0;   /* the live readout showed 0.0 */
             s->dev[i] = k->d;
             pthread_mutex_unlock(&k->mu);
             if (hot >= c.limit_c) {
