@@ -46,7 +46,7 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
 |---|---|
 | `srs-gui` | GTK3 GUI: a main window with an Overview and one page per category, plus a classic view laid out like SIV's main window and panels; with arguments it is the CLI |
 | `sysreport-search` | CLI: `-save` reports in SIV's text format, device-ID lookup, report search, burner, benchmarks |
-| `srs-root` | optional helper (one `pkexec` prompt) that caches root-only data: dmidecode, SPD, SMART, ACPI tables, MSRs, PCI config space |
+| `srs-root` | optional helper (one `pkexec` prompt) that caches root-only data: dmidecode, SPD, SMART, ACPI tables, MSRs, PCI config space, and (2.4) the AMD memory controller registers, the VBIOS image, GPIO pins, RAPL power, EBDA and UEFI tables |
 | `srs-sysreport` | writes a full text report folder (`~/sysreports/...`) that `srs-gui`'s Find searches |
 
 ## Using it
@@ -83,6 +83,12 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     an optional delay. Desktop essentials (Plasma, PipeWire, KWallet, portals, polkit agent) ask first.
   - **Badge** in the title bar: **Full access** when SRS runs as root or root data was collected
     (hover for when), else **Limited (user)** with a **Run as root...** button.
+  - **Memory Timings** (2.4, Memory page): on AMD Ryzen 7000 / 9000 desktop processors the live DDR5
+    timings of each channel (with the ryzen_smu driver and one Run as root), MEMCLK / UCLK / FCLK and the
+    SoC voltages, the controller settings, the BIOS memory settings from the AMD AOD table when the
+    kernel allows it, and for every DDR5 module (no root) maker, part number, temperature and its JEDEC /
+    EXPO / XMP profiles. Intel Core 6th gen to Core Ultra: experimental. Read only; DIMM PMIC voltages
+    are an opt-in under Options.
   - **CPU Clocks** (2.2) adds **Stock and in effect now**: the base clock measured (BCLK / eCLK),
     core base / boost / now at stock and in effect, and FCLK / UCLK / MCLK from the SMU (ryzen_smu).
   - **Search** in the title bar (Ctrl+F) finds any item by name or id (`processor:3` works);
@@ -116,7 +122,7 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     Swap CPU: affinity test), affinity/APIC check, burn/cool cycles, current / average / rolling /
     maximum CPU load, clock, core temperature, board (Super-I/O) temperature and GPU load,
     temperature and clock, plots, Pass/Fail. Asks before starting, stops at a temperature limit
-    (default 90 C) and a time cap. Each finished run's summary is saved to
+    (default 90 C; 50..110 C, over 100 C only after a one-time risk question, 2.4) and a time cap. Each finished run's summary is saved to
     `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` for comparing runs.
   - **Benchmark** - Dhrystone 2.1 (DMIPS) and Whetstone (MWIPS) in SIV's modes (all CPUs
     concurrently or one at a time, D+D/W+W and D+W/W+D per core, physical / logical threads).
@@ -147,7 +153,8 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
   - **GPU Burnin** (in Stress & Burnin) - repeated large matrix multiplications at full GPU load through Vulkan, ROCm /
     HIP, CUDA (or ZLUDA) or OpenCL, compute errors counted (0 = PASS), live temperature / power /
     clock / fan; stops by itself at the temperature limit (default 100 °C) or on a driver error;
-    never changes clocks, voltages or fans.
+    never changes clocks, voltages or fans. 2.4: a register-blocked matrix multiply on every back end
+    loads the card much harder (ROCm / HIP and OpenCL on an RX 9070 XT: about 3.4 -> 13 TFLOPS FP32).
   - **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL** - the same matrix multiply (own kernel and
     hipBLAS / cuBLAS / CLBlast), multiply-add, copy, upload / download and launch tests through every
     installed back end on the same GPU, side by side, fastest marked, % of Vulkan; "CUDA (ZLUDA)"
@@ -171,9 +178,10 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     [GitHub Issues](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware
     and the report SRS made. Details in the [CHANGELOG](CHANGELOG.md) (Known limits).
   - **GPU features, what was and wasn't run.** The Vulkan tests,
-    GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) only;
-    for ROCm/HIP, CUDA and OpenCL I checked that the libraries load and that every function SRS
-    needs is found, but did not run HIP, NVIDIA CUDA or OpenCL work on a GPU. The built-in CUDA kernels
+    GPU Burnin and the GPU Compute comparison ran on lavapipe (the Mesa software renderer) in the automatic
+    tests. GPU Burnin's 2.4 kernel ran on my RX 9070 XT with ROCm / HIP (about 13.0 TFLOPS FP32) and
+    OpenCL (about 13.4), 0 errors; with Vulkan and CUDA only in the automatic tests so far. Nothing was
+    run on NVIDIA hardware. The built-in CUDA kernels
     (PTX, 2.3) were checked offline and against a fake driver, and the GPU Compute comparison ran every
     CUDA row from them through ZLUDA on my RX 9070 XT (cuBLAS FP64 "not available": ZLUDA's cuBLAS has
     none); GPU Burnin with CUDA was not run on the real card, and nothing CUDA on NVIDIA hardware.
@@ -182,6 +190,13 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
     temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
     and **Find** (regex over a `srs-sysreport` folder, with highlighting and F3 navigation).
+  - **Update hardware lists** (2.4, Tools page; `sysreport-search update-lists`) - downloads the newest
+    `pci.ids`, `usb.ids` and `pnp.ids` from their official sources, only when you ask, into
+    `~/.local/share/srs/lists` (no root); each download is checked first, and SRS uses whichever copy is
+    newer, yours or the system's.
+  - **ACPI method evaluation** (2.4, Tools page, for experts) - evaluates one ACPI method you type, as
+    root, through the `acpi_call` module, and logs every call. Off until you accept a warning once:
+    **this can change hardware state**.
 - Live sections (sensors, clocks, counters, GPU, disk performance) refresh on a timer.
 - Hot-keys (classic view): Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
@@ -223,7 +238,10 @@ Changes apply at once to every open window and are saved as `Theme=` in `~/.conf
 
 ## Root-only data
 
-SMBIOS serials/UUID, DIMM SPD, SMART, ACPI tables, MSRs and full PCI config space need root.
+SMBIOS serials/UUID, DIMM SPD, SMART, ACPI tables, MSRs and full PCI config space need root, and
+(2.4) the AMD memory controller registers (Memory Timings, through the ryzen_smu driver), the GPU's
+VBIOS image (the driver's copy), GPIO pin states, RAPL power, the EBDA and the UEFI System Table /
+ESRT details.
 Either use **Menu -> Run as root** (one `pkexec` prompt; the results are cached in
 `~/.cache/srs/root` and every panel shows them from then on), or run the CLI with `sudo`
 (`sudo sysreport-search -save`): as root it uses the invoking user's cache, or collects one
@@ -244,16 +262,17 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui --list                         every item: id, category, bucket, group, title
     srs-gui guide ITEM [--print]           open the user guide at ITEM's section
     srs-gui id 1002:7550 | find PATTERN | devices
-    srs-gui burn --threads N --seconds S [--mode same|swap] [--limit C] [--cool S] [--cycles N]
+    srs-gui burn --threads N --seconds S [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
     srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
     srs-gui ipi [--cpus N] [--rounds R] [--yes]    srs-gui latency [--max MB] [--yes]
     srs-gui pi [--digits 1m] [--threads N] [--yes]    srs-gui crypto [--yes]    srs-gui prime [--limit 1e9] [--yes]
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
     srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes] [--yes-internet]
     srs-gui gpu [--device N] [--seconds S] [--only TESTS] [--list] [--yes]
-    srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--yes]
+    srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--accept-high-limit] [--yes]
     srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
     srs-gui cuda-toolkit [--check|--install|--ask-again|--never-ask]   the optional NVIDIA CUDA toolkit
+    srs-gui update-lists [--list] [--yes]   newest pci.ids / usb.ids / pnp.ids into ~/.local/share/srs/lists
     srs-gui work [--threads N] [--seconds S] [--only GROUPS] [--libs zlib,zstd,lz4,xz] [--single] [--yes]
     srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
@@ -265,8 +284,16 @@ the user guide (`/usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf`, menu entry **SR
 
 Read-only by design: nothing is written to sysfs, devices or firmware. No i2c/SMBus/DDC access,
 no hidraw, no SMU commands, no network traffic apart from `ping` to the default gateway in the
-Ping item and the Network Benchmark's internet speed test, which runs only after you say yes to
-its own question. Burner and benchmarks never start on their own (not from `-save` either), and
+Ping item, the Network Benchmark's internet speed test, which runs only after you say yes to
+its own question, and **Update hardware lists** (2.4), which downloads three name lists only when you
+ask. The Memory Timings page reads the AMD memory controller through the ryzen_smu driver's `smn`
+file: srs-root writes an address there, which only selects what the driver reads (4 bytes; never the
+8-byte form that writes a register). Two 2.4 opt-ins, off by default and asked about first, go
+further: **Read DIMM voltages from their PMIC chips** reads the modules' power chips over SMBus
+(`i2cdump`, byte reads, nothing written), and **Read the embedded controller** loads the kernel's
+`ec_sys` module read-only for one copy of the EC registers. **ACPI method evaluation** (Tools, for
+experts) is the one feature that can change hardware state: it runs BIOS code you choose, only after
+a one-time warning, and logs every call. Burner and benchmarks never start on their own (not from `-save` either), and
 every benchmark asks before it starts. Root-only
 data comes only from `srs-root`'s cache in `~/.cache/srs/root`. The one thing that changes your
 system is the Startup manager, and only when you click a switch or a button there: it writes
@@ -282,10 +309,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.3.1-x86_64.AppImage
-    ./srs-sysinfo-2.3.1-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.3.1-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.3.1-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.4.0-x86_64.AppImage
+    ./srs-sysinfo-2.4.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.4.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.4.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -307,7 +334,9 @@ skips its rows): zlib, zstd, lz4, xz (Everyday Work), libcurl (the internet spee
 (vulkan-icd-loader) and a Vulkan driver (GPU Benchmarks), ROCm / HIP (rocm-hip-runtime, hipblas), CUDA (the
 NVIDIA driver's libcuda, or ZLUDA), an OpenCL loader and driver, and CLBlast (the other GPU back ends). The NVIDIA
 CUDA toolkit (Arch `cuda`, Debian / Ubuntu `libnvrtc12`) is optional: only its runtime compiler is used, as a
-fallback, and SRS can install it later from Options; not recommended with ZLUDA. The CUDA kernels are pre-compiled
+fallback, and SRS can install it later from Options; not recommended with ZLUDA. For 2.4: the ryzen_smu
+driver (AUR `ryzen_smu-dkms-git`) for the AMD live memory timings, `acpi_call` (Arch `acpi_call-dkms`) for
+ACPI method evaluation, and curl or wget for Update hardware lists. The CUDA kernels are pre-compiled
 into `gpu_kernels_ptx.inc` (`make cuda-ptx` remakes it; needs clang with the NVPTX target, no NVIDIA toolkit). `make check-mnemonics` checks that no menu or
 window page has two entries with the same Alt+letter.
 
@@ -341,6 +370,8 @@ window page has two entries with the same Alt+letter.
 | `tests/bench-work-test.sh` | Everyday Work known answers, round trips, "not installed" path, Stop, CLI (ASan + UBSan) |
 | `tests/bench-os-test.sh` | OS Latency engine and CLI test (tiny runs, throw-away HOME; `make test-bench` runs all bench tests) |
 | `gui_gtk.c` | the GTK GUI; `core.c` / `cli.c` the lookup / find engine and CLI |
+| `mem_timings.c` | Memory Timings (2.4): AMD UMC, PM table, AOD and SPD decoding, Intel memory controller reading (experimental) |
+| `lists.c` | Update hardware lists (2.4): download, checks, and the newer-copy choice for `pci.ids` / `usb.ids` / `pnp.ids` |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & Cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
 | `gui_tabs.inc`, `tblsort.c`, `gui_startup.c` | main window: tab lineups and the item jump list; unit-aware table sorting; the Startup manager |
 | `gui.c`, `plat_win32.c`, `srs.rc` | optional Windows build (`SRS64X.exe` / `SRS32X.exe`, search features only) |
@@ -352,7 +383,14 @@ window page has two entries with the same Alt+letter.
 
 SRS is free software under the **GNU General Public License v2.0 or later** ([LICENSE](LICENSE)).
 Device names come from the hwdata project's `pci.ids` / `usb.ids` / `pnp.ids`, which are not
-part of SRS.
+part of SRS; Update hardware lists (2.4) downloads newer copies from the PCI ID Repository
+(pci-ids.ucw.cz), the Linux USB ID list (linux-usb.org) and hwdata.
+
+The Memory Timings page (2.4) is SRS's own code. Its AMD memory controller register map and SPD /
+AOD table layouts follow ZenStates-Core / ZenTimings by Ivan Rusanov, and its AMD and Intel memory
+controller layouts memtest86+ by Sam Demeulemeester and contributors - facts only, no code copied.
+It reads through the ryzen_smu driver (leogx9r, amkillam fork), and ACPI method evaluation uses the
+acpi_call kernel module; neither is shipped. Details: [CREDITS.md](CREDITS.md).
 
 The new benchmarks are SRS's own code, written from published sources: the Chudnovsky series
 (D. V. and G. V. Chudnovsky, 1988), the Gauss-Legendre / Brent-Salamin AGM (1976), FIPS 197 (AES),

@@ -4,6 +4,145 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.4.0 - 2026-10-30
+
+A Memory Timings page with the live DDR5 timings, a GPU Burnin that loads the card much harder, stop limits up to
+110 C, pages that said "not read" now showing their data, Update hardware lists, and ACPI method evaluation for
+experts.
+
+### Added
+
+- **Memory Timings** (Memory page, `mem-tweak`; was an SMBIOS speed summary). Everything on it is only read.
+  - **AMD Ryzen 7000 / 9000 desktop** (family 19h models 60h-7Fh, 1Ah models 40h-4Fh): srs-root reads the memory
+    controller (UMC) registers through the `ryzen_smu` driver's `smn` file into `umc.txt`. Writing exactly 4 bytes
+    (an address) there only selects what the driver reads; SRS never writes 8 bytes (a register write). Each value
+    is read twice under a lock (`/run/lock/srs-smn.lock`) and left out if the two differ. The page decodes 38
+    timings plus tRFC / tRFC2 / tRFCsb per channel, with the time in nanoseconds for the main ones and a short
+    plain-English meaning for each, and the controller settings: channels with a DIMM, Gear Down Mode, command
+    rate, power down, bank groups, refresh mode and Nitro mode.
+  - **Clocks and voltages** from the ryzen_smu PM table (readable without root): memory speed, MEMCLK, UCLK with
+    the UCLK:MEMCLK ratio, FCLK, VSOC, VDDP, VDDG and VDD MISC. PM table 0x5401xx layouts were checked; 0x6211xx /
+    0x6212xx (Ryzen 9000) not yet.
+  - **Modules (SPD)**, no root: every DDR5 module's SPD through the kernel's `spd5118` driver - slot, maker, part
+    number, size, ranks and chip size, DRAM maker, manufacturing date, temperature, and its JEDEC, EXPO and XMP 3.0
+    profiles (speed, CL-RCD-RP-RAS-RC, tRFC1 / 2 / sb, VDD / VDDQ / VPP, profile name).
+  - **BIOS memory settings (AMD AOD table)**: ProcODT, processor / DRAM data and CAD bus drive strengths, RttNomWr /
+    RttNomRd, RttWr, RttPark / RttParkDqs, the set DIMM VDD / VDDQ / VPP and CPU VDDIO. srs-root reads the table
+    (named by an SSDT, `OperationRegion AODE`) into `aod.bin` only when the kernel allows it: it lies in ACPI NVS
+    memory, which kernels built with IO_STRICT_DEVMEM keep from `/dev/mem` unless booted with `iomem=relaxed`. SRS
+    does not ask you to change that; the page says why the table could not be read. Shown only when the table's
+    own timing block matches the live timings, so a layout that does not fit a BIOS is never shown.
+  - **DIMM voltages from their PMIC chips** (opt-in, off by default): **Options > Read DIMM voltages from their PMIC
+    chips** asks first (an SMBus read can, rarely, collide with the BIOS or the board's controller); srs-root then
+    reads each DDR5 PMIC's registers 0x00-0x3F with `i2cdump` (byte reads, no `-f`, nothing written) into
+    `pmic-*.txt`, and the page shows the set VDD / VDDQ / VPP (JESD301-2 voltage codes; the high-voltage
+    overclocking mode is told apart by the module's profile voltage) and whether the PMIC is locked. The live
+    voltage meter is not read: it needs a write to the PMIC.
+  - **Intel Core 6th gen to Core Ultra (experimental)**: Skylake to Comet Lake, Rocket Lake, Alder / Raptor Lake,
+    Meteor / Arrow Lake. srs-root runs `sysreport-search intel-imc-dump` (root only), which takes the memory
+    controller's register window (MCHBAR) address from the host bridge, maps it read-only from `/dev/mem` and
+    reads the timing registers with aligned 32-bit reads into `intel-imc.txt`. The window is never switched on.
+    The page shows speed, type, channels and CL-RCD-RP-RAS, marked experimental.
+  - Register maps and layouts: ZenStates-Core / ZenTimings by Ivan Rusanov (AMD UMC, SPD and AOD layouts) and
+    memtest86+ by Sam Demeulemeester and contributors (AMD and Intel memory controllers); facts only, no code
+    copied.
+- **Stop limits up to 110 C** in Stress & Burnin: the CPU and the GPU stop limits go 50..110 C (the GPU's was
+  50..120). A value over 100 C asks once ("Stop limits over 100 C: at your own risk", **Yes, I accept the risk** /
+  **No**); No puts both limits back to 100, Yes is kept (`Accepted High Temperature Limits`). A limit over 100 in
+  `SRSDEF.ini` without that yes loads as 100. The CPU limit is now remembered (`Stress CPU Limit`). Command line:
+  `burn` and `gpu-burn` take `--limit` 50..100, and 101..110 only with the new `--accept-high-limit`.
+- **Update hardware lists** (Tools page, and `sysreport-search update-lists [--list] [--yes]`): downloads
+  `pci.ids` (pci-ids.ucw.cz), `usb.ids` (linux-usb.org) and `pnp.ids` (hwdata) only when you ask, into
+  `~/.local/share/srs/lists` (no root), with curl or wget. Each download must look like the list (its header,
+  enough entries) or the copy in use stays; the previous copy is kept as `.old`. Every name lookup (device names,
+  monitor makers, the Lookup and data-file rows) then uses the newer of your copy and the system's, by the list's
+  own version (by entry count for `pnp.ids`, which has none). The window downloads in the background and reports
+  each list.
+- **ACPI method evaluation** for experts (Tools page; Menu > ACPI method evaluation (experts)...): type one ACPI
+  method and its arguments (numbers, simple "strings", bHEX buffers, at most 7); `srs-root --acpi-eval` checks the
+  name path and every argument again as root, evaluates it through the `acpi_call` kernel module (one password
+  prompt per call) and logs the time, the call and the result to `~/.cache/srs/root/acpi-calls.txt`. Off until you
+  accept a warning once (`Accepted ACPI Evaluation`). The ACPI Method Evaluation page shows the module's state and
+  the last 30 evaluations. This is the one SRS feature that can change hardware state.
+- **ACPI embedded controller register dump** (opt-in, off by default): **Options > Read the embedded controller**
+  asks first (on some laptops reading an EC register clears a pending event); srs-root then loads `ec_sys` with
+  `write_support=0`, copies the 256 EC registers once into `ec.bin` and unloads the module again if it loaded it.
+  The ACPI Embedded Controller page shows the dump, or how to turn it on.
+- Pages that said "not read" now show their data:
+  - **System CMOS**: the CMOS RAM (0x0E-0x7F) from the kernel's `cmos_nvram0` device - no root, no port I/O - as a
+    hexdump with CMOS addresses, the standard AT bytes decoded (diagnostic and shutdown status, floppy types, base
+    / extended memory, checksum, century). The bytes are masked as `XX` when Redact Reports is on.
+  - **System EBDA**: srs-root reads the BIOS Data Area pointer at 0x40E and, when there is an EBDA, its size and
+    contents (below 0xA0000, at most 64 KiB) into `ebda.txt` / `ebda.bin`; the page shows pointer, size and dump
+    (on UEFI PCs usually "no EBDA").
+  - **GPU VBIOS status**: srs-root copies amdgpu's own copy of the VBIOS from debugfs (`vbios-<pci>.bin`; the GPU's
+    ROM is not touched); the page checks the 55 AA signature and the first image's checksum, lists the images
+    (PCIR) and the part number and build strings, and says when the driver's copy ends before the last image.
+  - **I/O GPIO**: srs-root copies the kernel's debugfs GPIO table (`gpio.txt`), shown under the controllers.
+  - **AMD Fuses**: the per-core factory values readable without root (amd_pstate highest performance,
+    preferred-core ranking, max and lowest non-linear clock), the best-ranked CPUs and a plain-English note. The
+    fuse registers themselves stay unread.
+  - **MSR Setup**: package and per-core power in watts from the RAPL energy counters, which srs-root reads twice,
+    one second apart (`rapl.txt`). The **MSRs** page explains each register in plain English.
+  - **Firmware**: the UEFI System Table's ACPI / SMBIOS pointers and, for each ESRT entry, what it updates, its
+    class GUID, version, lowest allowed version and the last update attempt, from srs-root (`efi-systab.txt`,
+    `esrt.txt`). An AMI-style hex version is shown as the BIOS version it encodes (0x1805 = BIOS 1805).
+- GPU Burnin's result shows which matrix multiply kernel ran. `SRS_GPUBURN_SIMPLE=1` forces the older, simpler
+  kernel (for comparing).
+- Tests: `tests/hot-limit-test.sh` (the 110 C question in the window and the command line); the GPU stub test runs
+  the new kernel thread by thread and checks it in full against a plain multiply, and checks its launch shape on
+  HIP and OpenCL and that the CUDA burn uses it from the built-in PTX; the Vulkan start-up check now also compares
+  two whole rows with the host's sums (a deliberately broken shader is caught).
+
+### Changed
+
+- **GPU Burnin loads the GPU much harder**: a register-blocked matrix multiply (64 x 64 tiles, 4 x 4 results per
+  thread, the same summation order) on all four back ends - ROCm / HIP and OpenCL (`gpu_kernels.h`), Vulkan (new
+  `gemm32b` / `gemm64b` shaders) and CUDA / ZLUDA (in the built-in PTX). ROCm's compilers turned the old 16 x 16
+  tiled kernel into code that reached only about 3.4 TFLOPS FP32 on a Radeon RX 9070 XT; with the new one ROCm /
+  HIP reached about 13.0 TFLOPS and OpenCL about 13.4 TFLOPS on the same card, 0 errors. It falls back to the old
+  kernel (and on HIP then to hipBLAS) when it cannot be used. The GPU Compute comparison keeps the old kernel on
+  every back end, so its numbers stay comparable with 2.3.
+- Stress & Burnin: the closed **GPU options** line shows what it holds - back end, precision and the GPU stop
+  limit (for example "GPU options: Auto (Vulkan), FP32, stop at 100 °C") - so the GPU's own limit is never hidden.
+- System CMOS and AMD Fuses no longer need root data.
+- srs-root also collects `umc.txt`, `aod.bin` / `aod.txt`, `intel-imc.txt`, `rapl.txt`, `ebda.txt` / `ebda.bin`,
+  `vbios-<pci>.bin`, `gpio.txt`, `efi-systab.txt` and `esrt.txt`, and with the opt-ins `pmic-*.txt` and `ec.bin`.
+  It still writes nothing to devices; the opt-ins and ACPI method evaluation are described above.
+- Redact Reports: hexdump lines are masked in copied text too (System CMOS can hold the BIOS password check value).
+- CPU Description: the flags are wrapped to about 90 characters a line; the empty `vmx flags` line is left out
+  on AMD.
+- BIOS option ROMs: the note points at the GPU VBIOS page, which shows the driver's copy of the GPU's image.
+
+### Fixed
+
+- GPU Burnin's live readout showed 0.0 multiplications/s (the rate was only worked out at the end).
+- Power & Cost: the estimates note opened taller than the screen, with its text at the bottom and the button off
+  screen (the wrapped label had no reading width). It now has a fixed width, the text at the top, and scrolls on
+  small screens. The other dialogs with wrapped text got a minimum reading width for the same reason.
+- OpenCL Information was empty when SRS found the cross-vendor `clinfo` (`/usr/bin/clinfo`, as when started from
+  the desktop) instead of ROCm's: both output layouts are read now, each platform shows its own version, and
+  clinfo's NULL-platform lines at the end are skipped.
+- I/O GPIO: the pin table's tabs are expanded so the rows stay aligned.
+- GPU VBIOS: the Option ROM line points at the image shown below when it is cached.
+
+### Known limits
+
+- Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT, DDR5-6000 EXPO on an ASUS X870 board).
+- **Intel memory timings are experimental**: there was no Intel PC to check them on; the decoding was tested
+  only with made-up register values. DDR3 generations (Sandy Bridge to Haswell) are not covered.
+- AMD memory timings: checked on one Ryzen 7 7800X3D (PM table 0x540104); the Ryzen 9000 PM table layouts
+  (0x6211xx / 0x6212xx) are not checked, so some clocks or voltages may be missing there. Other AMD processors
+  (Ryzen 5000 and older, laptops, Threadripper) say "not supported yet".
+- The AOD table layout was checked on one BIOS; on other boards it is shown only when its timings match the
+  live ones. It needs `iomem=relaxed` on kernels with IO_STRICT_DEVMEM; SRS never asks you to change that.
+- The PMIC and embedded controller opt-ins were not checked on real hardware yet; the EBDA dump was not either
+  (the author's UEFI PC has no EBDA).
+- GPU Burnin's new kernel was run on the real card with ROCm / HIP and OpenCL; on Vulkan (lavapipe) and CUDA (a
+  fake driver) only in the automatic tests so far.
+- ACPI method evaluation runs BIOS code and can change hardware state: evaluate only methods you know.
+- The fuse registers on AMD Fuses are still not read, and MSR Setup still shows no voltages.
+
 ## 2.3.1 - 2026-10-29
 
 One Stress & Burnin window for the CPU and the GPU, every tool as a tab of the new main window, a "use at your

@@ -54,6 +54,8 @@ Suggests:       libcurl4
 %else
 Suggests:       libcurl
 %endif
+# the curl command (or wget): Tools > Update hardware lists downloads pci.ids, usb.ids and pnp.ids with it (2.4)
+Suggests:       curl
 # the Vulkan loader, loaded at run time by the GPU benchmarks (with the GPU's own Vulkan driver)
 %if 0%{?suse_version}
 Suggests:       libvulkan1

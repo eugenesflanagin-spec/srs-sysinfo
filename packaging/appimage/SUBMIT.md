@@ -8,8 +8,8 @@ Before submitting, check the release:
 
 ```sh
 gh release view --json assets -q '.assets[].name' | grep AppImage
-# srs-sysinfo-2.3.1-x86_64.AppImage
-# srs-sysinfo-2.3.1-x86_64.AppImage.zsync
+# srs-sysinfo-2.4.0-x86_64.AppImage
+# srs-sysinfo-2.4.0-x86_64.AppImage.zsync
 ```
 
 ## 1. AppImageHub (appimage.github.io)

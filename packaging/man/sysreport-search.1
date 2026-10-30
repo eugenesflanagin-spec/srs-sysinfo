@@ -1,9 +1,9 @@
-.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.3.1" "User Commands"
+.TH SYSREPORT-SEARCH 1 "October 2026" "srs-sysinfo 2.4.0" "User Commands"
 .SH NAME
 sysreport-search \- search a native system report, render report items and look up PCI/USB IDs
 .SH SYNOPSIS
 .B sysreport-search
-[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR,\fBgpu\-burn\fR,\fBgpu\-compare\fR,\fBcuda\-toolkit\fR} ...
+[\fB\-h\fR] [\fB\-\-version\fR] {\fBid\fR,\fBfind\fR,\fBdevices\fR,\fB\-save\fR,\fB\-\-list\fR,\fBguide\fR,\fBburn\fR,\fBbench\fR,\fBipi\fR,\fBlatency\fR,\fBpi\fR,\fBcrypto\fR,\fBprime\fR,\fBcachemem\fR,\fBstorage\fR,\fBos\-latency\fR,\fBcompute\fR,\fBwork\fR,\fBnet\fR,\fBgpu\fR,\fBgpu\-burn\fR,\fBgpu\-compare\fR,\fBcuda\-toolkit\fR,\fBupdate\-lists\fR} ...
 .SH DESCRIPTION
 SIV-style search for the native system report written by
 .BR srs-sysreport (1),
@@ -34,8 +34,8 @@ list every item: id, category, bucket, group, title.
 open the user guide at \fIITEM\fR's section (PDF viewer, else the HTML guide);
 \fB\-\-print\fR only shows the section and the command that would run.
 .TP
-\fBburn\fR [\fB\-\-threads\fR \fIN\fR | \fB\-\-cpus\fR \fILIST\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-mode\fR same|swap] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-cool\fR \fIS\fR] [\fB\-\-cycles\fR \fIN\fR]
-CPU burn-in with a temperature limit (default 10 s, limit 90 C).
+\fBburn\fR [\fB\-\-threads\fR \fIN\fR | \fB\-\-cpus\fR \fILIST\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-mode\fR same|swap] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-accept\-high\-limit\fR] [\fB\-\-cool\fR \fIS\fR] [\fB\-\-cycles\fR \fIN\fR]
+CPU burn-in with a temperature limit (default 10 s, limit 90 C; \fB\-\-limit\fR 50..100, or 101..110 together with \fB\-\-accept\-high\-limit\fR: above 100 C many CPUs and GPUs are already at or near their own maximum, and using it means you accept that risk; any other value exits 2 without starting).
 The summary of each run is saved to \fI~/.cache/srs/burnin\-YYYYMMDD\-HHMMSS.txt\fR.
 .TP
 \fBbench\fR {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-yes\fR]
@@ -77,14 +77,17 @@ Network Benchmark. Without options: loopback TCP / UDP throughput, loss and roun
 \fBgpu\fR [\fB\-\-device\fR \fIN\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-only\fR \fItests\fR] [\fB\-\-mem\-mib\fR \fIM\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
 GPU Benchmark through Vulkan: FP32, FP16, FP64 and INT32 multiply\-add (GFLOPS / GIOPS), video memory read, write and copy, upload and download (GB/s) and dispatch latency (µs), every result checked. The Vulkan loader is opened at run time (optional). \fB\-\-list\fR lists the Vulkan devices and runs nothing. Asks first unless \fB\-\-yes\fR; exit code 2 when it did not start. \fItests\fR: fp32, fp16, fp64, int32, read, write, copy, upload, download, latency.
 .TP
-\fBgpu\-burn\fR [\fB\-\-seconds\fR \fIN\fR] [\fB\-\-backend\fR \fBvulkan\fR|\fBhip\fR|\fBcuda\fR|\fBopencl\fR|\fBauto\fR] [\fB\-\-device\fR \fIN\fR|\fBall\fR] [\fB\-\-fp32\fR|\fB\-\-fp64\fR] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
-GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Ends by itself at the temperature limit (default 100 C), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans, and never burns a software renderer (llvmpipe) as a GPU. Default 60 s. Asks first unless \fB\-\-yes\fR; before that only Vulkan's device list is read. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
+\fBgpu\-burn\fR [\fB\-\-seconds\fR \fIN\fR] [\fB\-\-backend\fR \fBvulkan\fR|\fBhip\fR|\fBcuda\fR|\fBopencl\fR|\fBauto\fR] [\fB\-\-device\fR \fIN\fR|\fBall\fR] [\fB\-\-fp32\fR|\fB\-\-fp64\fR] [\fB\-\-limit\fR \fIC\fR] [\fB\-\-accept\-high\-limit\fR] [\fB\-\-list\fR] [\fB\-\-yes\fR]
+GPU Burnin: repeated matrix multiplications at full GPU load through Vulkan, ROCm/HIP, CUDA or OpenCL (all loaded at run time), every result compared with the first; 0 errors = PASS (exit 0), errors or an early end exit 1. Live temperature, power and clock on a terminal. Since 2.4 a register\-blocked matrix multiply on every back end loads the GPU much harder (the result's Kernel line says which ran; \fBSRS_GPUBURN_SIMPLE=1\fR forces the older one). Ends by itself at the temperature limit (\fB\-\-limit\fR 50..100, default 100 C; 101..110 only with \fB\-\-accept\-high\-limit\fR), on a driver error, when the GPU stops answering or a piece of work takes more than 2 s; Ctrl+C stops it. Never changes clocks, voltages or fans, and never burns a software renderer (llvmpipe) as a GPU. Default 60 s. Asks first unless \fB\-\-yes\fR; before that only Vulkan's device list is read. \fB\-\-list\fR lists each back end's devices (starts the runtimes, runs no work).
 .TP
 \fBgpu\-compare\fR [\fB\-\-backends\fR \fIvulkan,hip,cuda,opencl\fR] [\fB\-\-seconds\fR \fIS\fR] [\fB\-\-device\fR \fIN\fR] [\fB\-\-yes\fR]
 GPU Compute comparison: the same tests (matrix multiply FP32 / FP16 / FP64 with SRS's own kernel and the vendor library, multiply\-add, copy, upload, download, launch round trip) through every installed back end on the same GPU, side by side; fastest marked, percent of Vulkan; "CUDA (ZLUDA)" and one column per OpenCL driver. CUDA uses SRS's built-in kernels (PTX), so the NVIDIA runtime compiler (NVRTC) is not needed; an OpenCL driver without FP64 shows its FP64 rows as "not available". Asks first unless \fB\-\-yes\fR.
 .TP
 \fBcuda\-toolkit\fR [\fB\-\-check\fR|\fB\-\-install\fR|\fB\-\-ask\-again\fR|\fB\-\-never\-ask\fR]
 The optional NVIDIA CUDA toolkit (NVIDIA's developer tools; SRS can use its runtime compiler, NVRTC, as a fallback): what it is for, whether NVRTC and a CUDA library (NVIDIA's or ZLUDA) are installed, and the install command for this distribution (Arch: pacman \-S \-\-needed cuda; Debian/Ubuntu: apt\-get install libnvrtc12 or libnvrtc11.2; Fedora, openSUSE: instructions). \fB\-\-install\fR checks first (package database lock, network, sudo/pkexec), needs a terminal and runs the command with sudo only after a typed \fByes\fR (twice with ZLUDA, where installing it is not recommended). \fB\-\-never\-ask\fR / \fB\-\-ask\-again\fR: whether the GUI asks about it (and gpu\-burn / gpu\-compare print a note). Nothing is ever installed without \fB\-\-install\fR.
+.TP
+\fBupdate\-lists\fR [\fB\-\-list\fR] [\fB\-\-yes\fR]
+Download fresh \fIpci.ids\fR (pci\-ids.ucw.cz), \fIusb.ids\fR (linux\-usb.org) and \fIpnp.ids\fR (hwdata) with curl (or wget) into \fI~/.local/share/srs/lists\fR (\fI$XDG_DATA_HOME/srs/lists\fR when set); no root. Each download is checked (header, enough entries) before it is used, a failed one leaves the copy in use, and the previous copy is kept as \fI.old\fR. Every lookup then uses the newer of these and the system's copies, by the list's own version. \fB\-\-list\fR only shows the copies in use and their versions; asks first (\fBGo on? [y/N]\fR) unless \fB\-\-yes\fR. Exit 0 when at least one list was updated or checked, 1 when nothing was downloaded, 2 on a bad option.
 .PP
 \fBburn\fR, \fBbench\fR, \fBipi\fR, \fBlatency\fR, \fBpi\fR, \fBcrypto\fR, \fBprime\fR, \fBcachemem\fR, \fBstorage\fR, \fBos\-latency\fR, \fBcompute\fR, \fBwork\fR, \fBnet\fR, \fBgpu\fR, \fBgpu\-burn\fR and \fBgpu\-compare\fR load the CPU, the drive, the network or the GPU and only run when asked. All of them except \fBburn\fR (the burn\-in itself) also ask before they start, on stderr (\fBStart now? [y/N]\fR), unless \fB\-\-yes\fR is given; without a terminal and without \fB\-\-yes\fR they exit with 2 and start nothing. Use them at your own risk: SRS comes without any warranty, and its authors are not responsible for any damage (see the licence, GNU GPL v2); the question, \fB\-\-help\fR and \fBburn\fR print this notice, and \fB\-\-yes\fR counts as agreeing to it. \fB\-\-help\fR after a command prints its usage; an unknown option exits with 2 without starting.
 Run

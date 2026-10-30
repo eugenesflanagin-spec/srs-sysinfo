@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare` and `cuda-toolkit`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `cuda-toolkit` and `update-lists`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -38,7 +38,7 @@ sysreport-search guide [ITEM] [--print]
 sysreport-search id VVVV[:DDDD[:SSSS:ssss]][:RR] [--bus pci|usb] [--mode tree|scan|info]
 sysreport-search find PATTERN [--report DIR] [-i] [-F] [--max N] [--color auto|always|never]
 sysreport-search devices [--bus pci|usb|all]
-sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
+sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
 sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 sysreport-search latency [--max MB] [--yes]
@@ -52,13 +52,15 @@ sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
-sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
 sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
 sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
+sysreport-search update-lists [--list] [--yes]
 
 srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
 srs-root [--user NAME]
+srs-root --acpi-eval METHOD [ARG...]
 srs-sysreport
 ```
 
@@ -72,7 +74,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,update-lists} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -95,7 +97,7 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
         --print only shows the section and the command that would run
 
 Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):
-  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
+  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
   bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]
         Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);
@@ -145,7 +147,7 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
         ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
   gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]
-           [--limit C] [--list] [--yes]
+           [--limit C] [--accept-high-limit] [--list] [--yes]
         GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted
         (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
         100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
@@ -159,6 +161,11 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         is for, the install command for this distribution; --install runs that command after you type
         yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built
         in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it
+  update-lists [--list] [--yes]
+        download fresh pci.ids, usb.ids and pnp.ids from their official sources into
+        ~/.local/share/srs/lists (no root); SRS then uses the newer of these and the system's copies.
+        Each download is checked first; a failed one leaves the copy in use. --list shows the copies in
+        use and their versions; asks first, --yes downloads at once
   prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
@@ -176,7 +183,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.3.1 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.4.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -245,7 +252,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.3.1 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.4.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -408,7 +415,8 @@ crypto: not started
 | `--cpus 0,2,5` | Use exactly these logical CPUs | all |
 | `--seconds S` | Burn time per cycle, 1 to 2,700,000 seconds | 10 |
 | `--mode same\|swap` | `same`: each worker stays on its CPU and runs Whetstone. `swap`: workers move between CPUs (affinity test). | same |
-| `--limit C` | Stop if the hottest CPU sensor reaches C degrees Celsius | 90 |
+| `--limit C` | Stop if the hottest CPU sensor reaches C degrees Celsius: 50-100, or 101-110 with `--accept-high-limit` (2.4; any other value exits 2 without starting) | 90 |
+| `--accept-high-limit` | Allow a `--limit` of 101-110 °C. Above 100 °C many CPUs and GPUs are already at or near their own maximum; using it means you accept that risk (the window asks the same once, Yes / No) | off |
 | `--cool S` | Rest between cycles, seconds | 0 |
 | `--cycles N` | Number of burn + cool cycles | 1 |
 
@@ -432,7 +440,14 @@ An unknown option prints the usage line and exits 2 **without starting anything*
 ```
 $ sysreport-search burn --nope
 usage: sysreport-search [-h] [--version] {id,find,devices} ...
-sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]
+sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+```
+
+A limit over 100 °C without `--accept-high-limit` is refused the same way (exit 2, nothing started):
+
+```
+$ sysreport-search burn --limit 105
+burn: a --limit over 100 C needs --accept-high-limit (above 100 C many CPUs and GPUs are already at or near their own maximum; using it means you accept that risk)
 ```
 
 ### `bench` - Dhrystone and Whetstone
@@ -749,7 +764,7 @@ See [tools.md](SECTIONS/tools.md#gpu-benchmark).
 
 ```
 sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]
-                          [--fp32|--fp64] [--limit C] [--list] [--yes]
+                          [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
 ```
 
 Keeps the GPU fully busy with large matrix multiplications and counts every result that differs
@@ -772,7 +787,8 @@ voltages or fans.** It never burns a software renderer such as llvmpipe as a GPU
 | `--backend B` | `vulkan`, `hip` (ROCm), `cuda`, `opencl` or `auto` (default: Vulkan when it has a GPU, else the first back end that has one) |
 | `--device N` | The device number in that back end's list (see `--list`), or `all` (default: the first GPU; CPU / software devices are skipped) |
 | `--fp32` / `--fp64` | Precision of the multiplications (default FP32) |
-| `--limit C` | Stop at this GPU temperature in °C, 50-120 (default 100; hotspot / junction when the card reports it, else edge). `--limit-c` is the same |
+| `--limit C` | Stop at this GPU temperature in °C, 50-100 (default 100; hotspot / junction when the card reports it, else edge); 101-110 only with `--accept-high-limit` (2.4; before 2.4 the range was 50-120). `--limit-c` is the same |
+| `--accept-high-limit` | Allow a `--limit` of 101-110 °C (above 100 °C many GPUs are already at or near their own maximum; you accept that risk) |
 | `--list` | List the devices of each installed back end (or only `--backend`'s) and exit. This starts each runtime but runs no work |
 | `--yes` | Start without asking |
 
@@ -786,7 +802,12 @@ Examples:
 $ sysreport-search gpu-burn --list
 $ sysreport-search gpu-burn --seconds 600 --limit 95
 $ sysreport-search gpu-burn --backend hip --fp64 --seconds 120
+$ sysreport-search gpu-burn --seconds 900 --limit 105 --accept-high-limit
 ```
+
+Since 2.4 every back end uses a register-blocked matrix multiply (64 x 64 tiles, 4 x 4 results per
+thread) that loads the GPU much harder; the result's `Kernel` line says which kernel ran, and
+`SRS_GPUBURN_SIMPLE=1` forces the older one.
 
 See [tools.md](SECTIONS/tools.md#gpu-burnin).
 
@@ -860,6 +881,32 @@ same under **Options -> NVIDIA CUDA toolkit for GPU tests...** (User Guide 9.20)
 Exit code 0: shown, or installed and NVRTC found; 1: not started (with the reason) or the install
 failed; 2: not confirmed, no terminal, or a bad option.
 
+### `update-lists` - newer hardware name lists (2.4)
+
+```
+sysreport-search update-lists [--list] [--yes]
+```
+
+**In plain words:** downloads the newest PCI, USB and monitor maker name lists from their official
+sources, so new devices get names. Only when you run it; no root.
+
+First it prints each list in use: file, version (or the number of entries for `pnp.ids`, which has no
+version), path and whether it is yours or the system's. Then it shows the sources - `pci.ids` from
+<https://pci-ids.ucw.cz/v2.2/pci.ids>, `usb.ids` from <http://www.linux-usb.org/usb.ids>, `pnp.ids` from
+hwdata (<https://raw.githubusercontent.com/vcrhonek/hwdata/master/pnp.ids>) - and asks `Go on? [y/N]`.
+The files go to `~/.local/share/srs/lists` (`$XDG_DATA_HOME/srs/lists` when that is set), downloaded
+with `curl` (or `wget`). Each must look like the real list (its header and enough entries) or the copy
+in use stays; the previous copy is kept as `.old`. From then on every lookup uses the newer of your
+copy and the system's (`/usr/share/hwdata`), by the list's own version.
+
+| Option | Meaning |
+|---|---|
+| `--list` | Only show the copies in use; download nothing |
+| `--yes` | Download without asking |
+
+Exit code 0: at least one list was updated or checked; 1: not downloaded (answered no, no terminal,
+or every download failed); 2: a bad option. The window has the same on the Tools page (User Guide 9.21).
+
 Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `pi`, `crypto` and `prime` run is added to `~/.cache/srs/bench-history.tsv`.
 
 ---
@@ -901,6 +948,8 @@ or one of these tool names:
 | `gpubench` | GPU Benchmark |
 | `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
 | `cudatoolkit` | The **Options -> NVIDIA CUDA toolkit for GPU tests...** window |
+| `lists` | Update hardware lists (asks first) (2.4) |
+| `acpieval` | ACPI method evaluation (the one-time warning first, if not accepted yet) (2.4) |
 | `idlookup` | Device ID Lookup |
 | `find` | Find |
 | `menu` | Pops up the Menu |
@@ -921,6 +970,7 @@ The menu entries use: `--gui-open=stressburn` (SRS Stress & Burnin),
 ```
 pkexec srs-root            # or: sudo srs-root
 sudo srs-root --user NAME  # collect for another user (used by the boot unit)
+pkexec srs-root --acpi-eval METHOD [ARG...]   # evaluate one ACPI method (2.4; what the window's ACPI method evaluation runs)
 ```
 
 Collects root-only data into `~/.cache/srs/root/` of the user who started it (via `PKEXEC_UID`
@@ -933,10 +983,40 @@ srs-root: smart
 srs-root: acpi-tables
 srs-root: lspci
 srs-root: msrs
+srs-root: rapl
+srs-root: umc
+srs-root: aod
+srs-root: ebda
+srs-root: vbios
+srs-root: gpio
 srs-root: done -> /home/you/.cache/srs/root
 ```
 
-- It has no `--help`; any argument other than `--user NAME` is ignored.
+Since 2.4 it also collects (each only where it applies; files in `~/.cache/srs/root/`):
+
+| File | What |
+|---|---|
+| `umc.txt` | AMD Ryzen 7000 / 9000 desktop: memory controller (UMC) registers, read through the ryzen_smu driver's `smn` file (an address written there only selects what is read: 4 bytes, never the 8-byte form that writes; each value read twice under `/run/lock/srs-smn.lock`). Without the driver: a "not read" line |
+| `intel-imc.txt` | Intel Core 6th gen to Core Ultra (experimental): the memory controller's timing registers, read by `sysreport-search intel-imc-dump` (MCHBAR mapped read-only from `/dev/mem`, aligned 32-bit reads; the window is never switched on) |
+| `aod.bin`, `aod.txt` | AMD: the BIOS's AOD table (memory settings), named by an SSDT; read from `/dev/mem` only when the kernel allows it (`iomem=relaxed` on kernels with IO_STRICT_DEVMEM), else `aod.txt` says why |
+| `rapl.txt` | AMD: the package and per-core energy counters, read twice one second apart |
+| `ebda.txt`, `ebda.bin` | The BIOS Data Area's EBDA pointer (0x40E) and, when there is one, the EBDA (below 0xA0000, at most 64 KiB) |
+| `vbios-<pci>.bin` | Each AMD GPU's VBIOS, copied from the driver's memory (debugfs `amdgpu_vbios`); the GPU's ROM is not touched |
+| `gpio.txt` | The kernel's GPIO table (debugfs `gpio`) |
+| `efi-systab.txt`, `esrt.txt` | The UEFI System Table pointers and the ESRT entries' root-only files |
+| `pmic-*.txt` | Opt-in (Options > Read DIMM voltages from their PMIC chips, `Read DIMM PMIC=1`): each DDR5 PMIC's registers 0x00-0x3F, `i2cdump -y -r 0x00-0x3F BUS ADDR b` (byte reads, no `-f`) |
+| `ec.bin` | Opt-in (Options > Read the embedded controller, `Read EC=1`): the EC's 256 registers via `ec_sys` loaded with `write_support=0`, unloaded again if srs-root loaded it |
+| `acpi-calls.txt` | The log of `--acpi-eval` (time, call, result) |
+
+**`--acpi-eval METHOD [ARG...]`** (2.4) evaluates one ACPI method through the `acpi_call` module and
+exits; nothing else is collected. METHOD must be an ACPI name path (`\_SB.PCI0.GPP0._STA`, segments of
+up to 4 characters `A-Z 0-9 _`); each ARG a number (decimal or `0x` hex), a `"string"` (letters,
+digits, space, `. _ -`, up to 64) or a buffer `b` + hex bytes; at most 7. Anything else exits 2 without
+running. It loads `acpi_call` (exit 3 if it is not installed), writes the call to `/proc/acpi/call`,
+prints the result and appends it to `acpi-calls.txt`. **This runs BIOS code and can change hardware
+state**; the window asks once before it allows it (User Guide 9.22).
+
+- It has no `--help`; any argument other than `--user NAME` or `--acpi-eval` is ignored.
 - `--user NAME` works only as root; exit code 2 if not root or the user does not exist.
 - Set `SRS_SMART_USB=1` to include USB-attached disks in the SMART collection.
 - Tools that are not installed are skipped.
@@ -984,5 +1064,8 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_CTK_DRY_RUN=1` | `cuda-toolkit --install` and the GUI's toolkit install show what they would run and run nothing (for tests) |
 | `SRS_CTK_TOOL_DIRS` | Only together with `SRS_CTK_DRY_RUN=1`: look for the package manager, `sudo` and `pkexec` in these folders (colon-separated) instead of `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` (for tests: fake tools that are never run). Ignored otherwise |
 | `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK` | NVIDIA CUDA toolkit checks: read this file instead of `/etc/os-release`, this folder instead of `/sys/bus/pci/devices`, this route table instead of `/proc/net/route`, this lock file instead of pacman's `db.lck` (for tests: `tests/cuda-toolkit-test.sh`) |
+| `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older tiled matrix multiply instead of the 2.4 register-blocked one (for comparing) |
+| `SRS_SPD_DIR` | Memory Timings: read the modules' SPD from `<dir>/<device>/eeprom` instead of `/sys/bus/i2c/drivers/spd5118` (for tests) |
+| `XDG_DATA_HOME` | Update hardware lists keeps its copies in `$XDG_DATA_HOME/srs/lists` (default `~/.local/share/srs/lists`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU Benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

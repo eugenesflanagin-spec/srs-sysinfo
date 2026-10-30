@@ -42,7 +42,8 @@ Some ideas come up again and again in this group. Read these once and the rest i
 - **UEFI** (Unified Extensible Firmware Interface) is the modern replacement for the old PC
   BIOS. Most people still say "BIOS" for both.
 - **srs-root cache**: root-only data that the srs-root helper copied for SRS. SRS itself never
-  runs as root and never writes to hardware.
+  runs as root and never writes to hardware (the one exception is ACPI method evaluation, a tool for
+  experts that runs a method you type, through srs-root).
 
 ## Contents
 - [ACPI PCI root buses](#acpi-pci-root-buses) `acpi-buses`
@@ -204,7 +205,8 @@ are listed on their own in [ACPI extension (PDX)](#acpi-extension-pdx).
 
 **In plain words.** The embedded controller (EC) is a small helper microcontroller on the board.
 On laptops it runs the keyboard, battery and fans; on desktops it is usually much simpler. This
-item shows whether ACPI describes one and how Linux talks to it.
+item shows whether ACPI describes one and how Linux talks to it, and (2.4, opt-in) a copy of its
+256 registers.
 
 **What you see.**
 
@@ -218,42 +220,67 @@ item shows whether ACPI describes one and how Linux talks to it.
 | ec_busy_polling | Whether Linux busy-waits for EC replies (`Y`/`N`) | `Y` is a workaround on some laptops |
 | ec_max_queries | How many EC queries may be outstanding | Tuning value, default 16 |
 | ec_sys module | Whether the `ec_sys` debug module is loaded | Needed for an EC register dump |
-| EC register dump | Not read: root-only debugfs file, not in the srs-root cache | SRS never reads EC registers |
+| EC register dump | Off: "Menu > Options > Read the embedded controller, then Run as root". On: a hexdump of the 256 registers from the root cache | The raw EC state, for experts |
 
 If there is no EC, the item says "No ACPI EC (PNP0C09)".
 
+**The register dump is opt-in (2.4).** **Menu > Options > Read the embedded controller (expert,
+read-only; from the next Run as root)** is off by default and asks first: on a few machines (mostly
+laptops) reading certain EC registers clears a pending event, such as a battery or key
+notification, which may then be missed once. When it is on, **Run as root** loads the kernel's
+`ec_sys` module with `write_support=0` (read-only), copies the 256 registers once into
+`~/.cache/srs/root/ec.bin`, and unloads the module again if it was not loaded before.
+
 **Healthy / typical values.** On the author's desktop: `\_SB_.PCI0.SBRG.EC0_`, driver `acpi-ec`,
-storm threshold 8, busy polling N, max queries 16, `ec_sys` not loaded.
+storm threshold 8, busy polling N, max queries 16, `ec_sys` not loaded, register dump off.
 
 **Unusual values and what they suggest.** No EC on a laptop is very unusual and means battery and
 lid events will not work. Changed `ec_*` values usually come from a kernel command-line workaround
 (`acpi.ec_*=`); check your boot loader settings.
 
 **Where Linux gets it.** `/sys/bus/acpi/devices/PNP0C09:00` and
-`/sys/module/acpi/parameters/ec_*`. A register dump would need `/sys/kernel/debug/ec/ec0/io`
-(root, `ec_sys` module).
+`/sys/module/acpi/parameters/ec_*`; the dump from `/sys/kernel/debug/ec/ec0/io` (root, `ec_sys`
+module), copied by srs-root into `ec.bin`.
 
 ---
 ## ACPI method evaluation  
 `acpi-eval` - Linux data - Needs root data
 
-**In plain words.** In the Windows original this item could run ("evaluate") ACPI methods. SRS
-is strictly read-only, so on Linux it only reports whether the tool that could do this is
-loaded, and points you to the read-only alternatives.
+**In plain words.** ACPI methods are small programs inside the BIOS's ACPI tables. Since 2.4
+**Tools > ACPI method evaluation** can run ("evaluate") one that you type, as root, and show its
+result - for experts. This page shows whether the kernel module that does it is there, where to
+start, and the last evaluations.
 
 **What you see.**
-- **acpi_call** - whether the third-party `acpi_call` kernel module is loaded (`/proc/acpi/call
-  present (root)` or `not loaded`).
-- **Evaluation** - always "disabled": running an ACPI method means writing to the kernel, and SRS
-  never writes.
-- **Read-only alternative** - [ACPI methods](#acpi-methods) for the list of methods, and
-  [ACPI devices](#acpi-devices) for _STA, _HID, _UID and _ADR values.
+- **acpi_call** - whether the third-party `acpi_call` kernel module is loaded (`/proc/acpi/call`).
+  "not loaded" is normal: srs-root loads it when you evaluate a method (Arch package
+  `acpi_call-dkms`).
+- **Evaluate a method** - where: Tools > ACPI method evaluation (it runs BIOS code as root and can
+  change hardware state).
+- **Method names** - where to find them: [ACPI methods](#acpi-methods) (the methods in this PC's
+  DSDT / SSDTs) and [ACPI devices](#acpi-devices) (_STA, _HID, _UID, _ADR per device).
+- After evaluations: the last 30 lines of the log `~/.cache/srs/root/acpi-calls.txt` (time, the
+  method with its arguments, the result).
 
-**Where Linux gets it.** Checks for `/proc/acpi/call`.
+**How evaluation works.** The first time, a warning explains the risk and asks once (**Yes, I
+understand** / Cancel; `Accepted ACPI Evaluation` in `SRSDEF.ini`). The window then takes a
+**Method** (an ACPI name path such as `\_SB.PCI0.GPP0._STA`) and up to 7 **Arguments**: numbers
+(decimal or `0x` hex), simple `"strings"` (letters, digits, space, `.`, `_`, `-`) or buffers written
+`b` followed by hex bytes (`b0102`). **Evaluate** asks for the root password (pkexec) and runs
+`srs-root --acpi-eval`, which checks the name and every argument again as root, loads `acpi_call`,
+evaluates the method once and logs it. The result is shown as `acpi_call` returns it.
+
+**Unusual values and what they suggest.** "the acpi_call module is not installed": install
+`acpi_call-dkms` (Arch) or your distribution's acpi_call package. "not an ACPI method path" or
+"argument not allowed": the input did not pass the checks; nothing was run.
+
+**Where Linux gets it.** `/proc/acpi/call` (the `acpi_call` module), written only by
+`srs-root --acpi-eval` for a method you typed; the log `acpi-calls.txt`.
 
 **Background.** An ACPI **method** is a small program written in AML (ACPI Machine Language)
-inside the firmware tables. Running the wrong one can switch off a device or the whole PC, which
-is why SRS does not do it.
+inside the firmware tables. Methods read status (`_STA`) but can also switch devices on or off,
+change fan, power or performance settings, write BIOS settings, or make the PC hang or reboot.
+Evaluate only methods you know; this is the one SRS feature that can change hardware state.
 
 ---
 ## ACPI HAL  
@@ -974,8 +1001,9 @@ such as a graphics card's video BIOS or a storage controller's boot code.
 | ROM size | Size of the expansion ROM window |
 | Driver | Linux driver |
 
-Footer: number of devices with an expansion ROM, and a note that the ROM images themselves
-(header, code type, EFI or legacy) are root-only and not read.
+Footer: number of devices with an expansion ROM, and a note that the ROM images themselves are not
+read (the ROM must be switched on by a write first). For an AMD graphics card,
+[GPU VBIOS status](graphics.md#gpu-vbios-status) shows the driver's own copy of its image (2.4).
 
 **Healthy / typical values.** Author's PC: the graphics card `03:00.0` (128 KB, `amdgpu`) and the
 SATA controller `0c:00.0` (512 KB, `ahci`).
@@ -1273,9 +1301,9 @@ firmware update records, and how long the firmware took to boot.
 | Firmware Type | `UEFI`, or "Legacy BIOS (no /sys/firmware/efi)" |
 | Platform Size | 64-bit or 32-bit UEFI |
 | Firmware Vendor Pointer, Runtime Services, Configuration Table | Memory addresses of UEFI structures (for debugging) |
-| System Table | Address of the UEFI system table (root only) |
+| System Table | The UEFI System Table's pointers to the ACPI (`ACPI20`, `ACPI`) and SMBIOS (`SMBIOS3`, `SMBIOS`) tables (root only; from the srs-root cache `efi-systab.txt`, 2.4) |
 | Secure Boot | Enabled / Disabled / Unknown |
-| ESRT Entries | Number of firmware-update resources (EFI System Resource Table); per-entry `fw_version` lines when readable |
+| ESRT Entries | Number of firmware-update resources (EFI System Resource Table). With the root cache (`esrt.txt`, 2.4), per entry: what it updates (for example "system firmware (the BIOS)"), its **Firmware class** GUID, **Version**, **Lowest allowed** version and the **Last update** attempt with its result. An AMI-style hex version is shown as the BIOS version it encodes: "BIOS 1805 (stored as 0x1805 = 6149)" |
 | UEFI Variables | Number of variables stored in firmware |
 | BIOS Vendor / BIOS Version | From SMBIOS |
 
@@ -1288,8 +1316,8 @@ firmware update records, and how long the firmware took to boot.
 | ExitBootServices | When the OS took over from the firmware (start -> end) |
 | Time in firmware + loader | Total time from power-on timing start to OS hand-over |
 
-**Healthy / typical values.** Author's PC: UEFI, 64-bit, Secure Boot Disabled, 1 ESRT entry,
-159 variables. Typical firmware time is 5-20 s; boards with DDR5 that re-train memory at every
+**Healthy / typical values.** Author's PC: UEFI, 64-bit, Secure Boot Disabled, 1 ESRT entry
+(system firmware, BIOS 1805, lowest allowed 1805, last update: success), 150 variables. Typical firmware time is 5-20 s; boards with DDR5 that re-train memory at every
 boot (or right after a BIOS settings change) can take much longer. The boot-loader-to-hand-over
 part also includes any time spent in the boot menu.
 
@@ -1298,6 +1326,10 @@ part also includes any time spent in the boot menu.
   Restore" in the BIOS so training is skipped on normal boots (if your memory is stable with it).
 - Large gap between Boot loader load and ExitBootServices: time spent in the boot loader menu or
   its timeout.
+- An ESRT **Last update** that is not "success": the last firmware update through UEFI capsules
+  (for example `fwupd`) failed; the BIOS kept its old version.
+- **Lowest allowed** equal to **Version**: the BIOS cannot be downgraded through capsule updates
+  (anti-rollback).
 - ESRT 0: the firmware does not offer capsule updates, so `fwupd` cannot update it.
 
 **Where Linux gets it.** `/sys/firmware/efi/` (`fw_platform_size`, `fw_vendor`, `runtime`,
@@ -1501,31 +1533,118 @@ actually touch.
 ## Memory timings  
 `mem-tweak` - Linux data - Needs root data
 
-**In plain words.** Shows the memory speed. Detailed timings (CL, tRCD and so on) are not read,
-because on AMD they sit in memory-controller registers that SRS would have to write to reach.
+**In plain words.** The page header says **Memory Timings**. It shows what your memory really runs
+at: its speed and clocks, the timings the memory controller uses right now, the BIOS's memory
+settings, and what each module says it can do (its JEDEC, EXPO and XMP profiles), so you can compare
+"what the profile says" with "what the BIOS set". Everything on it is only read. New in 2.4; before,
+it showed only the speed.
+
+**Which PCs.** Live timings: **AMD Ryzen 7000 / 9000 desktop** processors (family 19h models
+60h-7Fh, family 1Ah models 40h-4Fh), with the `ryzen_smu` driver installed (AUR
+`ryzen_smu-dkms-git`) and one **Menu > Run as root**. **Intel Core 6th gen to Core Ultra**:
+experimental (see below). The module profiles work on any PC with DDR5 modules that the kernel's
+`spd5118` driver has found, without root. Other processors say "not supported yet".
 
 **What you see.**
-- **DRAM** - type, size, form factor and ranks of the first stick.
-- **Configured Speed** - current data rate.
-- **MEMCLK** - real memory clock, half the data rate ("DDR: 2 transfers per clock").
-- **Rated (JEDEC) Speed** - the stick's base speed.
-- **ryzen_smu** - whether the third-party `ryzen_smu` driver is loaded.
-- **Timing registers (UMC)** - "not read": needs SMN register access; SRS stays read-only.
-- Two notes: primary / secondary timings (tCL, tRCD, tRP, tRAS, tRFC...) would come from the AMD
-  memory controller (UMC) via SMN; FCLK / UCLK / MCLK are in the SMU PM table item `amd-pmt`.
 
-**Healthy / typical values.** Author's PC: DDR5 16GB, ranks 1, 6000 MT/s, MEMCLK 3000 MHz,
-rated 4800 MT/s.
+*Clocks and voltages* (from the ryzen_smu PM table, no root):
 
-**Unusual values and what they suggest.** MEMCLK equal to half the rated speed (2400 MHz on a 6000
-kit): EXPO / XMP is off. For timings use a tool that reads the memory controller (for example
-`ZenTimings` on Windows) or read them in the BIOS setup.
+| Field | Meaning |
+|---|---|
+| Memory speed | Data rate in MT/s (two transfers per MEMCLK cycle) |
+| MEMCLK | The memory's own clock |
+| UCLK | The memory controller's clock, with its ratio to MEMCLK: 1:1 is fastest, 1:2 is usual above about 6000 MT/s |
+| FCLK | Infinity Fabric clock: the link between the CPU cores and the memory controller |
+| VSOC | SoC voltage: memory controller and fabric |
+| VDDP | Memory PHY (the controller's I/O circuits) voltage |
+| VDDG IOD / CCD | Fabric link voltages; "not in this PM table version" when the table has none |
+| VDD MISC | Voltage of other SoC parts |
 
-**Where Linux gets it.** SMBIOS type 17; `/sys/kernel/ryzen_smu_drv` presence.
+*Memory controller* (live): **Channels with a DIMM**, **Gear Down Mode (GDM)** (Enabled / Disabled),
+**Command rate** (1T / 2T), **Power down**, **Bank groups**, **Refresh mode** (normal, fine granularity,
+per bank or mixed) and **Nitro mode (Rx / Tx / Ctrl)**.
+
+*BIOS memory settings (AMD AOD table)*, only when the kernel lets srs-root read the table (see below):
+
+| Field | Meaning |
+|---|---|
+| ProcODT | The processor's on-die termination resistance (ohms): how the CPU's memory pins absorb signal reflections |
+| Proc data drive strength, DRAM data drive strength, CAD bus drive strength | How hard the CPU, the memory chips and the command / address bus drive their signals (ohms; lower = stronger) |
+| RttNomWr / RttNomRd, RttWr, RttPark / RttParkDqs | The memory chips' own termination settings (Off, or RZQ/n with its ohms) |
+| DIMM VDD / VDDQ / VPP (set) | The module voltages the BIOS set |
+| CPU VDDIO (memory) | The CPU's memory I/O voltage |
+| Source | "the BIOS's AOD table; its timings match the live ones above" |
+
+When the table cannot be read, **Status** says why: "not readable on this kernel: the table sits in
+memory that the kernel keeps from programs" (kernels built with IO_STRICT_DEVMEM, which is most,
+block it unless booted with `iomem=relaxed`, which weakens that protection; SRS does not ask you to
+change it, and the timings do not need it), "not read yet (Menu > Run as root), or this BIOS has no
+AOD table", or "its layout is not known for this processor / BIOS yet (please report it)". The values
+are shown only when the table's own timings match the live ones, so a layout that does not fit a
+BIOS is never shown.
+
+*Timings* - one row per timing, one column per channel (A, B ...), the **Time** in nanoseconds for
+the ones where that is meaningful, and **What it is** in plain English. In memory controller clocks:
+tCL, tRCDRD, tRCDWR, tRP, tRAS, tRC (the main ones), tRRDS / tRRDL, tFAW, tWTRS / tWTRL, tWR, tRTP,
+tCWL, tREFI (time between refreshes, in microseconds), tRFC / tRFC2 / tRFCsb (refresh cycle times),
+the read-to-read and write-to-write turnarounds (tRDRDSCL, tRDRDSC, tRDRDSD, tRDRDDD, tWRWRSCL,
+tWRWRSC, tWRWRSD, tWRWRDD), tRDWR, tWRRD, tCKE, tXP, tCPDED, tPD, tCSH, tMOD, tMRD, tPPD, tSTAG,
+tSTAGsb and the PHY delays tPHYWRD, tPHYWRL, tPHYRDL. A channel that differs from the others is a
+normal result of memory training for the PHY and turnaround values.
+
+*Modules (SPD)* - per DDR5 module, no root: **Slot**, **Module** (maker and part number), **Size** (size,
+ranks, chip size and width), **DRAM chips** (chip maker), **Made** (year and week), **Temperature**,
+and (opt-in) **PMIC set VDD / VDDQ / VPP** and **PMIC mode**. Then a profile table: **JEDEC**, **EXPO
+1-2** and **XMP 1-3** with speed, CL-RCD-RP-RAS-RC, tRFC1 / 2 / sb, VDD / VDDQ / VPP and the profile's
+name.
+
+**DIMM voltages from their PMIC chips (opt-in).** Each DDR5 module has a small power chip (PMIC).
+**Menu > Options > Read DIMM voltages from their PMIC chips (SMBus; from the next Run as root)** is off
+by default and asks first: on some boards the BIOS or the board's controller uses the same bus at the
+same time without telling Linux, and a collision there can, rarely, upset a sensor or the board's
+lighting until the next boot. When it is on, Run as root reads each PMIC's registers 0x00-0x3F with
+`i2cdump` (byte reads through the kernel's SMBus driver, no `-f`, nothing written) and the page shows
+the voltages it is set to (JESD301-2 voltage codes; "high-voltage mode" for overclocking PMICs, told
+apart by the module's profile voltage) and whether it is **secure (locked)** or **programmable
+(unlocked)**. The live voltage meter is not read: it needs a write to the PMIC.
+
+**Intel (experimental).** srs-root runs `sysreport-search intel-imc-dump` as root: it takes the
+memory controller's register window (MCHBAR) address from the host bridge, maps it read-only and
+reads the timing registers with aligned 32-bit reads; the window is never switched on. The page
+shows **Memory controller**, **Memory speed** (MT/s and type), **Channels with memory** and
+**tCL-tRCD-tRP-tRAS**, with the status "experimental: Intel timings are not checked on a real PC yet -
+please report what you see (and what the BIOS says)". Covered: Skylake to Comet Lake, Rocket Lake,
+Alder / Raptor Lake, Meteor / Arrow Lake.
+
+**Healthy / typical values.** Author's PC (Ryzen 7 7800X3D, 2 x 16 GB DDR5-6000 EXPO): 6000 MT/s,
+MEMCLK 3000 MHz, UCLK 1500 MHz (1:2), FCLK 2133 MHz, VSOC 1.248 V, VDDP 0.998 V; 2 channels, GDM
+Enabled, 1T; timings 30-38-38-96, tRC 146, tRFC 884 (294.67 ns), tREFI 65535; ProcODT 48 ohms,
+DIMM VDD / VDDQ / VPP set 1.435 / 1.435 / 1.900 V (with `iomem=relaxed`); modules G.Skill
+F5-6000J3038F16G (SK Hynix chips, EXPO and XMP 6000 30-38-38-96) and F5-6000U3636E16G (Samsung,
+XMP 6000 36-36-36-76), 28-29 °C.
+
+**Unusual values and what they suggest.**
+- Memory speed at the JEDEC speed (4800 MT/s on a 6000 kit): EXPO / XMP is off in the BIOS.
+- Timings far looser than the profile at the same speed: the BIOS did not apply the profile, or
+  you set them by hand.
+- "the ryzen_smu driver is not loaded": install `ryzen_smu` (AUR `ryzen_smu-dkms-git`), then Menu >
+  Run as root.
+- "this processor's memory controller is not supported yet": only Ryzen 7000 / 9000 desktop so far.
+- A module temperature above about 55 °C at idle: poor airflow over the memory.
+
+**Where Linux gets it.** The srs-root cache `umc.txt` (AMD memory controller registers read through
+`/sys/kernel/ryzen_smu_drv/smn`: an address written there only selects what the driver reads, 4
+bytes, never the 8-byte form that writes; each value read twice under a lock), `aod.bin` / `aod.txt`
+(the AOD table, `/dev/mem`, only when the kernel allows it), `pmic-*.txt` (opt-in), `intel-imc.txt`
+(Intel); `/sys/kernel/ryzen_smu_drv/pm_table` (clocks and voltages, no root);
+`/sys/bus/i2c/drivers/spd5118/*/eeprom` and the `spd5118` hwmon temperature (no root).
 
 **Background.** **SMN** (System Management Network) is AMD's internal register bus. **UMC** is the
-Unified Memory Controller. On AM5, **FCLK** (Infinity Fabric clock), **UCLK** (memory controller
-clock) and **MCLK** (memory clock) should be in a good ratio; UCLK = MCLK ("1:1") is fastest.
+Unified Memory Controller. **AOD** (AMD Overclocking Data) is a table the BIOS leaves in memory with
+its memory settings. **SPD** is the description each module carries; **EXPO** (AMD) and **XMP**
+(Intel) are tested faster profiles stored in it. The register map and table layouts follow
+ZenStates-Core / ZenTimings by Ivan Rusanov and memtest86+ by Sam Demeulemeester (facts only, no
+code copied).
 
 ---
 ## Overview  
@@ -1626,6 +1745,9 @@ normal with DDR5), SRS says so and shows the SMBIOS summary instead.
 **Healthy / typical values.** A full decode shows one block per stick. On the author's DDR5 PC
 `decode-dimms` decodes 0 DIMMs, so the page shows the SMBIOS summary of both sticks.
 
+For DDR5 the [Memory timings](#memory-timings) item (2.4) shows each module's maker, part number and
+JEDEC / EXPO / XMP profiles from the kernel's `spd5118` copy of the SPD, without root.
+
 **Unusual values and what they suggest.** "0 DIMMs decoded" with DDR5: `decode-dimms` needs the
 `spd5118` driver's `eeprom` file and a version of i2c-tools that understands DDR5. Updating
 i2c-tools, then running srs-root again, usually fixes it. Rated speed and part number are also
@@ -1656,37 +1778,50 @@ alarms.
 
 ---
 ## System CMOS  
-`system-cmos` - Linux data - Needs root data
+`system-cmos` - Linux data
 
-**In plain words.** The CMOS RAM is a small battery-backed memory next to the clock. SIV can dump
-it on Windows. SRS does not read it (that needs raw port access), so it reports what it can
-without that.
+**In plain words.** The CMOS RAM is a small battery-backed memory next to the clock, where the BIOS
+keeps a few settings. Since 2.4 SRS shows its contents, read from the kernel's own copy (no root, no
+direct hardware access), and decodes the standard bytes.
 
 **What you see.**
-- **CMOS RAM dump** - "not read: needs /dev/nvram or port I/O (root), not in the srs-root cache".
-- **/dev/nvram** - `present (root only)` or `absent (nvram module not loaded)`.
 - **RTC driver** - e.g. `rtc_cmos PNP0B00:00`.
 - **CMOS battery** - `okay` (green) or the warning the driver reports (red).
-- A pointer to [CMOS / RTC status](#cmos--rtc-status).
+- **CMOS RAM** - size and range, e.g. "114 bytes, addresses 0x0E - 0x7F", and where it came from.
+- **Standard IBM AT bytes** - 0x0E diagnostic status, 0x0F shutdown status, 0x10 floppy drives,
+  0x15-0x16 base memory, 0x17-0x18 extended memory (the AT field; it cannot show more than 64 MB),
+  0x2E-0x2F checksum (and whether it matches), 0x32 century.
+- **CMOS RAM contents** - a hexdump with CMOS addresses. With **Redact Reports** on, the bytes are
+  masked as `XX` in reports and copied text, because CMOS can hold the BIOS password check value.
+- Notes: the bytes not listed belong to the BIOS maker and are not decoded; the clock registers are
+  on [CMOS / RTC status](#cmos--rtc-status).
 
-**Healthy / typical values.** Author's PC: `/dev/nvram` present (root only), `rtc_cmos
-PNP0B00:00`, battery okay.
+**Healthy / typical values.** Author's PC: `rtc_cmos PNP0B00:00`, battery okay, 114 bytes; no
+diagnostic errors, normal shutdown status, no floppy drives, base / extended memory 0 KB and the
+AT area all zero (a UEFI BIOS does not use it), century 20.
 
 **Unusual values and what they suggest.** Battery not okay: replace the coin cell (usually a
-CR2032) before BIOS settings and the clock get lost.
+CR2032) before BIOS settings and the clock get lost. A diagnostic status other than 0x00: the BIOS
+flagged a problem at the last start (on old PCs: clock or checksum errors). "not available: the
+kernel has no cmos_nvram0 nvmem device": the `rtc_cmos` driver did not register it.
 
-**Where Linux gets it.** `/dev/nvram` existence, `/sys/class/rtc/rtc0/name`, `/proc/driver/rtc`.
+**Where Linux gets it.** `/sys/bus/nvmem/devices/cmos_nvram0/nvmem` (the `rtc_cmos` driver's
+read-only copy), `/sys/class/rtc/rtc0/name`, `/proc/driver/rtc`.
 
 ---
 ## System EBDA  
 `system-ebda` - Linux data - Needs root data
 
 **In plain words.** The EBDA (Extended BIOS Data Area) is a small block just below 640 KB that
-legacy BIOSes used for their own data. SRS does not read its contents, but shows what the memory
-map says about that area.
+legacy BIOSes used for their own data. Since 2.4 srs-root reads the pointer to it and, if there is
+one, its contents; UEFI PCs usually have none.
 
 **What you see.**
-- **EBDA contents** - "not read: needs /dev/mem (root); srs never opens /dev/mem".
+- **EBDA pointer (0x40E)** - the segment the BIOS Data Area points to, e.g. "0000: no EBDA (normal on
+  UEFI firmware)", with how it was read (once by srs-root, from the first megabyte of memory,
+  read-only). With an EBDA: its address, **size** and a hexdump of its contents (at most 64 KiB).
+- Without root data: "not read yet: needs the root cache (Menu > Run as root)". When the kernel has
+  no `/dev/mem`, the page says so.
 - **Conventional memory** - the first memory-map entry (start - end, type).
 - **EBDA (implied)** - either "none reserved: the firmware map gives RAM up to 0x9FFFF", or the
   reserved range between the end of that RAM and 0x9FFFF.
@@ -1694,13 +1829,15 @@ map says about that area.
 - With the srs-root cache: the `/proc/iomem` lines below 1 MB (Reserved, System RAM, PCI Bus,
   System ROM).
 
-**Healthy / typical values.** Author's PC: conventional memory 0x0 - 0x9FFFF System RAM, no EBDA
-reserved, UEFI; iomem shows the System ROM at 0xF0000-0xFFFFF.
+**Healthy / typical values.** Author's PC: pointer 0000 (no EBDA), conventional memory 0x0 - 0x9FFFF
+System RAM, UEFI; iomem shows the System ROM at 0xF0000-0xFFFFF.
 
-**Unusual values and what they suggest.** Nothing to fix here. An EBDA range on a UEFI PC means
-CSM (legacy boot support) is active.
+**Unusual values and what they suggest.** Nothing to fix here. An EBDA on a UEFI PC means CSM
+(legacy boot support) is active. "invalid pointer (at or above 0xA0000), not read": the pointer is
+not a real EBDA address; SRS does not read there.
 
-**Where Linux gets it.** `/sys/firmware/memmap/0/*`, srs-root `iomem.txt`.
+**Where Linux gets it.** srs-root cache `ebda.txt` / `ebda.bin` (`/dev/mem` below 1 MB, which
+kernels with STRICT_DEVMEM still allow, read-only), `/sys/firmware/memmap/0/*`, srs-root `iomem.txt`.
 
 ---
 ## BIOS IDs  

@@ -22,6 +22,22 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 | Mesa lavapipe (<https://www.mesa3d.org>) | the software Vulkan renderer the GPU tests run on, so they never touch a real GPU (test only, not shipped) | MIT |
 | hwdata (`pci.ids`, `usb.ids`, `pnp.ids`) | device names (not part of SRS) | GPL-2.0-or-later / BSD-3-Clause |
 
+## Memory Timings, hardware lists and ACPI (2.4)
+
+SRS's code for these is its own. The register layouts below are facts taken from the projects named;
+no code was copied from them.
+
+| What | Used for | Licence / terms |
+|---|---|---|
+| ZenStates-Core / ZenTimings by Ivan Rusanov (<https://github.com/irusanov/ZenStates-Core>, <https://github.com/irusanov/ZenTimings>) | the AMD memory controller (UMC) register map, the PM table offsets of the memory clocks and SoC voltages, the DDR5 SPD and the BIOS AOD table layouts and value tables of the Memory Timings page | facts only, credited; ZenStates-Core is GPL-3.0, no code copied |
+| memtest86+ by Sam Demeulemeester and contributors (<https://github.com/memtest86plus/memtest86plus>) | the AMD and Intel memory controller timing register layouts (Intel: MCHBAR, Core 6th gen to Core Ultra), a cross-check of the AMD ones | facts only, credited; memtest86+ is GPL-2.0, no code copied |
+| ryzen_smu driver (leogx9r; the amkillam fork, <https://github.com/amkillam/ryzen_smu>) | SRS reads the AMD PM table and, through srs-root, the memory controller registers through this kernel driver (AUR `ryzen_smu-dkms-git`); not shipped | GPL-2.0 |
+| acpi_call kernel module (<https://github.com/nix-community/acpi_call>) | Tools > ACPI method evaluation evaluates methods through it (Arch `acpi_call-dkms`); not shipped | GPL-3.0-or-later |
+| JEDEC JESD301-2 (DDR5 PMIC) and the DDR5 SPD specification | the PMIC voltage codes and the SPD fields | published standards, credited |
+| The PCI ID Repository (<https://pci-ids.ucw.cz>) | `pci.ids`, which Update hardware lists can download | GPL-2.0-or-later or BSD-3-Clause |
+| The Linux USB ID list (<http://www.linux-usb.org/usb.ids>) | `usb.ids`, which Update hardware lists can download | the list's own terms; distributed with hwdata (GPL-2.0-or-later / BSD-3-Clause) |
+| hwdata (<https://github.com/vcrhonek/hwdata>) | `pnp.ids` (PnP / monitor maker IDs, from the UEFI PNP ID list), which Update hardware lists can download | GPL-2.0-or-later (hwdata) |
+
 ## Data in the Power & Cost page
 
 SRS shows these figures unchanged, apart from unit conversion (cents to currency units) and

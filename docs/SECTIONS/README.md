@@ -61,7 +61,7 @@ The groups are in the same order as SRS's Menu.
 | Item | id | Badge |
 |---|---|---|
 | [AMD Ryzen Power Management](processors.md#amd-ryzen-power-management) | `amd-cpu` | Linux data |
-| [AMD Fuses](processors.md#amd-fuses) | `amd-fus` | Linux data - Needs root data |
+| [AMD Fuses](processors.md#amd-fuses) | `amd-fus` | Linux data |
 | [AMD PM Table](processors.md#amd-pm-table) | `amd-pmt` | Linux data |
 | [AMD PM Table 0](processors.md#amd-pm-table-0) | `amd-pmt-0` | Linux data |
 | [AMD PM table data @ second package/CCD](processors.md#amd-pm-table-data--second-packageccd) | `amd-pmt-1` | Not present on most PCs |
@@ -161,7 +161,7 @@ The groups are in the same order as SRS's Menu.
 | [Physical memory map](machine.md#physical-memory-map) | `physical` | Linux data |
 | [SPD (DIMMs)](machine.md#spd-dimms) | `spd` | Linux data |
 | [SPD thermal](machine.md#spd-thermal) | `spd-temp` | Linux data |
-| [System CMOS](machine.md#system-cmos) | `system-cmos` | Linux data - Needs root data |
+| [System CMOS](machine.md#system-cmos) | `system-cmos` | Linux data |
 | [System EBDA](machine.md#system-ebda) | `system-ebda` | Linux data - Needs root data |
 | [BIOS IDs](machine.md#bios-ids) | `system-ids` | Linux data - Needs root data |
 | [TPM device](machine.md#tpm-device) | `tpm-device` | Linux data |
