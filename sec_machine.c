@@ -3059,6 +3059,38 @@ static void s_mem_tweak(srs_out *o)
                         if (strcmp(tv, "-")) so_kv(o, "Temperature", C_VALUE, tv);
                     }
             }
+            {   /* opt-in PMIC registers (srs-root's pmic-00HH.txt, an i2cdump of 0x00-0x3F): the set voltages, JESD301-2 VIDs
+                   R0x21 SWA = VDD, R0x25 SWB = VDDQ (800 + n x 5 mV), R0x27 SWC = VPP (1500 + n x 5 mV), n = bits 7:1. Overclocking
+                   PMICs in high-voltage mode use the whole byte (800 + v x 5 mV); the reading closer to the module's fastest
+                   profile voltage is taken. Never written: the live meter (R0x30) would need a write. */
+                char pf[64], *pt = NULL;
+                const char *pp;
+                snprintf(pf, sizeof pf, "pmic-%s.txt", strchr(sl[i].spd_dev, '-') ? strchr(sl[i].spd_dev, '-') + 1 : sl[i].spd_dev);
+                if ((pp = so_root_file(pf)) && rd_all(pp, &pt) > 0) {
+                    int r[64], got = 0, row, k2, want = 0;
+                    char *ln = pt;
+                    memset(r, -1, sizeof r);
+                    while (ln && *ln) {   /* "20: 00 9c 00 ..." */
+                        if (sscanf(ln, "%x:", (unsigned *)&row) == 1 && row >= 0 && row < 64 && !(row & 15) && strchr(ln, ':')) {
+                            char *q = strchr(ln, ':') + 1;
+                            for (k2 = 0; k2 < 16; k2++) { unsigned v; int used; if (sscanf(q, " %2x%n", &v, &used) != 1) break; r[row + k2] = (int)v; q += used; got++; }
+                        }
+                        ln = strchr(ln, '\n'); if (ln) ln++;
+                    }
+                    for (k = 0; k < 2; k++) if (s.expo[k].valid && s.expo[k].vdd > want) want = s.expo[k].vdd;
+                    for (k = 0; k < 3; k++) if (s.xmp[k].valid && s.xmp[k].vdd > want) want = s.xmp[k].vdd;
+                    if (!want) want = 1100;
+                    if (got >= 48 && r[0x21] >= 0 && r[0x25] >= 0 && r[0x27] >= 0) {
+                        int v7 = 800 + (r[0x21] >> 1) * 5, v8 = 800 + r[0x21] * 5, hv = abs(v8 - want) < abs(v7 - want);
+                        int vdd = hv ? v8 : v7, vddq = hv ? 800 + r[0x25] * 5 : 800 + (r[0x25] >> 1) * 5;
+                        int vpp = hv ? 1500 + r[0x27] * 5 : 1500 + (r[0x27] >> 1) * 5;
+                        so_kvf(o, "PMIC set VDD / VDDQ / VPP", C_VALUE, "%.3f / %.3f / %.3f V%s", vdd / 1000.0, vddq / 1000.0, vpp / 1000.0,
+                               hv ? " (high-voltage mode)" : "");
+                        if (r[0x2F] >= 0) so_kv(o, "PMIC mode", C_VALUE, r[0x2F] & 4 ? "programmable (unlocked)" : "secure (locked)");
+                    } else so_kv(o, "PMIC", C_GRAY, "the read did not answer (see the cache file)");
+                }
+                free(pt);
+            }
             so_tabs(o, ptabs, 5);
             {
                 const char *h[6] = { "Profile", "Speed", "CL-RCD-RP-RAS-RC", "tRFC1 / 2 / sb", "VDD / VDDQ / VPP", "Name" };
