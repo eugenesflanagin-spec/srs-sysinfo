@@ -2041,6 +2041,7 @@ static void s_opencl(srs_out *o)
             { "Device Board Name (AMD)", "Board name" }, { "Device OpenCL C Version", "Device OpenCL C version" }, { "Driver Version", "Driver version" },
             { "Device Profile", "Profile" }, { "Device Type", "Device Type" }, { NULL, NULL } };
         while (*s == ' ' || *s == '\t') s++;
+        if (!strncmp(s, "NULL platform behavior", 22) || !strncmp(s, "ICD loader properties", 21)) break;   /* the cross-vendor clinfo's trailer */
         c = strchr(s, ':');
         if (c && (c[1] == '\t' || c[1] == ' ' || !c[1])) {
             kl = (size_t)(c - s);
@@ -2064,10 +2065,11 @@ static void s_opencl(srs_out *o)
             next_line(p, nx, sizeof nx);
             if (strstr(nx, "Number of devices")) { so_par(o); so_b(o, C_BLACK, v); so_par(o); }
             else {
-                if (!*pver) {   /* the cross-vendor clinfo lists the version after the name: look a few lines on */
+                if (!strchr(l, ':')) {   /* the cross-vendor clinfo lists the version after the name: look a few lines on
+                                            (up to the next platform); ROCm's lists it before, which pver already holds */
                     const char *q = p;
                     char ln[512], *g;
-                    for (j = 0; j < 6 && (q = next_line(q, ln, sizeof ln)); j++)
+                    for (j = 0; j < 6 && (q = next_line(q, ln, sizeof ln)) && !strstr(ln, "Platform Name"); j++)
                         if ((g = strstr(ln, "Platform Version"))) {
                             g += 16;
                             while (*g == ' ' || *g == '\t' || *g == ':') g++;
