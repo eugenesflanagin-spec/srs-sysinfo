@@ -2834,10 +2834,21 @@ static void show_disclaimer(GtkWidget *parent, int first)
     GtkWidget *l = gtk_label_new(NULL), *ca = gtk_dialog_get_content_area(GTK_DIALOG(dlg));
     gtk_label_set_markup(GTK_LABEL(l), g_disclaimer);
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    /* a fixed reading width: without it GTK sizes the window for a one-word-wide label, far taller than the screen
+       (2.3.1: the text sat at the bottom and the button was off-screen) */
+    gtk_label_set_width_chars(GTK_LABEL(l), 72);
     gtk_label_set_max_width_chars(GTK_LABEL(l), 80);
     gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_label_set_yalign(GTK_LABEL(l), 0);
     gtk_widget_set_margin_start(l, 16); gtk_widget_set_margin_end(l, 16); gtk_widget_set_margin_top(l, 16); gtk_widget_set_margin_bottom(l, 16);
-    gtk_box_pack_start(GTK_BOX(ca), l, TRUE, TRUE, 0);
+    {   /* scrolls instead of growing past a small screen */
+        GtkWidget *sw = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+        gtk_scrolled_window_set_propagate_natural_height(GTK_SCROLLED_WINDOW(sw), TRUE);
+        gtk_scrolled_window_set_max_content_height(GTK_SCROLLED_WINDOW(sw), 560);
+        gtk_container_add(GTK_CONTAINER(sw), l);
+        gtk_box_pack_start(GTK_BOX(ca), sw, TRUE, TRUE, 0);
+    }
     gtk_widget_show_all(dlg);
     if (gtk_dialog_run(GTK_DIALOG(dlg)) == GTK_RESPONSE_ACCEPT && first) { G.disclaimer_ok = 1; cfg_save(); }
     gtk_widget_destroy(dlg);
