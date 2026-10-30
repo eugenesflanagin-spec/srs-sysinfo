@@ -841,7 +841,12 @@ static void bios_body(srs_out *o, const gpu_t *g)
     if (gd_str(g, "vbios_version", b, sizeof b)) so_kv(o, "VBIOS version", C_BLACK, b);
     if (gd_str(g, "vbios_build", b, sizeof b)) so_kv(o, "VBIOS build", C_VALUE, b);
     snprintf(p, sizeof p, "%s/rom", g->dev);
-    so_kv(o, "Option ROM", C_VALUE, path_exists(p) ? "present (not read)" : "-");
+    {
+        char vb[128];
+        snprintf(vb, sizeof vb, "vbios-%s.bin", g->slot);
+        so_kv(o, "Option ROM", C_VALUE, !path_exists(p) ? "-" : so_root_file(vb) ? "present: the driver's copy of its image is shown below"
+                                                        : "present (the ROM itself is not read)");
+    }
     snprintf(p, sizeof p, "%s/fw_version", g->dev);
     n = dir_list(p, &nm);
     if (n > 0) {
