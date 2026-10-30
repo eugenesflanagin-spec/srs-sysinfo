@@ -301,6 +301,7 @@ static int vk_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
     c->kind = kind; c->prec = prec; c->prep_wrong = 0; c->verified = 0; c->seed = 0; c->err[0] = 0;
     *work = 0; *maxreps = 1;
     if (variant == GV_LIB) { snprintf(c->err, sizeof c->err, "Vulkan has no vendor library, only its own kernels"); return GBP_UNSUPPORTED; }
+    if (variant != GV_OWN) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP only"); return GBP_UNSUPPORTED; }
     if (c->g.abandoned || c->g.lost) { snprintf(c->err, sizeof c->err, "%s", c->g.err); return GBP_LOST; }
     switch (kind) {
     case GK_GEMM: rc = prep_gemm(c, prec, n, work, maxreps); break;

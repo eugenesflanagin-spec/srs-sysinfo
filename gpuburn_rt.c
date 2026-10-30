@@ -38,6 +38,45 @@
 #define MEM_SEED 0x5EED1234u
 #define WATCHDOG_S 5.0
 
+/* GPU Burnin's own matrix multiply for HIP only (variant GV_FAST). gemm_r (one result per thread, 16 x 16 tiles) is the
+   same kernel on every back end so the GPU Compute comparison stays fair, but hipRTC's compiler gets only about half of
+   what Mesa's Vulkan compiler gets out of it (RX 9070 XT: ~3.4 vs ~6.1 TFLOPS FP32), so the ROCm back end did not load
+   the GPU fully. gemm_b blocks the work in registers: a 16 x 16 thread block makes a 64 x 64 tile of C, every thread
+   4 x 4 results (rows ty + 16 i, columns tx + 16 j), 16 multiply-adds per 8 shared-memory reads instead of 1 per 2.
+   The sums run in the same order as gemm_r (k = 0 .. n-1), and the inputs are 0 / 1, so the results are identical.
+   n must be a multiple of 64 (rt_prep rounds it). Appended to the gk_source() text, which supplies REAL and FMAR. */
+static const char gk_body_hip_fast[] =
+    "extern \"C\" __global__ __launch_bounds__(256) void gemm_b(const REAL *A, const REAL *B, REAL *C, int n)\n"
+    "{\n"
+    "    __shared__ REAL sa[16][65];\n    __shared__ REAL sb[16][64];\n"
+    "    const int tx = threadIdx.x, ty = threadIdx.y, tid = ty * 16 + tx;\n"
+    "    const int row0 = blockIdx.y * 64, col0 = blockIdx.x * 64;\n"
+    "    REAL acc[4][4];\n"
+    "    int t, k, i, j, l;\n"
+    "    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) acc[i][j] = 0;\n"
+    "    for (t = 0; t < n; t += 16) {\n"
+    "#pragma unroll\n"
+    "        for (l = 0; l < 4; l++) {\n"
+    "            int x = tid + 256 * l;\n"
+    "            sa[x & 15][x >> 4] = A[(long)(row0 + (x >> 4)) * n + t + (x & 15)];\n"
+    "            sb[x >> 6][x & 63] = B[(long)(t + (x >> 6)) * n + col0 + (x & 63)];\n"
+    "        }\n"
+    "        __syncthreads();\n"
+    "#pragma unroll\n"
+    "        for (k = 0; k < 16; k++) {\n"
+    "            REAL a[4], b[4];\n"
+    "#pragma unroll\n"
+    "            for (i = 0; i < 4; i++) { a[i] = sa[k][ty + 16 * i]; b[i] = sb[k][tx + 16 * i]; }\n"
+    "#pragma unroll\n"
+    "            for (i = 0; i < 4; i++)\n"
+    "#pragma unroll\n"
+    "                for (j = 0; j < 4; j++) acc[i][j] = FMAR(a[i], b[j], acc[i][j]);\n"
+    "        }\n"
+    "        __syncthreads();\n"
+    "    }\n"
+    "    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) C[(long)(row0 + ty + 16 * i) * n + col0 + tx + 16 * j] = acc[i][j];\n"
+    "}\n";
+
 typedef struct {
     int cuda, tried, ok;
     char miss[96], libpath[PATH_MAX];
@@ -368,6 +407,7 @@ struct gb_ctx {
     int dev, dead, kind, prec, variant;
     void *cuctx, *mod[2], *ev0, *ev1, *blas;
     void *fn_gemm[2], *fn_fma[2], *fn_copy, *fn_cmp, *fn_tick;
+    void *fn_gemmb[2];          /* HIP only: GPU Burnin's register-blocked gemm_b (NULL when it did not build) */
     void *a, *b, *c, *ref, *cnt;
     void *ha, *hb, *host;       /* host copies (matrices / transfer buffers) */
     size_t n, es, bytes, nthreads;
@@ -467,6 +507,13 @@ static int build_module(gb_ctx *c, int fp64)
         }
     } else if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (libhiprtc) is not installed, so the own kernels cannot be built"); return GBP_UNSUPPORTED; }
     if (!(src = gk_source(GKD_CUDA_HIP, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
+    if (!r->cuda) {   /* HIP: GPU Burnin's faster gemm_b goes into the same module */
+        size_t l = strlen(src);
+        char *s2 = realloc(src, l + sizeof gk_body_hip_fast);
+        if (!s2) { snprintf(c->err, sizeof c->err, "out of memory"); goto out; }
+        src = s2;
+        memcpy(src + l, gk_body_hip_fast, sizeof gk_body_hip_fast);
+    }
     if ((e = r->RtcCreate(&prog, src, "srs_kernels.cu", 0, NULL, NULL))) { seterr(c, e, "kernel compiler"); goto out; }
     if ((e = r->RtcCompile(prog, 0, NULL))) {
         r->RtcLogSize(prog, &ls);
@@ -488,6 +535,8 @@ loaded:
     if (!f[0] || !f[1] || !f[2] || !f[3] || !f[4]) { snprintf(c->err, sizeof c->err, "the GPU runtime returned no kernel (internal error)"); goto out; }
     c->mod[fp64] = mod; mod = NULL;
     c->fn_gemm[fp64] = f[0]; c->fn_fma[fp64] = f[1]; c->fn_copy = f[2]; c->fn_cmp = f[3]; c->fn_tick = f[4];
+    /* optional: without it GPU Burnin uses gemm_r (bench_gpuburn.c falls back on GBP_UNSUPPORTED) */
+    if (!r->cuda && r->ModuleGetFunction(&c->fn_gemmb[fp64], c->mod[fp64], "gemm_b")) c->fn_gemmb[fp64] = NULL;
     rc = GBP_OK;
 out:
     if (rc && ptxerr[0] && !strstr(c->err, "built-in")) {   /* say that the built-in kernels were tried first */
@@ -598,6 +647,9 @@ static int gemm_once(gb_ctx *c, void *dst)
         }
         if (e) { seterr(c, e, "the GEMM library"); return GBP_ERROR; }
         return GBP_OK;
+    } else if (c->variant == GV_FAST) {
+        void *args[4] = { &c->a, &c->b, &dst, &n };
+        return launch(c, c->fn_gemmb[c->prec == GP_FP64], (unsigned)(n / 64), (unsigned)(n / 64), 16, 16, args);
     } else {
         void *args[4] = { &c->a, &c->b, &dst, &n };
         return launch(c, c->fn_gemm[c->prec == GP_FP64], (unsigned)(n / 16), (unsigned)(n / 16), 16, 16, args);
@@ -627,6 +679,9 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         int t;
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through the GEMM library only"); rc = GBP_UNSUPPORTED; break; }
+        if (variant == GV_FAST && (r->cuda || !r->have_rtc || (prec != GP_FP32 && prec != GP_FP64))) {
+            snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP FP32 and FP64 only"); rc = GBP_UNSUPPORTED; break;
+        }
         if (variant == GV_LIB && !r->have_blas) { snprintf(c->err, sizeof c->err, "%s is not installed", r->cuda ? "cuBLAS" : "hipBLAS"); rc = GBP_UNSUPPORTED; break; }
         /* the error check (cmp_u32) is one of our own kernels, so the library variant needs the module too
            (CUDA has it built in; HIP has to compile it) */
@@ -634,7 +689,11 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
             snprintf(c->err, sizeof c->err, "%s needs the runtime compiler (%s) for the error check, and it is not installed", r->cuda ? "cuBLAS" : "hipBLAS", r->cuda ? "libnvrtc" : "libhiprtc");
             rc = GBP_UNSUPPORTED; break;
         }
-        if ((rc = build_module(c, variant == GV_OWN && prec == GP_FP64))) break;
+        if ((rc = build_module(c, variant != GV_LIB && prec == GP_FP64))) break;
+        if (variant == GV_FAST && !c->fn_gemmb[prec == GP_FP64]) {
+            snprintf(c->err, sizeof c->err, "the register-blocked kernel did not load"); rc = GBP_UNSUPPORTED; break;
+        }
+        if (variant == GV_FAST) { n = n / 64 * 64; if (n < 64) n = 64; }
         n = n / 16 * 16;
         if (n < 16) n = 16;
         if (prec == GP_FP16 && n > 2048) n = 2048;
@@ -668,7 +727,7 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
     case GK_FMA: {
         int fp64 = prec == GP_FP64;
         if (prec != GP_FP32 && prec != GP_FP64) { rc = GBP_UNSUPPORTED; break; }
-        if (variant == GV_LIB) { snprintf(c->err, sizeof c->err, "no library variant for plain multiply-add"); rc = GBP_UNSUPPORTED; break; }
+        if (variant != GV_OWN) { snprintf(c->err, sizeof c->err, "no library variant for plain multiply-add"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build_module(c, fp64))) break;
         c->gx = (int)(n ? n : 1024);
         c->nthreads = (size_t)c->gx * 64;
@@ -684,7 +743,7 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         size_t i, bytes = n / 16384 * 16384;
         uint32_t *w;
         if (bytes < 16384) bytes = 16384;
-        if (variant == GV_LIB) { rc = GBP_UNSUPPORTED; break; }
+        if (variant != GV_OWN) { rc = GBP_UNSUPPORTED; break; }
         if ((rc = build_module(c, 0))) break;
         c->bytes = bytes;
         if ((rc = dmalloc(c, &c->a, bytes)) || (rc = dmalloc(c, &c->b, bytes)) || (rc = dmalloc(c, &c->cnt, 64))) break;

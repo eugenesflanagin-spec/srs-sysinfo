@@ -34,8 +34,9 @@ typedef struct { int fp64; } stub_mod;
 typedef struct { int fp64; } stub_prog;
 
 static long n_launch[8], n_blas, n_null, n_ptx, n_rtc, n_clbuild[2];
-static const char *const kname[5] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick" };
-static stub_fn g_fn[2][5];
+/* gemm_b: GPU Burnin's register-blocked HIP kernel (in the hipRTC source only, not in the PTX or OpenCL text) */
+static const char *const kname[6] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick", "gemm_b" };
+static stub_fn g_fn[2][6];
 
 static double fake_ms(void)
 {
@@ -49,7 +50,7 @@ __attribute__((destructor)) static void stub_report(void)
     FILE *o;
     int i;
     if (!f || !*f || !(o = fopen(f, "a"))) return;
-    for (i = 0; i < 5; i++) fprintf(o, "launch %s %ld\n", kname[i], n_launch[i]);
+    for (i = 0; i < 6; i++) fprintf(o, "launch %s %ld\n", kname[i], n_launch[i]);
     fprintf(o, "blas %ld\n", n_blas);
     fprintf(o, "ptxload %ld\nrtccompile %ld\nclbuild32 %ld\nclbuild64 %ld\n", n_ptx, n_rtc, n_clbuild[0], n_clbuild[1]);
     fclose(o);
@@ -177,7 +178,7 @@ EXPORT int cuModuleGetFunction(void **f, void *m, const char *name)
 {
     int fp = ((stub_mod *)m)->fp64, i;
     const char *no = getenv("STUB_NO_FN");
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 6; i++)
         if (!strcmp(name, kname[i])) {
             g_fn[fp][i].name = kname[i];
             g_fn[fp][i].fp64 = fp;
@@ -188,13 +189,63 @@ EXPORT int cuModuleGetFunction(void **f, void *m, const char *name)
 }
 EXPORT int hipModuleGetFunction(void **f, void *m, const char *name) { return cuModuleGetFunction(f, m, name); }
 
+/* gemm_b carried out the way the GPU does it: every 16 x 16 block, both __syncthreads() phases, every thread's 4 x 4
+   accumulators and the same shared-memory index arithmetic as gk_body_hip_fast in gpuburn_rt.c (keep the two in step),
+   so a wrong index there gives wrong results here. n must be a multiple of 64 (anything else = the back end's fault). */
+static void gemm_b_exec(const void *A, const void *B, void *C, int n, int fp64)
+{
+    static double sa[16][65], sb[16][64], acc[256][4][4];
+    int bx, by, t, k, i, j, l, tid;
+    if (n <= 0 || n % 64) { fprintf(stderr, "gpu_stub: gemm_b with n = %d (not a multiple of 64)\n", n); abort(); }
+#define LD(M, x) (fp64 ? ((const double *)(M))[x] : (double)((const float *)(M))[x])
+    for (by = 0; by < n / 64; by++)
+        for (bx = 0; bx < n / 64; bx++) {
+            int row0 = by * 64, col0 = bx * 64;
+            memset(acc, 0, sizeof acc);
+            for (t = 0; t < n; t += 16) {
+                for (tid = 0; tid < 256; tid++)
+                    for (l = 0; l < 4; l++) {
+                        int x = tid + 256 * l;
+                        sa[x & 15][x >> 4] = LD(A, (long)(row0 + (x >> 4)) * n + t + (x & 15));
+                        sb[x >> 6][x & 63] = LD(B, (long)(t + (x >> 6)) * n + col0 + (x & 63));
+                    }
+                for (tid = 0; tid < 256; tid++) {
+                    int tx = tid % 16, ty = tid / 16;
+                    for (k = 0; k < 16; k++)
+                        for (i = 0; i < 4; i++)
+                            for (j = 0; j < 4; j++) acc[tid][i][j] = fma(sa[k][ty + 16 * i], sb[k][tx + 16 * j], acc[tid][i][j]);
+                }
+            }
+            for (tid = 0; tid < 256; tid++) {
+                int tx = tid % 16, ty = tid / 16;
+                for (i = 0; i < 4; i++)
+                    for (j = 0; j < 4; j++) {
+                        long o = (long)(row0 + ty + 16 * i) * n + col0 + tx + 16 * j;
+                        if (fp64) ((double *)C)[o] = acc[tid][i][j]; else ((float *)C)[o] = (float)acc[tid][i][j];
+                    }
+            }
+        }
+#undef LD
+}
+
 /* carry out one kernel on the host; a[i] points to argument i (a buffer argument = a pointer to the data pointer) */
 static void stub_exec(const stub_fn *f, void **a)
 {
     int i;
-    for (i = 0; i < 5; i++) if (!strcmp(f->name, kname[i])) n_launch[i]++;
+    for (i = 0; i < 6; i++) if (!strcmp(f->name, kname[i])) n_launch[i]++;
     if (!strcmp(f->name, "gemm_r")) {
         mat_mul(*(void **)a[0], *(void **)a[1], *(void **)a[2], *(int *)a[3], f->fp64 ? 8 : 4);
+    } else if (!strcmp(f->name, "gemm_b")) {
+        /* checked in full against the plain multiply: SRS's own spot check (64 entries of very regular matrices) can miss
+           a wrong index, and the stub's cmp_u32 counts nothing */
+        int nn = *(int *)a[3], es = f->fp64 ? 8 : 4;
+        void *ref = malloc((size_t)nn * nn * es);
+        gemm_b_exec(*(void **)a[0], *(void **)a[1], *(void **)a[2], nn, f->fp64);
+        if (ref) {
+            mat_mul(*(void **)a[0], *(void **)a[1], ref, nn, es);
+            if (memcmp(ref, *(void **)a[2], (size_t)nn * nn * es)) { fprintf(stderr, "gpu_stub: gemm_b RESULT DIFFERS from the plain multiply (n = %d)\n", nn); abort(); }
+            free(ref);
+        }
     } else if (!strcmp(f->name, "fma_r")) {
         static const unsigned km[8] = { 1, 3, 5, 7, 11, 13, 17, 19 };
         unsigned seed = *(unsigned *)a[6], nn = *(unsigned *)a[7], g, k;

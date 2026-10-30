@@ -236,7 +236,12 @@ static void *worker_main(void *arg)
         else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
-    rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
+    /* ROCm / HIP: the register-blocked kernel first (hipRTC makes gemm_r too slow to load the GPU fully), then gemm_r, then hipBLAS */
+    if (w->info.backend == GB_HIP && !getenv("SRS_GPUBURN_SIMPLE")) {
+        rc = w->ops->prep(ctx, GK_GEMM, c->prec, GV_FAST, (size_t)n, &work, &maxreps);
+        if (rc == GBP_OK) variant = GV_FAST;
+        else if (rc == GBP_UNSUPPORTED) rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
+    } else rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);
     if (rc == GBP_UNSUPPORTED) { variant = GV_LIB; rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps); }
     if (rc) {
         snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED && !w->ops->error(ctx)[0] ? "this GPU cannot run that precision here" : w->ops->error(ctx));
@@ -273,6 +278,7 @@ static void *worker_main(void *arg)
     }
     pthread_mutex_lock(&w->mu);
     w->d.n = n;
+    w->d.variant = variant;
     pthread_mutex_unlock(&w->mu);
     while (!rc && !atomic_load(&r->stop) && now_s() < r->deadline) {
         double t = now_s(), gf;
@@ -356,6 +362,8 @@ static void gburn_render(srs_out *o, void *ctx)
         so_kv(o, "Back end", C_VALUE, d->label);
         so_kv(o, "Software", C_VALUE, d->runtime);
         so_kvf(o, "Matrix size", C_VALUE, "%d x %d, %s", d->n, d->n, x->c.prec == GP_FP64 ? "double precision (FP64)" : "single precision (FP32)");
+        so_kv(o, "Kernel", C_VALUE, d->variant == GV_FAST ? "SRS register-blocked (64 x 64 tiles, 16 results per thread)"
+                                   : d->variant == GV_LIB ? "the vendor GEMM library" : "SRS tiled (16 x 16 tiles)");
         so_kvf(o, "Time", C_VALUE, "%.0f s of %.0f s planned", d->elapsed, x->s.total);
         so_kvf(o, "Compute errors", d->errors ? C_RED : C_GREEN, "%ld wrong result%s found in %ld multiplications", d->errors, d->errors == 1 ? "" : "s", d->iterations);
         so_kvf(o, "Speed", C_VALUE, "%.0f GFLOPS average, %.0f GFLOPS in the last piece of work", d->gflops_avg, d->gflops);

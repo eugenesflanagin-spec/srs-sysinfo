@@ -503,6 +503,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         cl_h ev = NULL;
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through CLBlast only"); rc = GBP_UNSUPPORTED; break; }
+        if (variant == GV_FAST) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP only"); rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB && !c->a->have_blast) { snprintf(c->err, sizeof c->err, "CLBlast is not installed"); rc = GBP_UNSUPPORTED; break; }
         if (prec == GP_FP64 && !c->has_fp64) { snprintf(c->err, sizeof c->err, "this OpenCL driver has no FP64 (double precision)"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, prec == GP_FP64))) break;
@@ -536,7 +537,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
     case GK_FMA: {
         int fp64 = prec == GP_FP64;
         if (prec != GP_FP32 && prec != GP_FP64) { rc = GBP_UNSUPPORTED; break; }
-        if (variant == GV_LIB) { rc = GBP_UNSUPPORTED; break; }
+        if (variant != GV_OWN) { rc = GBP_UNSUPPORTED; break; }
         if (fp64 && !c->has_fp64) { snprintf(c->err, sizeof c->err, "this OpenCL driver has no FP64 (double precision)"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, fp64))) break;
         c->gx = (unsigned)(n ? n : 1024);
@@ -553,7 +554,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         size_t i, bytes = n / 16384 * 16384;
         uint32_t *w;
         if (bytes < 16384) bytes = 16384;
-        if (variant == GV_LIB) { rc = GBP_UNSUPPORTED; break; }
+        if (variant != GV_OWN) { rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, 0))) break;
         c->bytes = bytes;
         if ((rc = mk(c, &c->ba, bytes)) || (rc = mk(c, &c->bb, bytes)) || (rc = mk(c, &c->bcnt, 64))) break;

@@ -181,8 +181,23 @@ for be in cuda hip; do
     echo "== $be, gpu-burn"
     run_cli X=1 -- gpu-burn --backend $be --seconds 1 --yes
     if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count cmp_u32)" -gt 0 ]; then ok "$be burn FP32: PASS, exit 0"; else bad "$be burn: rc=$RC $(tail -4 <<<"$OUT")"; fi
+    # which matrix multiply GPU Burnin used: HIP = the register-blocked gemm_b (emulated thread by thread in the stub), CUDA = gemm_r
+    if [ $be = hip ]; then
+        [ "$(count gemm_b)" -gt 0 ] && [ "$(count gemm_r)" = 0 ] && grep -q "register-blocked" <<<"$OUT" && ok "hip burn FP32: register-blocked gemm_b ran (results checked), gemm_r not used" || bad "hip burn FP32 kernel: gemm_b=$(count gemm_b) gemm_r=$(count gemm_r) $(grep -i kernel <<<"$OUT")"
+    else
+        [ "$(count gemm_b)" = 0 ] && ok "$be burn: gemm_b never used outside HIP" || bad "$be burn used gemm_b: $LOG"
+    fi
     run_cli X=1 -- gpu-burn --backend $be --fp64 --seconds 1 --yes
     if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT"; then ok "$be burn FP64: PASS, exit 0"; else bad "$be burn FP64: rc=$RC $(tail -4 <<<"$OUT")"; fi
+    if [ $be = hip ]; then
+        [ "$(count gemm_b)" -gt 0 ] && ok "hip burn FP64: gemm_b ran" || bad "hip burn FP64: gemm_b=$(count gemm_b)"
+        run_cli STUB_NO_FN=gemm_b -- gpu-burn --backend hip --seconds 1 --yes
+        if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count gemm_r)" -gt 0 ] && [ "$(count gemm_b)" = 0 ]; then ok "hip burn, gemm_b missing: fell back to gemm_r, PASS, no NULL launch"; else bad "hip burn gemm_b missing: rc=$RC gemm_r=$(count gemm_r) $(tail -3 <<<"$OUT")"; fi
+        run_cli SRS_GPUBURN_SIMPLE=1 -- gpu-burn --backend hip --seconds 1 --yes
+        if [ $RC = 0 ] && grep -q "PASS" <<<"$OUT" && [ "$(count gemm_b)" = 0 ] && [ "$(count gemm_r)" -gt 0 ]; then ok "hip burn, SRS_GPUBURN_SIMPLE=1: the old gemm_r kernel"; else bad "hip SIMPLE: rc=$RC gemm_b=$(count gemm_b)"; fi
+        run_cli X=1 -- gpu-compare --backends hip --seconds 0.1 --yes
+        [ "$(count gemm_b)" = 0 ] && ok "hip compare: still gemm_r only (comparison unchanged)" || bad "hip compare used gemm_b: $LOG"
+    fi
     run_cli SRS_${U}_RTC=/nonexistent/$LIBN.so -- gpu-burn --backend $be --seconds 1 --yes
     if no_abort && [ $RC = 1 ] && grep -q "needs the runtime compiler ($LIBN) for the error check" <<<"$OUT"; then ok "$be burn, no compiler: ended with a clear message, no crash"; else bad "$be burn, no compiler: rc=$RC $(tail -4 <<<"$OUT")"; fi
     run_cli STUB_RTC_FAIL=1 -- gpu-burn --backend $be --seconds 1 --yes

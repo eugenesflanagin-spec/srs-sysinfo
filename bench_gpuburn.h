@@ -33,6 +33,7 @@ typedef struct {
     long iterations;                 /* matrix multiplications done */
     long errors;                     /* wrong results found (0 = pass) */
     int n;                           /* matrix side in use */
+    int variant;                     /* GV_* kernel in use: own (gemm_r), library, or HIP's register-blocked gemm_b */
     double elapsed, gflops, gflops_avg, iter_per_s;
     gpu_sensors now, max;
     char note[240];                  /* why it ended early ("" = ran to the end) */
