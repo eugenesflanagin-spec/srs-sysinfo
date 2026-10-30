@@ -2034,8 +2034,8 @@ can use four of them, and you choose which:
 
 **A harder load since 2.4.** GPU Burnin now uses a faster, "register-blocked" matrix multiply on all
 four back ends: each thread works out 16 results at once from data kept in its own registers, which
-keeps the card's arithmetic units much busier. On the author's Radeon RX 9070 XT the ROCm / HIP and
-OpenCL back ends went from about 3.4 to about 13 TFLOPS FP32 (0 errors) - the card draws more power
+keeps the card's arithmetic units much busier. On the author's Radeon RX 9070 XT (FP32, 0 errors):
+CUDA via ZLUDA 5.3 -> 17.2 TFLOPS, Vulkan 6.2 -> 16.2, OpenCL 3.4 -> 13.4, ROCm / HIP 3.4 -> 13.0 - the card draws more power
 and gets hotter, as a burn-in should make it. The summing order is unchanged, so every result is
 still checked the same way. The result's **Kernel** line says which matrix multiply ran; if the new
 one cannot be used, the older one runs (on HIP then hipBLAS). `SRS_GPUBURN_SIMPLE=1` forces the older

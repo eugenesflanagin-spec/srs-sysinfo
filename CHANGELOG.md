@@ -104,7 +104,8 @@ experts.
   thread, the same summation order) on all four back ends - ROCm / HIP and OpenCL (`gpu_kernels.h`), Vulkan (new
   `gemm32b` / `gemm64b` shaders) and CUDA / ZLUDA (in the built-in PTX). ROCm's compilers turned the old 16 x 16
   tiled kernel into code that reached only about 3.4 TFLOPS FP32 on a Radeon RX 9070 XT; with the new one ROCm /
-  HIP reached about 13.0 TFLOPS and OpenCL about 13.4 TFLOPS on the same card, 0 errors. It falls back to the old
+  HIP reached about 13.0 TFLOPS and OpenCL about 13.4 TFLOPS on the same card, Vulkan 6.2 -> 16.2 and CUDA via
+  ZLUDA 5.3 -> 17.2 TFLOPS, 0 errors on every back end. It falls back to the old
   kernel (and on HIP then to hipBLAS) when it cannot be used. The GPU Compute comparison keeps the old kernel on
   every back end, so its numbers stay comparable with 2.3.
 - Stress & Burnin: the closed **GPU options** line shows what it holds - back end, precision and the GPU stop
