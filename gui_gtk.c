@@ -4255,6 +4255,7 @@ static GtkWidget *ctk_label(const char *text, int warn)
 {
     GtkWidget *l = gtk_label_new(text);
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(l), 64);   /* a reading width, or GTK sizes the dialog for a one-word-wide label */
     gtk_label_set_max_width_chars(GTK_LABEL(l), 78);
     gtk_label_set_xalign(GTK_LABEL(l), 0);
     gtk_label_set_selectable(GTK_LABEL(l), TRUE);

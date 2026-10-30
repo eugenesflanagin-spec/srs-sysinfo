@@ -1454,6 +1454,7 @@ static void tabs_dialog(int cat)
                   "that are new go at the end. Items that cannot show anything on this PC stay hidden unless Options > Show hidden "
                   "items is on. Saved with the current lineup when you save it (Menu > Lineup).", "dim-label", 0);
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(l), 60);   /* a reading width, or GTK sizes the dialog for a one-word-wide label */
     gtk_label_set_max_width_chars(GTK_LABEL(l), 70);
     gtk_box_pack_start(GTK_BOX(ca), l, FALSE, FALSE, 0);
     grid = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
@@ -1645,6 +1646,7 @@ static gboolean lineup_first_ask(gpointer d)
     l = gtk_label_new("You can change this at any time: menu button (or Ctrl+M) -> Lineup. "
                       "The sidebar shows the lineup in use. The user guide explains lineups in 6.7.");
     gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(l), 56);   /* a reading width, or GTK sizes the dialog for a one-word-wide label */
     gtk_label_set_max_width_chars(GTK_LABEL(l), 60);
     gtk_label_set_xalign(GTK_LABEL(l), 0);
     gtk_style_context_add_class(gtk_widget_get_style_context(l), "dim-label");
