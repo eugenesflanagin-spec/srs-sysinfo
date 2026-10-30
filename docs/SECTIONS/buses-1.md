@@ -894,8 +894,10 @@ class `060000 Bridge / Host bridge`, driver `ryzen_smu`, NUMA node `-1`, local C
 cache (`pci-all.txt`).
 
 **Background.** On Ryzen the memory controllers (UMC, Unified Memory Controller) are part of the CPU's
-Data Fabric. Their settings are reached through SMN (System Management Network), which SRS never touches,
-because doing so can hang the CPU's management firmware. For memory timings see the memory items.
+Data Fabric. Their settings are reached through SMN (System Management Network). SRS sends no commands
+to the CPU's management firmware; since 2.4 srs-root only reads the memory controller's timing registers
+through the ryzen_smu driver (Ryzen 7000 / 9000 desktop), for the
+[Memory timings](machine.md#memory-timings) item.
 
 ---
 

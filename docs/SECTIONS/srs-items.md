@@ -1181,7 +1181,8 @@ copies in `~/.local/share/srs/lists` (from Update hardware lists) and the system
 `smb-end` - Linux data
 
 **In plain words.** In SIV this marks the end of the SMBus buffer. In SRS it is one marker line:
-SRS does no SMBus access; see [SMB info](#smb-info).
+SRS does no SMBus access of its own; see [SMB info](#smb-info). (The 2.4 opt-in DIMM PMIC read is done by
+srs-root with `i2cdump` through the kernel's SMBus driver; see Memory timings.)
 
 ---
 ## SMB info  

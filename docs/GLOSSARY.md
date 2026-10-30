@@ -14,6 +14,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **ABI (Application Binary Interface)** - the low-level rules a program and the kernel (or libraries) agree on so compiled code can work together. *See: [srs-items](SECTIONS/srs-items.md).*
 - **ACPI (Advanced Configuration and Power Interface)** - Advanced Configuration and Power Interface; the firmware tables and code that describe the board's devices, power states and interrupts to the operating system. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md), [sensors](SECTIONS/sensors.md).*
+- **acpi_call** - a third-party kernel module that lets root run (evaluate) one ACPI method and read its result through `/proc/acpi/call`. SRS's ACPI method evaluation uses it. *See: [machine](SECTIONS/machine.md), [User Guide 9.22](USER-GUIDE.md#922-acpi-method-evaluation-experts).*
 - **ACPI namespace** - The tree of named objects in the ACPI tables, e.g. `\_SB_.PCI0.SBRG.EC0_`, which is the firmware's own map of the board's devices. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
 - **AER (Advanced Error Reporting)** - A PCI Express feature that counts and reports link errors (correctable and uncorrectable) to the kernel. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md).*
 - **AES (Advanced Encryption Standard), AES-NI** - the standard way to encrypt data (disk encryption, VPN, HTTPS). AES-NI are CPU instructions that do one AES round in hardware, many times faster than plain code. *See: [tools](SECTIONS/tools.md).*
@@ -25,6 +26,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Alt+letter (underlined letter)** - in a menu or window, the underlined letter of an entry: press Alt and that letter to pick it. Every entry of a menu has its own. *See: [User Guide 6.6](USER-GUIDE.md#66-classic-view-the-siv-style-windows).*
 - **amd_pstate** - the Linux driver that controls clock speed on AMD Zen 2 and newer CPUs using CPPC; modes are active, guided and passive. *See: [processors](SECTIONS/processors.md).*
 - **AML** - ACPI Machine Language; the bytecode in the DSDT and SSDTs that the operating system runs to control devices. *See: [machine](SECTIONS/machine.md).*
+- **AOD (AMD Overclocking Data) table** - a table the BIOS of AMD boards leaves in memory with its memory settings: ProcODT, drive strengths, RTT values and the voltages it set. Memory Timings reads it when the kernel allows (`iomem=relaxed`). *See: [machine](SECTIONS/machine.md), [User Guide 6.12](USER-GUIDE.md#612-memory-timings).*
 - **APIC** - Advanced Programmable Interrupt Controller; each CPU thread has one, and its APIC ID is the hardware's own number for that thread. *See: [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
 - **APIC ID** - the ID number each logical CPU reports about itself through the CPUID instruction. CPU Burnin uses it to check that a thread really runs where it was pinned. *See: [tools](SECTIONS/tools.md).*
 - **ARP (Address Resolution Protocol)** - how an IPv4 machine finds the MAC (hardware) address that belongs to an IP address on the local network. *See: [network](SECTIONS/network.md).*
@@ -116,7 +118,9 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## D
 
 - **DC power (inside the PC)** - the power after the power supply, used by the parts; always less than the power at the wall. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **debugfs** - a kernel file system (`/sys/kernel/debug`) for developer information, readable by root only; srs-root copies the GPU driver's VBIOS copy and the GPIO table from it. *See: [graphics](SECTIONS/graphics.md), [buses-1](SECTIONS/buses-1.md).*
 - **Device lost** - the GPU stopped answering and its driver reset it; SRS ends a GPU test cleanly when it happens. *See: [tools](SECTIONS/tools.md).*
+- **Drive strength** - how hard a chip drives a signal onto the memory bus, given in ohms (lower = stronger). Set by the BIOS for the processor, the memory chips and the command / address (CAD) bus. *See: [machine](SECTIONS/machine.md).*
 - **D-states** - device power states: D0 fully on, D3hot off but powered, D3cold power removed. *See: [machine](SECTIONS/machine.md).*
 - **D0 / D3hot / D3cold** - PCI power states. D0 is fully on; D3hot and D3cold are sleep states (D3cold removes power completely). *See: [graphics](SECTIONS/graphics.md).*
 - **DAD (Duplicate Address Detection)** - a check that no other device already uses an address before the PC starts using it. *See: [network](SECTIONS/network.md).*
@@ -217,6 +221,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Gateway** - the router that forwards your packets to other networks, usually your home router. *See: [network](SECTIONS/network.md).*
 - **GBM (Generic Buffer Management)** - A library compositors use to get GPU memory buffers for the screen. *See: [graphics](SECTIONS/graphics.md).*
 - **GC (graphics core)** - The 3D and compute engine of an AMD GPU. Its version gives the `gfx` target name (GC 12.0.1 = `gfx1201`). *See: [graphics](SECTIONS/graphics.md).*
+- **Gear Down Mode (GDM), command rate (1T / 2T)** - two ways the memory controller times its commands to the memory: GDM eases timing at high speeds, 1T / 2T is how many clocks a command takes. GDM on with 1T is normal for DDR5. *See: [machine](SECTIONS/machine.md).*
 - **GEMM (matrix multiplication)** - multiplying two big tables of numbers (general matrix multiply); the core of AI and many science programs, and a hard, steady load for a GPU. *See: [tools](SECTIONS/tools.md).*
 - **GFLOPS** - billions of floating-point (decimal-point) operations per second. *See: [tools](SECTIONS/tools.md).*
 - **GIOPS** - billions of whole-number (integer) operations per second. *See: [tools](SECTIONS/tools.md).*
@@ -258,6 +263,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## I
 
 - **I/O APIC** - the interrupt controller that collects legacy interrupt lines and routes them to CPUs; "IR-" in front means the IOMMU remaps them. *See: [buses-2](SECTIONS/buses-2.md).*
+- **iomem=relaxed, IO_STRICT_DEVMEM** - IO_STRICT_DEVMEM is a kernel build option (on in most distributions) that keeps programs, root too, from reading memory that belongs to devices or the firmware through `/dev/mem`; booting with `iomem=relaxed` turns that protection off. Memory Timings' BIOS settings need it; SRS never asks you to set it. *See: [machine](SECTIONS/machine.md), [User Guide 5.4](USER-GUIDE.md#54-what-srs-root-reads-since-24-and-the-opt-ins).*
 - **I/O port** - An address in the separate 64K x86 I/O space, used by legacy devices (keyboard controller, RTC, COM ports, SMBus). *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
 - **I/O scheduler** - The kernel part that decides the order in which waiting read/write requests go to a drive. *See: [srs-items](SECTIONS/srs-items.md), [storage](SECTIONS/storage.md).*
 - **I2C (Inter-Integrated Circuit)** - A slow two-wire bus that chips use to talk to each other. Monitors use it for DDC. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [srs-items](SECTIONS/srs-items.md).*
@@ -348,6 +354,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **MCS (Modulation and Coding Scheme)** - the Wi-Fi encoding step; higher is faster but needs a cleaner signal. *See: [network](SECTIONS/network.md).*
 - **md** - The Linux software RAID driver, managed with `mdadm`. *See: [storage](SECTIONS/storage.md).*
 - **mDNS (multicast DNS)** - lets devices announce names and services on the LAN without a DNS server. *See: [network](SECTIONS/network.md).*
+- **Memory timings (tCL, tRCD, tRP, tRAS, tRFC ...)** - the waiting times, in memory clock ticks, between the steps of a memory access: tCL from a read command to the data, tRCD to open a row, tRP to close it, tRAS how long it stays open, tRFC how long a refresh takes. Lower is faster, if the memory stays stable. *See: [machine](SECTIONS/machine.md), [User Guide 6.12](USER-GUIDE.md#612-memory-timings).*
 - **Mesa** - The open-source graphics driver collection on Linux, including RADV (Vulkan) and radeonsi (OpenGL) for AMD. *See: [graphics](SECTIONS/graphics.md).*
 - **Metric** - a route's priority number; when two routes match, the lower metric wins. *See: [network](SECTIONS/network.md).*
 - **MFT** - Master File Table: the NTFS index that holds a record for every file. *See: [storage](SECTIONS/storage.md).*
@@ -398,6 +405,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## O
 
 - **O_DIRECT** - opening a file so reads and writes go straight to the drive, past Linux's page cache in RAM; benchmarks use it so they measure the drive, not the RAM. *See: [tools](SECTIONS/tools.md).*
+- **ODT, ProcODT (on-die termination)** - a resistance a chip switches on at its own pins so signals on the memory bus do not bounce back; ProcODT is the processor's. Set by the BIOS, in ohms. *See: [machine](SECTIONS/machine.md).*
 - **OpenCL** - An open standard for running general computing tasks on GPUs and other processors. *See: [graphics](SECTIONS/graphics.md).*
 - **OpenGL** - The older cross-platform 3D graphics interface; still used by many programs and older games. *See: [graphics](SECTIONS/graphics.md).*
 - **Option ROM** - firmware stored on a PCI card (listed as the ROM BAR), for example a graphics card's video BIOS. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
@@ -411,6 +419,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **P-core** - Performance core, a big, fast core on a hybrid CPU. *See: [tools](SECTIONS/tools.md).*
 - **Page fault** - what happens the first time a program touches a page of memory the kernel has not set up yet: the kernel stops the program for a moment and supplies the page. *See: [tools](SECTIONS/tools.md).*
 - **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **PMIC (power management IC)** - the small power chip on every DDR5 module that makes its voltages (VDD, VDDQ, VPP). SRS can read the voltages it is set to (an opt-in). *See: [machine](SECTIONS/machine.md), [User Guide 5.4](USER-GUIDE.md#54-what-srs-root-reads-since-24-and-the-opt-ins).*
 - **P-state** - a performance state: a running speed and voltage level of the CPU. *See: [processors](SECTIONS/processors.md).*
 - **PAC (proxy auto-config)** - a script that picks which proxy to use for each address. *See: [network](SECTIONS/network.md).*
 - **Page** - the unit the CPU and kernel use to manage memory, usually 4 KB on x86. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -477,6 +486,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Raw value** - A SMART attribute's actual counter (sectors, hours, degrees); its format is up to the maker. *See: [storage](SECTIONS/storage.md).*
 - **Ray tracing** - drawing a picture by following rays of light from the eye into a scene, with shadows and reflections. *See: [tools](SECTIONS/tools.md).*
 - **Regex** - regular expression, a text search pattern (for example `^` = start of line, `.` = any character). *See: [tools](SECTIONS/tools.md).*
+- **Register-blocked matrix multiply** - a way of writing a matrix multiply in which each GPU thread works out several results at once from numbers kept in its own registers, so the arithmetic units are kept busy instead of waiting for memory. GPU Burnin uses it since 2.4. *See: [tools](SECTIONS/tools.md).*
 - **Regular expression (regex)** - a search pattern, e.g. `nvme[0-9]` matches nvme0, nvme1 and so on. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Report descriptor** - The HID record that tells the PC which buttons, axes and LEDs a device has. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Resizable BAR** - A PCIe feature that lets the CPU see all of the GPU's VRAM at once instead of through a 256 MB window. AMD calls it Smart Access Memory. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md), [machine](SECTIONS/machine.md).*
@@ -491,7 +501,9 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **RPM (revolutions per minute)** - Fan or pump speed. *See: [sensors](SECTIONS/sensors.md).*
 - **RSS (Resident Set Size)** - the RAM a process is really using right now. *See: [linux-os](SECTIONS/linux-os.md).*
 - **RTC (real-time clock)** - the battery-backed clock on the motherboard that keeps time while the PC is off. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
+- **RTT (RttNom, RttWr, RttPark)** - the memory chips' own termination settings for different moments (idle, writing, parked), written as Off or RZQ/n (RZQ = 240 ohms). Set by the BIOS. *See: [machine](SECTIONS/machine.md).*
 - **Runtime PM** - Kernel power management that lets an idle device sleep while the system is running. *See: [graphics](SECTIONS/graphics.md).*
+- **ryzen_smu** - a third-party kernel driver (AUR `ryzen_smu-dkms-git`) that gives Linux AMD Ryzen's PM table and read access to its internal registers (SMN). SRS reads clocks, voltages and, through srs-root, the memory timings through it; it is not part of SRS. *See: [processors](SECTIONS/processors.md), [machine](SECTIONS/machine.md).*
 
 ## S
 
@@ -521,7 +533,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SMB (Server Message Block)** - the Windows file-sharing protocol. *See: [network](SECTIONS/network.md).*
 - **SMBIOS (System Management BIOS)** - System Management BIOS; the firmware inventory of board, BIOS, CPU socket and memory slots. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [srs-items](SECTIONS/srs-items.md).*
 - **SMBus (System Management Bus)** - an I2C-based bus on the motherboard that links RAM SPD chips and sensors. *See: [buses-1](SECTIONS/buses-1.md), [srs-items](SECTIONS/srs-items.md).*
-- **SMN (System Management Network)** - AMD's internal register network for the Data Fabric and memory controllers. SRS never touches it. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
+- **SMN (System Management Network)** - AMD's internal register network for the Data Fabric and memory controllers. Since 2.4 srs-root reads the memory controller's timing registers on it through the ryzen_smu driver (read only) for Memory Timings. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md), [processors](SECTIONS/processors.md).*
 - **SMT** - Simultaneous Multi-Threading (Intel: Hyper-Threading); one physical core runs two threads, shown as two CPUs. *See: [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md), [tools](SECTIONS/tools.md).*
 - **SMT sibling** - the other logical CPU that shares the same physical core. *See: [tools](SECTIONS/tools.md).*
 - **SMU (System Management Unit)** - System Management Unit; a small processor inside a Ryzen CPU that controls boost, voltage and power limits. *See: [graphics](SECTIONS/graphics.md), [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md).*

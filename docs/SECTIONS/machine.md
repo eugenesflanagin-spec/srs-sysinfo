@@ -42,7 +42,8 @@ Some ideas come up again and again in this group. Read these once and the rest i
 - **UEFI** (Unified Extensible Firmware Interface) is the modern replacement for the old PC
   BIOS. Most people still say "BIOS" for both.
 - **srs-root cache**: root-only data that the srs-root helper copied for SRS. SRS itself never
-  runs as root and never writes to hardware.
+  runs as root and never writes to hardware (the one exception is ACPI method evaluation, a tool for
+  experts that runs a method you type, through srs-root).
 
 ## Contents
 - [ACPI PCI root buses](#acpi-pci-root-buses) `acpi-buses`
@@ -1743,6 +1744,9 @@ normal with DDR5), SRS says so and shows the SMBIOS summary instead.
 
 **Healthy / typical values.** A full decode shows one block per stick. On the author's DDR5 PC
 `decode-dimms` decodes 0 DIMMs, so the page shows the SMBIOS summary of both sticks.
+
+For DDR5 the [Memory timings](#memory-timings) item (2.4) shows each module's maker, part number and
+JEDEC / EXPO / XMP profiles from the kernel's `spd5118` copy of the SPD, without root.
 
 **Unusual values and what they suggest.** "0 DIMMs decoded" with DDR5: `decode-dimms` needs the
 `spd5118` driver's `eeprom` file and a version of i2c-tools that understands DDR5. Updating

@@ -6,12 +6,56 @@ srs-root \- collect root-only hardware data for srs-gui
 .br
 .B srs-root \-\-user
 .I NAME
+.br
+.B pkexec srs-root \-\-acpi\-eval
+.I METHOD
+.RI [ ARG ...]
 .SH DESCRIPTION
 Collects data that only root can read and hands it to the invoking user in
 .IR ~/.cache/srs/root/ :
 dmidecode, decode-dimms (DIMM SPD), smartctl and nvme SMART logs, MSR reads,
 full PCI configuration space and copies of the ACPI tables.
-It only reads from the hardware; nothing is written to devices.
+Since 2.4 also, where they apply:
+.I umc.txt
+(AMD Ryzen 7000 / 9000 desktop memory controller registers, read through the ryzen_smu driver's
+.I smn
+file: the 4-byte address written there only selects what is read, the 8-byte form that writes is never used;
+each value is read twice under
+.IR /run/lock/srs-smn.lock ),
+.I intel-imc.txt
+(Intel Core 6th gen to Core Ultra memory timings, experimental: the MCHBAR window mapped read-only, aligned 32-bit reads, never switched on),
+.I aod.bin
+and
+.I aod.txt
+(the BIOS's AMD AOD memory settings table, from /dev/mem only when the kernel allows it, i.e. iomem=relaxed on kernels with IO_STRICT_DEVMEM),
+.I rapl.txt
+(AMD energy counters read twice, one second apart),
+.I ebda.txt
+and
+.I ebda.bin
+(the EBDA pointer at 0x40E and, if present, the EBDA below 0xA0000),
+.I vbios\-<pci>.bin
+(each AMD GPU driver's own VBIOS copy from debugfs; the GPU's ROM is not touched),
+.I gpio.txt
+(the kernel's debugfs GPIO table),
+.I efi\-systab.txt
+and
+.I esrt.txt
+(UEFI System Table pointers and ESRT entries).
+Two opt-ins, set in srs-gui's Options and read from
+.IR ~/.config/srs/SRSDEF.ini :
+.B Read DIMM PMIC=1
+writes
+.I pmic\-*.txt
+(each DDR5 PMIC's registers 0x00\-0x3F with
+.BR "i2cdump \-y \-r 0x00\-0x3F" ,
+byte reads, no \-f), and
+.B Read EC=1
+writes
+.I ec.bin
+(the embedded controller's 256 registers through ec_sys loaded with write_support=0, unloaded again if srs-root loaded it).
+When collecting it only reads from the hardware; nothing is written to devices
+(see \-\-acpi\-eval for the one exception, which you start).
 USB-attached disks are skipped for SMART unless
 .B SRS_SMART_USB=1
 is set.
@@ -28,5 +72,16 @@ srs-gui enables it from Menu \(-> Options \(-> Refresh root data at boot.
 .TP
 .BI \-\-user " NAME"
 collect for user NAME (root only; used by srs-root@NAME.service).
+.TP
+.BI \-\-acpi\-eval " METHOD " "[ARG...]"
+(2.4) evaluate one ACPI method through the acpi_call kernel module and exit; nothing else is collected.
+srs-gui's Tools \(-> ACPI method evaluation runs this, after a one-time warning.
+METHOD must be an ACPI name path such as \e_SB.PCI0.GPP0._STA; each ARG a number (decimal or 0x hex),
+a "string" (letters, digits, space, . _ \-) or a buffer b followed by hex bytes; at most 7.
+Anything else exits 2 without running; exit 3 when acpi_call is not installed.
+The result is printed and logged with the time to
+.IR ~/.cache/srs/root/acpi\-calls.txt .
+.B This runs BIOS code and can change hardware state
+(switch devices, fan, power or performance settings, BIOS settings, or hang or reboot the PC).
 .SH SEE ALSO
 .BR srs-gui (1)

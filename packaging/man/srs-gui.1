@@ -24,6 +24,9 @@ window. Nothing runs until you press Run or Start, and every benchmark asks befo
 The stress tests and benchmarks are used at your own risk: SRS comes without any warranty, and its
 authors are not responsible for any damage (GNU GPL v2). The first one asks you to agree once
 (Options \- Load test terms (warranty)... shows the terms again).
+The CPU and GPU stop limits of Stress & Burnin go from 50 to 110 C; a limit over 100 C is asked
+about once ("Yes, I accept the risk" / "No"; No puts both back to 100), and the folded GPU options
+line shows the GPU's own limit.
 SRS is not affiliated with or endorsed by RH Software.
 .PP
 The main window (new in 2.0) has a sidebar of pages: Overview, Processor, Memory,
@@ -61,15 +64,38 @@ The classic view is the SIV-style interface of SRS 1.1: a main window with SIV's
 every item in its own panel. Open it with Menu \(-> Classic View, or start in it with
 \fB\-\-gui\-classic\fR or the option "Start in classic view".
 .PP
-Root-only data (SMBIOS serials, DIMM SPD, SMART, ACPI tables, MSRs) is read
+Root-only data (SMBIOS serials, DIMM SPD, SMART, ACPI tables, MSRs, and since 2.4 the memory
+controller registers, the VBIOS image, GPIO pins, RAPL power, the EBDA and UEFI tables) is read
 from a cache filled by
 .BR srs-root (1).
+.PP
+The \fBMemory Timings\fR tab (2.4, Memory page) shows, on AMD Ryzen 7000 / 9000 desktop processors
+with the ryzen_smu driver, the live DDR5 timings of each channel, MEMCLK / UCLK / FCLK, the SoC
+voltages and the memory controller settings, the BIOS memory settings from the AMD AOD table when the
+kernel allows reading it (iomem=relaxed on kernels with IO_STRICT_DEVMEM; SRS never asks you to set
+it), and for every DDR5 module its maker, part number, temperature and JEDEC / EXPO / XMP profiles.
+Intel Core 6th gen to Core Ultra: experimental. Everything on it is only read.
+.PP
+Two options are off by default and ask first; they apply from the next Run as root:
+\fBRead DIMM voltages from their PMIC chips\fR (each DDR5 module's PMIC registers read over SMBus
+with i2cdump, nothing written; a collision with the BIOS or the board's controller on that bus can,
+rarely, upset a sensor or the lighting until the next boot) and \fBRead the embedded controller\fR
+(its 256 registers through ec_sys loaded read-only; on some laptops a read clears a pending event).
+.PP
+The Tools page has \fBUpdate hardware lists\fR (downloads pci.ids, usb.ids and pnp.ids from their
+official sources into ~/.local/share/srs/lists only when you ask; the newer of these and the
+system's copies is used) and \fBACPI method evaluation\fR for experts (also Menu \(-> ACPI method
+evaluation (experts)...): it evaluates one ACPI method you type, as root, through the acpi_call
+module and
+.BR "srs-root \-\-acpi\-eval" ,
+and logs every call to ~/.cache/srs/root/acpi\-calls.txt. \fBIt runs BIOS code and can change
+hardware state\fR; it stays off until you accept a warning once.
 .SH OPTIONS
 .TP
 .BI \-\-gui\-open= PANEL
 Open the named items or tools at start: in the main window an item opens on its page, in the
 classic view as its own panel. For example
-.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " cudatoolkit ", " idlookup ", " find .
+.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " cudatoolkit ", " lists ", " acpieval ", " idlookup ", " find .
 .TP
 .B \-\-gui\-tray
 start in the system tray.
@@ -130,6 +156,12 @@ when set to 1, the NVIDIA CUDA toolkit install shows the command it would run an
 .TP
 .B SRS_RSMU_DIR
 read the ryzen_smu files from this directory instead of /sys/kernel/ryzen_smu_drv (tests).
+.TP
+.B SRS_GPUBURN_SIMPLE
+when set, GPU Burnin uses the older tiled matrix multiply instead of the 2.4 register\-blocked one (for comparing).
+.TP
+.B SRS_SPD_DIR
+read the DDR5 modules' SPD from this directory instead of /sys/bus/i2c/drivers/spd5118 (tests).
 .SH FILES
 .TP
 .I /usr/share/doc/srs-sysinfo/SRS-User-Guide.pdf, /usr/share/doc/srs-sysinfo/html/SRS-User-Guide.html
@@ -137,10 +169,14 @@ the user guide (PDF and HTML), with its Markdown sources in the same folder.
 .TP
 .I ~/.config/srs/SRSDEF.ini
 settings (theme, update interval, tray, "Classic View=1" for Start in classic view,
-"Ask CUDA Toolkit=0" after Don't ask again, ...).
+"Ask CUDA Toolkit=0" after Don't ask again, "Stress CPU Limit", "Accepted High Temperature Limits",
+"Read DIMM PMIC", "Read EC", "Accepted ACPI Evaluation", ...).
 .TP
 .I ~/.cache/srs/root/
-root-only data collected by srs-root.
+root-only data collected by srs-root, and acpi\-calls.txt, the log of ACPI method evaluation.
+.TP
+.I ~/.local/share/srs/lists/
+pci.ids, usb.ids and pnp.ids downloaded by Update hardware lists (the previous copies as .old).
 .TP
 .I ~/.config/srs/lineups/*.srslineup
 your own tab lineups (the same format as Export lineup).
@@ -169,8 +205,8 @@ Power & Cost settings: parts, power supply, price, recording, alarms.
 .I /usr/share/srs-sysinfo/power-zip-rates.tsv
 US ZIP code to electric utility table (NREL, CC BY 4.0) for the offline price lookup.
 .TP
-.I /usr/share/hwdata/pci.ids, /usr/share/hwdata/usb.ids
-device name databases.
+.I /usr/share/hwdata/pci.ids, /usr/share/hwdata/usb.ids, /usr/share/hwdata/pnp.ids
+device name databases (the newer copies in ~/.local/share/srs/lists are used instead when present).
 .SH SEE ALSO
 .BR sysreport-search (1),
 .BR srs-root (1),

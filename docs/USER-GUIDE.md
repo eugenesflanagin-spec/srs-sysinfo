@@ -83,9 +83,12 @@ It has all 538 of SIV 5.87's report items (558 in total with SRS's own extras):
   Windows Error Reporting -> `coredumpctl`).
 
 **SRS is read-only.** It never changes a setting, never writes to hardware or firmware, and makes
-no network traffic except one `ping` to your router when you open the Ping item. The one place
-that changes something is the Startup manager ([6.9](#69-the-startup-manager)), and only when you
-click its switches or buttons: it turns startup items off and on, and never deletes anything.
+no network traffic except one `ping` to your router when you open the Ping item (and, only when you
+ask, the Network Benchmark's internet test and Update hardware lists). The places that change
+something are the Startup manager ([6.9](#69-the-startup-manager)), only when you click its switches
+or buttons (it turns startup items off and on, and never deletes anything), and, since 2.4, ACPI
+method evaluation for experts ([9.22](#922-acpi-method-evaluation-experts)), which runs a BIOS method
+you type, only after a one-time warning.
 
 ## 2. Who it is for
 
@@ -133,7 +136,9 @@ similar names):
 | `polkit` | The password prompt for `srs-root` |
 | `dmidecode` | Memory stick, board and BIOS details, serials (via srs-root) |
 | `smartmontools`, `nvme-cli` | Drive health (SMART) (via srs-root) |
-| `i2c-tools` | Memory SPD decode (via srs-root) |
+| `i2c-tools` | Memory SPD decode (via srs-root), and the opt-in DIMM PMIC voltages of Memory Timings ([6.12](#612-memory-timings)) |
+| `ryzen_smu-dkms-git` (AUR) | AMD Ryzen 7000 / 9000: the live memory timings, memory clocks and SoC voltages of Memory Timings ([6.12](#612-memory-timings)), and the PM table items |
+| `acpi_call-dkms` | Tools > ACPI method evaluation, for experts ([9.22](#922-acpi-method-evaluation-experts)) |
 | `pciutils`, `usbutils` | Full PCI config space, `lsusb` in the full report |
 | `lm_sensors` | Sensor labels and the full report's sensor section |
 | `vulkan-tools`, `clinfo`, `mesa-utils` | Vulkan, OpenCL and OpenGL details |
@@ -141,7 +146,7 @@ similar names):
 | `wireplumber`, `libpulse` | Audio graph details |
 | `inxi`, `lshw`, `hwinfo` | Extra sections in the full system report |
 | `zlib`, `zstd`, `lz4`, `xz` | The compression rows of Everyday Work ([9.15](#915-everyday-work)); almost every system has them, a missing one only skips its rows |
-| `curl` (libcurl) | The internet speed test of the Network Benchmark ([9.16](#916-network)) |
+| `curl` (libcurl) | The internet speed test of the Network Benchmark ([9.16](#916-network)); the `curl` command (or `wget`) for Update hardware lists ([9.21](#921-update-hardware-lists)) |
 | `vulkan-icd-loader` and your GPU's Vulkan driver (`vulkan-radeon`, `vulkan-intel`, `nvidia-utils`) | The GPU Benchmarks ([9.17](#917-gpu-benchmark)); almost every desktop has them |
 | `rocm-hip-runtime` (and `hipblas`), `cuda` (or the NVIDIA driver), `opencl-icd-loader` with an OpenCL driver, `clblast` | The ROCm / HIP, CUDA and OpenCL back ends of GPU Burnin ([9.18](#918-gpu-burnin)) and the GPU Compute comparison; only if you want them |
 
@@ -265,7 +270,8 @@ window of SRS 1.1 is still there: see [Classic view](#66-classic-view-the-siv-st
 
 A few things on Linux can only be read by the administrator (root): memory stick details (SPD),
 SMBIOS serial numbers and UUID, drive health (SMART), ACPI tables, CPU model-specific registers
-(MSRs) and the full PCI configuration space.
+(MSRs), the full PCI configuration space, and (2.4) the memory controller's live timings, the
+graphics card's VBIOS image, the GPIO pin states and a few firmware tables.
 
 SRS itself **always runs as your normal user**. Instead, a small helper called **`srs-root`**
 reads those things once, as root, and saves them as text files in your own folder
@@ -275,7 +281,8 @@ reads those things once, as root, and saves them as text files in your own folde
 `nvme smart-log` for each disk, copies of `/sys/firmware/acpi/tables`, `lspci -vvvnnxxx`, copies
 of `/proc/ioports` and `/proc/iomem`, `dmesg`, `smbstatus` (if Samba is installed) and reads of a
 fixed list of AMD and architectural MSRs through `/dev/cpu/N/msr` (it loads the `msr` kernel module
-for that). It then gives the files to you (`chown`).
+for that). Since 2.4 it also reads the items in [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins).
+It then gives the files to you (`chown`).
 
 ### 5.2 Three ways to run it
 
@@ -315,6 +322,65 @@ ran sudo (or collects one first if there is none). You do not need to do this no
 - The option is greyed out if the unit file is not installed (`/usr/lib/systemd/system/srs-root@.service`
   or `/etc/systemd/system/srs-root@.service`). That is always the case with the AppImage: use the
   package for your distribution if you want this.
+
+### 5.4 What srs-root reads since 2.4, and the opt-ins
+
+**In plain words:** 2.4 turns most of the items that used to say "not read" into real data. Some of
+it needs no root at all; the rest comes from the same one **Run as root**. Two extras are off until
+you turn them on, because on some machines reading them is not entirely harmless.
+
+No root needed (any time):
+
+- **System CMOS** - the CMOS RAM next to the clock, from the kernel's own read-only copy, with the
+  standard bytes decoded.
+- **AMD Fuses** - each core's factory ranking and highest clock (the fuse registers themselves stay
+  unread).
+- **Memory Timings**: the memory and fabric clocks, the SoC voltages (with the `ryzen_smu` driver)
+  and every DDR5 module's profiles and temperature ([6.12](#612-memory-timings)).
+
+With **Run as root** (read-only, files in `~/.cache/srs/root/`):
+
+| What | File | Shown on |
+|---|---|---|
+| AMD memory controller registers (Ryzen 7000 / 9000 desktop, through the `ryzen_smu` driver) | `umc.txt` | Memory Timings |
+| Intel memory controller registers (Core 6th gen to Core Ultra, experimental) | `intel-imc.txt` | Memory Timings |
+| The BIOS's AMD AOD table (memory settings), only when the kernel allows it (below) | `aod.bin`, `aod.txt` | Memory Timings |
+| The EBDA pointer and, if there is one, its contents (memory below 1 MB) | `ebda.txt`, `ebda.bin` | System EBDA |
+| The graphics driver's own copy of each AMD VBIOS (the GPU's ROM is not touched) | `vbios-<pci address>.bin` | GPU VBIOS status |
+| The kernel's GPIO table | `gpio.txt` | I/O GPIO |
+| The RAPL energy counters, read twice one second apart (AMD) | `rapl.txt` | MSR Setup (package and core watts) |
+| The UEFI System Table pointers and the firmware-update table (ESRT) details | `efi-systab.txt`, `esrt.txt` | Firmware |
+
+How the AMD memory controller is read: the `ryzen_smu` driver has a file (`smn`) where a program
+writes an address and then reads the value there. Writing the 4-byte address only selects what the
+driver reads; srs-root never uses the 8-byte form, which would write a register. Each value is read
+twice, and a value that changed in between is left out.
+
+**The AOD table and `iomem=relaxed`.** The BIOS's memory settings (ProcODT, drive strengths, the DIMM
+voltages it set) sit in a part of memory that most Linux kernels keep from every program, root
+included (kernels built with IO_STRICT_DEVMEM). srs-root reads the table only when the kernel allows
+it - that is, when the PC was booted with the kernel option `iomem=relaxed`, which weakens that
+protection. **SRS never asks you to change this.** Without it, Memory Timings says why that part is
+missing, and everything else on the page works.
+
+**The two opt-ins** (Menu > Options, both off by default, both ask first; they apply from the next
+Run as root):
+
+- **Read DIMM voltages from their PMIC chips (SMBus; from the next Run as root)** - each DDR5 module
+  has a small power chip (PMIC). srs-root reads its registers over the memory's SMBus with `i2cdump`
+  (byte reads, nothing written) and Memory Timings shows the voltages it is set to. Why it is off:
+  on some boards the BIOS or the board's controller uses the same bus at the same time without telling
+  Linux, and a collision there can, rarely, upset a sensor or the board's lighting until the next boot.
+  File: `pmic-*.txt`.
+- **Read the embedded controller (expert, read-only; from the next Run as root)** - the EC is the
+  board's small helper chip for fans, power buttons, the battery and some sensors. srs-root loads the
+  kernel's `ec_sys` module read-only, copies its 256 registers once and unloads the module again. Why it
+  is off: on a few machines (mostly laptops) reading certain EC registers clears a pending event, such
+  as a battery or key notification, which may then be missed once. File: `ec.bin`; shown on ACPI
+  Embedded Controller.
+
+Nothing above is written to a device. The one 2.4 feature that can change hardware state is ACPI
+method evaluation ([9.22](#922-acpi-method-evaluation-experts)), which is separate and asks first.
 
 ## 6. A tour of the main window
 
@@ -467,7 +533,8 @@ Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Net
 GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency, each with its controls and
 live results, and compact sections at the top that jump to them ([9](#9-tools)); nothing runs until you press **Run** or
 **Start** there. The **Tools** page opens Device ID Lookup, Find in
-a system report, Save Report, Run as root and the Classic view.
+a system report, Save Report, Run as root, the Classic view and (2.4) Update hardware lists
+([9.21](#921-update-hardware-lists)) and ACPI method evaluation ([9.22](#922-acpi-method-evaluation-experts)).
 
 ![Benchmarks & Stress page](images/benchmarks-page.png)
 
@@ -947,6 +1014,68 @@ included yet: type your price.
 | **Standing charge** | What you pay per day whatever you use. |
 | **Carbon intensity** | Grams of CO₂ released per kWh on your grid, on average. |
 
+### 6.12 Memory Timings
+
+**In plain words:** memory has a speed (like 6000 MT/s) and a long list of small waiting times, the
+"timings", that say how many clock ticks the memory needs between steps. The BIOS sets them, usually
+from a profile stored on the module (EXPO on AMD, XMP on Intel). The **Memory Timings** tab shows what
+the memory really runs at right now, next to what each module's profiles say, so you can check that
+the BIOS applied your profile and see what changed after you tuned it. Everything on it is only read.
+New in 2.4.
+
+Open: the **Memory** page -> the **Memory timings** tab (or search "memory timings", item
+`mem-tweak`); in the classic view it is in the Menu's list of items.
+
+**What it needs.** On **AMD Ryzen 7000 / 9000 desktop** processors the live timings need the
+`ryzen_smu` driver (Arch: AUR `ryzen_smu-dkms-git`) and one **Menu > Run as root**. The clocks and
+voltages need only the driver. The module profiles need nothing: they come from the kernel's `spd5118`
+driver, without root, on any PC with DDR5. **Intel Core 6th gen to Core Ultra**: live speed and the
+main timings after Run as root, **experimental** (not checked on a real Intel PC yet - please report
+what you see and what your BIOS says). Other processors say "not supported yet".
+
+What the parts of the page mean:
+
+- **Clocks and voltages** - the memory speed and its clock (MEMCLK), the memory controller's clock
+  (UCLK) with its ratio to MEMCLK (1:1 is fastest; 1:2 is usual above about 6000 MT/s), the
+  Infinity Fabric clock (FCLK, the link between the cores and the memory controller), and the SoC
+  voltages: VSOC (memory controller and fabric), VDDP (the memory interface), VDDG and VDD MISC.
+- **Memory controller** - how many channels have a module, **Gear Down Mode** and **command rate**
+  (1T / 2T: how the controller times its commands; GDM on with 1T is normal for DDR5), power down,
+  bank groups, the refresh mode and Nitro mode.
+- **BIOS memory settings (AMD AOD table)** - the electrical settings the BIOS chose: the processor's
+  on-die termination (ProcODT), how hard the CPU and the memory chips drive their signals (drive
+  strengths), the memory chips' own termination (the RTT values), and the DIMM and CPU memory
+  voltages the BIOS set. These are what overclockers tune for stability. They come from a table the
+  BIOS leaves in memory, which most kernels only let programs read when booted with `iomem=relaxed`
+  ([5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins)); SRS never asks you to change that. They
+  are shown only when the table's own timings match the live ones, so values from a layout that does
+  not fit your BIOS are never shown.
+- **Timings** - one row per timing, one column per channel, with the time in nanoseconds for the
+  main ones and a short meaning for each. The first ones are the familiar numbers: **tCL** (CAS
+  latency: clocks from a read command to the first data), **tRCD** (opening a row before a read or
+  write), **tRP** (closing a row), **tRAS** (how long a row stays open), **tRC** (a whole row cycle),
+  and the refresh timings **tREFI** (time between refreshes) and **tRFC** (how long a refresh takes).
+  The rest are the "secondary" and "tertiary" timings overclockers tune. Small differences between
+  channels in the PHY and turnaround rows are normal: the memory training sets them per channel.
+- **Modules (SPD)** - per module: slot, maker and part number, size and ranks, the maker of the
+  memory chips, when it was made, its temperature, and its profiles: **JEDEC** (the standard speed
+  every board can run), **EXPO** and **XMP** (the faster tested profiles), each with speed, main
+  timings, refresh times and voltages. Compare the profile with the Timings above.
+
+**How to read it.** Memory speed at the JEDEC speed (4800 MT/s on a 6000 kit) means EXPO / XMP is
+off in the BIOS. Timings looser than the profile at the same speed mean the BIOS did not apply it (or
+you changed them). With the PMIC opt-in on, **PMIC set VDD / VDDQ / VPP** shows what each module's
+power chip is set to, and whether it is locked.
+
+**Safety.** The page only reads. The memory controller registers are read the way
+[5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins) describes; the module profiles come from the
+kernel's own copy of the SPD; the PMIC voltages are an opt-in that asks first. SRS never changes a
+memory setting.
+
+The register map and the table layouts follow ZenStates-Core / ZenTimings by Ivan Rusanov and
+memtest86+ by Sam Demeulemeester (facts only, no code copied). Every field is described in the
+[Section Reference](SECTIONS/machine.md#memory-timings).
+
 
 ## 7. The panels and their buttons
 
@@ -1141,10 +1270,17 @@ what was tried; in short, not tried on real hardware so far:
   finding every function SRS needs - no HIP, NVIDIA CUDA or OpenCL work was run on a GPU. CUDA through
   ZLUDA: the GPU Compute comparison was run on the author's Radeon RX 9070 XT (2026-10-29), every CUDA
   row from the built-in kernels (PTX, new in 2.3) without NVRTC; only the cuBLAS FP64 row says "not
-  available" (ZLUDA's cuBLAS has none). GPU Burnin with CUDA was not run on the real card. Untested:
+  available" (ZLUDA's cuBLAS has none). GPU Burnin with CUDA was not run on the real card. GPU Burnin's
+  2.4 matrix multiply ran on the author's RX 9070 XT with ROCm / HIP (about 13.0 TFLOPS FP32) and OpenCL
+  (about 13.4), 0 errors; with Vulkan and CUDA only on lavapipe and a fake CUDA driver so far. Untested:
   every other real GPU use (AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs
   for NVIDIA and Intel. The built-in CUDA kernels were never run on NVIDIA hardware. The NVIDIA CUDA
   toolkit install (Options) was tested with fake package managers only.
+- Memory Timings ([6.12](#612-memory-timings)): checked on one Ryzen 7 7800X3D with DDR5-6000 EXPO. The
+  Ryzen 9000 PM table layout (clocks and SoC voltages) is not checked. **Intel memory timings are
+  experimental**: no Intel PC was available, the decoding was checked with made-up register values only.
+  The PMIC and embedded controller opt-ins were not checked on real hardware yet, nor the EBDA dump (the
+  author's UEFI PC has no EBDA).
 - ARM (aarch64) and 32-bit (i686) builds: compile-checked and, where noted, self-tested, not used day to day.
 - OS Latency: run on Linux 7.x with the scx_lavd scheduler only; other schedulers (BORE, EEVDF) are
   recognised from the kernel's settings but were not run here.
@@ -1237,12 +1373,12 @@ The three parts, top to bottom:
 | **Until Stop** | CPU Stress: keep the CPUs busy until you press Stop (safety cap 750 hours). | off |
 | **Burn Time** + **Hours** | How long each burn lasts (minutes, or hours when Hours is ticked). | 15 minutes |
 | **Cool Time** (s) / **Cycles** | Rest between burns, and how many burn + cool rounds. | 60 s / 1 |
-| **CPU temperature limit C** | The run stops at once if the hottest CPU sensor reaches this. | 90 C |
+| **CPU temperature limit C** | The run stops at once if the hottest CPU sensor reaches this. 50-110; over 100 asks once ([below](#stop-limits-over-100-c)). Remembered. | 90 C |
 | **Same CPU (Whetstone)** / **Swap CPU (affinity test)** | Workers stay on their CPU and give a Whetstone score each, or move between CPUs to check the system places them correctly. | Same CPU |
 | **GPU Burnin (built-in)** | Load the graphics card too, with SRS's own GPU Burnin ([9.18](#918-gpu-burnin)): large matrix multiplications that count every wrong result. | off |
 | **Time (min)** | How long the GPU part runs, from Start. It always ends with the CPU run at the latest. | 15 |
 | **Sync to CPU stress time** / **Sync to CPU burn time** | Run the GPU exactly as long as the CPU load: with Until Stop until you press Stop; with Timed during each burn phase, pausing while the CPUs cool. The Time box is greyed while it is ticked. | on |
-| **GPU options** (folded) | Back end (Auto = Vulkan, ROCm / HIP, CUDA, OpenCL), which GPU (the first, all, or one from the list), FP32 / FP64, and the GPU temperature limit (default 100 C). Closed by default; SRS remembers whether you opened it. | Auto, first GPU, FP32, 100 C |
+| **GPU options** (folded) | Back end (Auto = Vulkan, ROCm / HIP, CUDA, OpenCL), which GPU (the first, all, or one from the list), FP32 / FP64, and the GPU temperature limit (50-110, default 100 C). Closed by default; SRS remembers whether you opened it. Even closed, its line shows what it holds, e.g. "GPU options: Auto (Vulkan), FP32, stop at 100 °C" (2.4), so the GPU's own limit is never hidden. | Auto, first GPU, FP32, 100 C |
 | **Custom GPU command** | Instead of the built-in GPU Burnin, run your own GPU stress program (for example `gpu-burn-rocm 600`). SRS checks the program exists first. It pauses in each cool phase and stops with the run. Ticking it unticks GPU Burnin and the other way round. | empty |
 | **CPU-0 ... CPU-n**, **Select All / Deselect All** | Which logical CPUs get a worker. | all |
 | **Start / Stop** | Start (asks first) / stop everything at once. | |
@@ -1277,6 +1413,24 @@ How to read the result:
 
 Leaving the tab, the page or the window while a run is on asks whether to **Stop it** or **Keep
 running** (and stay); closing the tab or the classic window stops it.
+
+#### Stop limits over 100 C
+
+**In plain words:** the stop limits are a safety net: the run stops when the CPU or the GPU gets that
+hot. Since 2.4 both can be set up to 110 °C, for people who know their chips run hot by design (many
+Ryzen CPUs hold about 89-95 °C under full load; AMD graphics cards' hotspot can reach 100-110 °C) and
+want the test to keep going there.
+
+- The first time you set either limit above 100, SRS asks once: **Stop limits over 100 °C: at your own
+  risk**. Above 100 °C many processors and graphics cards are already at or near their own maximum
+  (often 89-110 °C): the chip then slows itself down, and with poor cooling, worn thermal paste or an
+  overclock a fault becomes more likely. The chip's own protection stays on; SRS never changes clocks,
+  voltages or fans.
+- **Yes, I accept the risk** is remembered for both limits (`Accepted High Temperature Limits=1` in
+  `SRSDEF.ini`). **No** (the default) puts both limits back to 100.
+- A limit over 100 in `SRSDEF.ini` without that yes is read as 100.
+- Command line: `burn` and `gpu-burn` take `--limit` 50-100, and 101-110 only together with
+  `--accept-high-limit` ([CLI reference](CLI-REFERENCE.md)).
 
 **Saved results.** Every run that ends (Pass, Fail or Stopped) is saved to its own file,
 `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` (the date and time it ended), the same text as **Copy**.
@@ -1860,7 +2014,7 @@ the list; the list always comes from Vulkan, like `vulkaninfo`: it names your GP
 work. With ROCm / HIP, CUDA or OpenCL as the back end, SRS starts that runtime only after you
 answer Yes and then finds the GPU you picked in its own list by its PCI address), **Precision** (FP32, or FP64 for the double-precision units), **Seconds** (default 60;
 600-1800 s, 10-30 minutes, checks an overclock or undervolt properly), **Stop at °C** (default
-100), **Run** (asks first), **Stop**. The line under the controls says which back ends are
+100; up to 110 after the one-time question in [9.1](#stop-limits-over-100-c)), **Run** (asks first), **Stop**. The line under the controls says which back ends are
 installed.
 
 **The four back ends, in plain words.** A program can talk to a GPU in several "languages". SRS
@@ -1877,6 +2031,16 @@ can use four of them, and you choose which:
   is not needed ([9.20](#920-the-nvidia-cuda-toolkit-optional)).
 - **OpenCL** - the older compute interface that works across makers. Every OpenCL driver you have
   (ROCm, Mesa Rusticl, NVIDIA, PoCL on the CPU ...) shows as its own choice.
+
+**A harder load since 2.4.** GPU Burnin now uses a faster, "register-blocked" matrix multiply on all
+four back ends: each thread works out 16 results at once from data kept in its own registers, which
+keeps the card's arithmetic units much busier. On the author's Radeon RX 9070 XT the ROCm / HIP and
+OpenCL back ends went from about 3.4 to about 13 TFLOPS FP32 (0 errors) - the card draws more power
+and gets hotter, as a burn-in should make it. The summing order is unchanged, so every result is
+still checked the same way. The result's **Kernel** line says which matrix multiply ran; if the new
+one cannot be used, the older one runs (on HIP then hipBLAS). `SRS_GPUBURN_SIMPLE=1` forces the older
+one for comparing. The GPU Compute comparison ([9.19](#919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl))
+keeps the older kernel, so its numbers stay comparable with 2.3.
 
 A back end that is not installed says "not installed" with a hint about what to install; the
 others still work (the window checks which are installed in the background when it opens, since
@@ -1905,7 +2069,7 @@ question says that the GPU will draw a lot of power and get hot, that a bad over
 can crash the PC or the display driver, and that a weak power supply or poor cooling can make the
 PC shut down. GPU Burnin then ends by itself when:
 
-- the GPU reaches the **temperature limit** (default 100 °C; the hotspot / junction temperature
+- the GPU reaches the **temperature limit** (default 100 °C, 50-110; the hotspot / junction temperature
   when the card reports one, else the edge temperature);
 - the driver reports **any error**, or the GPU **stops answering** (device lost);
 - one piece of work takes **more than 2 seconds** (each should take about 20 ms);
@@ -1924,8 +2088,9 @@ memory just keeps the size that worked.
 while Stress & Burnin or another benchmark runs, and Stress & Burnin does not start until it has finished (its status line says "not started" and why).
 The result is saved to `~/.cache/srs/bench-gpuburn.txt` and added to the
 [Benchmark History](#910-benchmark-history). The idea of comparing every result with the first
-one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on a software GPU only -
-see the note at the start of this chapter.
+one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on the author's real card with
+ROCm / HIP and OpenCL, and with Vulkan and CUDA only on a software GPU and a fake driver - see the note
+at the start of this chapter.
 
 ### 9.19 GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL
 
@@ -2094,6 +2259,60 @@ own: after a CUDA run without NVRTC it prints a one-line note with the menu path
   real GPU.
 - **Device lost** - the GPU stopped answering and the driver reset it.
 
+### 9.21 Update hardware lists
+
+**In plain words:** SRS turns ID numbers into names ("1002:7550" into "Radeon RX 9070 XT") with three
+lists that come with Linux: `pci.ids` (PCI devices), `usb.ids` (USB devices) and `pnp.ids` (monitor
+and PnP device makers). A very new device may be missing from your distribution's copy and show as
+"unknown". **Update hardware lists** fetches the newest lists from their official sources, only when
+you ask. New in 2.4.
+
+Open: the **Tools** page -> **Update hardware lists** -> **Update...**; command line
+`sysreport-search update-lists` (`--list` shows the copies in use, `--yes` downloads without asking).
+
+- The question shows each list, the version in use now and where it comes from: `pci.ids` from the
+  PCI ID Repository (pci-ids.ucw.cz), `usb.ids` from the Linux USB ID list (linux-usb.org), `pnp.ids`
+  from hwdata. **OK** downloads them in the background (with `curl`, or `wget`); a message then says
+  how each one went.
+- They go to `~/.local/share/srs/lists` - your own folder, no root, nothing in the system changes.
+- Each download is checked first (it must start like the real list and have enough entries); a failed
+  or odd download changes nothing, and the copy in use stays. The previous copy is kept as `.old`.
+- From then on SRS uses the **newer** of your copy and the system's (hwdata) copy, by the list's own
+  version (by the number of entries for `pnp.ids`, which has no version). So a later hwdata update that
+  is newer still is used automatically. Pages show the new names the next time they are opened or
+  refreshed; the Lookup item shows which file is in use.
+- SRS never downloads these by itself.
+
+### 9.22 ACPI method evaluation (experts)
+
+**In plain words:** your BIOS contains small programs, ACPI "methods", that the operating system calls
+to switch devices on and off, read their status, set fans or power modes and so on. This tool runs
+**one method you type** and shows what it returned - useful to experts who debug a BIOS or a laptop.
+**Unlike the rest of SRS it is not just reading: a method can change hardware state.** New in 2.4.
+
+Open: the **Tools** page -> **ACPI method evaluation** -> **Evaluate...**, or **Menu -> ACPI method
+evaluation (experts)...**. It needs the `acpi_call` kernel module (Arch: `acpi_call-dkms`) and the
+root password for every call.
+
+- **The first time** a warning explains the risk: the method runs as root, through `acpi_call`, and can
+  switch devices on or off, change fan, power or performance settings, write to the BIOS settings, or
+  make the PC hang or reboot. Evaluate only methods you know, for example from the ACPI methods item
+  (`acpi-methods`) or your board's documentation. The authors of SRS are not responsible for any damage
+  or data loss (GNU GPL, no warranty). **Yes, I understand** turns the tool on and is remembered
+  (`Accepted ACPI Evaluation=1`); you are asked only once.
+- **Method**: an ACPI name path, e.g. `\_SB.PCI0.GPP0._STA`. **Arguments**: none, or up to 7 of: numbers
+  (`1`, `0x1`), simple `"strings"` (letters, digits, space, `. _ -`) and buffers written `b` plus hex
+  bytes (`b0102`).
+- **Evaluate** asks for the root password and runs `srs-root --acpi-eval`, which checks the method name
+  and every argument again as root (anything else is refused and nothing runs), loads `acpi_call`,
+  evaluates the method once and shows the **Result** as `acpi_call` returns it.
+- **Every call is logged** with the time, the call and the result in
+  `~/.cache/srs/root/acpi-calls.txt`. The **ACPI method evaluation** item (`acpi-eval`; type its name
+  in the search box) shows whether `acpi_call` is loaded and the last 30 calls.
+
+A safe first try is a status method such as a device's `_STA` (it only reports whether the device is
+present and on). If you are not sure what a method does, do not run it.
+
 ## 10. Options
 
 **Menu -> Options** (in the main window's menu, the classic Menu and the tray's SRS Menu). All are
@@ -2122,6 +2341,8 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Check daily which items have nothing to show** | On: once a day, in the background, SRS reads every item to find the ones with nothing to show on this PC and hides them. Off: only when you choose **Check now**. Windows-only items and hardware that is not present are hidden either way. The network items and Ping are never part of the check. | off |
 | **Check now which items have nothing to show** | Does that check once, now, in the background. | |
 | **NVIDIA CUDA toolkit for GPU tests...** | What the optional NVIDIA CUDA toolkit is for, whether it (its runtime compiler, NVRTC) is installed, the install command for your Linux, **Install...** and **Ask me again** - see [9.20](#920-the-nvidia-cuda-toolkit-optional). | |
+| **Read DIMM voltages from their PMIC chips (SMBus; from the next Run as root)** | Run as root also reads the set voltages of each DDR5 module's power chip for Memory Timings. Asks first; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins) (2.4). | off |
+| **Read the embedded controller (expert, read-only; from the next Run as root)** | Run as root also copies the embedded controller's 256 registers (ACPI Embedded Controller item). Asks first; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins) (2.4). | off |
 | **Load test terms (warranty)...** | The "use at your own risk" terms of the stress tests and benchmarks: read them again, agree, or withdraw your agreement - see [9.0](#90-use-at-your-own-risk). | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
@@ -2236,6 +2457,8 @@ result.
 ### 13.2 Copy
 
 **Copy** on any window puts its whole text on the clipboard, ready to paste into a forum post or chat.
+With **Redact identifiers** on ([17](#17-privacy-before-you-share-a-report)), hexdump lines such as the
+System CMOS contents are masked too (2.4).
 
 ### 13.3 Full System Report (srs-sysreport)
 
@@ -2269,7 +2492,8 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 | `~/.config/srs/startup-backup/` | Everything the Startup manager moved out of the way or changed: `NAME.desktop.YYYYMMDD-HHMMSS` and `NAME.desktop.orig`. Nothing there is used; copy a file back to `~/.config/autostart` to use it again. |
 | `~/.config/srs/lineups/*.srslineup` | Your own tab lineups ([6.7](#67-arranging-the-tabs-and-lineups)), the same format as Export lineup. |
 | `~/.cache/srs/empty-items.txt` | The items that had nothing to show on this PC at the last check (hidden from the tabs and lists). Made only by Options -> **Check now** or **Check daily** ([10](#10-options)); delete it to show those items again. |
-| `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`). |
+| `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`; since 2.4 `umc.txt`, `intel-imc.txt`, `aod.bin` / `aod.txt`, `rapl.txt`, `ebda.txt` / `ebda.bin`, `vbios-<pci>.bin`, `gpio.txt`, `efi-systab.txt`, `esrt.txt`, with the opt-ins `pmic-*.txt` and `ec.bin`, and the ACPI evaluation log `acpi-calls.txt`; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins)). |
+| `~/.local/share/srs/lists/` | `pci.ids`, `usb.ids`, `pnp.ids` downloaded by Update hardware lists, and the previous copies as `.old` ([9.21](#921-update-hardware-lists)). SRS uses each only while it is newer than the system's. |
 | `~/.cache/srs/gpu-load.log` | Output of the last GPU Load command (Burnin / Stress). |
 | `~/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt` | The summary of each finished Burnin / Stress run (one file per run). |
 | `~/.cache/srs/bench-<mode>.txt` | The last result of each benchmark mode, IPI Delay and Latency. |
@@ -2295,6 +2519,11 @@ hand is fine while SRS is closed.
 | `Start In Tray` | `1` / `0` | Options -> Start hidden in tray |
 | `GPU Load Command` | text | Stress & Burnin: Custom GPU command |
 | `Stress GPU Burnin`, `Stress GPU Minutes`, `Stress GPU Sync`, `Stress GPU Backend`, `Stress GPU Precision`, `Stress GPU Limit`, `Stress Until Stop`, `Stress GPU Options Open` | numbers | Stress & Burnin: GPU Burnin on, its minutes, Sync, back end (0 Auto, 1 Vulkan, 2 ROCm / HIP, 3 CUDA, 4 OpenCL), FP64, GPU limit C, Until Stop, GPU options open (2.3.1) |
+| `Stress CPU Limit` | 50-110 | Stress & Burnin: the CPU temperature limit C, remembered (2.4) |
+| `Accepted High Temperature Limits` | `1` / `0` | Stop limits over 100 C accepted once ([9.1](#stop-limits-over-100-c)); without it a limit over 100 is read as 100 (2.4) |
+| `Read DIMM PMIC` | `1` / `0` | Options -> Read DIMM voltages from their PMIC chips (2.4) |
+| `Read EC` | `1` / `0` | Options -> Read the embedded controller (2.4) |
+| `Accepted ACPI Evaluation` | `1` / `0` | The ACPI method evaluation warning accepted ([9.22](#922-acpi-method-evaluation-experts)) (2.4) |
 | `Accepted Load Test Terms` | `1` / `0` | The load test terms agreed (the terms' version), `0` = not yet or withdrawn ([9.0](#90-use-at-your-own-risk)) |
 | `Tray Close Notice Off` | `1` / `0` | The one-time "still running in the tray" notice was seen |
 | `Colour Find Text` | 6 hex digits, e.g. `FFFF00` | Find highlight colour |
@@ -2324,6 +2553,7 @@ Environment variables:
 | `SRS_DOC_DIR=folder` | Where the Guide button, F1 and `guide` look for `SRS-User-Guide.pdf` and `html/` (default `/usr/share/doc/srs-sysinfo`, then beside the program). |
 | `GTK_THEME` | Remembered for "Follow desktop"; the Theme option drives SRS's own look. |
 | `SRS_STARTUP_DRY_RUN=1` | The Startup manager never runs `systemctl` or `pkexec`: it only shows the command it would run (autostart files are still written). For trying it out safely. |
+| `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older, simpler matrix multiply instead of the 2.4 one (for comparing) ([9.18](#918-gpu-burnin)). |
 | `SRS_RSMU_DIR=folder` | Read the ryzen_smu files (`pm_table`, `codename`, `pm_table_version`) from this folder instead of `/sys/kernel/ryzen_smu_drv` (tests). |
 
 ## 15. Reading results and comparing runs
@@ -2367,8 +2597,13 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
   wording and some figures differ from SIV on Windows for the same PC.
 - **Root data is a snapshot.** Panels that use `~/.cache/srs/root` show what was true when
   `srs-root` last ran.
-- **No direct hardware access.** SRS never touches SMBus / I2C, monitor DDC, raw HID, or the CPU's
-  management firmware (SMU). Some SIV readings that need that are not available.
+- **No direct hardware access by default.** SRS never touches monitor DDC, raw HID, or the CPU's
+  management firmware (SMU commands), and by default no SMBus / I2C. Some SIV readings that need that
+  are not available. Since 2.4 the exceptions are your choice: the PMIC opt-in reads the memory
+  modules' power chips over SMBus, the embedded controller opt-in loads `ec_sys` read-only
+  ([5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins)), and ACPI method evaluation runs BIOS code
+  you type ([9.22](#922-acpi-method-evaluation-experts)). Memory Timings reads the AMD memory controller
+  through the `ryzen_smu` driver (an address written to its `smn` file only selects what is read).
 - **136 "not present" items** are for hardware most PCs do not have. **38 Windows-only items**
   show a Linux equivalent or explain why there is none.
 - **Benchmarks** are SRS's own implementations of Dhrystone 2.1 and Whetstone. Scores are for
@@ -2388,7 +2623,11 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
   high)". If you have a probe on that header, give the input a label in `/etc/sensors.d/` and SRS
   treats it as connected.
 - **DDR5 SPD:** `decode-dimms` cannot read DDR5 SPD hubs; the SPD item then shows the SMBIOS
-  memory-device summary instead (no timings or EXPO / XMP profiles).
+  memory-device summary instead. Since 2.4 the **Memory Timings** tab reads the DDR5 SPD itself (through
+  the kernel's `spd5118` driver) and shows each module's JEDEC / EXPO / XMP profiles there
+  ([6.12](#612-memory-timings)).
+- **Memory Timings:** live timings on AMD Ryzen 7000 / 9000 desktop only (Intel experimental); the BIOS
+  settings from the AOD table need `iomem=relaxed` on most kernels, which SRS never asks you to set.
 - The optional **Windows images** (`SRS64X.exe`, `SRS32X.exe`, source build only) have only the
   ID lookup and report search features.
 
@@ -2420,6 +2659,10 @@ the host name become `XXXX` (same length, so columns stay aligned); MAC addresse
 vendor half (`04:7c:16:XX:XX:XX`), which is useful for telling network chips apart. The report's
 first line ends with `(identifiers redacted)`. Published constants such as GPT partition-type GUIDs
 are not masked.
+
+The **System CMOS** item (2.4) shows the CMOS RAM, which can hold the BIOS password check value: with
+Redact on, its bytes (and every hexdump line in copied text) become `XX`. The ACPI evaluation log
+(`~/.cache/srs/root/acpi-calls.txt`) is not part of any report.
 
 The **Power & Cost** history (`~/.local/share/srs/power.db`) is not part of any report; it says when
 the PC was in use, so think before sharing an export of it. Nothing on that page goes online.
