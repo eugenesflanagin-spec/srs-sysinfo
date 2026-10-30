@@ -1871,7 +1871,21 @@ static void s_io_gpio(srs_out *o)
         const char *rf = so_root_file("gpio.txt");
         char *txt = NULL;
         if (rf && rd_all(rf, &txt) > 0) {
-            so_lines(o, C_VALUE, txt);
+            /* the kernel's table separates the pin number with a tab: on a page with its own tab stops that pushes the
+               rows apart, so tabs become spaces at every 8th column (the kernel's own layout); UTF-8 arrows count as one */
+            size_t cap = strlen(txt) * 8 + 64, used = 0;
+            char *out = malloc(cap);
+            const char *q = txt;
+            int col = 0;
+            while (out && *q && used + 16 < cap) {
+                if (*q == '\t') { do out[used++] = ' '; while (++col % 8 && used + 1 < cap); q++; continue; }
+                if (*q == '\n') col = -1;
+                if (((unsigned char)*q & 0xC0) != 0x80) col++;   /* continuation bytes of a UTF-8 character take no column */
+                out[used++] = *q++;
+            }
+            if (out) out[used] = 0;
+            so_lines(o, C_VALUE, out ? out : txt);
+            free(out);
             so_par(o);
             so_note(o, "The kernel's own GPIO table (debugfs gpio), copied once by srs-root: lines in use, their direction and level. Read-only.");
         } else if (rf) so_note(o, "The kernel's GPIO table is empty.");

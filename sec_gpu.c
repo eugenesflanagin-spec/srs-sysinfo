@@ -867,7 +867,7 @@ static void vbios_image(srs_out *o, const gpu_t *g)
     char path[1200], b[128];
     const char *rf;
     unsigned char *d = NULL;
-    int n, off, k, nimg = 0, nparts = 0;
+    int n, off, k, nimg = 0, nparts = 0, cut = 0;
     char parts[4][64];
     snprintf(b, sizeof b, "vbios-%s.bin", g->slot);
     rf = so_root_file(b);
@@ -937,12 +937,17 @@ static void vbios_image(srs_out *o, const gpu_t *g)
         fmt_bytes((double)ilen, c3, sizeof c3);
         snprintf(c4, sizeof c4, "%04X:%04X", vb16(d + pr + 4), vb16(d + pr + 6));
         snprintf(c5, sizeof c5, "%s", ct == 0 ? "x86 (legacy)" : ct == 1 ? "Open Firmware" : ct == 3 ? "EFI (GOP)" : "other");
-        so_row(o, 6, (const char *const[]){ c1, c2, c3, c4, c5, last ? "yes" : "no" },
+        so_row(o, 6, (const char *const[]){ c1, c2, c3, c4, c5, last ? "yes" : "no, more follow" },
                (const int[]){ C_LABEL, C_GRAY, C_VALUE, C_VALUE, C_TEAL, C_GRAY });
         if (last || ilen <= 0) { nimg++; break; }
         off += ilen;
+        if (off >= n) { cut = 1; nimg++; break; }
     }
     if (!nimg) { so_note(o, "no PCI data structure (PCIR) found"); }
+    if (cut) {   /* amdgpu keeps the first (legacy) image only; the UEFI driver image that follows in the ROM is not in it */
+        so_par(o);
+        so_note(o, "The driver's copy ends after this image: the ROM holds more (usually the UEFI GOP driver), which the driver does not keep.");
+    }
     so_par(o);
     so_note(o, "Copied once by srs-root from the driver's memory (debugfs amdgpu_vbios); the GPU's ROM is not accessed.");
     free(d);
