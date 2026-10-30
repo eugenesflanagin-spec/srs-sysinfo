@@ -24,7 +24,7 @@ acs-srv	windows	ASUS control service	ABSENT	os	no	systemctl list-units (no such 
 adapters	windows	Network adapters	LINUX	network	no	/sys/class/net; ip -o addr; nmcli; /proc/net/igmp	adapter name, MAC, speed, IP, status
 aio-export	hardware	AIO Link export	ABSENT	sensors	no	hwmon cooler drivers (no hidraw)	exports data to Corsair iCUE LINK devices
 amd-cpu	hardware	AMD Ryzen CPU power-management info	LINUX	cpu	no	amd_pstate	Ryzen power management data
-amd-fus	hardware	AMD fuse data	LINUX	cpu	yes	SMN (not read)	CPU fuse register values via SMN
+amd-fus	hardware	AMD fuse data	LINUX	cpu	no	/sys/devices/system/cpu/cpu*/cpufreq/amd_pstate_* (fuse registers via SMN not read)	CPU fuse register values via SMN
 amd-pmt	hardware	AMD PM table layout	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table	PM table version and field layout
 amd-pmt-0	hardware	AMD PM table data @ CPU-0	LINUX	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table	PM table values (powers, clocks, temps)
 amd-pmt-1	hardware	AMD PM table data @ second package/CCD	ABSENT	cpu	no	/sys/kernel/ryzen_smu_drv/pm_table (single CCD/package)	PM table of second die
@@ -182,7 +182,7 @@ gpu	xxb	GPU info buffer	LINUX	siv	no	/sys/class/drm/card*/device	internal per-GP
 gpu-all	hardware	GPU all details	LINUX	gpu	no	/sys/class/drm/card*/device; hwmon; lspci -vv	all GPU details
 gpu-api	hardware	GPU API routines	LINUX	gpu	no	ldconfig -p	vendor GPU API routine availability
 gpu-apps	hardware	GPU applications	LINUX	gpu	no	/proc/*/fdinfo (drm-client stats; other users' processes need root)	processes using the GPU
-gpu-bios	hardware	GPU VBIOS status	LINUX	gpu	no	vbios_version; fw_version/*	VBIOS version/image
+gpu-bios	hardware	GPU VBIOS status	LINUX	gpu	no	vbios_version; fw_version/*; vbios-<pci>.bin cache (debugfs amdgpu_vbios, srs-root)	VBIOS version/image
 gpu-clocks	hardware	GPU clock speeds	LINUX	gpu	no	pp_dpm_sclk/mclk/fclk/socclk/dcefclk/pcie; hwmon freq*	GPU core/memory clocks
 gpu-cuda	hardware	CUDA information	ABSENT	gpu	no	n/a (no NVIDIA GPU; nvidia-smi absent); nearest ROCm/HIP	NVIDIA CUDA device info
 gpu-d3d	hardware	GPU D3D status	LINUX	gpu	no	gpu_busy_percent; mem_info_*; vulkaninfo --summary	per-GPU 3D status
@@ -231,7 +231,7 @@ int-names	hardware	Interface names	LINUX	bus	no	/sys/class/*/*; udev symlinks	de
 int-owner	hardware	Interface owner	LINUX	bus	no	/sys/class/*/*/device/driver	device interface owning driver
 io-asus	hardware	ASUS I/O	LINUX	bus	yes	hwmon nct6775/asus; ioports.txt	ASUS motherboard I/O registers
 io-dump	hardware	I/O port dump	LINUX	bus	yes	ioports.txt (no /dev/port)	I/O port space dump
-io-gpio	hardware	I/O GPIO	LINUX	bus	no	/sys/bus/gpio/devices	GPIO pin states
+io-gpio	hardware	I/O GPIO	LINUX	bus	no	/sys/bus/gpio/devices; gpio.txt cache (debugfs gpio, srs-root)	GPIO pin states
 io-mmio	hardware	I/O PM2 MMIO	LINUX	bus	yes	/proc/iomem; iomem.txt	AMD PM2 MMIO registers
 io-nforce	hardware	nForce I/O	ABSENT	bus	no	n/a (no NVIDIA nForce chipset)	nForce chipset I/O
 io-ports	hardware	I/O ports	LINUX	bus	yes	/proc/ioports; ioports.txt	I/O port assignments
@@ -433,8 +433,8 @@ synthetic	hardware	Synthetic sensors setup	LINUX	sensors	no	lm-sensors compute l
 sys-hal	hardware	System HAL resources	LINUX	bus	yes	/proc/iomem; /proc/ioports	HAL resource map
 sys-res	hardware	System resources	LINUX	bus	yes	/proc/interrupts; /proc/dma; /proc/ioports; /proc/iomem	system resource map
 system	hardware	System	LINUX	os	no	/etc/os-release; uname	OS version, install date, product
-system-cmos	hardware	System CMOS	LINUX	machine	yes	/dev/nvram (not read)	CMOS RAM dump
-system-ebda	hardware	System EBDA	LINUX	machine	yes	/dev/mem (not read); /sys/firmware/memmap; iomem.txt cache	extended BIOS data area
+system-cmos	hardware	System CMOS	LINUX	machine	no	/sys/bus/nvmem/devices/cmos_nvram0/nvmem	CMOS RAM dump
+system-ebda	hardware	System EBDA	LINUX	machine	yes	ebda.txt, ebda.bin cache (/dev/mem below 1 MB, srs-root); /sys/firmware/memmap; iomem.txt cache	extended BIOS data area
 system-ids	hardware	BIOS IDs	LINUX	machine	yes	/sys/class/dmi/id; dmidecode.txt cache	system IDs
 sys-tim	windows	System timers	LINUX	os	no	/sys/devices/system/clocksource/clocksource0; /sys/devices/system/clockevents	system timer resolution
 sys-win	windows	System windows	WINONLY	os	no	none; nearest wmctrl -l	top-level window handles

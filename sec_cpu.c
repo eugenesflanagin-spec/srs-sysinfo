@@ -1139,12 +1139,67 @@ static void s_amd_thm(srs_out *o)
     so_note(o, "Tctl is the control temperature (may include an offset); TccdN are the per-CCD die sensors.");
 }
 
+/* [amd-fus]: the factory per-core values the firmware hands to amd_pstate (CPPC), readable without root */
 static void s_amd_fus(srs_out *o)
 {
-    static const int tabs[] = { 200 };
+    static const int tabs[] = { 220 };
+    static const int ttabs[] = { 60, 120, 230, 310, 400 };
+    char b[128], best[256] = "";
+    int cpu, top = -1;
+    so_siv_header(o, "AMD Fuses");
     so_tabs(o, tabs, 1);
-    so_kv(o, "Status", C_ORANGE, "Not read");
-    so_kv(o, "Reason", C_GRAY, "Fuse data needs SMN register access (ryzen_smu smn writes); srs-gui stays read-only");
+    if (rd_str(SYSCPU "/amd_pstate/status", b, sizeof b)) so_kv(o, "amd_pstate driver", C_VALUE, b);
+    if (!path_exists(SYSCPU "/cpu0/cpufreq/amd_pstate_highest_perf")) {
+        so_kv(o, "Per-core data", C_GRAY, "not available: this CPU is not run by the amd_pstate driver");
+    } else {
+        if (rd_str(SYSCPU "/amd_pstate/prefcore", b, sizeof b)) so_kv(o, "Preferred cores (kernel)", C_VALUE, b);
+        if (rd_str(SYSCPU "/cpu0/cpufreq/amd_pstate_hw_prefcore", b, sizeof b)) so_kv(o, "Preferred cores (CPU)", C_VALUE, b);
+        so_par(o);
+        so_head(o, "Per-core factory values");
+        so_tabs(o, ttabs, 5);
+        so_row(o, 6, (const char *const[]){ "CPU", "Core", "Highest perf", "Ranking", "Max MHz", "Lowest non-linear MHz" },
+               (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+        so_par(o);
+        for (cpu = 0; cpu < 1024; cpu++) {
+            char p[256], c1[16], c2[16], c3[24] = "-", c4[24] = "-", c5[24] = "-", c6[24] = "-";
+            long v;
+            snprintf(p, sizeof p, SYSCPU "/cpu%d", cpu);
+            if (!path_exists(p)) break;
+            snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_highest_perf", cpu);
+            if (!rd_long(p, &v)) continue;   /* offline CPU */
+            snprintf(c3, sizeof c3, "%ld", v);
+            snprintf(c1, sizeof c1, "%d", cpu);
+            snprintf(c2, sizeof c2, "%ld", topo(cpu, "core_id"));
+            snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_prefcore_ranking", cpu);
+            if (rd_long(p, &v)) { snprintf(c4, sizeof c4, "%ld", v); if (v > top) top = (int)v; }
+            snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_max_freq", cpu);
+            if (rd_long(p, &v)) snprintf(c5, sizeof c5, "%ld", v / 1000);
+            snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_lowest_nonlinear_freq", cpu);
+            if (rd_long(p, &v)) snprintf(c6, sizeof c6, "%ld", v / 1000);
+            so_row(o, 6, (const char *const[]){ c1, c2, c3, c4, c5, c6 },
+                   (const int[]){ C_LABEL, C_GRAY, C_VALUE, C_BLACK, C_VALUE, C_GRAY });
+        }
+        so_par(o);
+        so_tabs(o, tabs, 1);
+        if (top >= 0) {   /* the CPUs with the highest ranking */
+            for (cpu = 0; cpu < 1024; cpu++) {
+                char p[256];
+                long v;
+                snprintf(p, sizeof p, SYSCPU "/cpu%d", cpu);
+                if (!path_exists(p)) break;
+                snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/amd_pstate_prefcore_ranking", cpu);
+                if (rd_long(p, &v) && v == top) { size_t l = strlen(best); snprintf(best + l, sizeof best - l, "%s%d", l ? ", " : "", cpu); }
+            }
+            so_kvf(o, "Best ranked CPUs", C_GREEN, "%s (ranking %d)", best, top);
+        }
+        so_par(o);
+        so_note(o, "Ranking is the factory quality order of the cores, set by AMD when the CPU was made and reported by the firmware: a higher number "
+                   "means the core reaches higher clocks. Linux uses it for \"preferred cores\": single-threaded work goes to the best cores first. "
+                   "Highest perf is the top performance level (CPPC scale) the firmware allows for the core. "
+                   "Lowest non-linear MHz is the lowest clock that still saves power in step with the speed lost.");
+    }
+    so_par(o);
+    so_kv(o, "Fuse registers", C_GRAY, "not read: the physical fuse registers (CCD and core disable, part options) need SMN access");
 }
 
 static void s_cpu_oc(srs_out *o)
@@ -1551,7 +1606,7 @@ const srs_item sec_cpu[] = {
     { "amd-tel-0", "hardware", "AMD Telemetry 0", B_LINUX, 0, "zenergy hwmon", s_amd_tel, 0, "cpu" },
     { "amd-thm-0", "hardware", "AMD Thermal 0", B_LINUX, 0, "k10temp", s_amd_thm, 2000, "cpu" },
     { "amd-tmp", "hardware", "AMD Temperatures", B_LINUX, 0, "k10temp", s_amd_thm, 2000, "cpu" },
-    { "amd-fus", "hardware", "AMD Fuses", B_LINUX, 1, "SMN (not read)", s_amd_fus, 0, "cpu" },
+    { "amd-fus", "hardware", "AMD Fuses", B_LINUX, 0, "/sys/devices/system/cpu/cpu*/cpufreq/amd_pstate_* (fuse registers via SMN not read)", s_amd_fus, 0, "cpu" },
     { "cpu-oc-data", "hardware", "CPU OC Data", B_ABSENT, 0, "Intel OC mailbox", s_cpu_oc, 0, "cpu" },
     { "cpu-tweak", "hardware", "CPU Tunables", B_LINUX, 0, "cpufreq, smt, isolcpus", s_cpu_tweak, 0, "cpu" },
     { "msrs", "hardware", "MSRs", B_LINUX, 1, "/dev/cpu/*/msr (root)", s_msrs, 0, "cpu" },

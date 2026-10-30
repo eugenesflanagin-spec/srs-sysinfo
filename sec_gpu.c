@@ -858,6 +858,96 @@ static void bios_body(srs_out *o, const gpu_t *g)
     dir_free(nm, n);
 }
 
+/* the driver's cached VBIOS copy (srs-root: debugfs amdgpu_vbios -> vbios-<pci>.bin) */
+static unsigned vb16(const unsigned char *p) { return (unsigned)(p[0] | p[1] << 8); }
+
+static void vbios_image(srs_out *o, const gpu_t *g)
+{
+    static const int itabs[] = { 80, 160, 250, 340, 440 };
+    char path[1200], b[128];
+    const char *rf;
+    unsigned char *d = NULL;
+    int n, off, k, nimg = 0, nparts = 0;
+    char parts[4][64];
+    snprintf(b, sizeof b, "vbios-%s.bin", g->slot);
+    rf = so_root_file(b);
+    so_par(o);
+    so_head(o, "VBIOS image (the driver's copy)");
+    if (!rf) {
+        if (strcmp(g->driver, "amdgpu")) so_kv(o, "Image", C_GRAY, "only the amdgpu driver keeps a copy SRS can read");
+        else if (so_root_file("collected.txt")) so_kv(o, "Image", C_ORANGE, "not in the root cache (debugfs not mounted, or the cache is older): run Menu > Run as root again");
+        else so_kv(o, "Image", C_ORANGE, "Needs root: Menu > Run as root (srs-root)");
+        return;
+    }
+    snprintf(path, sizeof path, "%s", rf);   /* so_root_file has one static buffer */
+    n = rd_all(path, (char **)&d);
+    if (n <= 0) { so_kv(o, "Image", C_ORANGE, "cache file is empty"); free(d); return; }
+    fmt_bytes((double)n, b, sizeof b);
+    so_kvf(o, "Size", C_VALUE, "%s (%d bytes)", b, n);
+    so_kv(o, "Cache", C_GRAY, path);
+    if (n < 3 || d[0] != 0x55 || d[1] != 0xAA) {
+        so_kvf(o, "Signature", C_RED, "%02X %02X, not 55 AA: not a PCI expansion ROM image", d[0], n > 1 ? d[1] : 0);
+        free(d);
+        return;
+    }
+    so_kv(o, "Signature", C_GREEN, "55 AA (PCI expansion ROM)");
+    {
+        int len = d[2] * 512, sum = 0, i;
+        if (len > 0 && len <= n) {
+            for (i = 0; i < len; i++) sum += d[i];
+            so_kvf(o, "Checksum", sum % 256 ? C_RED : C_GREEN, "%s (first image, %d bytes, sum mod 256 = 0x%02X)", sum % 256 ? "bad" : "valid", len, sum % 256);
+        } else so_kvf(o, "Checksum", C_ORANGE, "not checked: first image length %d bytes does not fit the %d-byte copy", len, n);
+    }
+    /* part number / build strings: printable runs that hold an AMD part number (113-...) or the ATOMBIOS build tag */
+    for (off = 0; off < n && nparts < 4; ) {
+        int e = off;
+        while (e < n && d[e] >= 0x20 && d[e] < 0x7F) e++;
+        if (e - off >= 8) {
+            char run[64];
+            const char *m;
+            snprintf(run, sizeof run, "%.*s", e - off > 63 ? 63 : e - off, (const char *)d + off);
+            m = strstr(run, "113-");
+            if (m || !strncmp(run, "ATOMBIOSBK", 10)) {
+                char *t = (char *)(m ? m : run);
+                int dup = 0;
+                while (*t && t[strlen(t) - 1] == ' ') t[strlen(t) - 1] = 0;
+                for (k = 0; k < nparts; k++) if (!strcmp(parts[k], t)) dup = 1;
+                if (!dup) snprintf(parts[nparts++], sizeof parts[0], "%s", t);
+            }
+        }
+        off = e + 1;
+    }
+    for (k = 0; k < nparts; k++) so_kv(o, strncmp(parts[k], "113-", 4) ? "Build string" : "Part number", C_BLACK, parts[k]);
+    /* the image chain: each image has a PCI data structure ("PCIR") */
+    so_par(o);
+    so_tabs(o, itabs, 5);
+    so_row(o, 6, (const char *const[]){ "Image", "Offset", "Size", "PCI ID", "Code type", "Last" },
+           (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
+    so_par(o);
+    for (off = 0; off + 0x1A <= n && d[off] == 0x55 && d[off + 1] == 0xAA && nimg < 8; nimg++) {
+        unsigned pr = (unsigned)off + vb16(d + off + 0x18);
+        char c1[16], c2[16], c3[24], c4[16], c5[24];
+        int ilen, ct, last;
+        if (pr + 0x18 > (unsigned)n || memcmp(d + pr, "PCIR", 4)) break;
+        ilen = (int)vb16(d + pr + 0x10) * 512;
+        ct = d[pr + 0x14];
+        last = (d[pr + 0x15] & 0x80) != 0;
+        snprintf(c1, sizeof c1, "%d", nimg + 1);
+        snprintf(c2, sizeof c2, "0x%05X", off);
+        fmt_bytes((double)ilen, c3, sizeof c3);
+        snprintf(c4, sizeof c4, "%04X:%04X", vb16(d + pr + 4), vb16(d + pr + 6));
+        snprintf(c5, sizeof c5, "%s", ct == 0 ? "x86 (legacy)" : ct == 1 ? "Open Firmware" : ct == 3 ? "EFI (GOP)" : "other");
+        so_row(o, 6, (const char *const[]){ c1, c2, c3, c4, c5, last ? "yes" : "no" },
+               (const int[]){ C_LABEL, C_GRAY, C_VALUE, C_VALUE, C_TEAL, C_GRAY });
+        if (last || ilen <= 0) { nimg++; break; }
+        off += ilen;
+    }
+    if (!nimg) { so_note(o, "no PCI data structure (PCIR) found"); }
+    so_par(o);
+    so_note(o, "Copied once by srs-root from the driver's memory (debugfs amdgpu_vbios); the GPU's ROM is not accessed.");
+    free(d);
+}
+
 static void s_gpu_bios(srs_out *o)
 {
     static const int tabs[] = { 150 };
@@ -866,6 +956,7 @@ static void s_gpu_bios(srs_out *o)
     so_tabs(o, tabs, 1);
     if (!gpu_sel(o, &g)) { so_err(o, "No DRM GPU found"); return; }
     bios_body(o, &g);
+    vbios_image(o, &g);
 }
 
 /* ======================================================================
@@ -2665,7 +2756,7 @@ const srs_item sec_gpu[] = {
     { "gpu-temp", "hardware", "GPU temperatures", B_LINUX, 0, "card hwmon temp*_input/crit/emergency", s_gpu_temp, 1000, "gpu" },
     { "gpu-fans", "hardware", "GPU fans", B_LINUX, 0, "card hwmon fan1_*/pwm1 (read only)", s_gpu_fans, 1000, "gpu" },
     { "gpu-power", "hardware", "GPU power status", B_LINUX, 0, "card hwmon power1_*/in*; gpu_metrics header", s_gpu_power, 1000, "gpu" },
-    { "gpu-bios", "hardware", "GPU VBIOS status", B_LINUX, 0, "vbios_version; fw_version/*", s_gpu_bios, 0, "gpu" },
+    { "gpu-bios", "hardware", "GPU VBIOS status", B_LINUX, 0, "vbios_version; fw_version/*; vbios-<pci>.bin cache (debugfs amdgpu_vbios, srs-root)", s_gpu_bios, 0, "gpu" },
     { "gpu-map", "hardware", "GPU mapping", B_LINUX, 0, "/sys/bus/pci/devices; resource; iommu_group", s_gpu_map, 0, "gpu" },
     { "gpu-tree", "hardware", "GPU tree", B_LINUX, 0, "/sys/class/drm", s_gpu_tree, 0, "gpu" },
     { "gpu-gens", "hardware", "GPU generations", B_LINUX, 0, "/sys/class/drm/card*/device/ip_discovery", s_gpu_gens, 0, "gpu" },
