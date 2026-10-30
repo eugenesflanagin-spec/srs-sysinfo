@@ -983,6 +983,17 @@ which has no runtime compiler; NVRTC (the NVIDIA CUDA toolkit's runtime compiler
 driver refuses the built-in kernels. HIP needs its runtime compiler (hipRTC) for both the own-kernel
 and the matrix-library (hipBLAS) rows, because every result is checked with one of SRS's own kernels;
 without it those rows say so. OpenCL needs only its driver (the matrix library is CLBlast).
+
+**The matrix multiply (2.4).** GPU Burnin uses a register-blocked kernel on every back end: each group
+of threads works on a 64 x 64 tile and each thread on 4 x 4 results, with the same summation order as
+before, so the results are checked the same way. ROCm's compilers turned the older 16 x 16 tiled
+kernel into code that reached only about 3.4 TFLOPS FP32 on a Radeon RX 9070 XT; with the new one ROCm /
+HIP reached about 13.0 and OpenCL about 13.4 TFLOPS on that card, 0 errors - the card is loaded much
+harder. If the new kernel cannot be used, GPU Burnin falls back to the older one (on HIP then to
+hipBLAS). The result's **Kernel** line says which ran. `SRS_GPUBURN_SIMPLE=1` forces the older kernel,
+for comparing. The GPU Compute comparison keeps the older kernel on every back end, so its numbers stay
+comparable with 2.3.
+
 The optional NVIDIA CUDA toolkit: **Options -> NVIDIA CUDA toolkit for GPU tests...** or
 `sysreport-search cuda-toolkit` (see the User Guide, 9.20).
 
@@ -1000,7 +1011,7 @@ precision.
 | GPU | The first GPU, All GPUs, or one from the list (read through Vulkan when you open it, like `vulkaninfo`; no runtime is started and no work is sent. For HIP, CUDA and OpenCL the runtime starts after Yes and finds the picked GPU by its PCI address) |
 | Precision | FP32 (default) or FP64 |
 | Seconds | 1 to 86,400 (24 hours), default 60 |
-| Stop at °C | 50-120, default 100 |
+| Stop at °C | 50-100, default 100; up to 110 after a one-time risk question (2.4; command line: `--accept-high-limit`) |
 
 **Safety.**
 - It asks before it starts (No is the default answer), saying that the GPU draws a lot of power
@@ -1270,9 +1281,13 @@ itself.
 | Code Page | Text encoding (UTF-8). | |
 | WEB Download Location | Where the newest copy of each file is published. | |
 
-Under the table: "No network access: srs-gui shows the upstream URLs but never downloads." The SRS
-Kernel Driver row says `none`: SRS loads no kernel driver of its own, and root-only data comes from
-srs-root.
+Since 2.4 the PCI, USB and PNP rows show the copy SRS really uses: the one **Update hardware lists**
+(Tools page, or `sysreport-search update-lists`) downloaded into `~/.local/share/srs/lists`, or the
+system's, whichever is newer (by the list's own version; by entry count for `pnp.ids`). The WEB Download
+Location is where Update hardware lists fetches it. Under the table a note says the page itself never
+downloads (SIV's WEB UPD / Latest are not reproduced): Update hardware lists is the one way, and only when
+you ask. The SRS Kernel Driver
+row says `none`: SRS loads no kernel driver of its own, and root-only data comes from srs-root.
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
@@ -1281,11 +1296,11 @@ usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /
   `usbutils` (other distros).
-- A pci.ids or usb.ids date more than a year old with very new hardware: update the hwdata package
-  (or run `update-pciids` where it exists) to get names for new devices.
+- A pci.ids or usb.ids date more than a year old with very new hardware: run **Update hardware lists**
+  (Tools page), or update the hwdata package, to get names for new devices.
 
-**Where Linux gets it.** `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` and `oui.txt`, plus
-`/proc/self/exe` for the program path.
+**Where Linux gets it.** `/usr/share/hwdata/pci.ids`, `usb.ids`, `pnp.ids` and `oui.txt`, or the newer
+copies in `~/.local/share/srs/lists`, plus `/proc/self/exe` for the program path.
 
 ---
 ## Ping  
@@ -1470,15 +1485,25 @@ undervolt is stable. Use at your own risk: the first Start asks you to agree to 
 | Hottest CPU sensor | The hottest CPU temperature right now, with chip and label (k10temp, coretemp or zenpower). |
 | Hottest SIO sensor | The hottest motherboard Super I/O sensor right now. |
 | GPU | Graphics card load %, temperature (junction if available) and core clock. |
-| Command line | `srs-gui burn [--threads N \| --cpus 0,2] [--seconds S] [--mode same\|swap] [--limit C]`. |
+| Command line | `srs-gui burn [--threads N \| --cpus 0,2] [--seconds S] [--mode same\|swap] [--limit C] [--accept-high-limit]`. |
 | Safety note | Never auto-starts; stops at the temperature limit (default 90 C) and the time cap. |
 
 **What you see in Stress & Burnin** (the Benchmarks & Stress page's first tab; Classic View: Menu -> Benchmarks & Stress -> Stress & Burnin (CPU / GPU)...). The CPU part:
 - Settings: Burn Time (0-750, in minutes, or in hours if "Hours" is ticked; default 15 minutes),
   Cool Time (0-900 seconds idle between burns, default 60), Cycles (1-99 burn/cool rounds, default 1),
-  Temperature limit °C (50-100, default 90), **Same CPU (Whetstone)** or **Swap CPU (affinity
+  Temperature limit °C (50-110, default 90, remembered; over 100 only after a one-time question, see
+  below), **Same CPU (Whetstone)** or **Swap CPU (affinity
   test)**, the GPU part (GPU Burnin (built-in) with Time and Sync to CPU stress time, GPU options; or a Custom GPU command), and one tick box per CPU with Select All / Deselect All.
-  Start asks for confirmation first.
+  Start asks for confirmation first. The folded **GPU options** line shows what it holds (2.4), for
+  example "GPU options: Auto (Vulkan), FP32, stop at 100 °C", so the GPU's own stop limit is never hidden.
+- **Stop limits over 100 °C (2.4).** Both the CPU and the GPU limit go up to 110 °C. The first time
+  either is set above 100, SRS asks once: "Stop limits over 100 °C: at your own risk" - above 100 °C
+  many processors and graphics cards are already at or near their own maximum (often 89-110 °C), they
+  slow themselves down, and with poor cooling, worn thermal paste or an overclock a fault becomes more
+  likely; the chip's own protection stays on and SRS never changes clocks, voltages or fans. **Yes, I
+  accept the risk** is remembered (`Accepted High Temperature Limits` in `SRSDEF.ini`); **No** puts
+  both limits back to 100. A limit over 100 in `SRSDEF.ini` without that yes loads as 100. On the
+  command line `burn` and `gpu-burn` refuse a `--limit` over 100 unless `--accept-high-limit` is given.
 - Status line: Idle / Burning / Cooling / Pass / Fail / Stopped, with Elapsed and Remaining time
   (hh:mm:ss) and the reason text (for example "Pass - Finished").
 - A sensor table with 7 rows (CPU Load, CPU Frequency, Hottest Core Temp, Hottest SIO Sensor Temp,

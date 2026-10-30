@@ -1170,9 +1170,11 @@ Last line: update the `.ids` files with your distribution's hwdata package (or `
 author's PC: pci.ids 2026.10.01, usb.ids 2026.06.26.
 
 **Unusual values and what they suggest.** Databases many months old: new devices may show as
-unknown. Update the system's hwdata package.
+unknown. Run **Update hardware lists** (Tools page, 2.4; it downloads only when you ask), or update
+the system's hwdata package.
 
-**Where Linux gets it.** The header lines of the `.ids` files.
+**Where Linux gets it.** The header lines of the `.ids` files in use: since 2.4 the newer of the
+copies in `~/.local/share/srs/lists` (from Update hardware lists) and the system's.
 
 ---
 ## SMB end  

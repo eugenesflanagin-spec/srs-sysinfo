@@ -733,17 +733,21 @@ instead.
 **In plain words.** GPIO (General Purpose Input/Output) pins are simple on/off signals the chipset
 uses for LEDs, buttons, and enabling or resetting other chips. This item lists the GPIO controllers.
 
-**What you see.** One line per GPIO chip: `gpiochipN  <ACPI device>  <name>  driver <driver>`, then a
-note that pin states are not read, and how root can see them (`cat /sys/kernel/debug/gpio`).
+**What you see.** One line per GPIO chip: `gpiochipN  <ACPI device>  <name>  driver <driver>`. Then, with
+the root data (2.4), **Pin states**: the kernel's own GPIO table as srs-root copied it - per chip its
+lines, and for AMD's pin controller one row per pin with interrupt, trigger, wake, pull (↑ up, ↓ down),
+direction and level (`input ↑`, `output ↓`), debounce and the raw register value. Tabs are expanded so
+the rows stay aligned. Without root data, a note says how to get it (Menu > Run as root).
 
 **Healthy / typical values.** On the author's PC: `gpiochip0  AMDI0030:00  AMD GPIO Controller  driver amd_gpio`
 (the FCH (Fusion Controller Hub) pins) and `gpiochip1  AMDIF031:00  AMD GPIO Controller  driver pt-gpio`
-(the chipset's pins).
+(the chipset's pins); 256 pins on gpiochip0, most of them unused inputs.
 
 **Unusual values and what they suggest.** "no GPIO chips" on an AMD board means `pinctrl_amd` is not
 loaded. Some laptops need it for the touchpad interrupt.
 
-**Where Linux gets it.** `/sys/bus/gpio/devices`.
+**Where Linux gets it.** `/sys/bus/gpio/devices`; pin states from `/sys/kernel/debug/gpio` (root, read
+only), copied by srs-root into `gpio.txt`.
 
 ---
 

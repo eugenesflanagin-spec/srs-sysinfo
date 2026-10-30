@@ -561,12 +561,12 @@ The bottom line says how many GPU clients were visible and how many processes co
 ## GPU VBIOS status
 `gpu-bios` - Linux data
 
-**In plain words.** The version of the graphics card's own BIOS (VBIOS) and the versions of all the small firmware programs that run inside the GPU.
+**In plain words.** The version of the graphics card's own BIOS (VBIOS) and the versions of all the small firmware programs that run inside the GPU. Since 2.4, with the root data, also a look inside the VBIOS image itself (from the driver's own copy).
 
 **What you see.**
 - **VBIOS version** - the card maker's VBIOS part number.
 - **VBIOS build** - build number or date.
-- **Option ROM** - whether the PCI option ROM is exposed ("present (not read)"). SRS never reads it.
+- **Option ROM** - whether the PCI option ROM is exposed. When the image is cached: "present: the driver's copy of its image is shown below". SRS never reads the ROM itself (that would need a write to switch it on).
 - **Firmware versions** - one line per firmware the driver loaded, in hex. Common names on AMD:
 
 | Name | What it runs |
@@ -583,14 +583,28 @@ The bottom line says how many GPU clients were visible and how many processes co
 | `sdma`, `sdma2` | Copy engine firmware. |
 | `vcn` | Video codec firmware. |
 
-**Healthy / typical values.** On the author's PC: VBIOS `113-EXT108832-100`, build `00131175`; smc `0x00685000`, mes `0x00000097`, vcn `0x0910d021`. The exact values depend on the card and on the `linux-firmware` package.
+**VBIOS image (the driver's copy)** - AMD cards, after **Menu > Run as root** (2.4): srs-root copies the copy of the VBIOS that the `amdgpu` driver keeps in memory (debugfs `amdgpu_vbios`; the GPU is not accessed) into `~/.cache/srs/root/vbios-<pci address>.bin`. The page shows:
+
+| Field | Meaning |
+|---|---|
+| Size, Cache | Size of the copy and where it is saved |
+| Signature | `55 AA (PCI expansion ROM)` when the image starts like a valid option ROM |
+| Checksum | Whether the first image's bytes add up to 0 (mod 256), as they must |
+| Part number, Build string | The part number and build strings found in the image (for example `113-EXT108832-100`, `ATOMBIOSBK-AMD VER023.008.000.068.000001`) |
+| Image table | One row per image (PCIR structure): offset, size, PCI ID, code type (x86 legacy, UEFI ...) and whether it is the last |
+
+When the driver's copy ends before the last image, the page says so: the ROM holds more (usually the UEFI GOP driver), which the driver does not keep.
+
+**Healthy / typical values.** On the author's PC: VBIOS `113-EXT108832-100`, build `00131175`; image 58880 bytes, 55 AA, checksum valid, one legacy x86 image (the driver's copy ends there); smc `0x00685000`, mes `0x00000097`, vcn `0x0910d021`. The exact values depend on the card and on the `linux-firmware` package.
 
 **Unusual values and what they suggest.**
 - A firmware showing `0x00000000`: that firmware did not load. Check `dmesg | grep amdgpu` for firmware errors and update `linux-firmware`.
 - Firmware versions that changed after an update and new GPU problems started: a firmware regression is possible; compare with an older `linux-firmware`.
 - VBIOS version different from the maker's latest: you may want a VBIOS update, but only from the card maker, and only if it fixes something you have.
 
-**Where Linux gets it.** `/sys/class/drm/card0/device/vbios_version`, `vbios_build`, the presence of `rom`, and `/sys/class/drm/card0/device/fw_version/*_fw_version`.
+- Signature or checksum not valid: the driver's copy is damaged or not a ROM image; compare with the card maker's VBIOS file before trusting it.
+
+**Where Linux gets it.** `/sys/class/drm/card0/device/vbios_version`, `vbios_build`, the presence of `rom`, and `/sys/class/drm/card0/device/fw_version/*_fw_version`; the image from `/sys/kernel/debug/dri/<n>/amdgpu_vbios` (root), copied by srs-root into `vbios-<pci>.bin`.
 
 **Background.** The VBIOS lives on a chip on the card. It brings the card up at power-on (so you see the boot screen) and holds the board's power and clock tables. The other firmware files are loaded by the Linux driver from `/usr/lib/firmware/amdgpu` every boot.
 
@@ -1209,7 +1223,7 @@ You can open `monitors:DP-3` to show only one output. The last line gives the da
 | Driver version | Driver build. |
 | Profile | `FULL_PROFILE` (full standard) or `EMBEDDED_PROFILE` (reduced feature set). |
 
-A note at the end names the source (`clinfo`) and the ICD folder. If `clinfo` is missing it says "not installed"; if it prints nothing: "no output (no OpenCL platform?)".
+A note at the end names the source (`clinfo`) and the ICD folder. If `clinfo` is missing it says "not installed"; if it prints nothing: "no output (no OpenCL platform?)". Both kinds of `clinfo` are understood (2.4): ROCm's (`/opt/rocm/bin/clinfo`, "Key:  value") and the cross-vendor one most distributions ship (`/usr/bin/clinfo`, "Key   value"), whose key names are mapped onto the same rows; each platform shows its own version, and clinfo's lines about the NULL platform at the end are skipped.
 
 **Healthy / typical values.** On the author's PC there are 2 platforms:
 - **AMD Accelerated Parallel Processing** (ROCm), OpenCL 2.1 platform: RX 9070 XT, 32 compute units, 2400 MHz, global memory 17095983104 bytes (15.92 GiB), max allocation about 14.5 GB, local memory 65536, name `gfx1201`, OpenCL C 2.0, driver 3581.0, FULL_PROFILE.

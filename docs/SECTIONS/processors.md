@@ -101,17 +101,38 @@ range. The CPU then picks the exact clock many times per second.
 
 ---
 ## AMD Fuses  
-`amd-fus` - Linux data - Needs root data
+`amd-fus` - Linux data
 
 **In plain words.** Fuses are one-time settings burned into the chip at the factory (which cores are on,
-limits, and so on). SRS does not read them.
+limits, and so on). The fuse registers themselves are not read, but since 2.4 this page shows the
+per-core factory values that Linux can read without root: how fast each core can go and AMD's quality
+ranking of the cores.
 
 **What you see.**
-- **Status** - always `Not read`.
-- **Reason** - reading fuses needs SMN (System Management Network) register access through the
-  `ryzen_smu` driver, which means writing to the driver. SRS stays read-only, so it never does this.
+- **amd_pstate driver** (active, passive, guided), **Preferred cores (kernel)** and **Preferred cores
+  (CPU)** - whether Linux and the CPU use the core ranking.
+- **Per-core factory values** - one row per logical CPU: **CPU**, **Core** (`-` when the core id is
+  missing), **Highest perf** (the highest performance level), **Ranking** (the preferred-core ranking),
+  **Max MHz** and **Lowest non-linear MHz**.
+- **Best ranked CPUs** - the CPUs with the highest ranking, and the value.
+- A plain-English note: the ranking is the factory quality order of the cores, set by AMD when the CPU
+  was made and reported by the firmware; a higher number means the core reaches higher clocks, and
+  Linux uses it to put busy tasks on the best cores ("preferred cores").
+- **Fuse registers** - "not read": the physical fuse registers (CCD and core disable, part options)
+  need SMN access.
 
-**Where Linux gets it.** It would come from `/sys/kernel/ryzen_smu_drv/smn` (root, write-then-read).
+**Healthy / typical values.** On the author's 7800X3D: amd_pstate active, preferred cores enabled;
+highest perf 166 on every core, rankings 166-196, best ranked CPUs 1, 5, 9, 13 (196); max 5053 MHz,
+lowest non-linear 2983 MHz. Both threads of a core share its ranking.
+
+**Unusual values and what they suggest.** "Per-core data: not available": the CPU is not run by the
+amd_pstate driver (older CPUs, or `amd_pstate=disable`). All rankings equal, or preferred cores "disabled": the BIOS
+or the kernel turned the feature off (`amd_prefcore=disable`), or the CPU does not report it.
+
+**Where Linux gets it.** `/sys/devices/system/cpu/cpu*/cpufreq/amd_pstate_highest_perf`,
+`amd_pstate_prefcore_ranking`, `amd_pstate_max_freq`, `amd_pstate_lowest_nonlinear_freq`,
+`amd_pstate_hw_prefcore`, `/sys/devices/system/cpu/amd_pstate/status` and `prefcore` (no root). The fuse registers would need
+`/sys/kernel/ryzen_smu_drv/smn` (root).
 
 ---
 ## AMD PM Table  
@@ -355,8 +376,8 @@ same kind of facts straight from `/proc/cpuinfo` for one CPU (CPU-0 unless anoth
 - **address sizes** - physical and virtual address bits.
 - **power management** - power features (`ts` thermal sensor, `hwpstate` hardware P-states, `cpb` core
   boost, and so on; unknown bits appear as `[13]`, `[14]`).
-- **flags** - every CPU feature the kernel found (long list).
-- **vmx flags** - Intel VT-x sub-features; empty on AMD.
+- **flags** - every CPU feature the kernel found (long list), wrapped to about 90 characters a line (2.4).
+- **vmx flags** - Intel VT-x sub-features; left out when empty, as on AMD (2.4).
 
 **Healthy / typical values.** On the author's 7800X3D: family 25, model 97, stepping 2, microcode
 0xa60120c, cache size 1024 KB, 16 siblings, 8 cpu cores, address sizes 48 bits physical / 48 bits virtual,
@@ -798,6 +819,9 @@ and one column per CPU with the 64-bit value in hex (`n/a` if unreadable). The r
 | RAPL_PWR_UNIT | Units for the energy counters. |
 | CORE_ENERGY_STAT / PKG_ENERGY_STAT | Raw energy counters for the core and the whole package. |
 
+Under the table, **What the registers are** explains each one in plain English (2.4), and a note
+points at [MSR Setup](#msr-setup) for the decoded values.
+
 **Healthy / typical values.** On the author's PC most registers are identical on every CPU (EFER
 0000000000009d01, CPPC_ENABLE 1). APIC_BASE differs only on CPU-0 (the boot CPU). MPERF, APERF, energy
 counters and CPPC_CAP1 differ per CPU, which is expected.
@@ -826,21 +850,25 @@ once (`~/.cache/srs/root/msrs.txt`); SRS never writes any register.
 - **Decoded** (CPU 0, raw hex in brackets): each **P-state** (enabled or not, and its MHz from AMD's
   PStateDef: CpuFid[7:0] / CpuDfsId[13:8] x 200), **Core Performance Boost** (HWCR CpbDis, bit 25),
   **AMD-V (SVM) in EFER** (SVME bit 12: on = the kernel or a hypervisor has enabled SVM), **CPPC**
-  (CPPC_ENABLE), the **RAPL** energy and time units, and a note that energy counters need two readings
-  over time (see Power & Cost).
+  (CPPC_ENABLE), the **RAPL** energy and time units, and (2.4) **Package power** and **Core power**:
+  srs-root reads the energy counters twice, one second apart (`rapl.txt`), so the page shows the watts
+  of the whole package and of each CPU while Run as root ran - a little above idle, since Run as root
+  itself was busy. Live power: Power & Cost, Sensors > Power status.
 - **CPPC capabilities per CPU** - CPPC_CAP1's highest, nominal, lowest nonlinear and lowest performance
   for every CPU, highest first with a rank: the CPUs the scheduler prefers (amd_pstate preferred cores).
 - Voltages are not shown: the VID encoding of newer AMD CPUs (SVI3) could not be checked.
 
 **Healthy / typical values.** On the author's 7800X3D (family 19h): P0 4200 MHz (`0x800000004ab248a8`),
-P1 3000 MHz, P2 not used; boost on; SVM on; CPPC enabled; CPU0 181 / 138 / 98 / 14, the best cores 196.
+P1 3000 MHz, P2 not used; boost on; SVM on; CPPC enabled; package 38.4 W, cores 18 W in all while Run
+as root ran; CPU0 181 / 138 / 98 / 14, the best cores 196.
 
 **Unusual values and what they suggest.** Boost off: BIOS "Core Performance Boost" or a tool turned it
 off. No cache: run Menu > Run as root once. `module not loaded`: srs-root loads it; kernel lockdown
 (Secure Boot) can block it.
 
 **Where Linux gets it.** `/dev/cpu/N/msr` (read by srs-root as root), `/lib/modules/<kernel>/modules.builtin`,
-the cache `~/.cache/srs/root/msrs.txt` and `collected.txt`.
+the cache `~/.cache/srs/root/msrs.txt`, `rapl.txt` (AMD: PKG_ENERGY_STAT and CORE_ENERGY_STAT read twice,
+one second apart) and `collected.txt`.
 
 ---
 ## IBM/Cyrix MSRs  
