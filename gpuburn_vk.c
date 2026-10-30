@@ -20,6 +20,7 @@
 struct gb_ctx {
     gvk_dev g;
     int kind, prec, ready;
+    int fast;   /* GPU Burnin's register-blocked gemm32b / gemm64b (64 x 64 tiles), 2.4 */
     size_t n, es, bytes;
     gvk_buf a, b, c, ref, cnt, cntrb, sa, sb, rb;
     vki_Pipeline p1, p2, p3;
@@ -142,7 +143,7 @@ static double mget(const void *m, size_t idx, size_t es) { return es == 8 ? ((co
 static const uint32_t k_mul[16] = { 1, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53 };
 
 /* ---------------------------------------------------------------- prep */
-static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxreps)
+static int prep_gemm(gb_ctx *c, int prec, int fast, size_t n, double *work, unsigned *maxreps)
 {
     static const int tests = 64;
     size_t es = prec == GP_FP64 ? 8 : 4, bytes;
@@ -155,14 +156,18 @@ static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxr
     if (prec == GP_FP16 && !c->g.fp16) { snprintf(c->err, sizeof c->err, "this device has no FP16 shader arithmetic"); return GBP_UNSUPPORTED; }
     if (prec == GP_FP64 && !c->g.fp64) { snprintf(c->err, sizeof c->err, "this device has no FP64 shader arithmetic"); return GBP_UNSUPPORTED; }
     if (prec == GP_INT32) return GBP_UNSUPPORTED;
+    if (fast && prec != GP_FP32 && prec != GP_FP64) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for FP32 and FP64 only"); return GBP_UNSUPPORTED; }
+    if (fast) { n = n / 64 * 64; if (n < 64) n = 64; }
+    c->fast = fast;
     n = n / 16 * 16;
     if (n < 16) n = 16;
     if (prec == GP_FP16 && n > 2048) n = 2048;   /* whole numbers up to 2048 are exact in half precision */
     bytes = n * n * es;
     if (bytes > c->g.max_storage) return GBP_UNSUPPORTED;
     c->n = n; c->es = es; c->bytes = bytes; c->words = (uint32_t)(bytes / 4);
-    spv = prec == GP_FP64 ? spv_gemm64 : prec == GP_FP16 ? spv_gemm16 : spv_gemm32;
-    sb = prec == GP_FP64 ? sizeof spv_gemm64 : prec == GP_FP16 ? sizeof spv_gemm16 : sizeof spv_gemm32;
+    spv = fast ? (prec == GP_FP64 ? spv_gemm64b : spv_gemm32b) : prec == GP_FP64 ? spv_gemm64 : prec == GP_FP16 ? spv_gemm16 : spv_gemm32;
+    sb = fast ? (prec == GP_FP64 ? sizeof spv_gemm64b : sizeof spv_gemm32b)
+              : prec == GP_FP64 ? sizeof spv_gemm64 : prec == GP_FP16 ? sizeof spv_gemm16 : sizeof spv_gemm32;
     c->ready = 1;
     if ((rc = new_buf(c, &c->sa, bytes, GVK_UPLOAD)) || (rc = new_buf(c, &c->sb, bytes, GVK_UPLOAD)) ||
         (rc = new_buf(c, &c->a, bytes, GVK_DEVICE)) || (rc = new_buf(c, &c->b, bytes, GVK_DEVICE)) ||
@@ -181,7 +186,7 @@ static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxr
     gvk_copy(&c->g, &c->sa, &c->a, bytes);
     gvk_copy(&c->g, &c->sb, &c->b, bytes);
     gvk_barrier(&c->g);
-    gvk_dispatch2(&c->g, c->p1, c->s3, pc, sizeof pc, (uint32_t)(n / 16), (uint32_t)(n / 16));
+    gvk_dispatch2(&c->g, c->p1, c->s3, pc, sizeof pc, (uint32_t)(n / (fast ? 64 : 16)), (uint32_t)(n / (fast ? 64 : 16)));
     gvk_barrier(&c->g);
     gvk_copy(&c->g, &c->ref, &c->rb, bytes);
     if ((rc = shot(c, &s))) return rc;
@@ -191,6 +196,16 @@ static int prep_gemm(gb_ctx *c, int prec, size_t n, double *work, unsigned *maxr
         double e = 0;
         for (k = 0; k < n; k++) e += mget(c->sa.map, r * n + k, es) * mget(c->sb.map, k * n + q, es);
         if (mget(c->rb.map, r * n + q, es) != e) c->prep_wrong++;
+    }
+    {   /* 2.4: two whole rows as well (the samples alone can miss a kernel that writes to the wrong column) */
+        size_t rows[2] = { 0, n / 2 + 3 < n ? n / 2 + 3 : n - 1 }, q, k;
+        int rr;
+        for (rr = 0; rr < 2; rr++)
+            for (q = 0; q < n; q++) {
+                double e = 0;
+                for (k = 0; k < n; k++) e += mget(c->sa.map, rows[rr] * n + k, es) * mget(c->sb.map, k * n + q, es);
+                if (mget(c->rb.map, rows[rr] * n + q, es) != e) c->prep_wrong++;
+            }
     }
     *work = 2.0 * (double)n * (double)n * (double)n;
     *maxreps = 4096;
@@ -301,10 +316,10 @@ static int vk_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
     c->kind = kind; c->prec = prec; c->prep_wrong = 0; c->verified = 0; c->seed = 0; c->err[0] = 0;
     *work = 0; *maxreps = 1;
     if (variant == GV_LIB) { snprintf(c->err, sizeof c->err, "Vulkan has no vendor library, only its own kernels"); return GBP_UNSUPPORTED; }
-    if (variant != GV_OWN) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP and OpenCL only"); return GBP_UNSUPPORTED; }
+    if (variant == GV_FAST && kind != GK_GEMM) return GBP_UNSUPPORTED;
     if (c->g.abandoned || c->g.lost) { snprintf(c->err, sizeof c->err, "%s", c->g.err); return GBP_LOST; }
     switch (kind) {
-    case GK_GEMM: rc = prep_gemm(c, prec, n, work, maxreps); break;
+    case GK_GEMM: rc = prep_gemm(c, prec, variant == GV_FAST, n, work, maxreps); break;
     case GK_FMA: rc = prep_fma(c, prec, n, work, maxreps); break;
     case GK_COPY: rc = prep_copy(c, n, work, maxreps); break;
     case GK_UPLOAD: case GK_DOWNLOAD: rc = prep_xfer(c, kind, n, work, maxreps); break;
@@ -351,7 +366,7 @@ static int vk_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         gvk_fill(&c->g, &c->cnt, 0);
         gvk_barrier(&c->g);
         for (i = 0; i < reps; i++) {
-            gvk_dispatch2(&c->g, c->p1, c->s1, pc, sizeof pc, (uint32_t)(c->n / 16), (uint32_t)(c->n / 16));
+            gvk_dispatch2(&c->g, c->p1, c->s1, pc, sizeof pc, (uint32_t)(c->n / (c->fast ? 64 : 16)), (uint32_t)(c->n / (c->fast ? 64 : 16)));
             gvk_barrier(&c->g);
             cmp_dispatch(c, c->s2, c->words);
             gvk_barrier(&c->g);

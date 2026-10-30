@@ -1,0 +1,37 @@
+// gemm32b.comp - SRS GPU Burnin: register-blocked matrix multiply C = A * B (FP32), the Vulkan twin of
+// gemm_b in gpu_kernels.h. A 16 x 16 work-group makes a 64 x 64 tile of C, every invocation 4 x 4 results (rows
+// ty + 16 i, columns tx + 16 j): 16 multiply-adds per 8 shared-memory reads, so the GPU is loaded much harder than
+// by gemm32.comp (which the GPU Compute comparison keeps). Same summation order as gemm32, 0 / 1 inputs: identical
+// results. n must be a multiple of 64; dispatch n/64 x n/64 groups.
+#version 450
+#extension GL_EXT_control_flow_attributes : enable
+layout(local_size_x = 16, local_size_y = 16) in;
+layout(push_constant) uniform PC { uint n, u1, u2, u3, u4, u5, u6, u7; } pc;
+layout(std430, binding = 0) readonly buffer A { float a[]; };
+layout(std430, binding = 1) readonly buffer B { float b[]; };
+layout(std430, binding = 2) writeonly buffer C { float c[]; };
+shared float sa[16][65];
+shared float sb[16][64];
+
+void main()
+{
+    uint tx = gl_LocalInvocationID.x, ty = gl_LocalInvocationID.y, tid = ty * 16u + tx, n = pc.n;
+    uint row0 = gl_WorkGroupID.y * 64u, col0 = gl_WorkGroupID.x * 64u;
+    float acc[4][4];
+    [[unroll]] for (uint i = 0u; i < 4u; i++) [[unroll]] for (uint j = 0u; j < 4u; j++) acc[i][j] = float(0);
+    for (uint t = 0u; t < n; t += 16u) {
+        [[unroll]] for (uint l = 0u; l < 4u; l++) {
+            uint x = tid + 256u * l;
+            sa[x & 15u][x >> 4u] = a[(row0 + (x >> 4u)) * n + t + (x & 15u)];
+            sb[x >> 6u][x & 63u] = b[(t + (x >> 6u)) * n + col0 + (x & 63u)];
+        }
+        barrier();
+        [[unroll]] for (uint k = 0u; k < 16u; k++) {
+            float av[4], bv[4];
+            [[unroll]] for (uint i = 0u; i < 4u; i++) { av[i] = sa[k][ty + 16u * i]; bv[i] = sb[k][tx + 16u * i]; }
+            [[unroll]] for (uint i = 0u; i < 4u; i++) [[unroll]] for (uint j = 0u; j < 4u; j++) acc[i][j] = fma(av[i], bv[j], acc[i][j]);
+        }
+        barrier();
+    }
+    [[unroll]] for (uint i = 0u; i < 4u; i++) [[unroll]] for (uint j = 0u; j < 4u; j++) c[(row0 + ty + 16u * i) * n + col0 + tx + 16u * j] = acc[i][j];
+}
