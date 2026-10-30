@@ -2,7 +2,8 @@
 # srs-root - collect root-only data for srs-gui (run through pkexec; one prompt).
 # Writes ~/.cache/srs/root/ of the invoking user and hands the files back to them.
 # Read-only on the hardware side: dmidecode, decode-dimms, smartctl/nvme queries, MSR reads,
-# lspci config dumps and copies of /sys/firmware/acpi/tables. Nothing is written to devices.
+# lspci config dumps, copies of /sys/firmware/acpi/tables and AMD memory-controller registers (SMN reads through
+# ryzen_smu: an address is written to its smn file, which only selects what to read). Nothing is written to devices.
 # `srs-root --user NAME` collects for NAME (used by the srs-root@NAME.service boot unit).
 set -u
 uid=${PKEXEC_UID:-$(id -u)}
@@ -74,6 +75,41 @@ modprobe msr 2>/dev/null
 EOF
 } > msrs.txt 2>&1
 log msrs
+# 2.4: AMD memory controller (UMC) registers for the Memory Timings page, read through the ryzen_smu driver.
+# Writing exactly 4 bytes (an SMN address) to its smn file makes the driver READ that address; never 8 bytes (= a write).
+# Only Ryzen 7000 / 9000 desktop (family 19h models 60h-7Fh, 1Ah models 40h-4Fh), whose register map was checked.
+fam=$(awk -F': ' '/^cpu family/{print $2; exit}' /proc/cpuinfo); mod=$(awk -F': ' '/^model\t/{print $2; exit}' /proc/cpuinfo)
+vend=$(awk -F': ' '/^vendor_id/{print $2; exit}' /proc/cpuinfo)
+SMN=/sys/kernel/ryzen_smu_drv/smn
+rm -f umc.txt
+if [ "$vend" = AuthenticAMD ] && { { [ "${fam:-0}" = 25 ] && [ "${mod:-0}" -ge 96 ] && [ "${mod:-0}" -le 127 ]; } ||
+                                   { [ "${fam:-0}" = 26 ] && [ "${mod:-0}" -ge 64 ] && [ "${mod:-0}" -le 79 ]; }; }; then
+  if [ -w "$SMN" ]; then
+    tmp=$(mktemp)
+    smn_rd() {   # one address -> 8 hex digits; the 4-byte request goes out in one write() through dd
+      local a=$1
+      printf "\\x$(printf %02x $((a & 255)))\\x$(printf %02x $(((a >> 8) & 255)))\\x$(printf %02x $(((a >> 16) & 255)))\\x$(printf %02x $(((a >> 24) & 255)))" > "$tmp"
+      [ "$(stat -c %s "$tmp")" = 4 ] || return 1
+      dd if="$tmp" of="$SMN" bs=4 count=1 status=none 2>/dev/null || return 1
+      od -An -tx4 -N4 "$SMN" | tr -d ' '
+    }
+    (
+      flock -w 10 9 || exit 1   # one SMN user at a time (the driver keeps a single result)
+      echo "# AMD UMC registers, family $fam model $mod, $(date -Is)"
+      for ch in 0 1 2 3; do
+        for off in 0x50000 0x50004 0x50008 0x5000C 0x50020 0x50024 0x50028 0x5002C 0x50040 0x50044 0x50048 0x5004C \
+                   0x50100 0x5012C 0x50130 0x5014C 0x50198 $(seq 0x50200 4 0x502E0 | xargs printf '0x%X ') 0x50DF0 0x50DF4; do
+          a=$(((ch << 20) | off)); v1=$(smn_rd $a) && v2=$(smn_rd $a) || continue
+          [ "$v1" = "$v2" ] && printf 'ch%d 0x%05X %s\n' "$ch" "$off" "$v1"   # a value that changed between reads is left out
+        done
+      done
+    ) 9>/run/lock/srs-smn.lock > umc.txt
+    rm -f "$tmp"
+    log umc
+  else
+    echo "# not read: the ryzen_smu driver is not loaded (no $SMN)" > umc.txt
+  fi
+fi
 date > collected.txt
 chown -R "$uid" "$out"
 log "done -> $out"

@@ -12,6 +12,7 @@
  * /dev/port, /dev/tpm*, i2c devices or SMN registers. */
 #define _GNU_SOURCE
 #include "sec.h"
+#include "mem_timings.h"
 
 #include <ctype.h>
 #include <stdint.h>
@@ -2778,26 +2779,264 @@ static void s_heci(srs_out *o)
 }
 
 /* [mem-tweak] */
+/* ======================================================================
+ * Memory Timings (2.4): live DDR5 timings from the AMD memory controller (UMC registers, read as root by srs-root
+ * through the ryzen_smu driver into umc.txt), clocks and voltages from ryzen_smu's PM table (readable by everyone),
+ * and every module's SPD (spd5118 driver, readable by everyone): JEDEC, EXPO and XMP 3.0 profiles. Read-only.
+ * Register map from ZenStates-Core / ZenTimings (Ivan Rusanov) and memtest86+ (Sam Demeulemeester): see mem_timings.c.
+ * ====================================================================== */
+typedef struct { int ok; float fclk, uclk, mclk, vsoc, vddp, vddg_iod, vddg_ccd, misc; unsigned ver; int checked; } mt_pmt;
+static void mt_pmt_read(mt_pmt *p)
+{
+    /* PM table layouts: version, FCLK, UCLK, MCLK, VDDCR_SOC, CLDO_VDDP, VDDG_IOD, VDDG_CCD, MISC byte offsets
+       (ZenStates-Core PowerTable.cs); checked = seen right on a real PC here */
+    static const struct { unsigned v, mask; int f, u, m, soc, vddp, iod, ccd, misc, checked; } L[] = {
+        { 0x540100, 0xFFFFF0, 0x118, 0x128, 0x138, 0xD0, 0x430, -1, -1, 0xB8, 1 },    /* Ryzen 7000 (Raphael); 0x540104 checked */
+        { 0x621100, 0xFFFF00, 0x11C, 0x12C, 0x13C, 0xD8, 0x434, 0x40C, 0x414, 0xC0, 0 },   /* Ryzen 9000 (Granite Ridge), 1 CCD */
+        { 0x621200, 0xFFFF00, 0x11C, 0x12C, 0x13C, 0xD8, 0x434, 0x40C, 0x414, 0xC0, 0 },   /* 2 CCDs */
+    };
+    const char *dir = getenv("SRS_RSMU_DIR");
+    char path[600];
+    unsigned char *t = NULL;
+    int n, i;
+    unsigned ver = 0;
+    FILE *f;
+    memset(p, 0, sizeof *p);
+    if (!dir || !*dir) dir = "/sys/kernel/ryzen_smu_drv";
+    snprintf(path, sizeof path, "%s/pm_table_version", dir);
+    if (!(f = fopen(path, "rb"))) return;
+    if (fread(&ver, 1, 4, f) != 4) ver = 0;
+    fclose(f);
+    p->ver = ver;
+    snprintf(path, sizeof path, "%s/pm_table", dir);
+    if ((n = rd_all(path, (char **)&t)) <= 0) { free(t); return; }
+    for (i = 0; i < (int)(sizeof L / sizeof L[0]); i++)
+        if ((ver & L[i].mask) == L[i].v && n >= L[i].vddp + 4) {
+#define PF(dst, off) do { if ((off) >= 0 && (off) + 4 <= n) memcpy(&(dst), t + (off), 4); } while (0)
+            PF(p->fclk, L[i].f); PF(p->uclk, L[i].u); PF(p->mclk, L[i].m); PF(p->vsoc, L[i].soc); PF(p->vddp, L[i].vddp);
+            PF(p->vddg_iod, L[i].iod); PF(p->vddg_ccd, L[i].ccd); PF(p->misc, L[i].misc);
+#undef PF
+            p->ok = p->mclk > 200 && p->mclk < 6000;
+            p->checked = L[i].checked;
+            break;
+        }
+    free(t);
+}
+
+/* one module's SPD: the spd5118 client at SMBus 0x50 + slot index (the hwmon pairing), cross-checked by part number */
+static int mt_spd_load(const char *dev, mt_spd *s)
+{
+    char path[300];
+    unsigned char *d = NULL;
+    int n;
+    snprintf(path, sizeof path, "%s/%s/eeprom", getenv("SRS_SPD_DIR") ? getenv("SRS_SPD_DIR") : "/sys/bus/i2c/drivers/spd5118", dev);
+    n = rd_all(path, (char **)&d);
+    mt_spd_decode(d, n > 0 ? (size_t)n : 0, s);
+    free(d);
+    return s->ok;
+}
+
+static void mt_ns(char *b, size_t n, int clk, int mts)
+{
+    double ns = clk >= 0 && mts > 0 ? clk * 2000.0 / mts : -1;
+    if (ns < 0) snprintf(b, n, "-");
+    else if (ns >= 1000) snprintf(b, n, "%.2f us", ns / 1000);
+    else snprintf(b, n, "%.2f ns", ns);
+}
+
+static void mt_maker(char *b, size_t n, unsigned code)
+{
+    const char *m = mt_jep106(code);
+    if (m) snprintf(b, n, "%s", m);
+    else if (code) snprintf(b, n, "JEP106 bank %u, 0x%02X", (code >> 8) + 1, code & 0x7F);
+    else snprintf(b, n, "-");
+}
+
+static void mt_prof_row(srs_out *o, const char *name, const mt_prof *p)
+{
+    char c[6][96];
+    const char *cells[6] = { c[0], c[1], c[2], c[3], c[4], c[5] };
+    static const int col[6] = { C_LABEL, C_VALUE, C_VALUE, C_VALUE, C_VALUE, C_VALUE };
+    if (!p->valid) return;
+    snprintf(c[0], sizeof c[0], "%s", name);
+    snprintf(c[1], sizeof c[1], "%d MT/s", p->mts);
+    snprintf(c[2], sizeof c[2], "%d-%d-%d-%d-%d", p->cl, p->rcd, p->rp, p->ras, p->rc);
+    snprintf(c[3], sizeof c[3], "%d / %d / %d ns", p->rfc1ns, p->rfc2ns, p->rfcsbns);
+    if (p->vdd) snprintf(c[4], sizeof c[4], "%.3f / %.3f / %.3f V", p->vdd / 1000.0, p->vddq / 1000.0, p->vpp / 1000.0);
+    else snprintf(c[4], sizeof c[4], "-");
+    snprintf(c[5], sizeof c[5], "%s", p->name);
+    so_row(o, 6, cells, col);
+}
+
 static void s_mem_tweak(srs_out *o)
 {
     static const int tabs[] = { 220 };
+    static const int ttabs[] = { 110, 190, 270, 380 };
+    static const int ptabs[] = { 120, 230, 380, 550, 740 };
+    static mt_umc ch[MT_NCH];
+    const char *cache = so_root_file("umc.txt");
+    char *txt = NULL, b[200], vend[64] = "";
+    mt_pmt pm;
     slot_t sl[16];
-    int src, n = slots_get(sl, 16, &src), i;
+    int src, nsl = slots_get(sl, 16, &src), nch = 0, i, k, mts = 0, nd, amd;
+    const mt_def *defs = mt_defs(&nd);
     so_siv_header(o, "Memory Timings");
     so_tabs(o, tabs, 1);
-    for (i = 0; i < n; i++)
-        if (sl[i].present) {
-            int mts = atoi(sl[i].cspeed);
-            so_kvf(o, "DRAM", C_BLACK, "%s %s, %s ranks %s", sl[i].type, sl[i].size, sl[i].form, sl[i].rank);
-            so_kv(o, "Configured Speed", C_GREEN, sl[i].cspeed);
-            if (mts) so_kvf(o, "MEMCLK", C_VALUE, "%d MHz (DDR: 2 transfers per clock)", mts / 2);
-            so_kv(o, "Rated (JEDEC) Speed", C_VALUE, sl[i].speed);
-            break;
+    {
+        FILE *f = fopen("/proc/cpuinfo", "r");
+        char l[256];
+        while (f && fgets(l, sizeof l, f)) if (!strncmp(l, "vendor_id", 9)) { sscanf(strchr(l, ':') + 1, "%63s", vend); break; }
+        if (f) fclose(f);
+    }
+    amd = !strcmp(vend, "AuthenticAMD");
+    if (cache && rd_all(cache, &txt) > 0) nch = mt_umc_parse(txt, ch);
+    for (i = 0; i < MT_NCH && !mts; i++) if (ch[i].present) mts = mt_umc_mts(&ch[i]);
+    mt_pmt_read(&pm);
+
+    so_head(o, "Clocks and voltages");
+    if (mts) so_kvf(o, "Memory speed", C_GREEN, "%d MT/s (MEMCLK %d MHz)", mts, mts / 2);
+    else {
+        for (i = 0; i < nsl; i++) if (sl[i].present && *sl[i].cspeed) { so_kvf(o, "Memory speed", C_VALUE, "%s (SMBIOS)", sl[i].cspeed); break; }
+    }
+    if (pm.ok) {
+        so_kvf(o, "MEMCLK", C_VALUE, "%.0f MHz", pm.mclk);
+        so_kvf(o, "UCLK", C_VALUE, "%.0f MHz (UCLK:MEMCLK %s)", pm.uclk, pm.uclk > pm.mclk * 0.75 ? "1:1" : "1:2");
+        so_kvf(o, "FCLK", C_VALUE, "%.0f MHz", pm.fclk);
+        so_kvf(o, "VSOC", C_VALUE, "%.4f V", pm.vsoc);
+        so_kvf(o, "VDDP", C_VALUE, "%.4f V", pm.vddp);
+        if (pm.vddg_iod > 0.3) so_kvf(o, "VDDG IOD / CCD", C_VALUE, "%.4f / %.4f V", pm.vddg_iod, pm.vddg_ccd);
+        else so_kv(o, "VDDG IOD / CCD", C_GRAY, "not in this PM table version");
+        if (pm.misc > 0.3) so_kvf(o, "VDD MISC", C_VALUE, "%.4f V", pm.misc);
+        if (!pm.checked) so_kvf(o, "PM table", C_ORANGE, "0x%06X: layout from ZenStates-Core, not checked on this CPU yet - please report wrong values", pm.ver);
+    } else if (amd) {
+        if (pm.ver) so_kvf(o, "Clocks / SoC voltages", C_GRAY, "not shown: PM table version 0x%06X is not known to SRS yet", pm.ver);
+        else so_kv(o, "Clocks / SoC voltages", C_GRAY, "not shown: the ryzen_smu driver is not loaded (it gives the PM table)");
+    }
+
+    if (nch) {
+        int first = -1, gdm, t2, pd, fgr, pb;
+        for (i = 0; i < MT_NCH; i++) if (ch[i].present) { first = i; break; }
+        gdm = mt_field(&ch[first], 0x50200, 18, 18);
+        t2 = mt_field(&ch[first], 0x50200, 17, 17);
+        pd = mt_field(&ch[first], 0x5012C, 28, 28);
+        fgr = mt_field(&ch[first], 0x5012C, 18, 16);
+        pb = mt_field(&ch[first], 0x5012C, 1, 1);
+        so_par(o);
+        so_head(o, "Memory controller");
+        {
+            char cl[16] = "";
+            for (i = 0; i < MT_NCH; i++) if (ch[i].present) { size_t l = strlen(cl); snprintf(cl + l, sizeof cl - l, "%s%c", l ? ", " : "", 'A' + i); }
+            so_kvf(o, "Channels with a DIMM", C_VALUE, "%d (%s)", nch, cl);
         }
-    so_kv(o, "ryzen_smu", C_VALUE, path_exists("/sys/kernel/ryzen_smu_drv") ? "loaded" : "not loaded");
-    so_kv(o, "Timing registers (UMC)", C_ORANGE, "not read: needs SMN register access (ryzen_smu smn writes); srs stays read-only");
-    so_note(o, "Primary/secondary timings (tCL, tRCD, tRP, tRAS, tRFC...) would come from the AMD UMC via SMN.");
-    so_note(o, "FCLK/UCLK/MCLK from the SMU PM table: see amd-pmt.");
+        so_kv(o, "Gear Down Mode (GDM)", C_VALUE, gdm < 0 ? "-" : gdm ? "Enabled" : "Disabled");
+        so_kv(o, "Command rate", C_VALUE, t2 < 0 ? "-" : t2 ? "2T" : "1T");
+        so_kv(o, "Power down", C_VALUE, pd < 0 ? "-" : pd ? "Enabled" : "Disabled");
+        so_kv(o, "Bank groups", C_VALUE, mt_field(&ch[first], 0x50200, 16, 16) == 1 ? "Enabled" : "Disabled");
+        so_kv(o, "Refresh mode", C_VALUE, fgr < 0 ? "-" : pb == 1 ? (fgr ? "Mixed (fine granularity + per bank)" : "Per bank") :
+                                         fgr ? "Fine granularity (FGR)" : "Normal");
+        {
+            unsigned nv;
+            if (mt_reg(&ch[first], 0x50284, &nv))
+                so_kvf(o, "Nitro mode (Rx / Tx / Ctrl)", C_VALUE, "%u / %u / %u", (nv >> 8) & 3, (nv >> 4) & 3, nv & 3);
+        }
+        so_par(o);
+        so_head(o, "Timings (memory controller clocks; time at the current speed)");
+        so_tabs(o, ttabs, 4);
+        {
+            const char *h[5] = { "Timing", "Channel A", "Channel B", "Time", "What it is" };
+            static const int hc[5] = { C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL };
+            so_row(o, 5, h, hc);
+        }
+        {
+            int rf[MT_NCH][3];
+            for (i = 0; i < MT_NCH; i++) mt_umc_rfc(&ch[i], &rf[i][0], &rf[i][1], &rf[i][2]);
+            int order[64], no = 0, j;
+            for (j = 0; j < nd && no < 60; j++) {   /* tRFC, tRFC2, tRFCsb right after tREFI */
+                order[no++] = j;
+                if (!strcmp(defs[j].name, "tREFI")) { order[no++] = nd; order[no++] = nd + 1; order[no++] = nd + 2; }
+            }
+            for (j = 0; j < no; j++) {
+                k = order[j];
+                char c[5][120];
+                const char *cells[5] = { c[0], c[1], c[2], c[3], c[4] };
+                static const int col[5] = { C_LABEL, C_VALUE, C_VALUE, C_GRAY, C_GRAY };
+                int va = -1, vb = -1, ns = 1, r;
+                const char *name, *what;
+                if (k < nd) { name = defs[k].name; what = defs[k].what; va = mt_field(&ch[0], defs[k].off, defs[k].hi, defs[k].lo);
+                              vb = mt_field(&ch[1], defs[k].off, defs[k].hi, defs[k].lo); ns = defs[k].ns; }
+                else {
+                    static const char *const rn[3] = { "tRFC", "tRFC2", "tRFCsb" };
+                    static const char *const rw[3] = { "refresh cycle (all banks)", "refresh cycle, fine granularity", "same-bank refresh cycle" };
+                    r = k - nd;
+                    name = rn[r]; what = rw[r]; va = rf[0][r]; vb = rf[1][r];
+                }
+                if (!ch[0].present) va = -1;
+                if (!ch[1].present) vb = -1;
+                snprintf(c[0], sizeof c[0], "%s", name);
+                if (va >= 0) snprintf(c[1], sizeof c[1], "%d", va); else snprintf(c[1], sizeof c[1], "-");
+                if (vb >= 0) snprintf(c[2], sizeof c[2], "%d", vb); else snprintf(c[2], sizeof c[2], "-");
+                if (ns) mt_ns(c[3], sizeof c[3], va >= 0 ? va : vb, mts); else snprintf(c[3], sizeof c[3], " ");
+                snprintf(c[4], sizeof c[4], "%s", what);
+                so_row(o, 5, cells, col);
+            }
+        }
+        so_tabs(o, tabs, 1);
+    } else {
+        so_par(o);
+        so_head(o, "Timings");
+        if (!amd) so_kv(o, "Status", C_GRAY, "live timings are read on AMD Ryzen 7000 / 9000 desktop processors so far (Intel: planned)");
+        else if (txt && strstr(txt, "not read")) so_kv(o, "Status", C_ORANGE, "the ryzen_smu driver is not loaded: install ryzen_smu (AUR ryzen_smu-dkms-git), then Menu > Run as root");
+        else if (cache) so_kv(o, "Status", C_GRAY, "this processor's memory controller is not supported yet (Ryzen 7000 / 9000 desktop so far)");
+        else so_kv(o, "Status", C_ORANGE, "needs root once: Menu > Run as root (one password prompt; the registers are only read)");
+        so_kv(o, "Source", C_PURPLE, "AMD memory controller (UMC) registers through the ryzen_smu driver; the SPD profiles below need no root");
+    }
+    free(txt);
+
+    {   /* modules and their SPD profiles */
+        int shown = 0;
+        for (i = 0; i < nsl; i++) {
+            mt_spd s;
+            char mk[80], dm[80];
+            if (!sl[i].present || !*sl[i].spd_dev || !mt_spd_load(sl[i].spd_dev, &s)) continue;
+            if (!shown++) { so_par(o); so_head(o, "Modules (SPD)"); }
+            so_tabs(o, tabs, 1);
+            mt_maker(mk, sizeof mk, s.mfr);
+            mt_maker(dm, sizeof dm, s.dram_mfr);
+            snprintf(b, sizeof b, "%s %s", sl[i].bank, sl[i].loc);
+            so_kv(o, "Slot", C_BLACK, b);
+            if (*sl[i].part && *s.part && strcmp(sl[i].part, s.part) && strcmp(sl[i].part, "Unknown"))
+                so_kvf(o, "Note", C_ORANGE, "SMBIOS names %s for this slot, the SPD at %s says %s", sl[i].part, sl[i].spd_dev, s.part);
+            so_kvf(o, "Module", C_VALUE, "%s %s", mk, *s.part ? s.part : "(no part number)");
+            so_kvf(o, "Size", C_VALUE, "%.0f GB, %d rank%s, %d Gb x%d chips%s%s", s.size_gb, s.ranks, s.ranks > 1 ? "s" : "", s.density_gb, s.width,
+                   s.dies > 1 ? ", stacked " : "", s.dies > 1 ? "(3DS)" : "");
+            so_kv(o, "DRAM chips", C_VALUE, dm);
+            if (s.year) so_kvf(o, "Made", C_VALUE, "%d, week %d", s.year, s.week);
+            {   /* the module's own temperature sensor (spd5118 hub) */
+                spdmon m[8];
+                int nm = spd_monitors(m, 8), q;
+                for (q = 0; q < nm; q++)
+                    if (!strcmp(m[q].dev, sl[i].spd_dev)) {
+                        char tv[32];
+                        milli(m[q].hw, "temp1_input", tv, sizeof tv);
+                        if (strcmp(tv, "-")) so_kv(o, "Temperature", C_VALUE, tv);
+                    }
+            }
+            so_tabs(o, ptabs, 5);
+            {
+                const char *h[6] = { "Profile", "Speed", "CL-RCD-RP-RAS-RC", "tRFC1 / 2 / sb", "VDD / VDDQ / VPP", "Name" };
+                static const int hc[6] = { C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL };
+                so_row(o, 6, h, hc);
+            }
+            mt_prof_row(o, "JEDEC", &s.jedec);
+            for (k = 0; k < 2; k++) { char nm[24]; snprintf(nm, sizeof nm, "EXPO %d", k + 1); mt_prof_row(o, nm, &s.expo[k]); }
+            for (k = 0; k < 3; k++) { char nm[24]; snprintf(nm, sizeof nm, "XMP %d", k + 1); mt_prof_row(o, nm, &s.xmp[k]); }
+            so_par(o);
+        }
+        so_tabs(o, tabs, 1);
+        if (!shown) so_kv(o, "SPD", C_GRAY, "not read: the spd5118 (DDR5) driver has no modules here, or the modules are not DDR5");
+    }
+    so_note(o, "Everything on this page is only read. Live timings: AMD memory controller registers (srs-root, ryzen_smu driver);");
+    so_note(o, "register map from ZenStates-Core / ZenTimings by Ivan Rusanov and memtest86+ by Sam Demeulemeester. Profiles: the modules' SPD.");
     so_board_footer(o);
 }
 
@@ -2814,7 +3053,7 @@ const srs_item sec_machine[] = {
     { "spd", "hardware", "SPD (DIMMs)", B_LINUX, 0, "spd.txt cache (decode-dimms); SMBIOS type 17", s_spd, 0, "machine" },
     { "spd-temp", "hardware", "SPD thermal", B_LINUX, 0, "/sys/class/hwmon (spd5118) temp1_*", s_spd_temp, 2000, "machine" },
     { "memory", "hardware", "Memory", B_LINUX, 0, "/proc/meminfo; /sys/devices/system/memory; edac", s_memory, 1000, "machine" },
-    { "mem-tweak", "hardware", "Memory timings", B_LINUX, 1, "SMBIOS type 17 (SMN timings not read)", s_mem_tweak, 0, "machine" },
+    { "mem-tweak", "hardware", "Memory timings", B_LINUX, 1, "umc.txt cache (srs-root, ryzen_smu SMN reads); ryzen_smu pm_table; spd5118 eeprom", s_mem_tweak, 0, "machine" },
     { "physical", "hardware", "Physical memory map", B_LINUX, 0, "/sys/firmware/memmap; iomem.txt cache", s_physical, 0, "machine" },
     { "bios-make", "hardware", "BIOS maker", B_LINUX, 0, "/sys/class/dmi/id/bios_*; dmidecode.txt cache", s_bios_make, 0, "machine" },
     { "bios-tables", "hardware", "BIOS / SMBIOS tables", B_LINUX, 1, "/sys/firmware/dmi/tables (sizes); dmidecode.txt cache", s_bios_tables, 0, "machine" },
