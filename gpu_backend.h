@@ -19,7 +19,7 @@ extern const char *const gb_name[GB_N];    /* "Vulkan", "ROCm / HIP", "CUDA", "O
 
 enum { GK_GEMM, GK_FMA, GK_COPY, GK_UPLOAD, GK_DOWNLOAD, GK_LATENCY, GK_N };
 enum { GP_FP32, GP_FP16, GP_FP64, GP_INT32 };
-enum { GV_OWN, GV_LIB, GV_FAST };           /* own kernel / vendor library (hipBLAS, cuBLAS, CLBlast) / GPU Burnin's register-blocked HIP kernel */
+enum { GV_OWN, GV_LIB, GV_FAST };           /* own kernel / vendor library (hipBLAS, cuBLAS, CLBlast) / GPU Burnin's register-blocked kernel (HIP, OpenCL) */
 
 /* what prep returns */
 enum { GBP_OK = 0, GBP_UNSUPPORTED = 1, GBP_ERROR = -1, GBP_HUNG = -2, GBP_LOST = -3 };

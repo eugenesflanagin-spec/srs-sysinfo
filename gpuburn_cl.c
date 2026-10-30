@@ -243,6 +243,7 @@ struct gb_ctx {
     cl_api *a;
     cl_h plat, dev, ctx, q, prog[2];
     cl_h k_gemm, k_fma, k_copy, k_cmp, k_tick;
+    cl_h k_gemmb;               /* GPU Burnin's register-blocked gemm_b (gpu_kernels.h); NULL when the driver did not give it */
     cl_h ba, bb, bc, bref, bcnt;
     int dead, kind, prec, variant, ready, built_fp64, has_fp64;
     size_t n, es, bytes, nthreads;
@@ -301,8 +302,8 @@ static void cl_close(gb_ctx *c)
     if (!c) return;
     cl_release(c);
     if (!c->dead) {   /* a hung GPU may still be using these: leave them */
-        cl_h *k[] = { &c->k_gemm, &c->k_fma, &c->k_copy, &c->k_cmp, &c->k_tick };
-        for (i = 0; i < 5; i++) if (*k[i]) c->a->ReleaseKernel(*k[i]);
+        cl_h *k[] = { &c->k_gemm, &c->k_fma, &c->k_copy, &c->k_cmp, &c->k_tick, &c->k_gemmb };
+        for (i = 0; i < 6; i++) if (*k[i]) c->a->ReleaseKernel(*k[i]);
         for (i = 0; i < 2; i++) if (c->prog[i]) c->a->ReleaseProgram(c->prog[i]);
         c->a->ReleaseQueue(c->q);
         c->a->ReleaseContext(c->ctx);
@@ -318,11 +319,11 @@ static int build(gb_ctx *c, int fp64)
     char *src = NULL;
     const char *sp;
     int e = 0, rc = GBP_ERROR;
-    cl_h *k[] = { &c->k_gemm, &c->k_fma, &c->k_copy, &c->k_cmp, &c->k_tick };
+    cl_h *k[] = { &c->k_gemm, &c->k_fma, &c->k_copy, &c->k_cmp, &c->k_tick, &c->k_gemmb };
     static const char *const kn[] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick" };
     int i;
     if (c->prog[fp64] && c->built_fp64 == fp64 + 1) return GBP_OK;
-    for (i = 0; i < 5; i++) if (*k[i]) { a->ReleaseKernel(*k[i]); *k[i] = NULL; }
+    for (i = 0; i < 6; i++) if (*k[i]) { a->ReleaseKernel(*k[i]); *k[i] = NULL; }
     c->built_fp64 = 0;   /* no kernel is loaded now: a failure below must not look like a finished build */
     if (!c->prog[fp64]) {
         if (!(src = gk_source(GKD_OPENCL, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
@@ -346,6 +347,9 @@ static int build(gb_ctx *c, int fp64)
         *k[i] = a->CreateKernel(c->prog[fp64], kn[i], &e);
         if (!*k[i] || e) { seterr(c, e, "finding a kernel"); goto out; }
     }
+    /* optional: without it GPU Burnin uses gemm_r (bench_gpuburn.c falls back on GBP_UNSUPPORTED) */
+    c->k_gemmb = a->CreateKernel(c->prog[fp64], "gemm_b", &e);
+    if (e) { if (c->k_gemmb) a->ReleaseKernel(c->k_gemmb); c->k_gemmb = NULL; }
     c->built_fp64 = fp64 + 1;
     rc = GBP_OK;
 out:
@@ -472,6 +476,11 @@ static int gemm_once(gb_ctx *c, cl_h dst, cl_h *ev)
         if (s) { snprintf(c->err, sizeof c->err, "CLBlast failed (status %d)", s); return GBP_ERROR; }
         return GBP_OK;
     }
+    if (c->variant == GV_FAST) {   /* n/64 x n/64 work-groups of 16 x 16 */
+        if (setarg(c, c->k_gemmb, 0, sizeof(cl_h), &c->ba) || setarg(c, c->k_gemmb, 1, sizeof(cl_h), &c->bb) ||
+            setarg(c, c->k_gemmb, 2, sizeof(cl_h), &dst) || setarg(c, c->k_gemmb, 3, sizeof nn, &nn)) return GBP_ERROR;
+        return enq(c, c->k_gemmb, c->n / 4, c->n / 4, 16, 16, ev);
+    }
     if (setarg(c, c->k_gemm, 0, sizeof(cl_h), &c->ba) || setarg(c, c->k_gemm, 1, sizeof(cl_h), &c->bb) ||
         setarg(c, c->k_gemm, 2, sizeof(cl_h), &dst) || setarg(c, c->k_gemm, 3, sizeof nn, &nn)) return GBP_ERROR;
     return enq(c, c->k_gemm, c->n, c->n, 16, 16, ev);
@@ -503,10 +512,12 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         cl_h ev = NULL;
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through CLBlast only"); rc = GBP_UNSUPPORTED; break; }
-        if (variant == GV_FAST) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP only"); rc = GBP_UNSUPPORTED; break; }
+        if (variant == GV_FAST && prec != GP_FP32 && prec != GP_FP64) { snprintf(c->err, sizeof c->err, "the register-blocked kernel is for FP32 and FP64 only"); rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_LIB && !c->a->have_blast) { snprintf(c->err, sizeof c->err, "CLBlast is not installed"); rc = GBP_UNSUPPORTED; break; }
         if (prec == GP_FP64 && !c->has_fp64) { snprintf(c->err, sizeof c->err, "this OpenCL driver has no FP64 (double precision)"); rc = GBP_UNSUPPORTED; break; }
         if ((rc = build(c, prec == GP_FP64))) break;
+        if (variant == GV_FAST && !c->k_gemmb) { snprintf(c->err, sizeof c->err, "the register-blocked kernel did not load"); rc = GBP_UNSUPPORTED; break; }
+        if (variant == GV_FAST) { n = n / 64 * 64; if (n < 64) n = 64; }
         n = n / 16 * 16;
         if (n < 16) n = 16;
         if (prec == GP_FP16 && n > 2048) n = 2048;

@@ -236,8 +236,9 @@ static void *worker_main(void *arg)
         else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
-    /* ROCm / HIP: the register-blocked kernel first (hipRTC makes gemm_r too slow to load the GPU fully), then gemm_r, then hipBLAS */
-    if (w->info.backend == GB_HIP && !getenv("SRS_GPUBURN_SIMPLE")) {
+    /* ROCm / HIP and OpenCL: the register-blocked kernel first (their compilers make gemm_r too slow to load the GPU fully),
+       then gemm_r, then the vendor library */
+    if ((w->info.backend == GB_HIP || w->info.backend == GB_OPENCL) && !getenv("SRS_GPUBURN_SIMPLE")) {
         rc = w->ops->prep(ctx, GK_GEMM, c->prec, GV_FAST, (size_t)n, &work, &maxreps);
         if (rc == GBP_OK) variant = GV_FAST;
         else if (rc == GBP_UNSUPPORTED) rc = w->ops->prep(ctx, GK_GEMM, c->prec, variant, (size_t)n, &work, &maxreps);

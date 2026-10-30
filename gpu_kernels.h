@@ -17,14 +17,16 @@ static const char gk_pre_cuda[] =
     "#define LID_X threadIdx.x\n#define LID_Y threadIdx.y\n"
     "#define GID_X (blockIdx.x * blockDim.x + threadIdx.x)\n#define GID_Y (blockIdx.y * blockDim.y + threadIdx.y)\n"
     "#define GSIZE_X (gridDim.x * blockDim.x)\n#define BARRIER() __syncthreads()\n#define ATOMIC_ADD(p, v) atomicAdd(p, v)\n"
-    "#define FMA32(a, b, c) fmaf(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n";
+    "#define FMA32(a, b, c) fmaf(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n"
+    "#define GRP_X blockIdx.x\n#define GRP_Y blockIdx.y\n#define FAST_ATTR __launch_bounds__(256)\n";
 
 static const char gk_pre_cl[] =
     "#define KERNEL __kernel\n#define GLOBAL __global\n#define LOCAL __local\n"
     "#define LID_X get_local_id(0)\n#define LID_Y get_local_id(1)\n"
     "#define GID_X get_global_id(0)\n#define GID_Y get_global_id(1)\n"
     "#define GSIZE_X get_global_size(0)\n#define BARRIER() barrier(CLK_LOCAL_MEM_FENCE)\n#define ATOMIC_ADD(p, v) atomic_add(p, v)\n"
-    "#define FMA32(a, b, c) fma(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n";
+    "#define FMA32(a, b, c) fma(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n"
+    "#define GRP_X get_group_id(0)\n#define GRP_Y get_group_id(1)\n#define FAST_ATTR __attribute__((reqd_work_group_size(16, 16, 1)))\n";
 
 /* CUDA for clang without the CUDA headers (tools/gen-cuda-ptx.sh only): clang's own NVPTX builtins in place
    of threadIdx / atomicAdd / fmaf, and uint4 as a 16-byte vector so copy_u4 moves 16 bytes per load like NVRTC's */
@@ -82,15 +84,57 @@ static const char gk_body[] =
     "    c[0] += 1u;\n"
     "}\n";
 
+/* GPU Burnin's own matrix multiply for HIP and OpenCL (variant GV_FAST; not in the PTX, not in the Vulkan shaders).
+   gemm_r (one result per thread, 16 x 16 tiles) stays the kernel of the GPU Compute comparison on every back end, but the
+   LLVM AMDGPU compiler behind hipRTC and ROCm's OpenCL gets only about half of what Mesa's Vulkan compiler gets out of it
+   (RX 9070 XT FP32: ~3.4 vs ~6.1 TFLOPS), so those back ends did not load the GPU fully. gemm_b blocks the work in
+   registers: a 16 x 16 work-group makes a 64 x 64 tile of C, every thread 4 x 4 results (rows ty + 16 i, columns
+   tx + 16 j), 16 multiply-adds per 8 shared-memory reads instead of 1 per 2 (RX 9070 XT, HIP: ~13 TFLOPS).
+   The sums run in the same order as gemm_r (k = 0 .. n-1), and the inputs are 0 / 1, so the results are identical.
+   n must be a multiple of 64; the launch is n/64 x n/64 groups of 16 x 16. tests/gpu_stub.c carries out the same
+   index arithmetic thread by thread (keep the two in step). Written after the preamble and the REAL / FMAR lines. */
+static const char gk_body_fast[] =
+    "KERNEL FAST_ATTR void gemm_b(GLOBAL const REAL *A, GLOBAL const REAL *B, GLOBAL REAL *C, int n)\n"
+    "{\n"
+    "    LOCAL REAL sa[16][65];\n    LOCAL REAL sb[16][64];\n"
+    "    const int tx = LID_X, ty = LID_Y, tid = ty * 16 + tx;\n"
+    "    const int row0 = (int)GRP_Y * 64, col0 = (int)GRP_X * 64;\n"
+    "    REAL acc[4][4];\n"
+    "    int t, k, i, j, l;\n"
+    "    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) acc[i][j] = 0;\n"
+    "    for (t = 0; t < n; t += 16) {\n"
+    "#pragma unroll\n"
+    "        for (l = 0; l < 4; l++) {\n"
+    "            int x = tid + 256 * l;\n"
+    "            sa[x & 15][x >> 4] = A[(long)(row0 + (x >> 4)) * n + t + (x & 15)];\n"
+    "            sb[x >> 6][x & 63] = B[(long)(t + (x >> 6)) * n + col0 + (x & 63)];\n"
+    "        }\n"
+    "        BARRIER();\n"
+    "#pragma unroll\n"
+    "        for (k = 0; k < 16; k++) {\n"
+    "            REAL a[4], b[4];\n"
+    "#pragma unroll\n"
+    "            for (i = 0; i < 4; i++) { a[i] = sa[k][ty + 16 * i]; b[i] = sb[k][tx + 16 * i]; }\n"
+    "#pragma unroll\n"
+    "            for (i = 0; i < 4; i++)\n"
+    "#pragma unroll\n"
+    "                for (j = 0; j < 4; j++) acc[i][j] = FMAR(a[i], b[j], acc[i][j]);\n"
+    "        }\n"
+    "        BARRIER();\n"
+    "    }\n"
+    "    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) C[(long)(row0 + ty + 16 * i) * n + col0 + tx + 16 * j] = acc[i][j];\n"
+    "}\n";
+
 /* malloc'd source text for a dialect and a precision (GP_FP64 = double, anything else float) */
 static inline char *gk_source(int dialect, int fp64)
 {
     const char *pre = dialect == GKD_OPENCL ? gk_pre_cl : dialect == GKD_PTX ? gk_pre_ptx : gk_pre_cuda;
     const char *def = fp64 ? "#define REAL double\n#define FMAR(a, b, c) FMA64(a, b, c)\n" : "#define REAL float\n#define FMAR(a, b, c) FMA32(a, b, c)\n";
     const char *ext = dialect == GKD_OPENCL && fp64 ? "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" : "";
-    size_t n = strlen(pre) + strlen(def) + strlen(ext) + sizeof gk_body + 8;
+    const char *fast = dialect == GKD_PTX ? "" : gk_body_fast;   /* the PTX is made from gk_body only */
+    size_t n = strlen(pre) + strlen(def) + strlen(ext) + sizeof gk_body + strlen(fast) + 8;
     char *s = (char *)malloc(n);
-    if (s) snprintf(s, n, "%s%s%s%s", ext, pre, def, gk_body);
+    if (s) snprintf(s, n, "%s%s%s%s%s", ext, pre, def, gk_body, fast);
     return s;
 }
 

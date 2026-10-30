@@ -220,6 +220,16 @@ run_cli "${CLENV[@]}" STUB_CL_FP64=1 -- gpu-compare --backends opencl --seconds 
 if [ $RC = 0 ] && no_abort && [ "$(count clbuild64)" -gt 0 ] && grep -q "^FP64 matrix multiply, own kernel (GFLOPS) *[0-9]" <<<"$OUT" && grep -q "^FP64 matrix multiply, vendor library (GFLOPS) *[0-9]" <<<"$OUT"
 then ok "opencl, FP64: own and CLBlast FP64 rows have a speed"; else bad "opencl FP64: rc=$RC $(grep FP64 <<<"$OUT")"; fi
 
+echo "== opencl, gpu-burn: the register-blocked gemm_b (emulated thread by thread, launch shape checked)"
+run_cli "${CLENV[@]}" -- gpu-burn --backend opencl --seconds 1 --yes
+if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count gemm_b)" -gt 0 ] && [ "$(count gemm_r)" = 0 ] && grep -q "register-blocked" <<<"$OUT"; then ok "opencl burn FP32: gemm_b ran, results checked in full, PASS"; else bad "opencl burn FP32: rc=$RC gemm_b=$(count gemm_b) gemm_r=$(count gemm_r) $(tail -3 <<<"$OUT")"; fi
+run_cli "${CLENV[@]}" STUB_CL_FP64=1 -- gpu-burn --backend opencl --fp64 --seconds 1 --yes
+if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count gemm_b)" -gt 0 ]; then ok "opencl burn FP64: gemm_b ran, PASS"; else bad "opencl burn FP64: rc=$RC gemm_b=$(count gemm_b) $(tail -3 <<<"$OUT")"; fi
+run_cli "${CLENV[@]}" SRS_GPUBURN_SIMPLE=1 -- gpu-burn --backend opencl --seconds 1 --yes
+if [ $RC = 0 ] && grep -q "PASS" <<<"$OUT" && [ "$(count gemm_b)" = 0 ] && [ "$(count gemm_r)" -gt 0 ]; then ok "opencl burn, SRS_GPUBURN_SIMPLE=1: the old gemm_r kernel"; else bad "opencl SIMPLE: rc=$RC gemm_b=$(count gemm_b)"; fi
+run_cli "${CLENV[@]}" -- gpu-compare --backends opencl --seconds 0.1 --yes
+[ "$(count gemm_b)" = 0 ] && ok "opencl compare: still gemm_r only (comparison unchanged)" || bad "opencl compare used gemm_b: $LOG"
+
 echo "== opencl: the kernel build fails with an EMPTY build log: the reason is never empty"
 run_cli "${CLENV[@]}" STUB_CL_BUILD_FAIL=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
 if no_abort && [ $RC = 0 ] && grep -q "the OpenCL kernel did not build (OpenCL error -11; the driver gave no build log)" <<<"$OUT" && ! grep -q "did not build: *$" <<<"$OUT"

@@ -274,9 +274,19 @@ static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
     stub_exec(f, a);
     return 0;
 }
+/* HIP / CUDA count blocks: gemm_b needs n/64 x n/64 blocks of 16 x 16 */
+static int shape_ok(void *fn, unsigned gx, unsigned gy, unsigned bx, unsigned by, void **a)
+{
+    const stub_fn *f = fn;
+    int nn;
+    if (!f || strcmp(f->name, "gemm_b")) return 1;
+    nn = *(int *)a[3];
+    return gx == (unsigned)nn / 64 && gy == (unsigned)nn / 64 && bx == 16 && by == 16;
+}
 EXPORT int cuLaunchKernel(void *f, unsigned gx, unsigned gy, unsigned gz, unsigned bx, unsigned by, unsigned bz, unsigned sh, void *st, void **args, void **extra)
 {
-    (void)gz; (void)bx; (void)by; (void)bz; (void)sh; (void)st; (void)extra;
+    (void)gz; (void)bz; (void)sh; (void)st; (void)extra;
+    if (!shape_ok(f, gx, gy, bx, by, args)) { fprintf(stderr, "gpu_stub: gemm_b launched with the wrong shape\n"); abort(); }
     return stub_launch(f, gx, gy, args);
 }
 EXPORT int hipModuleLaunchKernel(void *f, unsigned gx, unsigned gy, unsigned gz, unsigned bx, unsigned by, unsigned bz, unsigned sh, void *st, void **args, void **extra)
@@ -456,7 +466,7 @@ EXPORT int clReleaseProgram(void *p) { free(p); return 0; }
 EXPORT void *clCreateKernel(void *p, const char *name, int *e)
 {
     int i;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < 6; i++)
         if (!strcmp(name, kname[i])) {
             cl_kern *k = calloc(1, sizeof *k);
             k->fn.name = kname[i];
@@ -481,8 +491,14 @@ EXPORT int clEnqueueNDRangeKernel(void *q, void *k, unsigned dim, const size_t *
     cl_kern *kk = k;
     void *a[8];
     int i;
-    (void)q; (void)dim; (void)off; (void)g; (void)l; (void)ne; (void)wl;
+    (void)q; (void)dim; (void)off; (void)ne; (void)wl;
     for (i = 0; i < 8; i++) a[i] = kk->val[i];
+    if (!strcmp(kk->fn.name, "gemm_b")) {   /* OpenCL counts work-items: n/4 x n/4 in groups of 16 x 16 */
+        int nn = *(int *)a[3];
+        if (dim != 2 || !l || g[0] != (size_t)nn / 4 || g[1] != (size_t)nn / 4 || l[0] != 16 || l[1] != 16) {
+            fprintf(stderr, "gpu_stub: gemm_b launched with the wrong shape (n = %d)\n", nn); abort();
+        }
+    }
     stub_exec(&kk->fn, a);
     new_ev(ev);
     return 0;
