@@ -34,7 +34,7 @@ typedef struct { int fp64; } stub_mod;
 typedef struct { int fp64; } stub_prog;
 
 static long n_launch[8], n_blas, n_null, n_ptx, n_rtc, n_clbuild[2];
-/* gemm_b: GPU Burnin's register-blocked HIP kernel (in the hipRTC source only, not in the PTX or OpenCL text) */
+/* gemm_b: GPU Burnin's register-blocked kernel (hipRTC and OpenCL source, and the built-in PTX since 2.4) */
 static const char *const kname[6] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick", "gemm_b" };
 static stub_fn g_fn[2][6];
 

@@ -38,7 +38,9 @@ static const char gk_pre_ptx[] =
     "#define GSIZE_X ((unsigned)__nvvm_read_ptx_sreg_nctaid_x() * (unsigned)__nvvm_read_ptx_sreg_ntid_x())\n"
     "#define BARRIER() __syncthreads()\n#define ATOMIC_ADD(p, v) __nvvm_atom_add_gen_i((int *)(p), (int)(v))\n"
     "#define FMA32(a, b, c) __builtin_fmaf(a, b, c)\n#define FMA64(a, b, c) __builtin_fma(a, b, c)\n"
-    "typedef unsigned uint4 __attribute__((ext_vector_type(4)));\n";
+    "typedef unsigned uint4 __attribute__((ext_vector_type(4)));\n"
+    "#define GRP_X ((unsigned)__nvvm_read_ptx_sreg_ctaid_x())\n#define GRP_Y ((unsigned)__nvvm_read_ptx_sreg_ctaid_y())\n"
+    "#define FAST_ATTR __attribute__((launch_bounds(256)))\n";
 
 /* REAL / FMAR are set per build: float + FMA32, or double + FMA64 */
 static const char gk_body[] =
@@ -84,7 +86,7 @@ static const char gk_body[] =
     "    c[0] += 1u;\n"
     "}\n";
 
-/* GPU Burnin's own matrix multiply for HIP and OpenCL (variant GV_FAST; not in the PTX, not in the Vulkan shaders).
+/* GPU Burnin's own matrix multiply for HIP, OpenCL and CUDA (variant GV_FAST; Vulkan: shaders/gpu/gemm32b / 64b).
    gemm_r (one result per thread, 16 x 16 tiles) stays the kernel of the GPU Compute comparison on every back end, but the
    LLVM AMDGPU compiler behind hipRTC and ROCm's OpenCL gets only about half of what Mesa's Vulkan compiler gets out of it
    (RX 9070 XT FP32: ~3.4 vs ~6.1 TFLOPS), so those back ends did not load the GPU fully. gemm_b blocks the work in
@@ -131,7 +133,7 @@ static inline char *gk_source(int dialect, int fp64)
     const char *pre = dialect == GKD_OPENCL ? gk_pre_cl : dialect == GKD_PTX ? gk_pre_ptx : gk_pre_cuda;
     const char *def = fp64 ? "#define REAL double\n#define FMAR(a, b, c) FMA64(a, b, c)\n" : "#define REAL float\n#define FMAR(a, b, c) FMA32(a, b, c)\n";
     const char *ext = dialect == GKD_OPENCL && fp64 ? "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" : "";
-    const char *fast = dialect == GKD_PTX ? "" : gk_body_fast;   /* the PTX is made from gk_body only */
+    const char *fast = gk_body_fast;   /* 2.4: every dialect, the PTX too (CUDA / ZLUDA GPU Burnin) */
     size_t n = strlen(pre) + strlen(def) + strlen(ext) + sizeof gk_body + strlen(fast) + 8;
     char *s = (char *)malloc(n);
     if (s) snprintf(s, n, "%s%s%s%s%s", ext, pre, def, gk_body, fast);

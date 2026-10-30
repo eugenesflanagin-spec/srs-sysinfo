@@ -66,7 +66,7 @@ int main(int c, char **v) { (void)c; fputs(strcmp(v[1], "64") ? gk_ptx_fp32 : gk
 C
 if gcc -Wall -Wextra -I"$SRC" -o "$TMP/ptxdump" "$TMP/ptxdump.c" 2>"$TMP/pd.log" && [ ! -s "$TMP/pd.log" ]; then
     # what the NVRTC source declares: kernel names in order and their parameter count
-    want=$(grep -o 'KERNEL void [a-z0-9_]*([^)]*)' "$SRC/gpu_kernels.h" | sed 's/KERNEL void \([a-z0-9_]*\)(\(.*\))/\1 \2/' | awk '{n=split(substr($0, index($0," ")+1), a, ","); print $1, n}')
+    want=$(grep -oE 'KERNEL (FAST_ATTR )?void [a-z0-9_]*\([^)]*\)' "$SRC/gpu_kernels.h" | sed -E 's/KERNEL (FAST_ATTR )?void ([a-z0-9_]*)\((.*)\)/\2 \3/' | awk '{n=split(substr($0, index($0," ")+1), a, ","); print $1, n}')
     for pr in 32 64; do
         "$TMP/ptxdump" $pr > "$TMP/k$pr.ptx"
         real=$([ $pr = 64 ] && echo f64 || echo f32)
@@ -75,12 +75,12 @@ if gcc -Wall -Wextra -I"$SRC" -o "$TMP/ptxdump" "$TMP/ptxdump.c" 2>"$TMP/pd.log"
             && ok "PTX FP$pr: .version 6.0, .target sm_50, .address_size 64" || bad "PTX FP$pr header: $(sed -n 1,12p "$TMP/k$pr.ptx" | grep '^\.')"
         # name + number of parameters of every .entry, in order
         have=$(awk '/^\.visible \.entry /{n=$3; sub(/\(.*/, "", n); c=0; inp=1; next} inp && /\.param /{c++} inp && /^\)/{print n, c; inp=0}' "$TMP/k$pr.ptx")
-        [ "$have" = "$want" ] && ok "PTX FP$pr: the five entries match the NVRTC source (names, order, parameter counts)" || bad "PTX FP$pr entries: have [$have] want [$want]"
+        [ "$have" = "$want" ] && ok "PTX FP$pr: the six entries match the NVRTC source (names, order, parameter counts)" || bad "PTX FP$pr entries: have [$have] want [$want]"
         types=$(awk '/^\.visible \.entry /{n=$3; sub(/\(.*/, "", n); inp=1; next} inp && /\.param /{printf "%s:%s ", n, $2} inp && /^\)/{inp=0}' "$TMP/k$pr.ptx")
-        expect="gemm_r:.u64 gemm_r:.u64 gemm_r:.u64 gemm_r:.u32 fma_r:.u64 fma_r:.$real fma_r:.$real fma_r:.$real fma_r:.$real fma_r:.u32 fma_r:.u32 fma_r:.u32 copy_u4:.u64 copy_u4:.u64 copy_u4:.u32 cmp_u32:.u64 cmp_u32:.u64 cmp_u32:.u64 cmp_u32:.u32 tick:.u64 "
+        expect="gemm_r:.u64 gemm_r:.u64 gemm_r:.u64 gemm_r:.u32 fma_r:.u64 fma_r:.$real fma_r:.$real fma_r:.$real fma_r:.$real fma_r:.u32 fma_r:.u32 fma_r:.u32 copy_u4:.u64 copy_u4:.u64 copy_u4:.u32 cmp_u32:.u64 cmp_u32:.u64 cmp_u32:.u64 cmp_u32:.u32 tick:.u64 gemm_b:.u64 gemm_b:.u64 gemm_b:.u64 gemm_b:.u32 "
         [ "$types" = "$expect" ] && ok "PTX FP$pr: parameter types match (pointers .u64, REAL .$real, int / unsigned .u32)" || bad "PTX FP$pr types: $types"
         grep -qE '^\s*(call|\.extern|\.func)' "$TMP/k$pr.ptx" && bad "PTX FP$pr calls an outside function (unresolvable without libdevice)" || ok "PTX FP$pr: self-contained (no call / .extern / .func)"
-        [ "$(grep -c '^{' "$TMP/k$pr.ptx")" = 5 ] && [ "$(grep -c '^}' "$TMP/k$pr.ptx")" = 5 ] && [ "$(grep -c 'ret;' "$TMP/k$pr.ptx")" -ge 5 ] && ok "PTX FP$pr: five bodies, each ends in ret" || bad "PTX FP$pr: body structure"
+        [ "$(grep -c '^{' "$TMP/k$pr.ptx")" = 6 ] && [ "$(grep -c '^}' "$TMP/k$pr.ptx")" = 6 ] && [ "$(grep -c 'ret;' "$TMP/k$pr.ptx")" -ge 6 ] && ok "PTX FP$pr: six bodies, each ends in ret" || bad "PTX FP$pr: body structure"
         [ $pr = 32 ] && { grep -q '\.f64' "$TMP/k$pr.ptx" && bad "PTX FP32 uses FP64 instructions" || ok "PTX FP32: no FP64 instruction"; }
         [ $pr = 64 ] && { grep -q 'fma\.rn\.f64' "$TMP/k$pr.ptx" && ok "PTX FP64: uses fma.rn.f64" || bad "PTX FP64: no fma.rn.f64"; }
     done
@@ -155,6 +155,7 @@ for be in cuda hip; do
         if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT"; then ok "cuda burn FP64: PASS, exit 0"; else bad "cuda burn FP64: rc=$RC $(tail -4 <<<"$OUT")"; fi
         run_cli SRS_CUDA_RTC=/nonexistent/libnvrtc.so -- gpu-burn --backend cuda --seconds 1 --yes
         if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count ptxload)" -gt 0 ]; then ok "cuda burn, no NVRTC: PASS from the built-in PTX"; else bad "cuda burn, no NVRTC: rc=$RC $(tail -4 <<<"$OUT")"; fi
+        [ "$(count gemm_b)" -gt 0 ] && [ "$(count gemm_r)" = 0 ] && grep -q "register-blocked" <<<"$OUT" && ok "cuda burn, no NVRTC: the built-in PTX's register-blocked gemm_b ran (results checked in full)" || bad "cuda burn kernel: gemm_b=$(count gemm_b) gemm_r=$(count gemm_r)"
         run_cli SRS_CUDA_RTC=/nonexistent/libnvrtc.so -- gpu-burn --backend cuda --fp64 --seconds 1 --yes
         if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT"; then ok "cuda burn FP64, no NVRTC: PASS"; else bad "cuda burn FP64, no NVRTC: rc=$RC $(tail -4 <<<"$OUT")"; fi
         run_cli STUB_PTX_FAIL=1 SRS_CUDA_RTC=/nonexistent/libnvrtc.so -- gpu-burn --backend cuda --seconds 1 --yes
@@ -181,11 +182,9 @@ for be in cuda hip; do
     echo "== $be, gpu-burn"
     run_cli X=1 -- gpu-burn --backend $be --seconds 1 --yes
     if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT" && [ "$(count cmp_u32)" -gt 0 ]; then ok "$be burn FP32: PASS, exit 0"; else bad "$be burn: rc=$RC $(tail -4 <<<"$OUT")"; fi
-    # which matrix multiply GPU Burnin used: HIP = the register-blocked gemm_b (emulated thread by thread in the stub), CUDA = gemm_r
+    # which matrix multiply GPU Burnin used: the register-blocked gemm_b (emulated thread by thread in the stub; CUDA: checked above)
     if [ $be = hip ]; then
         [ "$(count gemm_b)" -gt 0 ] && [ "$(count gemm_r)" = 0 ] && grep -q "register-blocked" <<<"$OUT" && ok "hip burn FP32: register-blocked gemm_b ran (results checked), gemm_r not used" || bad "hip burn FP32 kernel: gemm_b=$(count gemm_b) gemm_r=$(count gemm_r) $(grep -i kernel <<<"$OUT")"
-    else
-        [ "$(count gemm_b)" = 0 ] && ok "$be burn: gemm_b never used outside HIP" || bad "$be burn used gemm_b: $LOG"
     fi
     run_cli X=1 -- gpu-burn --backend $be --fp64 --seconds 1 --yes
     if [ $RC = 0 ] && no_abort && grep -q "PASS" <<<"$OUT"; then ok "$be burn FP64: PASS, exit 0"; else bad "$be burn FP64: rc=$RC $(tail -4 <<<"$OUT")"; fi

@@ -369,7 +369,7 @@ struct gb_ctx {
     int dev, dead, kind, prec, variant;
     void *cuctx, *mod[2], *ev0, *ev1, *blas;
     void *fn_gemm[2], *fn_fma[2], *fn_copy, *fn_cmp, *fn_tick;
-    void *fn_gemmb[2];          /* HIP only (CUDA's PTX has no gemm_b): GPU Burnin's register-blocked kernel, NULL when it did not build */
+    void *fn_gemmb[2];          /* GPU Burnin's register-blocked gemm_b (HIP: hipRTC, CUDA: the built-in PTX), NULL when not loaded */
     void *a, *b, *c, *ref, *cnt;
     void *ha, *hb, *host;       /* host copies (matrices / transfer buffers) */
     size_t n, es, bytes, nthreads;
@@ -491,7 +491,7 @@ loaded:
     c->mod[fp64] = mod; mod = NULL;
     c->fn_gemm[fp64] = f[0]; c->fn_fma[fp64] = f[1]; c->fn_copy = f[2]; c->fn_cmp = f[3]; c->fn_tick = f[4];
     /* optional: without it GPU Burnin uses gemm_r (bench_gpuburn.c falls back on GBP_UNSUPPORTED) */
-    if (!r->cuda && r->ModuleGetFunction(&c->fn_gemmb[fp64], c->mod[fp64], "gemm_b")) c->fn_gemmb[fp64] = NULL;
+    if (r->ModuleGetFunction(&c->fn_gemmb[fp64], c->mod[fp64], "gemm_b")) c->fn_gemmb[fp64] = NULL;
     rc = GBP_OK;
 out:
     if (rc && ptxerr[0] && !strstr(c->err, "built-in")) {   /* say that the built-in kernels were tried first */
@@ -634,8 +634,8 @@ static int rt_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
         int t;
         if (prec == GP_INT32) { rc = GBP_UNSUPPORTED; break; }
         if (variant == GV_OWN && prec == GP_FP16) { snprintf(c->err, sizeof c->err, "FP16 is measured through the GEMM library only"); rc = GBP_UNSUPPORTED; break; }
-        if (variant == GV_FAST && (r->cuda || !r->have_rtc || (prec != GP_FP32 && prec != GP_FP64))) {
-            snprintf(c->err, sizeof c->err, "the register-blocked kernel is for ROCm / HIP and OpenCL, FP32 and FP64 only"); rc = GBP_UNSUPPORTED; break;
+        if (variant == GV_FAST && ((!r->cuda && !r->have_rtc) || (prec != GP_FP32 && prec != GP_FP64))) {
+            snprintf(c->err, sizeof c->err, "the register-blocked kernel is for FP32 and FP64 only"); rc = GBP_UNSUPPORTED; break;
         }
         if (variant == GV_LIB && !r->have_blas) { snprintf(c->err, sizeof c->err, "%s is not installed", r->cuda ? "cuBLAS" : "hipBLAS"); rc = GBP_UNSUPPORTED; break; }
         /* the error check (cmp_u32) is one of our own kernels, so the library variant needs the module too
