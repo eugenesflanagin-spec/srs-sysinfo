@@ -145,8 +145,11 @@ $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDR
 
 # correctness tests of the benchmarks: short runs on a few threads, results in a throw-away HOME.
 # Not part of the package builds' check (they time real work); run by hand before a release.
+# 2.4: also the pages fed by made-up data (Memory Timings, the root-cache pages), Update hardware lists from file://
+# URLs (no network) and srs-root's --acpi-eval input checks; none of them needs root, a GPU runtime or the network.
 BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh tests/bench-net-test.sh \
-              tests/bench-gpu-test.sh tests/gpu-stub-test.sh tests/cuda-toolkit-test.sh
+              tests/bench-gpu-test.sh tests/gpu-stub-test.sh tests/cuda-toolkit-test.sh \
+              tests/mem-timings-test.sh tests/lists-test.sh tests/root-pages-test.sh tests/srs-root-args-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done
 
