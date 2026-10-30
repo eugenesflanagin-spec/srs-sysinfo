@@ -67,6 +67,13 @@ int mt_aod_decode(const unsigned char *d, size_t n, int memclk, int cl, int rcd,
    strength, 4 RTT. Writes e.g. "48.0 Ω" or "RZQ/5 (48 Ω)"; "code N" when not known */
 void mt_aod_text(int kind, int code, char *b, size_t n);
 
+/* Intel (2.4, experimental): the memory controller's timings from srs-root's intel-imc.txt */
+typedef struct { char gen[8], name[64], type[8], error[200]; int mts, channels, cl, rcd, rp, ras; } mt_intel;
+const char *mt_intel_gen(int family, int model);     /* "skl" / "icl" / "adl" / "mtl", NULL = not supported */
+int mt_intel_decode(const char *txt, mt_intel *o);   /* 1 = timings decoded; o->error holds srs-root's reason otherwise */
+#include <stdio.h>
+int mt_intel_dump(FILE *out);                         /* root: write intel-imc.txt (srs-root) */
+
 /* JEP106 maker name for a decoded code, or NULL when not in SRS's short list */
 const char *mt_jep106(unsigned code);
 

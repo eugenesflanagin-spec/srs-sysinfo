@@ -3242,7 +3242,24 @@ static void s_mem_tweak(srs_out *o)
     } else {
         so_par(o);
         so_head(o, "Timings");
-        if (!amd) so_kv(o, "Status", C_GRAY, "live timings are read on AMD Ryzen 7000 / 9000 desktop processors so far (Intel: planned)");
+        if (!amd) {   /* Intel (2.4, experimental) */
+            const char *itf = so_root_file("intel-imc.txt");
+            char *it = NULL;
+            mt_intel mi;
+            if (itf && rd_all(itf, &it) > 0 && mt_intel_decode(it, &mi)) {
+                so_kv(o, "Memory controller", C_VALUE, mi.name);
+                if (mi.mts) so_kvf(o, "Memory speed", C_GREEN, "%d MT/s (%s)", mi.mts, mi.type);
+                else so_kv(o, "Memory type", C_VALUE, mi.type);
+                so_kvf(o, "Channels with memory", C_VALUE, "%d", mi.channels);
+                so_kvf(o, "tCL-tRCD-tRP-tRAS", C_GREEN, "%d-%d-%d-%d", mi.cl, mi.rcd, mi.rp, mi.ras);
+                if (mi.mts) so_kvf(o, "tCL in time", C_VALUE, "%.2f ns", mi.cl * 2000.0 / mi.mts);
+                so_kv(o, "Status", C_ORANGE, "experimental: Intel timings are not checked on a real PC yet - please report what you see (and what the BIOS says)");
+            } else if (it && strstr(it, "error ")) {
+                so_kv(o, "Status", C_GRAY, strstr(it, "error ") + 6);
+            } else so_kv(o, "Status", C_ORANGE, itf ? "the Intel timings could not be decoded" : "needs root once: Menu > Run as root (Intel: experimental)");
+            so_kv(o, "Source", C_PURPLE, "Intel memory controller registers (MCHBAR), layouts from memtest86+; only read, never switched on");
+            free(it);
+        }
         else if (txt && strstr(txt, "not read")) so_kv(o, "Status", C_ORANGE, "the ryzen_smu driver is not loaded: install ryzen_smu (AUR ryzen_smu-dkms-git), then Menu > Run as root");
         else if (cache) so_kv(o, "Status", C_GRAY, "this processor's memory controller is not supported yet (Ryzen 7000 / 9000 desktop so far)");
         else so_kv(o, "Status", C_ORANGE, "needs root once: Menu > Run as root (one password prompt; the registers are only read)");

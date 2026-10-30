@@ -8,6 +8,7 @@
  * i2c-tools' decode-dimms. Clock counts use the JEDEC rounding (time x 0.997 / tCK, rounded up). */
 #include "mem_timings.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -270,4 +271,161 @@ void mt_aod_text(int kind, int code, char *b, size_t n)
         if (code >= 1 && code <= 7) { snprintf(b, n, "RZQ/%d (%.0f Ω)", code, 240.0 / code); return; }
     }
     snprintf(b, n, "code %d", code);
+}
+
+/* ---------------------------------------------------------------- Intel (2.4, experimental: no Intel PC to check on)
+   The memory controller's register window (MCHBAR) holds the timings. Its address is in the host bridge's PCI config
+   (00:00.0, 0x48 / 0x4C, bit 0 = window on). Layouts per generation from memtest86+ (system/imc/x86/intel_*.c, Sam
+   Demeulemeester and contributors), facts only. SRS never turns the window on (memtest86+ does, with a write):
+   when it is off, nothing is read. Generation by CPU model (family 6). */
+typedef struct { const char *gen, *name; unsigned long long mask; unsigned window; const unsigned *regs; } mt_igen;
+static const unsigned r_skl[] = { 0x5918, 0x5E00, 0x500C, 0x5010, 0x4000, 0x4070, 0x401C, 0x4400, 0x4470, 0x441C, 0 };
+static const unsigned r_icl[] = { 0x5F60, 0x5E00, 0x5E04, 0x500C, 0x5010, 0x4000, 0x4070, 0x4400, 0x4470, 0 };
+static const unsigned r_adl[] = { 0xD800, 0xD80C, 0x1D800, 0x1D80C, 0x5F60, 0x5918, 0x5E04, 0xE000, 0xE004, 0xE070,
+                                  0x1E000, 0x1E004, 0x1E070, 0 };
+static const unsigned r_mtl[] = { 0xD800, 0xD80C, 0xD810, 0x1D800, 0x1D80C, 0x1D810, 0x13D98, 0xE000, 0xE004, 0xE070, 0xE138,
+                                  0xE800, 0xE804, 0xE870, 0xE938, 0x1E000, 0x1E004, 0x1E070, 0x1E138, 0x1E800, 0x1E804, 0x1E870, 0x1E938, 0 };
+static const mt_igen g_igen[] = {
+    { "skl", "Core 6th - 10th gen (Skylake to Comet Lake)", 0x7FFFFF8000ULL, 0x8000, r_skl },
+    { "icl", "Core 11th gen desktop (Rocket Lake)", 0x7FFFFF8000ULL, 0x8000, r_icl },
+    { "adl", "Core 12th - 14th gen (Alder Lake, Raptor Lake)", 0x3FFFFFE0000ULL, 0x20000, r_adl },
+    { "mtl", "Core Ultra (Meteor Lake, Arrow Lake)", 0x3FFFFFE0000ULL, 0x20000, r_mtl },
+};
+const char *mt_intel_gen(int family, int model)
+{
+    static const struct { int m; const char *g; } map[] = {
+        { 0x4E, "skl" }, { 0x5E, "skl" }, { 0x8E, "skl" }, { 0x9E, "skl" }, { 0xA5, "skl" }, { 0xA6, "skl" },
+        { 0xA7, "icl" },
+        { 0x97, "adl" }, { 0x9A, "adl" }, { 0xB7, "adl" }, { 0xBA, "adl" }, { 0xBF, "adl" },
+        { 0xAA, "mtl" }, { 0xAC, "mtl" }, { 0xC5, "mtl" }, { 0xC6, "mtl" } };
+    size_t i;
+    if (family != 6) return NULL;
+    for (i = 0; i < sizeof map / sizeof map[0]; i++) if (map[i].m == model) return map[i].g;
+    return NULL;
+}
+static const mt_igen *igen_of(const char *g)
+{
+    size_t i;
+    for (i = 0; g && i < sizeof g_igen / sizeof g_igen[0]; i++) if (!strcmp(g_igen[i].gen, g)) return &g_igen[i];
+    return NULL;
+}
+
+#if defined(__linux__)
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+/* root only, run by srs-root: "gen NAME / base 0x.. / reg 0xOFF 0xVAL" lines, or "error ..." */
+int mt_intel_dump(FILE *out)
+{
+    FILE *c = fopen("/proc/cpuinfo", "r");
+    char l[256], vend[32] = "";
+    int fam = -1, mod = -1, fd;
+    unsigned char cfg[0x50];
+    unsigned long long base;
+    const mt_igen *G;
+    const unsigned *r;
+    volatile const unsigned char *w;
+    while (c && fgets(l, sizeof l, c)) {
+        if (!strncmp(l, "vendor_id", 9)) sscanf(strchr(l, ':') + 1, "%31s", vend);
+        else if (!strncmp(l, "cpu family", 10)) fam = atoi(strchr(l, ':') + 1);
+        else if (!strncmp(l, "model\t", 6)) mod = atoi(strchr(l, ':') + 1);
+        if (*vend && fam >= 0 && mod >= 0) break;
+    }
+    if (c) fclose(c);
+    if (strcmp(vend, "GenuineIntel")) { fprintf(out, "error not an Intel CPU\n"); return 1; }
+    if (!(G = igen_of(mt_intel_gen(fam, mod)))) { fprintf(out, "error family %d model 0x%X: no known memory controller layout\n", fam, mod); return 1; }
+    fprintf(out, "gen %s\nmodel 0x%X\n", G->gen, mod);
+    if (!(c = fopen("/sys/bus/pci/devices/0000:00:00.0/config", "rb")) || fread(cfg, 1, sizeof cfg, c) != sizeof cfg) {
+        if (c) fclose(c);
+        fprintf(out, "error the host bridge's PCI config could not be read (needs root)\n");
+        return 1;
+    }
+    fclose(c);
+    if (cfg[0] != 0x86 || cfg[1] != 0x80) { fprintf(out, "error 00:00.0 is not an Intel host bridge\n"); return 1; }
+    base = (unsigned long long)(cfg[0x48] | cfg[0x49] << 8 | cfg[0x4A] << 16 | (unsigned)cfg[0x4B] << 24) |
+           (unsigned long long)(cfg[0x4C] | cfg[0x4D] << 8 | cfg[0x4E] << 16 | (unsigned)cfg[0x4F] << 24) << 32;
+    if (!(base & 1)) { fprintf(out, "error the memory controller window (MCHBAR) is switched off; SRS does not switch it on\n"); return 1; }
+    base &= G->mask;
+    fprintf(out, "base 0x%llX\n", base);
+    if (sizeof(off_t) < 8 && base > 0xFFFFFFFFULL) { fprintf(out, "error the window lies above 4 GB, out of reach of this 32-bit build\n"); return 1; }
+    if ((fd = open("/dev/mem", O_RDONLY | O_SYNC | O_CLOEXEC)) < 0) { fprintf(out, "error /dev/mem: %s\n", strerror(errno)); return 1; }
+    w = mmap(NULL, G->window, PROT_READ, MAP_SHARED, fd, (off_t)base);
+    close(fd);
+    if (w == MAP_FAILED) { fprintf(out, "error the window could not be mapped (%s; kernels with IO_STRICT_DEVMEM need iomem=relaxed)\n", strerror(errno)); return 1; }
+    for (r = G->regs; *r; r++)
+        if (*r + 4 <= G->window) fprintf(out, "reg 0x%05X 0x%08X\n", *r, *(volatile const unsigned *)(w + *r));   /* aligned 32-bit reads only */
+    munmap((void *)w, G->window);
+    return 0;
+}
+#endif
+
+/* decode intel-imc.txt: speed in MT/s, type, channels, CL-RCD-RP-RAS; 0 when not decodable */
+int mt_intel_decode(const char *txt, mt_intel *o)
+{
+    const char *p = txt;
+    unsigned off[64], val[64];
+    int n = 0, i;
+    char gen[8] = "";
+    memset(o, 0, sizeof *o);
+    while (p && *p) {
+        unsigned a, b;
+        if (sscanf(p, "gen %7s", gen) == 1) {}
+        else if (sscanf(p, "reg %x %x", &a, &b) == 2 && n < 64) { off[n] = a; val[n] = b; n++; }
+        else if (!strncmp(p, "error ", 6)) { snprintf(o->error, sizeof o->error, "%.*s", (int)strcspn(p + 6, "\n"), p + 6); }
+        p = strchr(p, '\n'); if (p) p++;
+    }
+#define RV(x) ({ unsigned _v = 0xFFFFFFFFu; for (i = 0; i < n; i++) if (off[i] == (x)) { _v = val[i]; break; } _v; })
+    if (!*gen || o->error[0] || !n) return 0;
+    snprintf(o->gen, sizeof o->gen, "%s", gen);
+    if (igen_of(gen)) snprintf(o->name, sizeof o->name, "%s", igen_of(gen)->name);
+    if (!strcmp(gen, "skl") || !strcmp(gen, "icl")) {
+        unsigned c0 = RV(0x500C) & 0x003F003F, c1 = RV(0x5010) & 0x003F003F, ofs = c0 ? 0 : 0x400, t = RV(0x4000 + ofs), cas = RV(0x4070 + ofs);
+        o->channels = (c0 != 0) + (c1 != 0);
+        if (!strcmp(gen, "skl")) {
+            unsigned s = RV(0x5918) & 0xFF;
+            o->mts = (s & 0x7F) < 3 ? 0 : (int)((s & 0x80) ? (s & 0x7F) * 100.0 : (s & 0x7F) * 133.34 + 0.5);
+            snprintf(o->type, sizeof o->type, "%s", (RV(0x401C + ofs) & 3) ? "DDR3" : "DDR4");
+            o->ras = (int)((t >> 8) & 0x7F);
+        } else {
+            unsigned bc = RV(0x5F60), mb = RV(0x5E04);
+            double f = (mb & 0xFF) * (bc / 1000.0);
+            if (mb & 0x10000) f *= 2;
+            if (!(mb & 0xF00)) f *= 133.34 / 100.0;
+            o->mts = (int)(f + 0.5);
+            snprintf(o->type, sizeof o->type, "DDR4");
+            o->ras = (int)((t >> 9) & 0x7F);
+        }
+        o->cl = (int)((cas >> 16) & 0x1F); o->rcd = o->rp = (int)(t & 0x3F);
+    } else if (!strcmp(gen, "adl")) {
+        unsigned a = RV(0xD80C), b = RV(0x1D80C), ofs, mb = RV(0x5E04);
+        unsigned ca = ~a ? ((a >> 16) & 0x7F) + (a & 0x7F) : 0, cb = ~b ? ((b >> 16) & 0x7F) + (b & 0x7F) : 0;
+        double f;
+        ofs = ca ? 0 : 0x10000;
+        o->channels = (ca != 0) + (cb != 0);
+        snprintf(o->type, sizeof o->type, "%s", ((RV(0xD800 + ofs) & 7) == 1 || (RV(0xD800 + ofs) & 7) == 2) ? "DDR5" : "DDR4");
+        f = ((RV(0x5918) >> 2) & 0xFF) * (RV(0x5F60) / 1000.0);
+        f *= 1 << ((mb >> 12) & 3);
+        if (!(mb & 0xF00)) f *= 133.34 / 100.0;
+        o->mts = (int)(f + 0.5);
+        o->cl = (int)((RV(0xE070 + ofs) >> 16) & 0x7F);
+        o->rp = (int)(RV(0xE000 + ofs) & 0xFF);
+        o->ras = (int)((RV(0xE004 + ofs) >> 10) & 0x1FF);
+        o->rcd = (int)((RV(0xE004 + ofs) >> 19) & 0xFF);
+    } else if (!strcmp(gen, "mtl")) {
+        unsigned a = RV(0xD80C), b = RV(0x1D80C), ofs, pg = RV(0x13D98);
+        static const int ref[16] = { 200, 200, 100, 200, 200, 200, 200, 200, 200, 200, 133, 66, 33, 200, 200, 200 };
+        int ca = ~a ? 1 : 0, cb = ~b ? 1 : 0;
+        ofs = ca ? 0 : 0x10000;
+        if (!(RV(0xD80C + ofs) & 0x007F007F) && (RV(0xD810 + ofs) & 0x007F007F)) ofs += 0x800;
+        o->channels = ca + cb;
+        snprintf(o->type, sizeof o->type, "DDR5");
+        o->mts = ref[(pg >> 20) & 0xF] * (int)((pg >> 12) & 0xFF) * ((int)((pg >> 24) & 1) + 1) * 2;
+        o->cl = (int)((RV(0xE070 + ofs) >> 16) & 0x7F);
+        o->rcd = (int)((RV(0xE138 + ofs) >> 22) & 0xFF);
+        o->rp = (int)(RV(0xE000 + ofs) & 0xFF);
+        o->ras = (int)((RV(0xE004 + ofs) >> 13) & 0x1FF);
+    } else return 0;
+#undef RV
+    if (o->mts < 200 || o->mts > 12000) o->mts = 0;
+    return o->cl > 0;
 }

@@ -161,6 +161,15 @@ if [ "$vend" = AuthenticAMD ] && { { [ "${fam:-0}" = 25 ] && [ "${mod:-0}" -ge 9
     echo "# not read: the ryzen_smu driver is not loaded (no $SMN)" > umc.txt
   fi
 fi
+# 2.4 (experimental): Intel memory timings from the memory controller's register window (MCHBAR), read with aligned
+# 32-bit loads by SRS's own reader; the window is never switched on. Core 6th gen to Core Ultra.
+rm -f intel-imc.txt
+if [ "$vend" = GenuineIntel ]; then
+  rd=$(dirname "$(readlink -f "$0")")/sysreport-search
+  [ -x "$rd" ] || rd=$(command -v sysreport-search)
+  [ -n "$rd" ] && "$rd" intel-imc-dump > intel-imc.txt 2>&1
+  log intel-imc
+fi
 # 2.4: the BIOS's AMD Overclocking Data (AOD) table: memory ProcODT, RTT, drive strengths and set voltages. An SSDT names
 # its place (OperationRegion AODE, SystemMemory); it lies in ACPI NVS memory, which kernels with IO_STRICT_DEVMEM keep
 # from /dev/mem unless booted with iomem=relaxed. Only that region is read, and only when the kernel allows it.

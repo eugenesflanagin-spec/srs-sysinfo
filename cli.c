@@ -1,6 +1,7 @@
 /* cli.c - command-line front end; output matches the original Python tool. */
 #include "srs.h"
 #include "lists.h"
+#include "mem_timings.h"
 #ifdef SRS_HAVE_SECTIONS
 #include "sec.h"
 #endif
@@ -1506,6 +1507,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
     if (!strcmp(cmd, "cuda-toolkit")) return cmd_cuda_toolkit(argc, argv);
     if (!strcmp(cmd, "update-lists")) return cmd_update_lists(argc, argv);
+    if (!strcmp(cmd, "intel-imc-dump")) return mt_intel_dump(stdout);   /* srs-root only (root): Intel memory timings, read-only */
 #endif
     if (!strcmp(cmd, "guide")) {
         const char *id = NULL;
