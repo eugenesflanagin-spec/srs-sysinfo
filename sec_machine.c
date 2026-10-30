@@ -1469,14 +1469,59 @@ static void s_firmware(srs_out *o)
         rd_str(EFI_DIR "/fw_vendor", v, sizeof v); so_kv(o, "Firmware Vendor Pointer", C_PURPLE, v);
         rd_str(EFI_DIR "/runtime", v, sizeof v); so_kv(o, "Runtime Services", C_PURPLE, v);
         rd_str(EFI_DIR "/config_table", v, sizeof v); so_kv(o, "Configuration Table", C_PURPLE, v);
-        if (!rd_str(EFI_DIR "/systab", v, sizeof v)) so_kv(o, "System Table", C_GRAY, "(root only)");
-        else so_kv(o, "System Table", C_PURPLE, v);
+        {   /* the System Table's pointers (ACPI, SMBIOS ...): root-only, from srs-root's copy (2.4) */
+            char *st = NULL, *ln, *save = NULL;
+            const char *cf = so_root_file("efi-systab.txt");
+            if (rd_all(EFI_DIR "/systab", &st) > 0 || (cf && rd_all(cf, &st) > 0)) {
+                int first = 1;
+                for (ln = strtok_r(st, "\n", &save); ln; ln = strtok_r(NULL, "\n", &save), first = 0)
+                    so_kv(o, first ? "System Table" : "", C_PURPLE, ln);
+            } else so_kv(o, "System Table", C_GRAY, "root only: Menu > Run as root");
+            free(st);
+        }
         so_kv(o, "Secure Boot", C_TEAL, secure_boot_str());
         ne = dir_list(EFI_DIR "/esrt/entries", &e);
-        so_kvf(o, "ESRT Entries", C_VALUE, "%d%s", ne < 0 ? 0 : ne, ne > 0 ? " (fw_class / versions are root-only)" : "");
-        for (i = 0; i < ne; i++) {
-            char t[64];
-            if (rd_fmt(t, sizeof t, EFI_DIR "/esrt/entries/%s/fw_version", e[i])) so_kvf(o, e[i], C_VALUE, "fw_version %s", t);
+        {   /* ESRT: firmware the UEFI capsule update (fwupd) can update; the details are root-only (srs-root's esrt.txt) */
+            const char *ef = so_root_file("esrt.txt");
+            char *et = NULL;
+            int got = ef && rd_all(ef, &et) > 0;
+            so_kvf(o, "ESRT Entries", C_VALUE, "%d%s", ne < 0 ? 0 : ne, ne > 0 && !got ? " (details are root only: Menu > Run as root)" : "");
+            for (i = 0; i < ne; i++) {
+                static const char *const ty[] = { "unknown", "system firmware (the BIOS)", "device firmware", "UEFI driver" };
+                static const char *const st[] = { "success", "unsuccessful", "not enough resources", "wrong version", "invalid image",
+                                                  "authentication error", "power event (AC)", "power event (battery)", "unsatisfied dependencies" };
+                char cls[80] = "", key[64];
+                long tv = -1, ver = -1, low = -1, lav = -1, las = -1;
+                char *ln, *save = NULL, *cp = NULL;
+                if (got) {
+                    cp = strdup(et);
+                    for (ln = cp ? strtok_r(cp, "\n", &save) : NULL; ln; ln = strtok_r(NULL, "\n", &save)) {
+                        char ent[32], k2[40], val[80];
+                        if (sscanf(ln, "%31s %39s %79s", ent, k2, val) != 3 || strcmp(ent, e[i])) continue;
+                        if (!strcmp(k2, "fw_class")) snprintf(cls, sizeof cls, "%s", val);
+                        else if (!strcmp(k2, "fw_type")) tv = atol(val);
+                        else if (!strcmp(k2, "fw_version")) ver = atol(val);
+                        else if (!strcmp(k2, "lowest_supported_fw_version")) low = atol(val);
+                        else if (!strcmp(k2, "last_attempt_version")) lav = atol(val);
+                        else if (!strcmp(k2, "last_attempt_status")) las = atol(val);
+                    }
+                    free(cp);
+                }
+                if (!got) {
+                    char t[64];
+                    if (rd_fmt(t, sizeof t, EFI_DIR "/esrt/entries/%s/fw_version", e[i])) so_kvf(o, e[i], C_VALUE, "fw_version %s", t);
+                    continue;
+                }
+                so_kvf(o, e[i], C_VALUE, "%s", tv >= 0 && tv <= 3 ? ty[tv] : "type not known");
+                if (*cls) so_kv(o, "  Firmware class", C_PURPLE, cls);
+                if (ver >= 0) so_kvf(o, "  Version", C_VALUE, "%ld (0x%lX)", ver, ver);
+                if (low >= 0) so_kvf(o, "  Lowest allowed", C_VALUE, "%ld (0x%lX)", low, low);
+                if (lav > 0) {
+                    snprintf(key, sizeof key, "%s", las >= 0 && las <= 8 ? st[las] : "status not known");
+                    so_kvf(o, "  Last update", C_VALUE, "version %ld: %s", lav, key);
+                } else if (lav == 0) so_kv(o, "  Last update", C_VALUE, "none recorded by the firmware");
+            }
+            free(et);
         }
         dir_free(e, ne);
         ne = dir_list(EFIVARS, &e);

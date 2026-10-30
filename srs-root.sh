@@ -65,6 +65,16 @@ log smart
 rm -rf acpi-tables && mkdir acpi-tables && cp -r /sys/firmware/acpi/tables/. acpi-tables/ 2>/dev/null; log acpi-tables
 command -v lspci >/dev/null && { lspci -vvvnnxxx > pci-all.txt 2>&1; log lspci; }
 cat /proc/ioports > ioports.txt; cat /proc/iomem > iomem.txt
+# 2.4: UEFI System Table pointers and the firmware-update table (ESRT): root-only files, copied as text
+rm -f efi-systab.txt esrt.txt
+[ -r /sys/firmware/efi/systab ] && cp /sys/firmware/efi/systab efi-systab.txt
+for d in /sys/firmware/efi/esrt/entries/entry*; do
+  [ -d "$d" ] || continue
+  for f in fw_class fw_type fw_version lowest_supported_fw_version capsule_flags last_attempt_version last_attempt_status; do
+    [ -r "$d/$f" ] && printf '%s %s %s\n' "${d##*/}" "$f" "$(tr -d '\n' < "$d/$f")"
+  done
+done > esrt.txt
+[ -s esrt.txt ] || rm -f esrt.txt
 dmesg > dmesg.txt 2>&1
 command -v smbstatus >/dev/null && smbstatus > smbstatus.txt 2>&1
 # MSRs (AMD family 17h+ and architectural): read-only via /dev/cpu/N/msr
