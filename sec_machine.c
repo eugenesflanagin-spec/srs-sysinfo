@@ -1514,12 +1514,25 @@ static void s_firmware(srs_out *o)
                 }
                 so_kvf(o, e[i], C_VALUE, "%s", tv >= 0 && tv <= 3 ? ty[tv] : "type not known");
                 if (*cls) so_kv(o, "  Firmware class", C_PURPLE, cls);
-                if (ver >= 0) so_kvf(o, "  Version", C_VALUE, "%ld (0x%lX)", ver, ver);
-                if (low >= 0) so_kvf(o, "  Lowest allowed", C_VALUE, "%ld (0x%lX)", low, low);
-                if (lav > 0) {
-                    snprintf(key, sizeof key, "%s", las >= 0 && las <= 8 ? st[las] : "status not known");
-                    so_kvf(o, "  Last update", C_VALUE, "version %ld: %s", lav, key);
-                } else if (lav == 0) so_kv(o, "  Last update", C_VALUE, "none recorded by the firmware");
+                {   /* AMI-based BIOSes store the version as hex digits: 0x1805 = BIOS 1805; say so when it matches */
+                    char bv[64] = "", hx[24];
+                    long vv[3] = { ver, low, lav };
+                    char out[3][96];
+                    int q;
+                    rd_str("/sys/class/dmi/id/bios_version", bv, sizeof bv);
+                    for (q = 0; q < 3; q++) {
+                        snprintf(hx, sizeof hx, "%lX", vv[q]);
+                        if (vv[q] > 0 && *bv && !strncmp(bv, hx, strlen(hx)) && (!bv[strlen(hx)] || !isalnum((unsigned char)bv[strlen(hx)])))
+                            snprintf(out[q], sizeof out[q], "BIOS %s (stored as 0x%s = %ld)", hx, hx, vv[q]);
+                        else snprintf(out[q], sizeof out[q], "%ld (0x%lX)", vv[q], vv[q]);
+                    }
+                    if (ver >= 0) so_kv(o, "  Version", C_VALUE, out[0]);
+                    if (low >= 0) so_kv(o, "  Lowest allowed", C_VALUE, out[1]);
+                    if (lav > 0) {
+                        snprintf(key, sizeof key, "%s", las >= 0 && las <= 8 ? st[las] : "status not known");
+                        so_kvf(o, "  Last update", C_VALUE, "%s: %s", out[2], key);
+                    } else if (lav == 0) so_kv(o, "  Last update", C_VALUE, "none recorded by the firmware");
+                }
             }
             free(et);
         }
