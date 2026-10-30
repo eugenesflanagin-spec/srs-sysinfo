@@ -123,7 +123,7 @@ static void data_file_path(int i, char *out, size_t sz)
 static const datafile g_data[] = {
     { "PCI Device Names", "pci.ids", "https://pci-ids.ucw.cz/v2.2/pci.ids" },
     { "USB Device Names", "usb.ids", "http://www.linux-usb.org/usb.ids" },
-    { "PnP / Monitor Names", "pnp.ids", "https://uefi.org/pnp_id_list" },
+    { "PnP / Monitor Names", "pnp.ids", "https://raw.githubusercontent.com/vcrhonek/hwdata/master/pnp.ids" },   /* where Update hardware lists gets it */
 };
 
 static void data_ident(int i, char *path, size_t psz, char *id, size_t isz)
@@ -776,7 +776,7 @@ static const char *const g_quals[][2] = {
     { "  -i  -F  --max N", "Ignore case, literal (fixed string), max matches shown" },
     { "  --color auto|always|never", "Colour the matches (Default is auto)" },
     { "devices", "Resolve every local device [--bus pci|usb|all] (Default is all)" },
-    { "burn", "CPU burn-in [--threads N | --cpus L] [--seconds S] [--mode same|swap] [--limit C] [--cool S] [--cycles N]" },
+    { "burn", "CPU burn-in [--threads N | --cpus L] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]" },
     { "--list", "List every item: id, category, bucket, group, title" },
     { "--version", "Program version and build" },
     { "-h, --help", "Usage" },

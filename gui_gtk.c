@@ -1014,7 +1014,7 @@ static int hot_dialog(GtkWindow *parent, const char *part, int val)
     } else {
         GtkWidget *d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE,
                                               "Stop limits over %d °C: at your own risk", LIMIT_SAFE);
-        gtk_window_set_title(GTK_WINDOW(d), "Temperature limit");
+        gtk_window_set_title(GTK_WINDOW(d), "Temperature Limit");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
             "You set the %s stop limit to %d °C. Above %d °C the stress test keeps running where many processors and graphics "
             "cards are already at or near their own maximum (often 89-110 °C): the chip then slows itself down, and with poor "
@@ -1565,7 +1565,7 @@ static void acpi_eval_dialog(void)
     if (n > 0) { exe[n] = 0; if (strrchr(exe, '/')) *strrchr(exe, '/') = 0; }
     snprintf(helper, sizeof helper, "%s/srs-root", exe);
     if (access(helper, X_OK)) snprintf(helper, sizeof helper, "%s/.local/bin/srs-root", g_get_home_dir());
-    d = gtk_dialog_new_with_buttons("ACPI method evaluation", par, GTK_DIALOG_DESTROY_WITH_PARENT, "_Close", GTK_RESPONSE_CLOSE,
+    d = gtk_dialog_new_with_buttons("ACPI Method Evaluation", par, GTK_DIALOG_DESTROY_WITH_PARENT, "_Close", GTK_RESPONSE_CLOSE,
                                     "_Evaluate", GTK_RESPONSE_APPLY, NULL);
     ca = gtk_dialog_get_content_area(GTK_DIALOG(d));
     grid = gtk_grid_new();
@@ -4326,7 +4326,7 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
             else {
                 GtkWidget *m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE,
                                                       "Read the embedded controller?");
-                gtk_window_set_title(GTK_WINDOW(m), "Embedded controller");
+                gtk_window_set_title(GTK_WINDOW(m), "Embedded Controller");
                 gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m),
                     "The embedded controller (EC) is the board's small helper chip for fans, power buttons, the battery and some sensors. "
                     "Run as root can copy its 256 registers: it loads the kernel's ec_sys module in read-only mode, reads them once "
@@ -4357,7 +4357,7 @@ static void on_option(GtkCheckMenuItem *mi, gpointer d)
             else {
                 GtkWidget *m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE,
                                                       "Read the DIMM voltage chips (PMIC)?");
-                gtk_window_set_title(GTK_WINDOW(m), "DIMM voltages");
+                gtk_window_set_title(GTK_WINDOW(m), "DIMM Voltages");
                 gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m),
                     "Each DDR5 module has a small power chip (PMIC). Run as root can read the voltages it is set to (VDD, VDDQ, VPP) "
                     "over the memory's SMBus, the bus the module's SPD sits on. SRS only reads its registers, never writes them, and "

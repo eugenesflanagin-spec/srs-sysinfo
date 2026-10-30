@@ -92,7 +92,11 @@ experts.
 - Tests: `tests/hot-limit-test.sh` (the 110 C question in the window and the command line); the GPU stub test runs
   the new kernel thread by thread and checks it in full against a plain multiply, and checks its launch shape on
   HIP and OpenCL and that the CUDA burn uses it from the built-in PTX; the Vulkan start-up check now also compares
-  two whole rows with the host's sums (a deliberately broken shader is caught).
+  two whole rows with the host's sums (a deliberately broken shader is caught). New: `tests/mem-timings-test.sh`
+  (the UMC, SPD, AOD and Intel decoders and the Memory Timings page from made-up data), `tests/lists-test.sh`
+  (Update hardware lists from local files, no network), `tests/root-pages-test.sh` (the pages that read the root
+  cache) and `tests/srs-root-args-test.sh` (what `srs-root --acpi-eval` accepts); test-only settings
+  `SRS_TEST_LISTS_DIR` and `SRS_TEST_CMOS_FILE`.
 
 ### Changed
 

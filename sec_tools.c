@@ -262,7 +262,7 @@ static void s_lookup(srs_out *o)
     file_row(o, "SRS Program", exe, "V" SRS_VERSION, "-");
     file_row(o, "SRS Kernel Driver", "none", "srs-gui uses no kernel driver; root data via srs-root", "-");
     so_par(o);
-    so_note(o, "No network access: srs-gui shows the upstream URLs but never downloads (SIV's WEB UPD / Latest are not reproduced).");
+    so_note(o, "Newer lists: Tools > Update hardware lists (or sysreport-search update-lists) downloads them on request into ~/.local/share/srs/lists; nothing is fetched otherwise.");
 }
 
 /* [ping] - default gateway only */
