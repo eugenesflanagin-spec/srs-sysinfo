@@ -110,6 +110,51 @@ if [ "$vend" = AuthenticAMD ] && { { [ "${fam:-0}" = 25 ] && [ "${mod:-0}" -ge 9
     echo "# not read: the ryzen_smu driver is not loaded (no $SMN)" > umc.txt
   fi
 fi
+# 2.4: the BIOS's AMD Overclocking Data (AOD) table: memory ProcODT, RTT, drive strengths and set voltages. An SSDT names
+# its place (OperationRegion AODE, SystemMemory); it lies in ACPI NVS memory, which kernels with IO_STRICT_DEVMEM keep
+# from /dev/mem unless booted with iomem=relaxed. Only that region is read, and only when the kernel allows it.
+rm -f aod.bin aod.txt
+aodt=$(grep -l -a "AODE" /sys/firmware/acpi/tables/SSDT* 2>/dev/null | head -1)
+if [ "$vend" = AuthenticAMD ] && [ -n "$aodt" ]; then
+  o=$(grep -abo "AODE" "$aodt" | head -1 | cut -d: -f1)
+  read -r -a b < <(od -An -tu1 -v -j $((o - 2)) -N 24 "$aodt" | tr '\n' ' ')
+  aml_int() {   # AML integer at index $1 of b[]: ByteConst 0x0A, WordConst 0x0B, DWordConst 0x0C, QWordConst 0x0E -> "value next-index"
+    local i=$1 n k v=0
+    case ${b[$i]:-0} in 10) n=1 ;; 11) n=2 ;; 12) n=4 ;; 14) n=8 ;; *) echo "0 0"; return ;; esac
+    for ((k = n; k >= 1; k--)); do v=$(( (v << 8) | ${b[$((i + k))]:-0} )); done
+    echo "$v $((i + n + 1))"
+  }
+  if [ "${b[0]:-}" = 91 ] && [ "${b[1]:-}" = 128 ] && [ "${b[6]:-}" = 0 ]; then   # 5B 80 'AODE' 00 = OperationRegion, SystemMemory
+    read -r aaddr nx < <(aml_int 7); read -r alen _ < <(aml_int "$nx")
+    if [ "$aaddr" -gt 0 ] && [ "$alen" -gt 0 ] && [ "$alen" -le 65536 ]; then
+      if dd if=/dev/mem of=aod.bin bs="$alen" count=1 skip="$aaddr" iflag=skip_bytes status=none 2>aod.err && [ -s aod.bin ]; then
+        printf 'AOD table at 0x%X, %d bytes, from %s\n' "$aaddr" "$alen" "${aodt##*/}" > aod.txt
+      else
+        rm -f aod.bin
+        printf 'not readable: AOD table at 0x%X (%d bytes) is in ACPI NVS memory, which this kernel keeps from /dev/mem (%s)\n' \
+          "$aaddr" "$alen" "$(tr -d '\n' < aod.err | sed 's/^dd: //')" > aod.txt
+      fi
+    fi
+  fi
+  rm -f aod.err
+  log aod
+fi
+# 2.4, opt-in (Options > Read DIMM voltages (PMIC)): the set voltages of each DDR5 module's PMIC, its registers 0x00-0x3F
+# read over SMBus with i2cdump (read byte data; nothing is written to the PMIC; no -f, so a device a driver owns is skipped)
+rm -f pmic-*.txt
+if grep -qs '^Read DIMM PMIC=1' "$home/.config/srs/SRSDEF.ini" && command -v i2cdump >/dev/null; then
+  modprobe i2c-dev 2>/dev/null
+  for d in /sys/bus/i2c/drivers/spd5118/*-00[5][0-7]; do
+    [ -e "$d/eeprom" ] || continue
+    n=${d##*/}; bus=${n%%-*}; hub=$((16#${n#*-}))
+    t=$(od -An -tu1 -j 200 -N 1 "$d/eeprom" | tr -d ' ')   # SPD byte 200: PMIC0 device type, bit 7 = installed
+    [ $((t & 128)) = 128 ] && [ $((t & 127)) -le 6 ] || continue
+    pm=$((0x48 | (hub & 7)))
+    { printf '# PMIC of module %s (SPD hub 0x%02X) at 0x%02X, type %d\n' "$n" "$hub" "$pm" $((t & 127))
+      i2cdump -y -r 0x00-0x3F "$bus" "$pm" b 2>&1; } > "pmic-${n#*-}.txt"
+  done
+  log pmic
+fi
 date > collected.txt
 chown -R "$uid" "$out"
 log "done -> $out"
