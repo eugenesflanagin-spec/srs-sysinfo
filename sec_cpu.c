@@ -593,6 +593,27 @@ static void s_present(srs_out *o)
 }
 
 /* [cpu-bits] - SIV shows the registry CPU description + Windows FeatureSet bits; Linux: cpuinfo fields + flags */
+/* a long word list (cpuinfo flags) in lines of about 90 characters, every line under the first (2.4: was one long line) */
+static void cpu_words(srs_out *o, const char *key, const char *list)
+{
+    char line[128] = "", w[64];
+    const char *p = list;
+    int first = 1, k;
+    for (;;) {
+        while (*p == ' ') p++;
+        for (k = 0; *p && *p != ' ' && k < (int)sizeof w - 1; k++) w[k] = *p++;
+        w[k] = 0;
+        if (*line && (!k || strlen(line) + 1 + (size_t)k > 90)) {
+            so_tab(o); so_t(o, C_VALUE, first ? key : ""); so_tab(o); so_m(o, C_PURPLE, line); so_par(o);
+            first = 0; line[0] = 0;
+        }
+        if (!k) break;
+        if (*line) strcat(line, " ");
+        strcat(line, w);
+    }
+    if (first) { so_tab(o); so_t(o, C_VALUE, key); so_tab(o); so_m(o, C_PURPLE, "-"); so_par(o); }
+}
+
 static void s_cpu_bits(srs_out *o)
 {
     static const int tabs[] = { 160, 280 };
@@ -606,8 +627,8 @@ static void s_cpu_bits(srs_out *o)
     so_f(o, C_LABEL, "CPU-%d", arg_cpu(o)); so_tab(o); so_t(o, C_TEAL, "/proc/cpuinfo"); so_par(o); so_par(o);
     for (i = 0; keys[i]; i++) { so_t(o, C_DEF, ""); so_tab(o); so_t(o, C_VALUE, keys[i]); so_tab(o); so_t(o, C_BLACK, kv_get(v, n, keys[i])); so_par(o); }
     so_par(o);
-    so_tab(o); so_t(o, C_VALUE, "flags"); so_tab(o); so_m(o, C_PURPLE, kv_get(v, n, "flags")); so_par(o);
-    so_tab(o); so_t(o, C_VALUE, "vmx flags"); so_tab(o); so_m(o, C_PURPLE, kv_get(v, n, "vmx flags")); so_par(o);
+    cpu_words(o, "flags", kv_get(v, n, "flags"));
+    if (*kv_get(v, n, "vmx flags")) cpu_words(o, "vmx flags", kv_get(v, n, "vmx flags"));   /* Intel only */
 }
 
 /* ======================================================================
@@ -1237,7 +1258,30 @@ static void s_msrs(srs_out *o)
     const char *cache = so_root_file("msrs.txt");
     so_siv_header(o, "Model Specific Registers");
     so_tabs(o, tabs, 1);
-    if (cache) { char *t; if (rd_all(cache, &t) >= 0) { so_lines(o, C_BLACK, t); free(t); } return; }
+    if (cache) {
+        static const char *const what[][2] = {
+            { "APIC_BASE", "where this CPU's interrupt controller sits, and whether it is the boot CPU" },
+            { "MPERF / APERF", "clock counters: their ratio is the real average clock against the base clock" },
+            { "EFER", "extended features in use: long mode, no-execute, AMD-V (SVM)" },
+            { "HWCR", "hardware configuration: boost (CPB) disable bit and other switches" },
+            { "PSTATE_CURRENT_LIMIT", "the highest and lowest P-state the CPU may use right now" },
+            { "PSTATE_CONTROL / STATUS", "the P-state asked for and the one in effect (legacy P-states)" },
+            { "PSTATE_DEF_0..2", "P-state definitions: frequency (FID / DFS) and voltage ID; MSR Setup shows them in MHz" },
+            { "HW_PSTATE_STATUS", "the hardware P-state in effect" },
+            { "CPPC_CAP1", "CPPC performance levels: highest, nominal, lowest non-linear, lowest" },
+            { "CPPC_ENABLE / REQUEST", "CPPC switched on, and the performance range the OS asks for" },
+            { "RAPL_PWR_UNIT", "units of the energy counters (MSR Setup shows them)" },
+            { "CORE / PKG_ENERGY_STAT", "energy counters per core and per package; MSR Setup turns two readings into watts" },
+        };
+        char *t;
+        size_t k;
+        if (rd_all(cache, &t) >= 0) { so_lines(o, C_BLACK, t); free(t); }
+        so_par(o);
+        so_head(o, "What the registers are");
+        for (k = 0; k < sizeof what / sizeof what[0]; k++) so_kv(o, what[k][0], C_GRAY, what[k][1]);
+        so_note(o, "Decoded values: MSR Setup (msr-setup). Read once by srs-root; nothing is ever written to an MSR.");
+        return;
+    }
     so_kv(o, "Status", C_ORANGE, "Needs root");
     so_kv(o, "Source", C_PURPLE, "/dev/cpu/*/msr (msr module), read by the srs-root helper (Menu > Run as root)");
 }
@@ -1357,7 +1401,33 @@ static void s_msr_setup(srs_out *o)
         if (r && r->have[0]) {
             unsigned eu = (unsigned)((r->v[0] >> 8) & 0x1f), tu = (unsigned)((r->v[0] >> 16) & 0xf);
             so_kvf(o, "RAPL energy unit", C_VALUE, "1/2^%u J = %.2f uJ, time unit 1/2^%u s (0x%016llx)", eu, 1e6 / (double)(1ULL << eu), tu, r->v[0]);
-            so_kv(o, "Energy counters", C_GRAY, "a counter means nothing alone: power needs two readings over time - see Power & Cost");
+            {   /* 2.4: srs-root reads the counters twice, one second apart (rapl.txt): watts at that moment */
+                const char *rf = so_root_file("rapl.txt");
+                char *t = NULL, *ln, *save = NULL, cw[1024] = "";
+                double secs = 0, unit = 1.0 / (double)(1ULL << eu), pkg = -1, csum = 0;
+                int nc = 0;
+                if (rf && rd_all(rf, &t) > 0) {
+                    for (ln = strtok_r(t, "\n", &save); ln; ln = strtok_r(NULL, "\n", &save)) {
+                        unsigned long long a, b;
+                        int cpu;
+                        if (sscanf(ln, "seconds %lf", &secs) == 1) continue;
+                        if (secs <= 0) continue;
+                        if (sscanf(ln, "package %llu %llu", &a, &b) == 2 && b) pkg = (double)((b - a) & 0xFFFFFFFFULL) * unit / secs;
+                        else if (sscanf(ln, "cpu%d %llu %llu", &cpu, &a, &b) == 3 && b) {
+                            double w = (double)((b - a) & 0xFFFFFFFFULL) * unit / secs;
+                            size_t l = strlen(cw);
+                            csum += w; nc++;
+                            snprintf(cw + l, sizeof cw - l, "%sCPU-%d %.2f", l ? ", " : "", cpu, w);
+                        }
+                    }
+                }
+                free(t);
+                if (pkg >= 0) {
+                    so_kvf(o, "Package power", C_VALUE, "%.1f W while srs-root ran (energy counter read twice, %.2f s apart)", pkg, secs);
+                    if (nc) so_kvf(o, "Core power", C_VALUE, "%.2f W in all; per CPU (W): %s", csum, cw);
+                    so_kv(o, "", C_GRAY, "Taken while Run as root was busy, so a little above idle. Live power: Power & Cost, Sensors > Power status.");
+                } else so_kv(o, "Energy counters", C_GRAY, "a counter alone means nothing: the next Run as root reads them twice for watts (live: Power & Cost)");
+            }
         }
     }
     {   /* CPPC_CAP1 per CPU, ordered by highest performance like the kernel's amd_pstate preferred-core ranking */

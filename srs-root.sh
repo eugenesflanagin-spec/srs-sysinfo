@@ -102,6 +102,20 @@ modprobe msr 2>/dev/null
 EOF
 } > msrs.txt 2>&1
 log msrs
+# 2.4: RAPL power at the moment of this run: the energy counters read twice, one second apart (AMD; read-only)
+rm -f rapl.txt
+if [ -r /dev/cpu/0/msr ] && grep -q AuthenticAMD /proc/cpuinfo; then
+  rmsr() { dd if="/dev/cpu/$1/msr" bs=8 count=1 skip=$(($2)) iflag=skip_bytes 2>/dev/null | od -An -tu8 | tr -d ' '; }
+  CPUS=$(printf '%s\n' /dev/cpu/[0-9]* | sed 's|.*/||' | sort -n)
+  t1=$(date +%s.%N); p1=$(rmsr 0 0xC001029B)
+  declare -A c1; for c in $CPUS; do c1[$c]=$(rmsr "$c" 0xC001029A); done
+  sleep 1
+  t2=$(date +%s.%N); p2=$(rmsr 0 0xC001029B)
+  { echo "seconds $(awk -v a="$t1" -v b="$t2" 'BEGIN { printf "%.6f", b - a }')"
+    echo "package ${p1:-0} ${p2:-0}"
+    for c in $CPUS; do echo "cpu$c ${c1[$c]:-0} $(rmsr "$c" 0xC001029A)"; done; } > rapl.txt
+  log rapl
+fi
 # 2.4: AMD memory controller (UMC) registers for the Memory Timings page, read through the ryzen_smu driver.
 # Writing exactly 4 bytes (an SMN address) to its smn file makes the driver READ that address; never 8 bytes (= a write).
 # Only Ryzen 7000 / 9000 desktop (family 19h models 60h-7Fh, 1Ah models 40h-4Fh), whose register map was checked.
