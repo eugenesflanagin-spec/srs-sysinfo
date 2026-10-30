@@ -77,21 +77,27 @@ static int root_path(const char *name, char *out, size_t sz)
 
 static void needs_root(srs_out *o) { so_par(o); so_t(o, C_ORANGE, NEEDS_ROOT); so_par(o); }
 
-static void hexdump(srs_out *o, const unsigned char *d, int n, int max)
+/* 16 bytes per row; offsets count from base; masked: bytes shown as XX (Redact Reports) */
+static void hexdump_at(srs_out *o, const unsigned char *d, int n, int max, unsigned base, int masked)
 {
     int i, j;
     char line[128];
     if (n > max) n = max;
     for (i = 0; i < n; i += 16) {
-        int p = snprintf(line, sizeof line, "%04X  ", i);
-        for (j = 0; j < 16; j++) p += snprintf(line + p, sizeof line - (size_t)p, i + j < n ? "%02X " : "   ", i + j < n ? d[i + j] : 0);
+        int p = snprintf(line, sizeof line, "%04X  ", base + (unsigned)i);
+        for (j = 0; j < 16; j++) {
+            if (i + j >= n) p += snprintf(line + p, sizeof line - (size_t)p, "   ");
+            else if (masked) p += snprintf(line + p, sizeof line - (size_t)p, "XX ");
+            else p += snprintf(line + p, sizeof line - (size_t)p, "%02X ", d[i + j]);
+        }
         p += snprintf(line + p, sizeof line - (size_t)p, " ");
-        for (j = 0; j < 16 && i + j < n; j++) line[p++] = (char)(isprint(d[i + j]) ? d[i + j] : '.');
+        for (j = 0; j < 16 && i + j < n; j++) line[p++] = (char)(!masked && isprint(d[i + j]) ? d[i + j] : '.');
         line[p] = 0;
         so_m(o, C_VALUE, line);
         so_par(o);
     }
 }
+static void hexdump(srs_out *o, const unsigned char *d, int n, int max) { hexdump_at(o, d, n, max, 0, 0); }
 
 static uint16_t le16(const unsigned char *p) { return (uint16_t)(p[0] | p[1] << 8); }
 static uint32_t le32(const unsigned char *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -1787,14 +1793,31 @@ static void s_cmos_status(srs_out *o)
     so_board_footer(o);
 }
 
+#define CMOS_NVMEM "/sys/bus/nvmem/devices/cmos_nvram0/nvmem"
+#define CMOS_BASE  0x0E   /* the kernel's CMOS nvmem starts after the 14 clock registers */
+
+static int bcd2(int v) { return (v >> 4) <= 9 && (v & 15) <= 9 ? (v >> 4) * 10 + (v & 15) : -1; }
+
+static const char *floppy_type(int t)
+{
+    static const char *const ft[] = { "none", "360 KB 5.25\"", "1.2 MB 5.25\"", "720 KB 3.5\"", "1.44 MB 3.5\"", "2.88 MB 3.5\"" };
+    return t >= 0 && t <= 5 ? ft[t] : "unknown type";
+}
+
 static void s_system_cmos(srs_out *o)
 {
     static const int tabs[] = { 200 };
-    char v[128];
+    char v[128], *raw = NULL;
+    const unsigned char *c;
+    int n;
     so_siv_header(o, "System CMOS");
     so_tabs(o, tabs, 1);
-    so_kv(o, "CMOS RAM dump", C_ORANGE, "not read: needs /dev/nvram or port I/O (root), not in the srs-root cache");
-    so_kv(o, "/dev/nvram", C_GRAY, path_exists("/dev/nvram") ? "present (root only)" : "absent (nvram module not loaded)");
+    n = rd_all(CMOS_NVMEM, &raw);
+    if (n <= 0) {
+        so_kv(o, "CMOS RAM", C_ORANGE, path_exists(CMOS_NVMEM) ? "not readable" : "not available: the kernel has no cmos_nvram0 nvmem device (rtc_cmos driver)");
+        free(raw);
+        raw = NULL;
+    }
     rd_str("/sys/class/rtc/rtc0/name", v, sizeof v);
     so_kv(o, "RTC driver", C_VALUE, v);
     {
@@ -1802,14 +1825,56 @@ static void s_system_cmos(srs_out *o)
         if (rd_all("/proc/driver/rtc", &txt) >= 0) {
             const char *b = strstr(txt, "batt_status");
             if (b && strchr(b, ':')) {
-                char s[32] = "";
-                sscanf(strchr(b, ':') + 1, " %31s", s);
-                so_kv(o, "CMOS battery", strcmp(s, "okay") ? C_RED : C_GREEN, s);
+                char st[32] = "";
+                sscanf(strchr(b, ':') + 1, " %31s", st);
+                so_kv(o, "CMOS battery", strcmp(st, "okay") ? C_RED : C_GREEN, st);
             }
             free(txt);
         }
     }
-    so_note(o, "See cmos-status for the RTC registers the kernel exposes unprivileged.");
+    if (raw) {
+        c = (const unsigned char *)raw;
+#define CM(a) ((a) - CMOS_BASE < n ? c[(a) - CMOS_BASE] : -1)
+        so_kvf(o, "CMOS RAM", C_VALUE, "%d bytes, addresses 0x%02X - 0x%02X (" CMOS_NVMEM ")", n, CMOS_BASE, CMOS_BASE + n - 1);
+        so_par(o);
+        so_head(o, "Standard IBM AT bytes");
+        if (CM(0x0E) >= 0) {
+            static const char *const bits[] = { NULL, NULL, "time not valid", "disk controller failed", "memory size mismatch",
+                                                "configuration not valid", "checksum bad", "clock lost power" };
+            int d = CM(0x0E), k;
+            char t[256] = "";
+            for (k = 7; k >= 2; k--) if (d & (1 << k)) { strncat(t, bits[k], sizeof t - strlen(t) - 3); strcat(t, ", "); }
+            if (*t) t[strlen(t) - 2] = 0;
+            so_kvf(o, "0x0E Diagnostic status", d & 0xFC ? C_ORANGE : C_GREEN, "0x%02X  %s", d, *t ? t : "no errors flagged");
+        }
+        if (CM(0x0F) >= 0)
+            so_kvf(o, "0x0F Shutdown status", C_VALUE, "0x%02X  %s", CM(0x0F), CM(0x0F) ? "restart code left by the last reset" : "normal power-on or reset");
+        if (CM(0x10) >= 0)
+            so_kvf(o, "0x10 Floppy drives", C_VALUE, "0x%02X  A: %s, B: %s", CM(0x10), floppy_type(CM(0x10) >> 4), floppy_type(CM(0x10) & 15));
+        if (CM(0x16) >= 0) so_kvf(o, "0x15-0x16 Base memory", C_VALUE, "%d KB", CM(0x15) | CM(0x16) << 8);
+        if (CM(0x18) >= 0) so_kvf(o, "0x17-0x18 Extended memory", C_VALUE, "%d KB (the AT field; it cannot show more than 64 MB)", CM(0x17) | CM(0x18) << 8);
+        if (CM(0x2F) >= 0) {
+            int a, sum = 0, st = CM(0x2E) << 8 | CM(0x2F);
+            for (a = 0x10; a <= 0x2D; a++) sum += CM(a);
+            if (!sum && !st) so_kv(o, "0x2E-0x2F Checksum", C_GRAY, "0x0000, matches (the AT area 0x10-0x2D is all zero: this firmware does not use it)");
+            else so_kvf(o, "0x2E-0x2F Checksum", sum == st ? C_GREEN : C_GRAY, "0x%04X, sum of 0x10-0x2D is 0x%04X: %s", st, sum,
+                        sum == st ? "matches" : "differs (many modern firmwares no longer keep this AT checksum)");
+        }
+        if (CM(0x32) >= 0) {
+            int cy = bcd2(CM(0x32));
+            if (cy >= 19 && cy <= 21) so_kvf(o, "0x32 Century", C_VALUE, "0x%02X  %d (years %d00 - %d99)", CM(0x32), cy, cy, cy);
+            else so_kvf(o, "0x32 Century", C_GRAY, "0x%02X  not a century value (the firmware keeps the century elsewhere or not at all)", CM(0x32));
+        }
+#undef CM
+        so_par(o);
+        so_head(o, "CMOS RAM contents");
+        hexdump_at(o, c, n, 256, CMOS_BASE, srs_redact);
+        so_par(o);
+        if (srs_redact) so_note(o, "Bytes masked (Redact Reports is on): CMOS can hold the BIOS password check value.");
+        so_note(o, "Read-only copy from the kernel (no port I/O). Bytes not listed above belong to the BIOS maker and are not decoded.");
+        free(raw);
+    }
+    so_note(o, "See CMOS / RTC status (cmos-status) for the clock registers.");
     so_board_footer(o);
 }
 
@@ -1819,7 +1884,44 @@ static void s_system_ebda(srs_out *o)
     char s[40], e[40], t[48], p[1100];
     so_siv_header(o, "System EBDA");
     so_tabs(o, tabs, 1);
-    so_kv(o, "EBDA contents", C_ORANGE, "not read: needs /dev/mem (root); srs never opens /dev/mem");
+    if (root_path("ebda.txt", p, sizeof p)) {
+        char *txt = NULL, *q, *save;
+        unsigned long seg = 0, addr = 0;
+        long kib = -1, bytes = 0;
+        int have_seg = 0;
+        if (rd_all(p, &txt) >= 0) {
+            for (q = strtok_r(txt, "\n", &save); q; q = strtok_r(NULL, "\n", &save)) {
+                if (!strncmp(q, "segment ", 8)) { seg = strtoul(q + 8, NULL, 16); have_seg = 1; }
+                else if (!strncmp(q, "address ", 8)) addr = strtoul(q + 8, NULL, 16);
+                else if (!strncmp(q, "size_kib ", 9)) kib = atol(q + 9);
+                else if (!strncmp(q, "bytes ", 6)) bytes = atol(q + 6);
+                else if (!strncmp(q, "error ", 6)) so_kvf(o, "Not readable", C_ORANGE, "%s", q + 6);
+                else if (*q) so_kv(o, "Note", C_ORANGE, q);
+            }
+        }
+        free(txt);
+        if (have_seg && !seg) so_kv(o, "EBDA pointer (0x40E)", C_GREEN, "0000: no EBDA (normal on UEFI firmware)");
+        else if (have_seg) {
+            so_kvf(o, "EBDA pointer (0x40E)", C_VALUE, "%04lX (address 0x%05lX)", seg, addr);
+            if (kib >= 0) so_kvf(o, "EBDA size", C_VALUE, "%ld KiB (from its first byte)", kib);
+            if (bytes > 0 && root_path("ebda.bin", p, sizeof p)) {
+                char *bin = NULL;
+                int n = rd_all(p, &bin);
+                if (n > 0) {
+                    so_par(o);
+                    so_head(o, "EBDA contents");
+                    hexdump_at(o, (const unsigned char *)bin, n, 4096, (unsigned)addr, 0);
+                    if (n > 4096) { so_f(o, C_GRAY, "%d more bytes in %s", n - 4096, p); so_par(o); }
+                    so_par(o);
+                }
+                free(bin);
+            }
+        }
+        so_note(o, "Read once by srs-root from the first megabyte of memory (read-only).");
+        so_par(o);
+    } else if (so_root_file("collected.txt")) {
+        so_kv(o, "EBDA contents", C_ORANGE, "not in the root cache yet: run Menu > Run as root again");
+    } else so_kv(o, "EBDA contents", C_ORANGE, "not read yet: needs the root cache (Menu > Run as root)");
     if (rd_str("/sys/firmware/memmap/0/start", s, sizeof s) && rd_str("/sys/firmware/memmap/0/end", e, sizeof e)) {
         rd_str("/sys/firmware/memmap/0/type", t, sizeof t);
         so_kvf(o, "Conventional memory", C_VALUE, "%s - %s %s", s, e, t);
@@ -2748,7 +2850,8 @@ static void s_bios_option(srs_out *o)
     so_par(o);
     so_f(o, C_TEAL, "%d PCI devices expose an expansion ROM BAR", n);
     so_par(o);
-    so_note(o, "ROM images (PCIR header, code type, EFI/legacy images) are root-only and not part of the srs-root cache.");
+    so_note(o, "The ROM images themselves are not read (the ROM must be switched on by a write first). For an AMD GPU, "
+               "GPU VBIOS status (gpu-bios) shows the driver's own copy of its image.");
     so_board_footer(o);
 }
 
@@ -3164,8 +3267,8 @@ const srs_item sec_machine[] = {
     { "tpm-device", "hardware", "TPM device", B_LINUX, 0, "/sys/class/tpm/tpm0", s_tpm_device, 0, "machine" },
     { "acpi-tpm", "hardware", "ACPI TPM", B_LINUX, 0, "/sys/bus/acpi/devices/MSFT0101:00; acpi-tables/TPM2 cache", s_acpi_tpm, 0, "machine" },
     { "cmos-status", "hardware", "CMOS / RTC status", B_LINUX, 0, "/proc/driver/rtc; /sys/class/rtc/rtc0", s_cmos_status, 1000, "machine" },
-    { "system-cmos", "hardware", "System CMOS", B_LINUX, 1, "/dev/nvram (not read)", s_system_cmos, 0, "machine" },
-    { "system-ebda", "hardware", "System EBDA", B_LINUX, 1, "/dev/mem (not read); /sys/firmware/memmap; iomem.txt cache", s_system_ebda, 0, "machine" },
+    { "system-cmos", "hardware", "System CMOS", B_LINUX, 0, "/sys/bus/nvmem/devices/cmos_nvram0/nvmem", s_system_cmos, 0, "machine" },
+    { "system-ebda", "hardware", "System EBDA", B_LINUX, 1, "ebda.txt, ebda.bin cache (/dev/mem below 1 MB, srs-root); /sys/firmware/memmap; iomem.txt cache", s_system_ebda, 0, "machine" },
     { "acpi-tables", "hardware", "ACPI tables", B_LINUX, 1, "/sys/firmware/acpi/tables; acpi-tables/ cache", s_acpi_tables, 0, "machine" },
     { "acpi-hal", "hardware", "ACPI HAL", B_LINUX, 0, "/sys/firmware/acpi; /sys/module/acpi/parameters", s_acpi_hal, 0, "machine" },
     { "acpi-int", "hardware", "ACPI interrupts and GPEs", B_LINUX, 0, "/sys/firmware/acpi/interrupts; /proc/interrupts", s_acpi_int, 2000, "machine" },

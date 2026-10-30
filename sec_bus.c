@@ -1865,7 +1865,20 @@ static void s_io_gpio(srs_out *o)
     }
     if (n <= 0) so_note(o, "no GPIO chips");
     dir_free(e, n);
-    so_note(o, "Pin states are not read (/dev/gpiochip* and debugfs gpio are not opened). Root: cat /sys/kernel/debug/gpio.");
+    so_par(o);
+    so_head(o, "Pin states");
+    {
+        const char *rf = so_root_file("gpio.txt");
+        char *txt = NULL;
+        if (rf && rd_all(rf, &txt) > 0) {
+            so_lines(o, C_VALUE, txt);
+            so_par(o);
+            so_note(o, "The kernel's own GPIO table (debugfs gpio), copied once by srs-root: lines in use, their direction and level. Read-only.");
+        } else if (rf) so_note(o, "The kernel's GPIO table is empty.");
+        else if (so_root_file("collected.txt")) { so_t(o, C_ORANGE, "Not in the root cache (debugfs not mounted, or the cache is older): run Menu > Run as root again"); so_par(o); }
+        else { so_t(o, C_ORANGE, NEEDS_ROOT); so_par(o); }
+        free(txt);
+    }
 }
 
 static void s_io_mmio(srs_out *o)
@@ -2164,7 +2177,7 @@ const srs_item sec_bus[] = {
     { "int-owner", "hardware", "Interface owner", B_LINUX, 0, "/sys/class/*/*/device/driver", s_int_owner, 0, "bus" },
     { "io-asus", "hardware", "ASUS I/O", B_LINUX, 1, "hwmon nct6775/asus; ioports.txt", s_io_asus, 0, "bus" },
     { "io-dump", "hardware", "I/O port dump", B_LINUX, 1, "ioports.txt (no /dev/port)", s_io_dump, 0, "bus" },
-    { "io-gpio", "hardware", "I/O GPIO", B_LINUX, 0, "/sys/bus/gpio/devices", s_io_gpio, 0, "bus" },
+    { "io-gpio", "hardware", "I/O GPIO", B_LINUX, 0, "/sys/bus/gpio/devices; gpio.txt cache (debugfs gpio, srs-root)", s_io_gpio, 0, "bus" },
     { "io-mmio", "hardware", "I/O PM2 MMIO", B_LINUX, 1, "/proc/iomem; iomem.txt", s_io_mmio, 0, "bus" },
     { "io-ports", "hardware", "I/O ports", B_LINUX, 1, "/proc/ioports; ioports.txt", s_io_ports, 0, "bus" },
     { "isa-bus", "hardware", "ISA bus", B_LINUX, 0, "/sys/bus/pnp/devices; /sys/bus/isa", s_isa_bus, 0, "bus" },

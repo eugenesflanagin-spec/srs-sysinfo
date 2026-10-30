@@ -3,7 +3,8 @@
 # Writes ~/.cache/srs/root/ of the invoking user and hands the files back to them.
 # Read-only on the hardware side: dmidecode, decode-dimms, smartctl/nvme queries, MSR reads,
 # lspci config dumps, copies of /sys/firmware/acpi/tables and AMD memory-controller registers (SMN reads through
-# ryzen_smu: an address is written to its smn file, which only selects what to read). Nothing is written to devices.
+# ryzen_smu: an address is written to its smn file, which only selects what to read), the EBDA (/dev/mem below 1 MB),
+# and copies of the kernel's debugfs GPIO table and amdgpu VBIOS copy. Nothing is written to devices.
 # `srs-root --user NAME` collects for NAME (used by the srs-root@NAME.service boot unit).
 set -u
 uid=${PKEXEC_UID:-$(id -u)}
@@ -181,6 +182,60 @@ if grep -qs '^Read DIMM PMIC=1' "$home/.config/srs/SRSDEF.ini" && command -v i2c
   done
   log pmic
 fi
+# 2.4: the Extended BIOS Data Area. The BIOS Data Area word at 0x40E holds its segment (0 = none, normal on UEFI);
+# the first EBDA byte is its size in KiB. Only memory below 1 MB is read (kernels with STRICT_DEVMEM allow that range).
+rm -f ebda.txt ebda.bin ebda.err
+if [ -e /dev/mem ]; then
+  seg=$(dd if=/dev/mem bs=2 count=1 skip=$((0x40E)) iflag=skip_bytes status=none 2>ebda.err | od -An -tu2 | tr -d ' ')
+  if [ -z "$seg" ]; then
+    printf 'error %s\n' "$(tr -d '\n' < ebda.err | sed 's/^dd: //')" > ebda.txt
+  else
+    ea=$((seg * 16))
+    { printf 'segment 0x%04X\n' "$seg"; printf 'address 0x%X\n' "$ea"; } > ebda.txt
+    if [ "$seg" -gt 0 ] && [ "$ea" -lt $((0xA0000)) ]; then
+      kib=$(dd if=/dev/mem bs=1 count=1 skip="$ea" iflag=skip_bytes status=none 2>>ebda.err | od -An -tu1 | tr -d ' ')
+      if [ -n "$kib" ]; then
+        echo "size_kib $kib" >> ebda.txt
+        len=$((kib * 1024)); [ "$len" -gt 65536 ] && len=65536; [ "$len" -gt $((0xA0000 - ea)) ] && len=$((0xA0000 - ea))
+        if [ "$len" -gt 0 ]; then
+          if dd if=/dev/mem of=ebda.bin bs="$len" count=1 skip="$ea" iflag=skip_bytes status=none 2>>ebda.err && [ -s ebda.bin ]; then
+            echo "bytes $(stat -c %s ebda.bin)" >> ebda.txt
+          else
+            rm -f ebda.bin
+            printf 'error %s\n' "$(tr -d '\n' < ebda.err | sed 's/^dd: //')" >> ebda.txt
+          fi
+        fi
+      else
+        printf 'error %s\n' "$(tr -d '\n' < ebda.err | sed 's/^dd: //')" >> ebda.txt
+      fi
+    elif [ "$seg" -gt 0 ]; then
+      echo "invalid pointer (at or above 0xA0000), not read" >> ebda.txt
+    fi
+  fi
+  rm -f ebda.err
+  log ebda
+else
+  echo "error /dev/mem is not present on this kernel" > ebda.txt
+fi
+# 2.4: the GPU driver's own cached copy of each AMD VBIOS (debugfs, root only; a memory copy, the GPU is not accessed).
+# The PCI ROM BAR (sysfs .../rom) is never used: reading it needs a write to enable it first.
+rm -f vbios-*.bin
+if [ -d /sys/kernel/debug/dri ]; then
+  for v in /sys/kernel/debug/dri/*/amdgpu_vbios; do
+    [ -r "$v" ] || continue
+    d=${v%/amdgpu_vbios}
+    pci=$(sed -n 's/.* dev=\([^ ]*\).*/\1/p' "$d/name" 2>/dev/null)
+    [ -z "$pci" ] && case ${d##*/} in ????:??:??.?) pci=${d##*/} ;; esac
+    [ -z "$pci" ] && pci=$(basename "$(readlink -f "/sys/class/drm/card${d##*/}/device" 2>/dev/null)")
+    case $pci in ????:??:??.?) ;; *) continue ;; esac
+    [ -e "vbios-$pci.bin" ] && continue   # the same GPU under its minor number and its PCI name
+    cat "$v" > "vbios-$pci.bin" 2>/dev/null && [ -s "vbios-$pci.bin" ] || rm -f "vbios-$pci.bin"
+  done
+  log vbios
+fi
+# 2.4: the kernel's GPIO table (chips, lines, names, direction and level of lines in use); debugfs, root only
+rm -f gpio.txt
+[ -r /sys/kernel/debug/gpio ] && { cat /sys/kernel/debug/gpio > gpio.txt 2>&1; log gpio; }
 date > collected.txt
 chown -R "$uid" "$out"
 log "done -> $out"
