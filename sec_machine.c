@@ -2368,9 +2368,39 @@ static void s_acpi_eval(srs_out *o)
     static const int tabs[] = { 200 };
     so_siv_header(o, "ACPI Method Evaluation");
     so_tabs(o, tabs, 1);
-    so_kv(o, "acpi_call", C_VALUE, path_exists("/proc/acpi/call") ? "/proc/acpi/call present (root)" : "not loaded");
-    so_kv(o, "Evaluation", C_ORANGE, "disabled: evaluating an ACPI method requires a write; srs is read-only");
-    so_kv(o, "Read-only alternative", C_TEAL, "acpi-methods (method list from the cached DSDT/SSDTs), acpi-dev (_STA, _HID, _UID, _ADR)");
+    so_kv(o, "acpi_call", C_VALUE, path_exists("/proc/acpi/call") ? "loaded (/proc/acpi/call, root only)"
+                                   : "not loaded (srs-root loads it when you evaluate a method; Arch package: acpi_call-dkms)");
+    so_kv(o, "Evaluate a method", C_ORANGE, "Tools > ACPI method evaluation (for experts: runs BIOS code as root and can change hardware state)");
+    so_kv(o, "Method names", C_TEAL, "acpi-methods (the methods in this PC's DSDT / SSDTs), acpi-dev (_STA, _HID, _UID, _ADR per device)");
+    {   /* srs-root logs every evaluation: time TAB method + arguments TAB result */
+        const char *lf = so_root_file("acpi-calls.txt");
+        char *t = NULL;
+        if (lf && rd_all(lf, &t) > 0) {
+            static const int ct[] = { 190, 560 };
+            char *save = NULL, *ln, *lines[400];
+            int n = 0, i;
+            for (ln = strtok_r(t, "\n", &save); ln && n < 400; ln = strtok_r(NULL, "\n", &save)) lines[n++] = ln;
+            so_par(o);
+            so_head(o, n > 30 ? "Your last 30 evaluations (newest last)" : "Your evaluations (newest last)");
+            so_tabs(o, ct, 2);
+            {
+                const char *h[3] = { "When", "Method and arguments", "Result" };
+                static const int hc[3] = { C_LABEL, C_LABEL, C_LABEL };
+                so_row(o, 3, h, hc);
+            }
+            for (i = n > 30 ? n - 30 : 0; i < n; i++) {
+                char *f1 = lines[i], *f2 = strchr(f1, '\t'), *f3 = f2 ? strchr(f2 + 1, '\t') : NULL;
+                const char *cells[3];
+                static const int cc[3] = { C_GRAY, C_BLACK, C_VALUE };
+                if (!f2 || !f3) continue;
+                *f2++ = 0; *f3++ = 0;
+                cells[0] = f1; cells[1] = f2; cells[2] = f3;
+                so_row(o, 3, cells, cc);
+            }
+            so_tabs(o, tabs, 1);
+        }
+        free(t);
+    }
     so_board_footer(o);
 }
 
@@ -3147,7 +3177,7 @@ const srs_item sec_machine[] = {
     { "acpi-wmi", "hardware", "ACPI WMI (PNP0C14) methods", B_LINUX, 0, "/sys/bus/wmi/devices", s_acpi_wmi, 0, "machine" },
     { "acpi-pdx", "hardware", "ACPI extension (PDX)", B_LINUX, 0, "/sys/bus/acpi/devices (vendor HIDs)", s_acpi_pdx, 0, "machine" },
     { "acpi-ec", "hardware", "ACPI embedded controller", B_LINUX, 1, "/sys/bus/acpi/devices/PNP0C09:00 (EC registers not read)", s_acpi_ec, 0, "machine" },
-    { "acpi-eval", "hardware", "ACPI method evaluation", B_LINUX, 1, "/proc/acpi/call (never written)", s_acpi_eval, 0, "machine" },
+    { "acpi-eval", "hardware", "ACPI method evaluation", B_LINUX, 1, "Tools > ACPI method evaluation (acpi_call, as root); acpi-calls.txt log", s_acpi_eval, 0, "machine" },
     { "acpi-methods", "hardware", "ACPI methods", B_LINUX, 1, "acpi-tables/DSDT, SSDT* cache (AML MethodOp scan)", s_acpi_methods, 0, "machine" },
     { "acpi-ipf", "hardware", "ACPI IPF (Intel Platform Framework) methods", B_ABSENT, 0, "/sys/bus/acpi/devices (probe INTC1040-1043)", s_acpi_ipf, 0, "machine" },
     { "acpi-itm", "hardware", "ACPI ICD0001 methods", B_ABSENT, 0, "/sys/bus/acpi/devices (probe ICD0001)", s_acpi_itm, 0, "machine" },

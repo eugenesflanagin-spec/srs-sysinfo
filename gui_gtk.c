@@ -70,7 +70,8 @@ static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
 static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
 static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
-static int g_opt_pmic = 0;     /* 2.4: Options > Read DIMM voltages (PMIC); srs-root reads SRSDEF.ini "Read DIMM PMIC" */
+static int g_opt_pmic = 0;
+static int g_acpi_ok;           /* 2.4: ACPI method evaluation accepted ("Accepted ACPI Evaluation") */     /* 2.4: Options > Read DIMM voltages (PMIC); srs-root reads SRSDEF.ini "Read DIMM PMIC" */
 static int g_opt_classic = 0;  /* Options > Start in classic view (SRSDEF.ini "Classic View") */
 static int g_classic_session;  /* this run started in the classic (SIV-style) main window */
 
@@ -904,10 +905,11 @@ static void settings_load(void)
         }
         {
             static const char *const keys[] = { "Tray Icon", "Close To Tray", "Minimize To Tray", "Start In Tray", "Redact Reports", "Classic View", "Sortable Tables",
-                                                "Read DIMM PMIC" };
-            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic, &g_opt_sort, &g_opt_pmic };
+                                                "Read DIMM PMIC", "Accepted ACPI Evaluation" };
+            int *vars[] = { &g_opt_tray, &g_opt_close_tray, &g_opt_min_tray, &g_opt_start_tray, &g_opt_redact, &g_opt_classic, &g_opt_sort, &g_opt_pmic,
+                            &g_acpi_ok };
             int k;
-            for (k = 0; k < 8; k++) {
+            for (k = 0; k < 9; k++) {
                 GError *e2 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e2);
                 if (!e2) *vars[k] = v; else g_error_free(e2);
@@ -948,6 +950,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Start In Tray", g_opt_start_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Redact Reports", g_opt_redact);
     g_key_file_set_integer(kf, "SRSDEF", "Read DIMM PMIC", g_opt_pmic);
+    g_key_file_set_integer(kf, "SRSDEF", "Accepted ACPI Evaluation", g_acpi_ok);
     g_key_file_set_integer(kf, "SRSDEF", "Classic View", g_opt_classic);
     g_key_file_set_integer(kf, "SRSDEF", "Sortable Tables", g_opt_sort);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
@@ -1232,6 +1235,7 @@ static void copy_all(swin *w)
 static void save_dialog(int all);
 static void build_options(GtkWidget *menu);
 static void run_root(void);
+static void acpi_eval_dialog(void);
 static void on_menu_item(GtkMenuItem *mi, gpointer data) { (void)mi; open_section(data); }
 static void on_menu_tool(GtkMenuItem *mi, gpointer data)
 {
@@ -1255,6 +1259,8 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "save")) save_dialog(0);
     else if (!strcmp(t, "saveall")) save_dialog(1);
     else if (!strcmp(t, "root")) run_root();
+    else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
+    else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
     else if (!strcmp(t, "home")) home_open(0);
     else if (!strcmp(t, "classic")) open_main(0);
     else if (!strcmp(t, "exit") && g_main) gtk_widget_destroy(g_main->win);
@@ -1437,6 +1443,7 @@ static void run_root(void)
     m = gtk_message_dialog_new(g_main ? GTK_WINDOW(g_main->win) : NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_OK_CANCEL,
                                "Collect root-only data with one pkexec prompt?\n\n"
                                "dmidecode, decode-dimms, smartctl / nvme smart-log, ACPI table copies, MSR reads, "
+                               "AMD memory-controller registers and the BIOS memory settings (Memory Timings), "
                                "lspci config space, ioports/iomem, dmesg.\nRead-only; results go to ~/.cache/srs/root.\n\n%s%s", helper,
                                appimage ? "\n\nAppImage: the administrator account cannot look inside the AppImage, so this "
                                           "script is first copied to a private folder of yours and run from there. "
@@ -1462,6 +1469,104 @@ static void run_root(void)
             root_done(0, -1, copy);
     }
     gtk_widget_destroy(m);
+}
+
+/* ======================================================================
+ * ACPI method evaluation (2.4): the user types one ACPI method and its arguments; srs-root evaluates it through the
+ * acpi_call module (one pkexec prompt each time) and logs it to ~/.cache/srs/root/acpi-calls.txt. Unlike everything else
+ * in SRS this runs BIOS code that can change hardware state, so it is accepted once with a warning (SRSDEF.ini
+ * "Accepted ACPI Evaluation"); after that each Evaluate only asks for the root password. srs-root checks the input again.
+ * ====================================================================== */
+static int acpi_confirm(GtkWindow *parent, const char *head, const char *text, const char *yes)
+{
+    const char *t = getenv("SRS_TEST_ACPI_ANSWER");
+    GtkWidget *m;
+    int r;
+    if (t && *t) return !strcmp(t, "yes");
+    m = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_NONE, "%s", head);
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(m), "%s", text);
+    gtk_dialog_add_buttons(GTK_DIALOG(m), "_Cancel", GTK_RESPONSE_CANCEL, yes, GTK_RESPONSE_YES, NULL);
+    gtk_dialog_set_default_response(GTK_DIALOG(m), GTK_RESPONSE_CANCEL);
+    r = gtk_dialog_run(GTK_DIALOG(m));
+    gtk_widget_destroy(m);
+    return r == GTK_RESPONSE_YES;
+}
+static void settings_save(void);
+static void acpi_eval_dialog(void)
+{
+    GtkWindow *par = g_main ? GTK_WINDOW(g_main->win) : NULL;
+    GtkWidget *d, *ca, *grid, *em, *ea, *out, *l;
+    char exe[1024] = "", helper[1100];
+    ssize_t n = readlink("/proc/self/exe", exe, sizeof exe - 1);
+    if (!g_acpi_ok) {
+        if (!acpi_confirm(par, "ACPI method evaluation: for experts, at your own risk",
+                "This runs code from your BIOS (an ACPI method) as root, through the acpi_call kernel module. Unlike the rest of SRS it "
+                "is not just reading: a method can switch devices on or off, change fan, power or performance settings, write to the "
+                "BIOS settings, or make the PC hang or reboot. Only evaluate methods you know, for example from the ACPI method list "
+                "(acpi-methods) or your board's documentation.\n\nThe authors of SRS are not responsible for any damage or data loss "
+                "(GNU GPL, no warranty). You are asked this once; every call is logged in ~/.cache/srs/root/acpi-calls.txt.\n\n"
+                "Turn ACPI method evaluation on?", "_Yes, I understand")) return;
+        g_acpi_ok = 1;
+        settings_save();
+    }
+    if (n > 0) { exe[n] = 0; if (strrchr(exe, '/')) *strrchr(exe, '/') = 0; }
+    snprintf(helper, sizeof helper, "%s/srs-root", exe);
+    if (access(helper, X_OK)) snprintf(helper, sizeof helper, "%s/.local/bin/srs-root", g_get_home_dir());
+    d = gtk_dialog_new_with_buttons("ACPI method evaluation", par, GTK_DIALOG_DESTROY_WITH_PARENT, "_Close", GTK_RESPONSE_CLOSE,
+                                    "_Evaluate", GTK_RESPONSE_APPLY, NULL);
+    ca = gtk_dialog_get_content_area(GTK_DIALOG(d));
+    grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    g_object_set(grid, "margin", 12, NULL);
+    l = gtk_label_new("Runs one ACPI method as root (acpi_call). Methods can change hardware state: evaluate only what you know.");
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(l), 60);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 70);
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_grid_attach(GTK_GRID(grid), l, 0, 0, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new_with_mnemonic("_Method"), 0, 1, 1, 1);
+    em = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(em), "\\_SB.PCI0.GPP0._STA");
+    gtk_widget_set_hexpand(em, TRUE);
+    gtk_grid_attach(GTK_GRID(grid), em, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new_with_mnemonic("_Arguments"), 0, 2, 1, 1);
+    ea = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(ea), "none, or e.g. 0x1 \"text\" b0102 (numbers, \"strings\", bHEX buffers)");
+    gtk_grid_attach(GTK_GRID(grid), ea, 1, 2, 1, 1);
+    out = gtk_label_new("");
+    gtk_label_set_selectable(GTK_LABEL(out), TRUE);
+    gtk_label_set_line_wrap(GTK_LABEL(out), TRUE);
+    gtk_label_set_xalign(GTK_LABEL(out), 0);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("Result"), 0, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), out, 1, 3, 1, 1);
+    gtk_box_pack_start(GTK_BOX(ca), grid, TRUE, TRUE, 0);
+    gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_APPLY);
+    gtk_entry_set_activates_default(GTK_ENTRY(em), TRUE);
+    gtk_entry_set_activates_default(GTK_ENTRY(ea), TRUE);
+    gtk_widget_show_all(d);
+    while (gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_APPLY) {
+        const char *m = gtk_entry_get_text(GTK_ENTRY(em)), *a = gtk_entry_get_text(GTK_ENTRY(ea));
+        char *argv[16], **av = NULL, *so = NULL, *se = NULL;
+        int na = 0, i, st = -1;
+        if (!*m) continue;   /* accepted once (above); no question per call */
+        if (*a && !g_shell_parse_argv(a, &na, &av, NULL)) { gtk_label_set_text(GTK_LABEL(out), "The arguments could not be read (check the quotes)."); continue; }
+        argv[0] = (char *)"pkexec"; argv[1] = helper; argv[2] = (char *)"--acpi-eval"; argv[3] = (char *)m;
+        for (i = 0; i < na && i < 8; i++) {   /* keep the quotes of a "string": srs-root and acpi_call want them */
+            argv[4 + i] = strchr(a, '"') && !g_ascii_isdigit(av[i][0]) && av[i][0] != 'b' ? g_strdup_printf("\"%s\"", av[i]) : g_strdup(av[i]);
+        }
+        argv[4 + i] = NULL;
+        if (g_spawn_sync(NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, &so, &se, &st, NULL)) {
+            char res[1200];
+            snprintf(res, sizeof res, "%s%s", so && *so ? so : "", se && *se ? se : "");
+            g_strstrip(res);
+            gtk_label_set_text(GTK_LABEL(out), *res ? res : (st ? "cancelled or failed" : "(no result)"));
+        } else gtk_label_set_text(GTK_LABEL(out), "pkexec could not be started");
+        for (i = 4; argv[i]; i++) g_free(argv[i]);
+        g_strfreev(av);
+        g_free(so); g_free(se);
+    }
+    gtk_widget_destroy(d);
 }
 
 /* ======================================================================
@@ -6227,6 +6332,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "save")) save_dialog(0);
     else if (!strcmp(t, "saveall")) save_dialog(1);
     else if (!strcmp(t, "root")) run_root();
+    else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "classic")) open_main(0);
 }
@@ -6640,6 +6746,9 @@ static GtkWidget *build_cat_page(int cat)
                 "Save SRS's default set of items (Ctrl+S). Menu > Save All Items saves every item."));
             grid_add3(fb, launcher("Collect root data", "Memory stick details, drive health and serial numbers need administrator rights.",
                 "One password prompt. Read-only; the results are cached in ~/.cache/srs/root.", "_Run as root...", "root", "Run srs-root with pkexec"));
+            grid_add3(fb, launcher("ACPI method evaluation", "Run one ACPI method of the BIOS as root and see its result (for experts).",
+                "Can change hardware state. Off until you accept the warning once; every call is logged.", "_Evaluate...", "acpieval",
+                "Open the ACPI method evaluation window"));
             grid_add3(fb, launcher("Classic view", "The SIV-style main window with its button rows, every item in its own window.",
                 "Menu > Options > Start in classic view makes it the default.", "_Open...", "classic", "Open the classic main window"));
             /* MNEMONIC-END */
@@ -6843,6 +6952,7 @@ static void on_menu_btn(GtkButton *b, gpointer d)
     it = hmenu_add(m, "_Options", NULL, 0, 0);
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
     hmenu_add(m, "Run as roo_t (srs-root)...", "root", 0, 0);
+    hmenu_add(m, "ACPI method _evaluation (experts)...", "acpieval", 0, 0);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     hmenu_add(m, "_Find in System Report...", "find", GDK_KEY_f, GDK_CONTROL_MASK | GDK_SHIFT_MASK);
     hmenu_add(m, "Device _ID Lookup...", "idlookup", GDK_KEY_l, GDK_CONTROL_MASK);
@@ -7319,6 +7429,7 @@ int main(int argc, char **argv)
             if (!strcmp(t, "burnin")) open_tool(W_BURN, 0);
             else if (!strcmp(t, "stress")) open_tool(W_BURN, 1);
             else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
+            else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
             else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
             else if (!strcmp(t, "ipi")) open_tool(W_BENCH, BK_IPI);
             else if (!strcmp(t, "latency")) open_tool(W_BENCH, BK_LAT);

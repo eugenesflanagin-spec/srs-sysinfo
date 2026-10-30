@@ -22,6 +22,32 @@ mkdir -p "$out" || exit 2
 cd "$out" || exit 2
 log() { echo "srs-root: $*"; }
 
+# 2.4: `srs-root --acpi-eval METHOD [ARG...]` evaluates ONE ACPI method through the acpi_call module, for the user's
+# Tools > ACPI method evaluation (asked twice in the GUI first). This runs BIOS code and can change hardware state, so
+# the method path and every argument are checked here, as root: an ACPI name path (\_SB.PCI0.GPP0._STA style) and
+# arguments that are numbers (decimal or 0x hex), "strings" (letters, digits, space . _ -) or buffers bXXXX...
+# Every call is logged to acpi-calls.txt with the time, the call and the result.
+if [ "${1:-}" = "--acpi-eval" ]; then
+  shift
+  m=${1:-}; shift || true
+  [[ $m =~ ^\\?(\^)*[A-Z_][A-Z0-9_]{0,3}(\.[A-Z_][A-Z0-9_]{0,3})*$ ]] || { echo "srs-root: not an ACPI method path: $m" >&2; exit 2; }
+  [ "${m:0:1}" = '\' ] || m="\\$m"
+  args=""
+  for a in "$@"; do
+    [[ $a =~ ^(0x[0-9a-fA-F]{1,16}|[0-9]{1,20}|\"[A-Za-z0-9\ ._-]{0,64}\"|b([0-9a-fA-F]{2}){1,256})$ ]] || { echo "srs-root: argument not allowed: $a" >&2; exit 2; }
+    args="$args $a"
+  done
+  [ $# -le 7 ] || { echo "srs-root: at most 7 arguments" >&2; exit 2; }
+  modprobe acpi_call 2>/dev/null
+  [ -w /proc/acpi/call ] || { echo "srs-root: the acpi_call module is not installed (Arch: acpi_call-dkms)" >&2; exit 3; }
+  printf '%s%s' "$m" "$args" > /proc/acpi/call
+  res=$(tr -d '\000' < /proc/acpi/call)
+  printf '%s\t%s%s\t%s\n' "$(date -Is)" "$m" "$args" "$res" >> acpi-calls.txt
+  chown "$uid" acpi-calls.txt 2>/dev/null
+  printf '%s\n' "$res"
+  exit 0
+fi
+
 command -v dmidecode >/dev/null && { dmidecode > dmidecode.txt 2>&1; log dmidecode; }
 command -v decode-dimms >/dev/null && { decode-dimms > spd.txt 2>&1; log decode-dimms; }
 for d in /sys/block/*; do
