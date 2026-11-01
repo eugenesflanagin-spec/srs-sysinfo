@@ -150,7 +150,11 @@ static gboolean run_task(const char *text, char **why)
         return FALSE;
     }
     /* no G_SPAWN_DO_NOT_REAP_CHILD: GLib detaches the child, it keeps running when SRS closes */
+#if GLIB_CHECK_VERSION(2, 74, 0)
     ok = g_spawn_async(g_get_home_dir(), argv, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_STDIN_FROM_DEV_NULL, NULL, NULL, NULL, &e);
+#else   /* GLib < 2.74 (the AppImage builds on Ubuntu 22.04): the child gets /dev/null as stdin by default there */
+    ok = g_spawn_async(g_get_home_dir(), argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &e);
+#endif
     if (!ok) *why = g_strdup(e ? e->message : "Cannot start it.");
     if (e) g_error_free(e);
     g_strfreev(argv);
