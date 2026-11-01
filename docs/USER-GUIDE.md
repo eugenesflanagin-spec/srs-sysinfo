@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 2.4.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 2.5.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 558 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 559 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -69,11 +69,14 @@ It also has tools:
 - **Latency** - how long memory takes to answer, by block size (shows your cache levels).
 - **Device ID Lookup** - turn a number like `1002:7550` into a device name.
 - **Find** - search a saved full system report.
+- **IR Blaster** (2.5) - learn and send TV-remote codes with a USB infrared dongle.
+- **The Big Top** (2.5) - a live window for the whole PC (a task manager: processes, startup apps,
+  users, services) and for each graphics card (a GPU view modelled on amdgpu_top).
 
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (558 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (559 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -85,10 +88,12 @@ It has all 538 of SIV 5.87's report items (558 in total with SRS's own extras):
 **SRS is read-only.** It never changes a setting, never writes to hardware or firmware, and makes
 no network traffic except one `ping` to your router when you open the Ping item (and, only when you
 ask, the Network Benchmark's internet test and Update hardware lists). The places that change
-something are the Startup manager ([6.9](#69-the-startup-manager)), only when you click its switches
-or buttons (it turns startup items off and on, and never deletes anything), and, since 2.4, ACPI
-method evaluation for experts ([9.22](#922-acpi-method-evaluation-experts)), which runs a BIOS method
-you type, only after a one-time warning.
+something are, since 2.4, ACPI method evaluation for experts ([9.22](#922-acpi-method-evaluation-experts)), which runs a BIOS method
+you type, only after a one-time warning; and, since 2.5, the task manager pages of The Big Top's
+Performance tab ([6.14](#614-the-performance-tab-a-task-manager)): ending, pausing or re-prioritising
+a program, turning startup apps off and on (never deleting anything for good), starting and
+stopping services, and disconnecting a session - each only when you click, and each asks first before it ends, stops or turns off anything.
+The Big Top's GPU tabs only read.
 
 ## 2. Who it is for
 
@@ -122,7 +127,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-2.4.0-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.5.0-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -156,8 +161,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-2.4.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.4.0-linux-x86_64
+tar xzf srs-sysinfo-2.5.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.5.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -175,14 +180,14 @@ with GTK and everything else it needs inside. Nothing is installed; you just run
 built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
 
 ```
-chmod +x srs-sysinfo-2.4.0-x86_64.AppImage
-./srs-sysinfo-2.4.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.4.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.4.0-x86_64.AppImage srs-sysreport     # the full system report
+chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
+./srs-sysinfo-2.5.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.5.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.5.0-x86_64.AppImage srs-sysreport     # the full system report
 ```
 
 - **Command line:** every `sysreport-search` command works with the AppImage, for example
-  `./srs-sysinfo-2.4.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  `./srs-sysinfo-2.5.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
   the AppImage behaves like the real `sysreport-search`.
 - **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
   that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
@@ -199,7 +204,7 @@ chmod +x srs-sysinfo-2.4.0-x86_64.AppImage
 - **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
   packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
   `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
-  (see them with `./srs-sysinfo-2.4.0-x86_64.AppImage --appimage-extract`).
+  (see them with `./srs-sysinfo-2.5.0-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 
@@ -393,7 +398,7 @@ From top to bottom:
 
 | Part | What it is |
 |---|---|
-| **Title bar** | **Refresh** (left; also **F5**) reads the page again. Next to it the **badge** says whether SRS can read everything: **Full access** or **Limited (user)** with a **Run as root...** button ([6.10](#610-full-access-or-limited-the-badge)). The **search box** finds any item or text ([6.4](#64-search)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Lineup, Options, Run as root and more ([6.5](#65-the-menu)). |
+| **Title bar** | **Refresh** (left; also **F5**) reads the page again. Next to it the **badge** says whether SRS can read everything: **Full access** or **Limited (user)** with a **Run as root...** button ([6.10](#610-full-access-or-limited-the-badge)). The **search box** finds any item or text ([6.4](#64-search)). The Big Top button (an icon between the search box and the menu button; also **Ctrl+G**) opens The Big Top ([6.13](#613-the-big-top-live-pc-and-gpu-activity)). The **menu button** (three lines; also **Ctrl+M**) has Save Report, Lineup, Options, Run as root and more ([6.5](#65-the-menu)). |
 | **Sidebar** (left) | The pages: Overview, Processor, Memory, Motherboard & BIOS, Graphics & Audio, Storage, Network, Sensors, Power & Cost, USB & PCI devices, Operating system, Benchmarks & Stress, Tools. **Alt+1** ... **Alt+9**, **Alt+0**, **Alt+-**, **Alt+=** and **Alt+Backspace** jump straight to them, in that order ([12](#12-keyboard-shortcuts)). Below the list: **Classic view**, the tab **lineup** in use ([6.7](#67-arranging-the-tabs-and-lineups)) and the SRS version. |
 | **Page** (right) | What you picked. The title bar's second line names it. |
 
@@ -402,7 +407,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 558 of them.
+as **Sensor status** or **SMART drives**; there are 559 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -415,10 +420,10 @@ as **Sensor status** or **SMART drives**; there are 558 of them.
 | **Network** | Adapters, addresses, Wi-Fi, Bluetooth, connections | Network adapters, IP address, Wi-Fi SSIDs, Bluetooth radios, Routing table, TCP V4 ports, TCP/IP counters |
 | **Sensors** | Temperatures, fans, voltages, power | Sensor status, Hardware status, Cooling status (fans), Power status |
 | **Power & Cost** | How much power the PC uses, what it costs, history (estimates; see [6.11](#611-power--cost)) | Now, History, Sessions, Price, Setup, Alarms, Sources |
-| **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt |
+| **USB & PCI devices** | Every device in or plugged into the PC | ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt, IR Blaster ([6.15](#615-ir-blaster)) |
 | **Operating system** | Linux itself | General Info (SIV's "Windows" panel; the classic **Linux** button), Drivers, Processes, Startup programs, Installed software, Environment, Users |
 | **Benchmarks & Stress** | Measure or load the CPU, memory, drives, network and GPU | CPU Benchmarks, Cache & Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU Benchmark, GPU Burnin, GPU Compute comparison, SRS Pi, Crypto, Prime Sieve, CPU IPI Delay, Memory Latency, Benchmark History (the last results) |
-| **Tools** | Look-ups, reports and SRS's own items | About SRS, Help |
+| **Tools** | Look-ups, reports and SRS's own items; buttons for The Big Top ([6.13](#613-the-big-top-live-pc-and-gpu-activity)), Device ID Lookup, Find and more | About SRS, Help |
 
 The tabs above are the standard ones (the **Enthusiast** lineup; SRS's default is **Expert**). You can change
 them on any page at any time ([6.7](#67-arranging-the-tabs-and-lineups)).
@@ -732,50 +737,27 @@ The headings are underlined and the mouse pointer becomes a hand over them; hove
 - **Options -> Sortable tables** turns sorting off (the tables are then plain text, as in 2.0).
   The classic panels never sort.
 
-### 6.9 The Startup manager
+### 6.9 Startup programs
 
 **Operating system -> Startup programs** opens on **Report**: the Startup programs item as text,
-read-only (what Copy and Save Report give). **Manage**, one click away next to it, is the manager:
-everything that starts when you log in or when the PC boots, with a switch per item.
+read-only (what Copy and Save Report give). **Manage**, one click away next to it, opens **The Big
+Top -> Performance -> Startup Apps** ([6.14.4](#6144-startup-apps)), the one place in SRS where
+startup items are turned off and on, added, removed (restorably) and put back to their default. The
+Manage page itself only says so and has an **Open Startup Apps** button for a second try.
 
-![Startup manager](images/startup-manager.png)
+SRS 2.2 to 2.4 had a separate Startup manager on that Manage page. Since 2.5 it is gone, and
+Startup Apps does its work:
 
-*The Startup manager: autostart entries with their switches, Undo, Restore default and Add to startup.*
-
-| Column | Meaning |
-|---|---|
-| **On** | Ticked = it starts. Click to turn it off or on. Greyed = it cannot be switched here (see Note). |
-| **Name** | The program's name. Hover for the file or unit and its command. |
-| **Kind** | **Autostart (system)** - `/etc/xdg/autostart`, for every user; **Autostart (yours)** - `~/.config/autostart`; **Service (user)** - a systemd user unit; **Service (system)** - a system service (only with **Show system services** ticked). |
-| **State** | on / off, or the unit's state (enabled, disabled, static, masked ...). |
-| **Note** | Why it is off or greyed (for example "only for other desktops"), "turned off by SRS (your copy)", "added by SRS", "desktop essential: ...", a unit's default (preset). |
-
-Click a column heading to sort; the filter box and the list next to it narrow the list down.
-
-**Nothing is ever deleted:**
-
-- A **system autostart entry** is turned off with a copy of it in your `~/.config/autostart` that
-  says `Hidden=true` (the desktop uses your copy instead of the system one). Turning it back on
-  moves that copy into `~/.config/srs/startup-backup`.
-- **Your own autostart entries** get `Hidden=true` or `Hidden=false`. The first time SRS changes
-  one, the original is kept in the backup folder.
-- **Services:** `systemctl --user enable` / `disable` for user units. System services ask first,
-  then use `pkexec systemctl enable` / `disable` (the administrator password); the change applies
-  from the next boot.
-- **Undo** puts back the last change made in this session (repeat it for earlier ones).
-- **Restore default** puts the selected item back to its default: a system entry loses your copy
-  (moved to the backup folder), your own entry gets its original file back, an entry SRS added is
-  taken out of the list (moved to the backup folder), and a service gets the distribution's
-  default (`systemctl preset`).
-- **Add to startup...** starts an installed program (pick it from the list) or any command (run
-  by `sh`) at every login, with an optional delay in seconds. It writes
-  `~/.config/autostart/srs-NAME.desktop`; turn it off or take it out again in this list.
-
-Parts of the desktop ask before they are turned off: Plasma, KWin, KWallet and other password
-storage, PipeWire and WirePlumber (sound), the desktop portals (file dialogs, screen sharing), the
-polkit agent (admin password prompts), D-Bus, accessibility and the login screen. You can still
-turn them off; SRS just says what may stop working. Changes take effect at the next login (system
-services at the next boot).
+- Its **Restore default** is now **Restore Default** in Startup Apps.
+- The copies it kept in `~/.config/srs/startup-backup` are listed in Startup Apps' **Restore
+  Removed...** under "Saved by the old Startup manager" and come back as copies: nothing there is
+  deleted or replaced.
+- Entries it turned off or added (marked `X-SRS-Override` or `X-SRS-Added`) show and switch in Startup
+  Apps as before.
+- **System services** are started, stopped and restarted on The Big Top's **Services** page
+  ([6.14.6](#6146-services)). Startup Apps itself never writes to `/etc` and never needs the
+  administrator password; to change whether a system service starts at boot, use
+  `sudo systemctl enable` / `disable` in a terminal.
 
 ### 6.10 Full access or Limited: the badge
 
@@ -978,7 +960,7 @@ the chip, not a meter: good for changes, and it may read lower than a wall meter
 
 #### Where the built-in figures come from
 
-| Data | Source | Date in SRS 2.4.0 | Licence / terms |
+| Data | Source | Date in SRS 2.5.0 | Licence / terms |
 |---|---|---|---|
 | US average price by state | U.S. Energy Information Administration, *Electric Power Monthly*, Table 5.6.B (residential, year to date) | August 2026 YTD | U.S. government work (public domain); credit EIA |
 | US utility by ZIP code, with its average residential price | NREL, *U.S. Electric Utility Companies and Rates: Look-up by Zip Code (2024)*, from EIA-861 data | 2024 | Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by SRS |
@@ -1076,6 +1058,413 @@ The register map and the table layouts follow ZenStates-Core / ZenTimings by Iva
 memtest86+ by Sam Demeulemeester (facts only, no code copied). Every field is described in the
 [Section Reference](SECTIONS/machine.md#memory-timings).
 
+<a id="gpu-top"></a>
+### 6.13 The Big Top (live PC and GPU activity)
+
+**In plain words:** The Big Top (new in 2.5) is a separate window that shows, live, what your PC and
+each graphics card are doing right now. Its first tab, **Performance**, is a task manager for the
+whole PC ([6.14](#614-the-performance-tab-a-task-manager)). The other tabs are a GPU view modelled on
+**amdgpu_top** by Umio Yasuno: how busy each part of the graphics chip is, its memory, which programs
+use it, clocks, power, temperatures and the driver's own tables. The GPU tabs only read; they never
+change a clock, a voltage, a fan or a power limit.
+
+**Open it:**
+
+- the Big Top button in the main window's title bar (a monitor icon; hover for its name), between
+  the search box and the menu button, or **Ctrl+G**;
+- the search box: type "big top" (also "gpu top", "amdgpu_top" or "task manager");
+- the **Tools** page: **The Big Top...**;
+- in the classic view: **Menu -> The Big Top (Live GPU and System Activity)...**;
+- a left click on a tray meter icon ([11.1](#111-live-tray-meters-and-the-task-manager-settings));
+- at start: `srs-gui --gui-open=gputop` (or `SRS_OPEN=gputop`).
+
+There is one Big Top window; opening it again brings it to the front. It opens on the Performance
+tab. Without a graphics card it still opens: the Performance tab works and the GPU tab says that no
+card was found. Hiding SRS to the tray hides The Big Top too, and **Show** brings it back.
+
+**Tabs:** **Performance** | **GPU** | **SMI** | **DRM Info** | **PowerPlay Table** | **NPU (XDNA)**.
+A **Guide** button at the right end of the tab row (also **F1**) opens this guide at the section of
+the tab shown; on the Performance tab, at the page shown in its side list.
+
+**The top row** (shown on the GPU tabs; the Performance tab has its own controls):
+
+| Control | What it does |
+|---|---|
+| Card name, or **Device:** list | With one card, its name and PCI address. With two or more, a list: `#0 name (PCI address)`. A card that is asleep (runtime suspended) is marked "- Suspended" and is not opened or read until you pick it - picking it wakes it up. The window starts on the first card that is awake. **Ctrl+1** ... **Ctrl+9** pick a card. |
+| **Info** | Shows or hides the side panel with the card's details (on at start; **Ctrl+I**). |
+| **Pause** | Freezes the numbers and graphs so you can read them. The cards are still read in the background, so the graphs carry on when you let go (**Ctrl+P**). |
+| **Performance Counters (GRBM)** | **Off by default; turn it on when you need the GRBM panels.** On, it reads the card's GRBM / GRBM2 counters (100 register reads a second). Reading them can keep the card from dropping into its power-saving states, so it may draw a little more power while The Big Top is open. Off is the same as `amdgpu_top --no-pc`. AMD cards only. |
+| **Update:** | How often The Big Top reads the cards for the GPU and SMI tabs: **Every 0.25 s**, **Every 0.5 s**, **Every 1 s (Normal)** (the default, as amdgpu_top), **Every 2 s**, **Every 5 s**. The graphs always show the last 30 seconds. Faster costs a little more CPU time (on the author's PC about 1.6 % of one CPU at 1 s, 2.4 % at 0.25 s). Saved; the same setting is **Big Top Update Speed** in the Task Manager settings. |
+| **Settings...** | Opens the Task Manager settings ([11.1](#111-live-tray-meters-and-the-task-manager-settings)): every live-update setting on one page. |
+| Status text (right) | The update interval and graph length, and "the card is asleep (D3), so some values are not read" while that is so. |
+
+**When the card is idle.** A graphics card that **can** go to sleep - one whose power management lets
+it (runtime power management set to `auto`) and that drives no monitor, typically the second card of
+a laptop or a desktop - is left alone while no program uses it, so it can drop into its deepest
+sleep state (D3). The Big Top then does not read the values that would wake it: the GPU Metrics panel
+says "Not read while the card is idle, so it can go to sleep; it comes back when the card is used.",
+and the status line says the card is asleep. As soon as a program uses the card the readings come
+back. A card that drives your monitor, or whose runtime power management is off, never sleeps, so
+it is always read in full (before this rule, those cards' panels went blank at the desktop). A
+graphics chip built into the processor (an APU) is never put to sleep this way.
+
+**NVIDIA cards** are read through NVIDIA's own library (NVML, `libnvidia-ml.so.1`), loaded only when
+an NVIDIA card is present. GRBM, GRBM2, GPU Metrics and the PowerPlay Table say "Not available on
+NVIDIA cards."; the process table shows Name, PID, VRAM, GFX, Decode and Encode. **Intel and other
+cards** show what the kernel's files offer.
+
+**Keys** (in The Big Top window): **Esc** or **Ctrl+W** close it; **F1** the guide; **Ctrl+P** Pause;
+**Ctrl+I** side panel; **Ctrl+1** ... **Ctrl+9** pick a card. Tabs: **Alt+P** Performance, **Alt+G**
+GPU, **Alt+S** SMI, **Alt+R** DRM Info, **Alt+W** PowerPlay Table, **Alt+N** NPU (XDNA). Top row:
+**Alt+D** device list, **Alt+I** Info, **Alt+A** Pause, **Alt+C** Performance Counters, **Alt+U**
+Update, **Alt+E** Settings; **Alt+L** Full List (process table).
+
+The Big Top's threads and timers run only while its window is shown: minimised or hidden, it reads
+nothing.
+
+**Command line:** `sysreport-search gpu-top` (or `big-top`, the same command) prints the same GPU
+data in a terminal: a live text view, one SMI table, the device info, the gpu_metrics table, JSON and
+more. See the [CLI reference](CLI-REFERENCE.md#gpu-top--big-top---the-big-tops-gpu-view).
+
+#### 6.13.1 The GPU tab
+
+The GPU tab is one card in detail (pick the card in the top row).
+
+**Left (the side panel, Info):** Device Info (the chip, its shader engines and compute units, clocks,
+memory type and width, peak speeds, caches, power profiles ...), XDNA NPU Info (processors with an
+NPU), Hardware IP Info, IP Discovery Table, Video Caps Info (which video formats it decodes and
+encodes), VBIOS Info, Firmware Info, and Connector Info (which points to the DRM Info tab). Each part
+folds open and shut.
+
+**Right (live):**
+
+| Panel | What it shows |
+|---|---|
+| **GRBM**, **GRBM2** | How often each block of the graphics engine was busy (shaders, texture units, colour and depth units, command processors, caches, DMA ...), in %, each with a 30-second graph. Shown only with **Performance Counters (GRBM)** ticked (off by default; AMD only). |
+| **VRAM** | Video memory, the part of it the CPU can see directly, and GTT (system memory the card borrows): used / total (usable) MiB, with a graph. |
+| **Activity** | GFX (the graphics engine), Memory and Media (video) busy %, with graphs. |
+| **Processes (fdinfo)** | Every program that has the card open: Name, PID, KFD (compute), VRAM, GTT, CPU, GFX, Compute, DMA, Decode / Encode (or VCN Unified on newer cards), VPE. Click a heading to sort. **Full List** shows every process without a scroll bar. Programs of other users show only when SRS may look at them. |
+| **Sensors** | GFX_SCLK (shader clock), GFX_MCLK (memory clock), FCLK, VDDGFX (voltage), Average and Input Power, Fan, Edge / Junction / Memory temperature and the CPU's Tctl, each with a graph; the PCIe link now and its range (for example "Gen4x16 (Gen1x16 - Gen4x16)"), the PCI power state, the power profile, the throttle status and the clock levels (DPM; `*` = the level in use). Temperatures in °C. |
+| **PCIe Bandwidth** | Data sent and received, when the card reports it (for example through NVML). |
+| **ECC Memory Error Count** | Corrected and uncorrected memory errors, when the card reports them. |
+| **GPU Metrics vX.Y** | Every field of the driver's gpu_metrics table, with units, per-core arrays and a VCLK / DCLK (video clock) graph. |
+| **Throttling Log** | Folded at start: the last 30 samples in which a throttle reason was on. |
+
+Panels that a card does not have stay hidden; until the first reading, a panel says "Reading...".
+
+<a id="gpu-top-smi"></a>
+#### 6.13.2 The SMI tab
+
+One line per graphics card, all cards at once: number, name, target, PCI bus, VRAM, GTT, SCLK, MCLK,
+VDDGFX, Power / Cap, GFX, UMC (memory controller), Media, GPU and memory temperature, fan and
+throttle status. A sleeping card's line says "Asleep (runtime suspended) - not read until you pick it". Below it a Processes table of every card, with a GPU column. Like `amdgpu_top --smi`.
+
+<a id="gpu-top-drm-info"></a>
+#### 6.13.3 The DRM Info tab
+
+The display side of each card, read through libdrm: every connector (DisplayPort, HDMI ...), whether a
+monitor is connected, its modes (resolutions and refresh rates) and the connector's properties.
+SRS does not force the monitors to be probed again to fill it.
+
+<a id="gpu-top-pp-table"></a>
+#### 6.13.4 The PowerPlay Table tab
+
+The card's PowerPlay table, decoded: the limits and clock and voltage steps the card's firmware
+starts with. Only Radeon RX 5000, 6000 and 7000 cards have one in a form SRS decodes; other cards say
+"not available on this card". It is only read.
+
+<a id="gpu-top-npu"></a>
+#### 6.13.5 The NPU (XDNA) tab
+
+The AMD XDNA NPU (the AI engine of Ryzen AI processors) from the kernel's `/sys/class/accel` files:
+the device, its driver and firmware, and the programs using it. Without one it says "No XDNA NPU
+(Ryzen AI) was found." Live NPU readings were not tested on real hardware.
+
+### 6.14 The Performance tab (a task manager)
+
+**In plain words:** the first tab of The Big Top shows the whole PC at a glance and lets you look
+after the programs running on it, the way a task manager does. A list on the left picks the page:
+**Summary**, **Performance**, **Processes**, **Startup Apps**, **Users** and **Services**. The window
+follows your desktop's light or dark theme; the meters and graphs are dark instrument panels (CPU
+green, kernel time red, memory magenta, CPU power yellow, temperatures orange, disks green, network
+and GPU cyan).
+
+It reads the PC at the **Performance and Tray Update Speed** (every second by default;
+[11.1](#111-live-tray-meters-and-the-task-manager-settings)) and only while the tab is shown and the
+window is not minimised. Graphs cover the last 60 samples. A stretch while the tab was hidden shows
+as a shaded gap with a dashed line (or is filled in, when the tray meters were reading meanwhile).
+Which page opens first is **Default Start Page** in the settings (Summary at first).
+
+Everything on Summary and Performance is read without root, except the CPU package power on PCs
+where only the root-only RAPL counter exists ("n/a (needs root)"; the `zenergy` driver makes it
+readable). A graphics card that is asleep is not woken: it says "Suspended (not woken)".
+
+**The pages that change things** - Processes, Startup Apps, Users and Services - only act when you
+click, and ask first for anything that ends, stops or turns something off.
+
+<a id="perf-summary"></a>
+#### 6.14.1 Summary
+
+One screen: LED bar meters for CPU use, CPU clock, CPU temperature and GPU busy; **CPU Overview** (a
+graph of CPU use as % of the whole CPU, kernel time, and the temperature on the right-hand scale);
+**Top CPU Processes** (PID, Name, CPU, GPU, Memory; busy rows tinted; right-click a row for the
+process actions of [6.14.3](#6143-processes)); **Memory Utilization** (used / total, available,
+cached, swap; the graph zooms to its range); tiles for **System Pressure** (how often programs had to
+wait for the CPU, memory or disks in the last 10 seconds: Low under 10 %, Moderate under 30 %, High
+above), **Network** (receive / send, with a bar against the link speed), **Disk** (read / write and
+the busiest disk's active time) and **GPU** (power of its limit, busy %, temperature). The status line
+counts processes, threads and applications and shows the up time. **Settings...** opens the
+Task Manager settings.
+
+<a id="perf-performance"></a>
+#### 6.14.2 Performance
+
+A list of resources with small graphs: **CPU**, **Memory**, **CPU Power**, **Thermals**, every disk,
+every network adapter and every graphics card. Pick one for its big meter, graphs and figures.
+
+- **CPU:** one graph per logical CPU (user time green, kernel time red), Utilization, Speed,
+  Processes, Threads, Up Time, Base and Maximum Speed, Sockets, Cores, Logical Processors,
+  Virtualization, Governor, Frequency Driver, Temperature, Package Power, Kernel Time, Load Average.
+- **Memory:** In Use, Available, Committed, Cached, Swap, Free, Buffers, Shared, Kernel Slab, Dirty,
+  Memory Stalls, and a swap graph.
+- **CPU Power:** the processor package and each graphics card, with a graph and where each figure
+  comes from.
+- **Thermals:** every temperature sensor: CPU, GPU hotspot and edge, NVMe drives, hard disks.
+- **Disks** (not loop, RAM, zram, device-mapper, RAID or optical devices, nor empty card readers):
+  active time, average response, read / write speed, capacity, type, device and totals since start.
+- **Network** (physical adapters, and virtual ones that are up, except container and bridge
+  adapters): receive / send in bits per second, link speed, IPv4 / IPv6 addresses, hardware address,
+  driver, totals.
+- **GPU:** utilisation (graphics engine activity, without the performance counters), dedicated
+  memory with a graph, power, temperature, hotspot, shader and memory clock, memory temperature,
+  power limit, fan, GTT, memory type, PCIe link, power state, PCI bus and driver.
+
+<a id="perf-processes"></a>
+#### 6.14.3 Processes
+
+Every running process, in two groups: **Applications** (programs with a menu entry running in your
+desktop session; one started by another application is shown under it) and **Background
+Processes**. Columns: Name, PID, Status, User, CPU, Memory (resident), Disk Read and Disk Write per
+second, GPU (the busiest graphics engine it uses), Threads, Nice and Command. Click a heading to sort;
+type in **Filter by name, user, or PID** to narrow the list. The pane below shows the selected
+process in detail (parent, start time, CPU time, priority, memory, disk totals, video memory, systemd
+unit, session, program file, command line). Other users' disk figures need root and show as a dash.
+
+CPU % is a share of the whole CPU (all logical CPUs together = 100 %), or, with **Per-Core CPU Units**
+on, one logical CPU = 100 % (16 busy threads = 1600 %).
+
+**Process actions.** The toolbar has **End Task**, **Force Kill**, **End Process Tree**, **Suspend**,
+**Resume**, **Priority**, **Affinity...** and **Properties...**. The right-click menu (or the Menu
+key / Shift+F10) has the same plus **Open File Location** and **Copy Command Line**. **Delete** = End
+Task, **Shift+Delete** = Force Kill. Alt keys: End Task **Alt+T**, Force Kill **Alt+K**, End Process
+Tree **Alt+O**, Resume **Alt+M**, Priority **Alt+Y**, Affinity **Alt+F**. Select several rows (Ctrl or Shift click) to act on all of them
+(not for End Process Tree or Properties).
+
+| Action | What it does |
+|---|---|
+| **End Task** | Asks the program to close, politely (the signal SIGTERM): it can save and tidy up first. After 3 seconds a bar says "... ended." or that it is still running, with a **Force Kill** button. |
+| **Force Kill** | Ends it at once (SIGKILL). It gets no chance to save. |
+| **End Process Tree** | Ends everything it started (the children first), then itself. |
+| **Suspend** / **Resume** | Pauses it (SIGSTOP) until you resume it (SIGCONT). Its Status shows "Suspended". |
+| **Priority** | How much CPU time it gets when the CPU is busy: **Very High** (nice -15), **High** (-5), **Normal** (0), **Low** (10), **Very Low** (19), for every thread of it. Above Normal may ask for your password. |
+| **Affinity...** (Set CPU Affinity...) | Which logical CPUs it may run on: a tick box per CPU, for every thread. |
+| **Properties...** | Name, PID, parent, user, status, start time, CPU time, priority, threads, memory, CPU affinity, program file, working folder, unit / cgroup, session, how many environment variables, open files and the command line. |
+| **Open File Location** / **Copy Command Line** | Opens the folder of its program file / copies its command line. |
+
+**SRS always asks first** before End Task, Force Kill, End Process Tree and End Parent Process, naming
+the program, its PID and its user, and saying that unsaved work in it is lost. It warns more strongly
+for SRS itself ("it will close"), for the programs SRS was started from (your session), and for the
+parts of the desktop: systemd, the Plasma session and shell, KWin, Xwayland, the login manager, D-Bus,
+PipeWire, WirePlumber and polkit. Suspend asks only for those. Safety rules:
+
+- PID 1 (systemd) and kernel threads are never touched: every action is greyed, the tooltip says why.
+- SRS never suspends itself (nothing could resume it).
+- A process is only signalled if it is still the same one: if its number was meanwhile reused by a
+  new program, nothing happens.
+
+**Zombies.** A zombie is a program that has already ended, but whose parent has not yet collected
+its exit note, so it still has a line in the list. It uses no CPU and no memory, and it cannot be
+ended - it is already gone. Selecting one shows a bar: "Zombie: *name* (*PID*) has already ended and is
+waiting for its parent *name* (*PID*) to clean it up", with **End Parent Process...** (asks first,
+like End Task). When the parent ends, the system cleans the zombie up. If the parent is PID 1 or a
+kernel thread, it cleans the zombie up itself.
+
+**Other users' and root's processes.** You can only signal your own processes. For anyone else's,
+SRS runs the action through `pkexec` (`kill`, `renice` or `taskset`) and polkit asks for the
+administrator password; the confirmation says so. A cancelled password or a refusal shows in the bar.
+
+<a id="perf-startup-apps"></a>
+#### 6.14.4 Startup Apps
+
+**In plain words:** everything that starts when you log in, with a tick box to turn each one off or
+on with one click. It only ever changes your own settings, in your home folder: it never writes to
+`/etc` or any system folder and never needs the administrator password. (System services are on
+the Services page, [6.14.6](#6146-services).) **Operating system -> Startup programs -> Manage**
+opens this page too ([6.9](#69-startup-programs)).
+
+It lists XDG autostart entries (yours first; a file of yours replaces the system one of the same
+name), enabled systemd user services (and the ones SRS turned off, so you can turn them on again),
+Plasma login scripts (`~/.config/plasma-workspace/env`) and `~/.config/autostart-scripts`.
+
+| Column | Meaning |
+|---|---|
+| **Enabled** | Ticked = it starts. A dash = it is on, but will not start here (for example it is only for another desktop). Empty = off. |
+| **Name** | With its icon. |
+| **Command** | What it runs (a delay wrapper is left out). |
+| **Delay** | Seconds after login. |
+| **Source** | **User**, **System**, **System, changed for you**, **systemd (user)**, **Plasma login script** or **Autostart script**. |
+| **Notes** | Why it is hidden or will not start: turned off (Hidden=true or X-GNOME-Autostart-enabled=false), NoDisplay (still starts), not for this desktop, a KDE setting it depends on (shown, not checked), the TryExec program missing, or **Program not found** in red. |
+
+Click a heading to sort (Name A-Z at first; Enabled sorts off, then on-but-not-here, then on); the
+selection stays when the list is read again. **Show Hidden** (on at first) also lists entries that
+are hidden or turned off; the filter box narrows the list.
+
+**Actions** (toolbar and right-click menu):
+
+- **The tick box** - one click turns it off or on.
+- **Add...** - a dialog "Add a Startup App" with three ways: **Installed Application** (search the
+  list), **Program or Script** (a file; a script that is not executable runs with `sh`) or
+  **Command** (type it). Then **Name**, **Delay Start By** N seconds (0-600) and **Start only in this
+  desktop**. The delay is written both as `X-GNOME-Autostart-Delay` and as `sh -c "sleep N && ..."`,
+  because KDE ignores the first. A command whose program cannot be found asks "Add this command
+  anyway?".
+- **Remove** - the button's name says what it does for the selected entry: **Remove** for your own
+  entry (it moves to `~/.config/autostart/.srs-trash`, from where **Restore Removed...** brings it
+  back); **Disable for Me** for a system entry (a per-user copy turns it off for you only);
+  **Disable** for a systemd user service or a script.
+- **Properties...** (or double-click) - name, command, delay and **Start at login**. System entries
+  are changed through your own copy.
+- **Undo** - takes back the last change, also after SRS was restarted (the last 50 changes).
+- **Restore Removed...** - brings back entries you removed, and the copies the old Startup manager
+  of SRS 2.2-2.4 saved in `~/.config/srs/startup-backup` (listed under "Saved by the old Startup
+  manager"; they come back as copies, never replacing an entry that is there, and nothing in that
+  folder is deleted). The first time such copies exist, a bar says how many.
+- **Restore Default** (asks first; Undo takes it back) - puts the selected entry back the way it was
+  shipped: a system entry loses your per-user copy (SRS's or your own), your own entry gets its
+  original back (its `.srs-bak`, or the old Startup manager's saved original), and a systemd user
+  service is set the way its vendor preset says (`systemctl --user preset`). Greyed when the entry has
+  no other default.
+- **Open File Location** (folder icon) and **Copy Command** (copy icon), the refresh button, and
+  **Run New Task...** ([6.14.7](#6147-run-new-task)).
+
+Alt keys: Remove **Alt+V**, Undo **Alt+O**, Restore Removed **Alt+M**, Restore Default **Alt+F**, Show
+Hidden **Alt+H**. The right-click menu has its own underlined letters.
+
+**Asks first for parts of the desktop session.** Turning off or removing Plasma's shell, KWin,
+ksmserver, PowerDevil, the polkit agent, KWallet, GNOME Shell, D-Bus, PipeWire, WirePlumber, the
+desktop portals or accessibility asks: the next login may not start properly without it.
+
+**How it changes files, safely:** a system entry is changed through a per-user copy marked
+`X-SRS-Override=true` (turning it back on deletes that copy if it changes nothing else); every file is
+written in full to a temporary file first and then put in place, keeping comments and translations;
+the first change to a file you already had keeps the original as `<name>.desktop.srs-bak`; systemd
+user services use `systemctl --user enable` / `disable` (from the next login); Plasma scripts move to
+`env/disabled` (never deleted). After every action the list is read again and a bar says what really
+happened - or that it did not take.
+
+<a id="perf-users"></a>
+#### 6.14.5 Users
+
+Who is logged in: every login session (from `loginctl`, every 5 seconds) with its processes. Columns
+User, Session, Type, Status, Processes, CPU, Memory and PID; the row "user service manager" holds a
+user's processes outside login sessions. **Disconnect...** ends a session (`loginctl
+terminate-session`) after a confirmation naming the session and the user (**Alt+O**). It is greyed for the session
+SRS runs in ("This is your current session") and for the user service manager. For another user's
+session, polkit may ask for the administrator password.
+
+<a id="perf-services"></a>
+#### 6.14.6 Services
+
+The system's services (systemd units), or yours with **User Services** ticked (**Alt+V**). Columns Running (tick
+box), Name, State, PID, Startup (enabled, disabled, static ...) and Description; a filter box.
+**Start**, **Stop** (**Alt+O**) and **Restart** (and the Running box) ask first. Stopping or restarting a core
+service warns what may break: systemd's own services, D-Bus, NetworkManager, the display / login
+manager (SDDM, GDM, LightDM), polkit, `user@`, `getty@`, Plasma and KWin, PipeWire and WirePlumber,
+the desktop portals, elogind, udisks2 and upower. A system service asks for your password (polkit);
+a user service runs as you. Errors show in a bar at the top.
+
+#### 6.14.7 Run New Task
+
+**Run New Task...** (on Startup Apps, Users and Services) starts a program, a command, a folder or a
+document, as you, with your normal environment; it keeps running when SRS closes. **Browse...** picks
+a file.
+
+<a id="ir-blaster"></a>
+### 6.15 IR Blaster
+
+**In plain words:** if you have a small USB infrared dongle of the ELK Smart / OCRUSTAR kind (sold as
+"Smart IR Blaster"), SRS can use it as a TV remote: it **learns** a button from your real remote,
+keeps it under a name, and **sends** it again - to a TV, a sound bar, a fan, anything with an
+infrared remote. The codes are shared with the **IR Remote** app (same file), so a code learned in
+one shows in the other. Without a dongle the tab is just greyed.
+
+**Where:** **USB & PCI devices -> IR Blaster** (in the Enthusiast and Expert lineups; in Basic, add it
+with **+** at the end of the tab row). On the command line: `sysreport-search ir`
+([CLI reference](CLI-REFERENCE.md#ir---ir-blaster-learn-and-send-infrared-codes)).
+
+**Supported dongles:** USB IDs `045c:0132`, `045c:0184`, `045c:0195` and `045c:0134`. Only the
+**045c:0132** (OCRUSTAR / ELKSMART, which answers with the plain protocol) has been used for real so
+far: with one TV, status, Test, Send, Repeat and Learn all worked. The other three models are untested.
+
+**The tab checks for a dongle every 2 seconds** (it only looks at the USB device list): plug one in or
+out and the tab and its buttons follow within 2 s. While none is plugged in, the tab label is greyed,
+the status says "No ELK Smart / OCRUSTAR IR blaster found - plug one in. Supported: ...", and Learn,
+Send, Test and Reset are greyed. You can still edit the codes and use Dry Run.
+
+**The Remotes view** (opens first):
+
+- **The status line** with **Test** (asks the dongle to identify itself - it shows that it answers and
+  whether it uses the plain or the compressed ("Huffman") protocol; sends no infrared), **Reset
+  Dongle** (a USB reset, for a dongle that stopped answering, for example one left waiting in learn
+  mode; sends no infrared) and **Open IR Remote** (when that app is installed).
+- **Remotes** (left): your remotes - TV, Soundbar ... - with **Add Remote...**, **Rename...** and
+  **Delete...**.
+- **The codes** of the remote you pick: Button, Type (Learned, NEC or Not learned), Bytes, Frequency and
+  Shortcut (IR Remote's global shortcut, shown only).
+- **Send** (or double-click a code) sends it. Point the dongle at the device first. **Repeat** (1-20)
+  sends it several times, 0.1 s apart (for volume steps). **Dry Run** shows the USB packets it would
+  write in the log below and sends nothing - it works without a dongle.
+- **Learn Code...** - press it, then press the button on your remote within 1 cm of the dongle. A
+  20-second countdown with **Cancel** waits for it; then you name the code and pick (or type) its remote.
+  Cancelling resets the dongle so it leaves learn mode.
+- **Type Code...** - save a code you have as text: a learned code in hex (as IR Remote stores it) or an
+  NEC code (address + command pairs).
+- **Rename...** and **Delete...** for codes (Delete asks first).
+- **Import...** (add the remotes of a file, or **Replace All**) and **Export...** (save all remotes
+  and codes to a file, in IR Remote's format).
+
+**The Report view** is the IR Blaster item as text (for Copy and Save Report): the dongle's status,
+the permission rule, whether IR Remote is installed, the codes file and a table of every code. A
+report never sends anything.
+
+**Permission ("Found, but no permission to use it").** Linux lets a normal user open the dongle only
+with a udev rule, `70-elksmart-ir.rules`, that gives the logged-in user access (`TAG+="uaccess"`).
+SRS looks for it in `/etc/udev/rules.d`, `/run/udev/rules.d`, `/usr/local/lib/udev/rules.d` and
+`/usr/lib/udev/rules.d` (the `elksmart-comm-git` package and IR Remote install it in `/usr/lib`).
+
+- **No rule found:** SRS shows the rule's line and a **Copy Install Command** button: it copies a
+  command that writes the rule to `/etc/udev/rules.d` (it asks for your password in the terminal).
+  After installing it, **unplug the dongle and plug it back in**.
+- **The rule is there but access is still denied:** the dongle was plugged in before the rule
+  existed. SRS names the rule it found and says to unplug and replug the dongle so it applies.
+- **The device file is missing** (`/dev/bus/usb/...`): SRS says so ("is usbfs / devtmpfs mounted?")
+  and suggests unplugging and replugging the dongle; a udev rule would not help there.
+
+**The codes file** is IR Remote's `~/.config/irremote/remotes.json`. SRS:
+
+- reads it fresh before every change, and reloads the view when IR Remote changes it;
+- keeps every field it does not know, and writes the whole file safely (a temporary file first);
+- keeps a one-time copy of the file as it was **before SRS first changed it**,
+  `remotes.json.before-srs`;
+- never overwrites a file it cannot read: it says so and writes nothing until the file is fixed.
+
+**Safety.** Nothing is sent until you press Send (or Learn); the command line asks first. Test, Reset
+and Dry Run send no infrared. SRS talks to the dongle through the kernel's own USB interface
+(usbfs), so it needs no extra library.
+
+The dongle protocol comes from elksmart-comm by Přemysl Eric Janouch (0BSD), the codes file and the
+udev rule from IR Remote (see `CREDITS.md`). Every field of the report is described in the
+[Section Reference](SECTIONS/buses-1.md#ir-blaster).
 
 ## 7. The panels and their buttons
 
@@ -1294,6 +1683,20 @@ what was tried; in short, not tried on real hardware so far:
   Cloudflare, with sensible results (download several hundred Mbit/s, upload about 60 Mbit/s; the
   report showed no IP address, host name or MAC address). It uses Cloudflare's public speed test
   server, which is not a documented API and may change.
+- The Big Top (2.5, [6.13](#613-the-big-top-live-pc-and-gpu-activity)): the GPU tabs were checked
+  against amdgpu_top on the author's RX 9070 XT (list, device info, gpu_metrics, processes, SMI
+  without counters); everything else on recorded test data only: NVIDIA cards (a stand-in library),
+  Intel cards, other AMD generations (RX 5000-7000 PowerPlay tables, APUs), NPUs (XDNA), several
+  cards in one PC, and the GRBM counters on real hardware. The Performance tab: Intel CPUs, NVIDIA
+  cards, Wi-Fi details, HiDPI screens, remote and multi-seat sessions, desktops other than KDE Plasma
+  for Startup Apps, and very many processes (over 2,000). The password (pkexec) path of the process
+  actions, other users' processes, Disconnect and Start / Stop / Restart were not run for real. The
+  tray meters were tried on a test tray, not yet on GNOME, XFCE or other trays, nor on HiDPI panels;
+  the summon shortcut needs the real desktop and was not tried.
+- IR Blaster (2.5, [6.15](#615-ir-blaster)): used for real with one dongle, an OCRUSTAR / ELKSMART
+  `045c:0132` (plain protocol), and one TV: status, Test, Send, Repeat and Learn worked. The
+  `045c:0184`, `045c:0195` and `045c:0134` models and the compressed (Huffman) protocol were checked
+  against elksmart-comm's packets only, never on a real dongle.
 
 **Things to know about the GPU tests:**
 
@@ -1343,6 +1746,42 @@ scroll sideways in a narrow window, so the results get most of the height. Only 
 time. Leaving a tab, the page or the window while a test runs asks: **Stop it** or **Keep running**
 (and stay). Classic View keeps every tool in its own window.
 
+**One load at a time (2.5).** Two loads at once skew each other's results, so while any benchmark or
+Stress & Burnin runs, the **Run** / **Start** (and **Run All**) button of every other page is greyed;
+its tooltip names the running test ("Crypto Benchmark is running - wait for it or press Stop on its
+page"). Browsing the other pages, The Big Top, reports and the tools that put no load on the PC stay
+usable. Across programs SRS keeps a small lock file with the process number and the test:
+`$XDG_RUNTIME_DIR/srs/bench.lock`, or `~/.cache/srs/bench.lock` when there is no runtime folder - never
+in `/tmp`, only in a folder that belongs to you and that others cannot write, and never through a
+symbolic link. When another SRS window or a `sysreport-search` benchmark is already running one,
+Start asks "Another SRS benchmark (Crypto, PID n) is running - start anyway?" (No is the default). The
+command line refuses without a terminal (exit code 2) and asks in one; `--yes` warns and starts. A
+lock left by a program that is gone is ignored.
+
+**Stop and Run All (2.5).** Every page that runs something has **Stop** (Alt+T): it stops at the next
+measurement (CPU Benchmark: the next CPU or set of CPUs, IPI Delay: the next pair of CPUs, Latency: the
+next block size, Crypto: the next measurement), the status says "Stopping..." and then "Stopped",
+and what was measured so far is shown and marked as stopped (IPI Delay keeps the last full result:
+half a matrix is not a result; a stopped Crypto run shows "-" for the cells it never measured, and a
+stopped CPU Benchmark's total reads "Total (partial)"). Pages with tests to tick have **Run All**: Everyday Work ticks every
+test group and compression library, the GPU Compute comparison every installed back end, then runs
+(asking first, as Run does).
+
+**All Cores (Max) (2.5).** A toggle button beside **Threads** on SRS Pi, Prime Sieve, CPU Compute,
+Everyday Work, Cache & Memory and Crypto, and beside Select / Deselect All on Stress & Burnin (its
+CPU list). Pressed (shown in your theme's selection colour), the next run uses **every logical CPU**:
+Threads goes to the number of CPUs and is greyed, "1 thread only" is unticked and greyed (CPU
+Compute, Everyday Work), and on Stress & Burnin every CPU is ticked. Let it go and the values the page
+had before come back. It never changes a saved setting. Key: **Alt+X**. The CPU Benchmarks
+(Dhrystone / Whetstone), IPI Delay, Latency, OS Latency, Storage and Network pages have no All Cores.
+On the pages with a "1 thread" and a threads column - **Crypto**, **CPU Compute** and **Everyday
+Work** - All Cores runs **only the all-threads pass**: the 1-thread cells say "skipped" (grey), the
+result says "1-thread pass skipped (All Cores)", the run takes about half the time, and Benchmark
+History stores "-" (not 0) for the 1-thread values with `all-threads-only` and `1-THREAD-SKIPPED`, so a
+skipped value is never read as a result. SRS Pi, Prime Sieve and Cache & Memory have no separate
+1-thread pass, so nothing changes there. Command line: `--all-threads-only` on `crypto`, `compute`
+and `work`.
+
 ### 9.1 Stress & Burnin (CPU and GPU)
 
 **In plain words:** one place to make the processor, the graphics card or both work at 100% so you
@@ -1380,7 +1819,7 @@ The three parts, top to bottom:
 | **Sync to CPU stress time** / **Sync to CPU burn time** | Run the GPU exactly as long as the CPU load: with Until Stop until you press Stop; with Timed during each burn phase, pausing while the CPUs cool. The Time box is greyed while it is ticked. | on |
 | **GPU options** (folded) | Back end (Auto = Vulkan, ROCm / HIP, CUDA, OpenCL), which GPU (the first, all, or one from the list), FP32 / FP64, and the GPU temperature limit (50-110, default 100 C). Closed by default; SRS remembers whether you opened it. Even closed, its line shows what it holds, e.g. "GPU options: Auto (Vulkan), FP32, stop at 100 °C" (2.4), so the GPU's own limit is never hidden. | Auto, first GPU, FP32, 100 C |
 | **Custom GPU command** | Instead of the built-in GPU Burnin, run your own GPU stress program (for example `gpu-burn-rocm 600`). SRS checks the program exists first. It pauses in each cool phase and stops with the run. Ticking it unticks GPU Burnin and the other way round. | empty |
-| **CPU-0 ... CPU-n**, **Select All / Deselect All** | Which logical CPUs get a worker. | all |
+| **CPU-0 ... CPU-n**, **Select All / Deselect All**, **All Cores (Max)** | Which logical CPUs get a worker. All Cores (Max) (Alt+X, 2.5) ticks every CPU for this run and gives your own choice back when you let it go ([9.0](#90-use-at-your-own-risk)). | all |
 | **Start / Stop** | Start (asks first) / stop everything at once. | |
 
 The built-in GPU Burnin runs as its own small process (`srs-gui --gpu-burn-child`): if a GPU driver
@@ -1455,7 +1894,8 @@ the last results.
 
 Controls: **Mode**, **Seconds per measurement** (0.1-60, default 1), **Run** (asks first: the
 mode, about how long it takes and how many CPU threads are busy; for the modes that load many
-threads at once - `ac`, `pc`, `lc` - **No** is the default answer). Command line:
+threads at once - `ac`, `pc`, `lc` - **No** is the default answer), **Stop** (2.5: at the next CPU or
+set of CPUs; the CPUs measured so far are shown, marked stopped). Command line:
 `sysreport-search bench ac` (asks first; `--yes` starts at once).
 The modes, as in SIV:
 
@@ -1470,6 +1910,11 @@ The modes, as in SIV:
 | `pc` / `pp` | Performance (physical) cores concurrently (one thread per core) / one at a time. |
 
 The window lists the last result of every mode. Results are kept between sessions.
+
+Since 2.5 the ten "Benchmark: *mode*" items (`benchmark-ac` ... `benchmark-pp`) are no longer
+listed in the window (tabs, Classic menus, search): they only showed the last result of one mode and
+pointed here. Pick the mode in this tab's **Mode** list instead; it shows the last result of every
+mode. `sysreport-search` and saved reports still have the ten items.
 
 ### 9.2.1 What hyperthreading (SMT) really does - a worked example
 
@@ -1642,7 +2087,8 @@ red = slow). Cores that share a cache or a chip answer faster; cores on differen
 Open: the **Benchmarks & Stress** page -> **IPI Delay...**, or Menu -> Benchmarks & Stress -> IPI Delay... in
 the classic view.
 Controls: **CPUs** (how many to test), **Rounds per pair** (default 20,000), **Run** (asks first;
-two CPU threads are busy at a time, for about a second at the defaults). With **CPUs** at 1 there is
+two CPU threads are busy at a time, for about a second at the defaults), **Stop** (2.5: at the next
+pair; a stopped run has no result and the last full matrix stays). With **CPUs** at 1 there is
 no pair to measure: nothing runs, the window says "Not started" and the last result is kept.
 Command line: `sysreport-search ipi` (asks first; `--yes` starts at once; `--cpus 1` exits with 2
 and keeps the last result).
@@ -1657,7 +2103,8 @@ L2, L3, then RAM. The steps in the graph show you your cache sizes.
 Open: the **Benchmarks & Stress** page -> **Latency...**, or Menu -> Benchmarks & Stress -> Latency... in the
 classic view.
 Controls: **Largest block (MB)** (1-4096, default 256), **Run** (asks first; one CPU thread and
-that much memory, about 3 seconds at the default). Command line: `sysreport-search latency` (asks
+that much memory, about 3 seconds at the default), **Stop** (2.5: at the next block size; the sizes
+measured so far are shown). Command line: `sysreport-search latency` (asks
 first; `--yes` starts at once). Results: a table (block size, time in ns, level) and a curve.
 
 For the **bandwidth** of the RAM and the caches, see [9.11 Cache & Memory](#911-cache--memory).
@@ -1730,7 +2177,7 @@ classic view. On the command line: `sysreport-search pi --digits 1m`.
 Controls: **Digits** (128 thousand to 32 million; each choice shows the time it took on the
 author's PC), **SuperPi sizes** (tick for SuperPi's power-of-two digit counts: 16K = 16,384 ...
 1M = 1,048,576 ... 32M = 33,554,432), **Method** (Chudnovsky = fast, can use threads; Gauss-Legendre / AGM = the method
-SuperPi uses, one thread), **Threads** (default 1, for a single-thread score), **Run** and **Stop**.
+SuperPi uses, one thread), **Threads** (default 1, for a single-thread score; **All Cores (Max)**, Alt+X, uses every logical CPU for this run, 2.5), **Run** and **Stop**.
 **Run asks first**, with the expected time, the threads and the memory it needs; from 8 million
 digits, or with all threads, it warns about unstable overclocks and **No** is the default answer.
 On the command line it asks the same; `--yes` starts at once.
@@ -1745,9 +2192,11 @@ is 1,000,000 - tick **SuperPi sizes** for the same digit counts as SuperPi. 32 m
 **In plain words:** how fast the CPU encrypts (AES-128) and fingerprints (SHA-256) data, with and
 without its built-in crypto instructions (AES-NI, SHA-NI).
 Open: the **Benchmarks & Stress** page -> **Crypto...**. Command line: `sysreport-search crypto`.
-Controls: **Threads** (right-hand column; the left column is always one thread), **Seconds per
-measurement** (default 1; about 8 seconds in all), **Run** (asks first; with all threads - the
-default - every CPU thread is 100% busy, so **No** is the default answer). The official FIPS test
+Controls: **Threads** (right-hand column; the left column is always one thread; **All Cores (Max)**, Alt+X, 2.5: the threads
+column only, the 1-thread column says "skipped"), **Seconds per
+measurement** (up to 60, default 1; about 8 seconds in all, 4 with All Cores), **Run** (asks first; with all threads - the
+default - every CPU thread is 100% busy, so **No** is the default answer), **Stop** (2.5: at the next
+measurement; the cells not measured show "-" and the result says it was stopped). The official FIPS test
 vectors are checked before every run. On the command line it asks the same; `--yes` starts at once.
 
 ### 9.9 Prime Sieve
@@ -1756,7 +2205,7 @@ vectors are checked before every run. On the command line it asks the same; `--y
 100 billion and checks the count. Simple integer and cache work that scales with threads.
 Open: the **Benchmarks & Stress** page -> **Prime Sieve...**. Command line:
 `sysreport-search prime --limit 1e10`.
-Controls: **Count primes up to**, **Threads** (default all), **Run** (asks first; from 10 billion
+Controls: **Count primes up to**, **Threads** (default all; **All Cores (Max)**, Alt+X, 2.5), **Run** (asks first; from 10 billion
 or with all threads - the defaults - it warns about unstable overclocks and **No** is the default
 answer), **Stop**. On the command line it asks the same; `--yes` starts at once.
 
@@ -1776,7 +2225,7 @@ they take to answer. Use it after a BIOS, EXPO/XMP or memory-timing change.
 Open: the **Benchmarks & Stress** page -> **Cache & Memory...**, or Menu -> Benchmarks & Stress -> Cache &
 Memory... in the classic view. Command line: `sysreport-search cachemem`.
 Controls: **Threads** (default all; the bandwidth results need all of them), **Seconds per test**
-(default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
+(up to 60, default 1), **Run** (asks first: every thread and the memory bus are busy for about 20 seconds),
 **Stop**. The status line names the value being measured. A stopped run shows the values it
 finished and says so.
 
@@ -1785,6 +2234,25 @@ run; it cannot stop other programs). The base clock is measured, so boards with 
 clock (for example 105 MHz) show the real value; the Infinity Fabric clock needs the `ryzen_smu`
 driver (Ryzen 7000 desktop); memory speed and type need root data (Tools > Collect root data). The
 engine is the one from Linux System Audit (LSA) 0.2.0, which is now part of SRS. x86-64 CPUs only.
+
+**"not valid" (2.5).** A RAM result faster than your memory can possibly deliver is shown as
+**not valid** in red, never as a number, with a **Check** line under the table saying why (for
+example "RAM result faster than the memory can deliver (... MB/s at most) - run it again; pages were
+probably merged (KSM)"). The most the memory can deliver is worked out from the speed, 8 bytes per
+transfer and the number of channels in the srs-root data; without that data, a read far above the
+copy speed is flagged.
+
+**What KSM is, in plain words.** Linux can look for pieces of memory (pages of 4 KB) that hold exactly
+the same bytes and keep only one copy of them: **KSM**, kernel same-page merging. It saves memory
+for virtual machines, and some tools (ksmtuned and similar) turn it on for every program. A benchmark
+that fills its memory with the same bytes everywhere can then be folded into one page, which sits in
+the cache, and the "memory" speed comes out impossibly high (one long run here showed over
+1,000,000 MB/s on DDR5). Since 2.5 every benchmark asks Linux not to merge SRS's memory before it
+starts, Cache & Memory fills every page with different data, and before **every** test it switches
+merging off again and splits any merged pages, because a KSM tool can switch merging back on while
+SRS stays open. If you still see "not valid", run it again.
+
+**All Cores (Max)** (Alt+X) beside Threads uses every logical CPU for the next run ([9.0](#90-use-at-your-own-risk)).
 
 ### 9.12 Storage
 
@@ -1796,7 +2264,7 @@ Open: the **Benchmarks & Stress** page -> **Storage...**, or Menu -> Benchmarks 
 in the classic view. Command line: `sysreport-search storage --dir FOLDER`.
 Controls: **Folder** (the line below it names the drive, its connection, the file system and the
 free space - never the serial number), **Test file** (256 MB, 1 GB, 4 GB, 16 GB), **Seconds per
-test** (default 5), **Standard / Light** (Light uses at most 4 threads), **Allow USB drives** (off
+test** (1-60, default 5), **Standard / Light** (Light uses at most 4 threads), **Allow USB drives** (off
 by default), **Run** (asks first), **Stop**.
 
 Folders in RAM (`/tmp` on many systems is RAM, not a drive), on the network or on FUSE are refused,
@@ -1812,7 +2280,7 @@ Steady numbers (95% and 99% close to the median) mean a smooth, responsive deskt
 Open: the **Benchmarks & Stress** page -> **OS Latency...**, or Menu -> Benchmarks & Stress -> OS Latency... in
 the classic view. Command line: `sysreport-search os-latency`.
 Controls: **Samples** (1,000-200,000, default 20,000; the slower tests use a tenth or less),
-**Tick test (s)** (1-30, default 3: how long a 1 ms timer is watched), **Run** (asks first),
+**Tick test (s)** (1-60, default 3: how long a 1 ms timer is watched), **Run** (asks first),
 **Stop**. It takes about 6 seconds at the defaults and keeps only **one or two CPUs** busy, never
 all of them.
 
@@ -1847,7 +2315,7 @@ Every answer is checked against a known result: a wrong answer is shown as **WRO
 instead of a score, which points to an unstable overclock or undervolt.
 Open: the **Benchmarks & Stress** page -> **CPU Compute...**, or Menu -> Benchmarks & Stress -> CPU Compute...
 in the classic view. Command line: `sysreport-search compute`.
-Controls: **Threads** (default all), **Seconds per test** (default 0.5), **Code** (the best
+Controls: **Threads** (default all; **All Cores (Max)**, Alt+X, 2.5: the threads column only, about half the time), **Seconds per test** (up to 60, default 0.5), **Code** (the best
 instruction set the CPU has - SSE2, AVX2 or AVX-512 - or a chosen one), **1 thread only** (skips
 the all-threads column: light load, half the time), **Run** (asks first), **Stop**. It takes about
 10 seconds at the defaults.
@@ -1878,10 +2346,11 @@ equal the original, sorted lists must be in order and complete, checksums must m
 values), so a wrong answer is reported instead of a fast number.
 Open: the **Benchmarks & Stress** page -> **Everyday Work...**, or Menu -> Benchmarks & Stress -> Everyday
 Work... in the classic view. Command line: `sysreport-search work`.
-Controls: **Threads** (default all), **Seconds per test** (default 0.5), **1 thread only**, the
+Controls: **Threads** (default all; **All Cores (Max)**, Alt+X, 2.5: the threads column only, about half the time), **Seconds per test** (up to 60, default 0.5), **1 thread only**, the
 test groups (Compression, Sorting, Checksums and hashes, Text processing, Bytecode interpreter)
 and the compression libraries (zlib, zstd, lz4, xz) as tick boxes, **Run** (asks first, with the
-expected time - about half a minute at the defaults), **Stop**.
+expected time - about half a minute at the defaults), **Run All** (2.5: ticks every group and library,
+then runs), **Stop**.
 
 **What the numbers mean.** **MB/s** for compression (million bytes of original data per second,
 1 MB = 1,000,000 bytes) with the **ratio** (2.5 = the data became 2.5 times smaller) on text-like,
@@ -1916,7 +2385,7 @@ in the classic view. Command line: `sysreport-search net` (loopback) and `sysrep
 --internet`.
 Controls: **On this computer (loopback)** (ticked), **Internet speed test (asks first)** (not
 ticked), **Streams** (connections at once for the "N streams" tests, default 4), **Seconds per
-test** (default 5), **IPv4 or IPv6 / IPv4 only / IPv6 only** (internet test), **Run**, **Stop**.
+test** (1-60, default 5), **IPv4 or IPv6 / IPv4 only / IPv6 only** (internet test), **Run**, **Stop**.
 The line under the controls names the connection (wired, Wi-Fi, VPN ...), its link speed and
 whether libcurl is installed - never an address.
 
@@ -1955,7 +2424,7 @@ Open: the **Benchmarks & Stress** page -> **GPU Benchmark...**, or Menu -> Bench
 GPU Benchmark... in the classic view. Command line: `sysreport-search gpu`.
 Controls: **GPU** (Default = the first discrete graphics card; open the list to pick another - SRS
 reads the list only when you open it: like `vulkaninfo`, opening the list names your GPUs through
-Vulkan, and no work is sent to a GPU until you answer Yes), **Seconds per test** (default 1),
+Vulkan, and no work is sent to a GPU until you answer Yes), **Seconds per test** (up to 60, default 1),
 **Memory test size** (0 = auto, 256 MiB on most cards; a bigger size is lowered to a quarter of the
 video memory and of the PC's memory, and the result says so), **Run** (asks first), **Stop**. The line under the controls
 says whether Vulkan is installed.
@@ -2103,8 +2572,8 @@ GPU Comparison (Vulkan, HIP, CUDA, OpenCL)... in the classic view. Command line:
 `sysreport-search gpu-compare`.
 Controls: **GPU** (the card, picked by its Vulkan device; the other back ends find the same card
 by its PCI address), a tick box per back end (only installed ones can be ticked; the tooltip of a
-greyed one says what to install), **Seconds per test** (default 1), **Run** (asks first),
-**Stop**.
+greyed one says what to install), **Seconds per test** (up to 60, default 1), **Run** (asks first),
+**Run All** (2.5: ticks every installed back end, then runs), **Stop**.
 
 **Reading the table.** Each row is a test, each column a back end:
 
@@ -2325,7 +2794,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
 | **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). Stress & Burnin always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
-| **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Exit, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
+| **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Quit SRS, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
 | **Minimize hides to tray (X11 / XWayland)** | Minimising hides it to the tray. Native Wayland apps are not told when they are minimised, so this works only on X11 / XWayland. | off |
 | **Start hidden in tray** | Start with no window, just the tray icon. | off |
 | **Start with the desktop (autostart)** | Writes `~/.config/autostart/srs-gui.desktop`, which runs `srs-gui --gui-tray` at login. Untick to remove it. | off |
@@ -2343,6 +2812,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **NVIDIA CUDA toolkit for GPU tests...** | What the optional NVIDIA CUDA toolkit is for, whether it (its runtime compiler, NVRTC) is installed, the install command for your Linux, **Install...** and **Ask me again** - see [9.20](#920-the-nvidia-cuda-toolkit-optional). | |
 | **Read DIMM voltages from their PMIC chips (SMBus; from the next Run as root)** | Run as root also reads the set voltages of each DDR5 module's power chip for Memory Timings. Asks first; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins) (2.4). | off |
 | **Read the embedded controller (expert, read-only; from the next Run as root)** | Run as root also copies the embedded controller's 256 registers (ACPI Embedded Controller item). Asks first; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins) (2.4). | off |
+| **Customize Task Manager (Performance tab, tray meters)...** | The **Task Manager Settings**: update speeds of the Performance tab, the tray meters and The Big Top, the first page, CPU units, the live tray meters (off by default), keep running in the tray, start at login and the summon shortcut - see [11.1](#111-live-tray-meters-and-the-task-manager-settings) (2.5). | |
 | **Load test terms (warranty)...** | The "use at your own risk" terms of the stress tests and benchmarks: read them again, agree, or withdraw your agreement - see [9.0](#90-use-at-your-own-risk). | |
 | **Hide to Tray** | Hide all SRS windows now. | |
 
@@ -2359,11 +2829,95 @@ KDE Plasma, XFCE, and GNOME with the AppIndicator extension).
 - **Tooltip:** CPU temperature and load, GPU temperature and load, updated every 2 seconds.
 - **Middle-click:** show / hide SRS.
 - **Tray menu:** Show SRS / Hide to Tray, Sensors, Processors, Stress & Burnin (CPU / GPU)...,
-  Benchmark..., Find..., **SRS Menu** (the full menu), Exit. Exit really ends SRS (it asks first
-  while a stress test or benchmark runs). Sensors and Processors open their
-  page in the main window (or their panel in the classic view).
-- `srs-gui --gui-tray` starts hidden in the tray.
-- Safety: SRS only hides its windows if a tray icon really exists, so it cannot get lost.
+  Benchmark..., Find..., **SRS Menu** (the full menu), **Quit SRS** (called Exit before 2.5).
+  Quit SRS really ends SRS (it asks first while a stress test or benchmark runs). Sensors and
+  Processors open their page in the main window (or their panel in the classic view).
+- `srs-gui --gui-tray` (or, since 2.5, `srs-gui --tray`) starts hidden in the tray.
+- Hide to Tray also hides The Big Top ([6.13](#613-the-big-top-live-pc-and-gpu-activity)); Show
+  brings it back.
+- Safety: SRS only hides its windows if a way back really exists - its tray icon, or one of the tray
+  meters below - so it cannot get lost.
+
+<a id="tray-meters"></a>
+### 11.1 Live tray meters and the Task Manager settings
+
+**In plain words:** since 2.5 SRS can put small live meters in the notification area (system tray):
+one icon per meter, for example the CPU load, the memory in use or the graphics card's load, redrawn
+every second and kept updating while every SRS window is hidden. **They are off by default:**
+nothing new appears in your tray until you turn them on.
+
+**Turn them on:**
+
+1. Open the Task Manager settings: **Menu -> Options -> Customize Task Manager (Performance tab, tray
+   meters)...**, or **Settings...** on the Big Top's Summary page or in its top row.
+2. Under **Notification Area**, tick **Live Telemetry Icons**.
+3. Tick the meters you want (at first: **CPU Meter**, **Memory Used** and the first card's GPU
+   **Meter**). Each one appears at once; unticking one removes its icon at once.
+
+The settings dialog is called **Task Manager Settings**; its **Guide** button (F1) opens this section.
+
+**The meters:**
+
+| Meter | Shows |
+|---|---|
+| **CPU Meter** | Total CPU load %. |
+| **CPU Cores** | A tiny bar per logical CPU (neighbours are averaged when there are more CPUs than pixels). |
+| **CPU History** | The CPU load over the last minute. |
+| **CPU Temp** | The CPU temperature. |
+| **Memory Used** | Memory in use %. |
+| **Meter**, **History**, **Temp**, **VRAM Used** (per graphics card) | The card's busy %, its last minute, its temperature (edge, else junction; the last value is kept for a few samples while the card dozes) and its video memory in use. With two or more cards they read "GPU 1 Meter", "GPU 2 Temp" and so on. Never read from the GRBM counters. |
+| **Disk Activity** | The busiest disk's active time %. |
+| **Disk Space** | How full the fullest local file system of 2 GiB or more is (not removable media, not read-only mounts), or the mount you pick in **Disk Space Mount** (**The Fullest File System** at first). |
+| **Network** | Receive (filled) and send (line) over the last minute. |
+
+**They stay together, in order.** The SRS icons sit side by side in the order of the meter boxes in the
+settings (their titles read "SRS 01 CPU Meter", "SRS 02 CPU Cores" ...), and ticking or unticking one
+keeps the rest in order. A tray may still put them under its arrow at first: on **Plasma, right-click
+the tray arrow > Configure System Tray > Entries** and set the SRS meters to **Always shown** (the
+choice sticks, because each meter keeps the same id).
+
+**How they look:** a dark rounded plate with a light rim, so they read on light and dark panels.
+Level meters fill from the bottom with the number on top; temperatures are green under 60 °C,
+yellow under 80 °C, red above. Colours: CPU blue, memory purple, GPU green, VRAM teal, disk amber,
+disk space grey-blue, network blue (receive) and orange (send). Hover over an icon for the exact
+values (for example the CPU's user and kernel share, the number of CPUs, the average clock and the
+model; a card's busy %, memory, temperatures, power and clocks; each disk; each network adapter).
+
+**Clicking them:**
+
+- **Left click** (or middle click): opens The Big Top on its Performance tab.
+- **Right click**: **Open SRS** (the main window), **Settings...**, the list **Notification Area
+  Items** (tick = icon shown; unticking the last one while SRS is hidden shows SRS again so it never
+  gets lost) and **Quit SRS**.
+
+**The Task Manager Settings dialog:**
+
+| Setting | What it does | Default |
+|---|---|---|
+| **Performance and Tray Update Speed** | How often the Performance tab and the tray meters read the PC: Every 0.25 s, Every 0.5 s, Every 1 s (Normal), Every 2 s, Every 5 s. | Every 1 s |
+| **Big Top Update Speed** | How often The Big Top reads the graphics cards for its GPU and SMI tabs (the same as its **Update:** list). | Every 1 s |
+| **Default Start Page** | The page the Performance tab opens on: Summary, Performance, Processes, Startup Apps, Users or Services. | Summary |
+| **Per-Core CPU Units (100 % = One Logical CPU)** | On: one fully busy logical CPU is 100 %, so all of them together reach the number of CPUs x 100 %. Off: the whole CPU is 100 %. | off |
+| **Live Telemetry Icons** | The meters in the tray (the boxes below it are greyed while it is off). | **off** |
+| The meter boxes, **Disk Space Mount** | Which meters, and which file system Disk Space shows. | CPU Meter, Memory Used, GPU Meter |
+| **Tray Position** | Where the SRS icons go in the tray: **Normal (With the Hardware Icons)** keeps them with the volume, network and battery icons; **First** puts them in the group the tray sorts first (on Plasma only Notifications stays ahead). The desktop decides the final order: another app in the same group can still sort next to or before SRS. | Normal |
+| **Keep Running in the Tray When the Window Is Closed** | The same as Options -> Close button hides to tray. Off: closing the window quits SRS. On: closing hides it; the tray icon's menu has Quit SRS. | off |
+| **Start Minimised to the Tray at Login** | The same as Options -> Start with the desktop: `~/.config/autostart/srs-gui.desktop` runs `srs-gui --gui-tray` at login (no second autostart file). | off |
+| **Summon Shortcut** | **Bind Global Shortcut...** asks your desktop (through the desktop portal's global shortcuts) to bind a key combination that opens The Big Top's Performance tab; Ctrl+Shift+Esc is suggested. The desktop shows its own dialog, keeps the binding and never takes keys it already uses. **Stop Using the Shortcut** (Alt+H) undoes it. | not bound |
+
+Settings are saved in `~/.config/srs/SRSDEF.ini`, group `[Task Manager]` ([14](#14-settings-and-files)).
+
+**Start with only the tray:** `srs-gui --tray` (the same as `--gui-tray`) starts with no window, just
+the tray icons - SRS's own icon and / or the meters.
+
+**What they need and cost.** The meters talk to the tray directly over D-Bus (the StatusNotifierItem
+standard), so they need **no** `libayatana-appindicator` (SRS's own tray icon still does). They work
+on KDE Plasma; on GNOME with the AppIndicator extension, XFCE, waybar and other trays they should
+work but were not tried. One shared reader feeds the Performance tab and the meters, so the PC is
+read once per tick, not once per view; the list of processes is only read while the Performance tab
+needs it, and the per-process graphics scan is skipped for the meters. Cost on the author's PC: about
+1 % of one CPU with eleven meters, measured before that scan was skipped (lower now; not measured
+again).
 
 ## 12. Keyboard shortcuts
 
@@ -2382,6 +2936,7 @@ In the main window:
 | **Ctrl+D** | ALL Devices tab |
 | **Ctrl+S** | Save Report |
 | **Ctrl+M** | Open the menu |
+| **Ctrl+G** | The Big Top ([6.13](#613-the-big-top-live-pc-and-gpu-activity)) (2.5) |
 | **Ctrl+T** | Add a tab to this page (the **+** button) |
 | **Ctrl+W** | Close the tab in view (also a middle-click on a tab) |
 | **Ctrl+PageUp / Ctrl+PageDown** | Previous / next tab, in every tab-bar layout |
@@ -2396,6 +2951,12 @@ In the main window:
 | **Ctrl+Q** | Quit (Menu > Quit). It really ends SRS, also with Close to tray on; a stress test or benchmark still running asks first |
 | **Alt + underlined letter** | Press that button |
 | **Double-click a PCI or USB ID** | Look it up |
+
+In The Big Top: **Esc** / **Ctrl+W** close, **F1** guide, **Ctrl+P** Pause, **Ctrl+I** side panel,
+**Ctrl+1** ... **Ctrl+9** pick a card, **Alt+P / G / S / R / W / N** the tabs; on the Processes page
+**Delete** = End Task, **Shift+Delete** = Force Kill, **Shift+F10** or the Menu key = the process
+menu ([6.13](#613-the-big-top-live-pc-and-gpu-activity), [6.14.3](#6143-processes)). On the benchmark
+pages and Stress & Burnin, **Alt+X** = All Cores (Max) ([9.0](#90-use-at-your-own-risk)).
 
 In the classic view:
 
@@ -2423,7 +2984,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 558 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 559 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -2440,7 +3001,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V2.4.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -2488,8 +3049,13 @@ See [CLI-REFERENCE.md](CLI-REFERENCE.md).
 |---|---|
 | `~/.config/srs/SRSDEF.ini` | Settings (SRS's version of SIV's SIVDEF file). See below. |
 | `~/.config/autostart/srs-gui.desktop` | Only if "Start with the desktop" is on. |
-| `~/.config/autostart/srs-*.desktop` | Programs you added with **Add to startup** ([6.9](#69-the-startup-manager)); also the turned-off copies of system entries (same name as the system file). |
-| `~/.config/srs/startup-backup/` | Everything the Startup manager moved out of the way or changed: `NAME.desktop.YYYYMMDD-HHMMSS` and `NAME.desktop.orig`. Nothing there is used; copy a file back to `~/.config/autostart` to use it again. |
+| `~/.config/autostart/*.desktop` with `X-SRS-Added` / `X-SRS-Override` | Startup entries you added in Startup Apps (or with the old Startup manager), and your per-user copies that turn a system entry off (same name as the system file) ([6.14.4](#6144-startup-apps)). |
+| `~/.config/srs/startup-backup/` | Only if you used SRS 2.2-2.4: what the old Startup manager moved out of the way or changed (`NAME.desktop.YYYYMMDD-HHMMSS`, `NAME.desktop.orig`). Startup Apps' **Restore Removed...** lists these and brings them back as copies; nothing there is deleted. |
+| `~/.config/autostart/.srs-trash/` | Entries removed in **Startup Apps** (2.5, [6.14.4](#6144-startup-apps)); **Restore Removed...** brings them back. |
+| `~/.config/autostart/<name>.desktop.srs-bak` | The original of an autostart file of yours, kept once the first time Startup Apps changed it. |
+| `~/.config/irremote/remotes.json`, `remotes.json.before-srs` | IR Blaster's codes, shared with the IR Remote app, and the one-time copy of that file from before SRS first changed it ([6.15](#615-ir-blaster)) (2.5). |
+| `~/.local/state/srs/autostart-undo.log` | Startup Apps' Undo history (the last 50 changes; it survives a restart). |
+| `~/.config/plasma-workspace/env/disabled/`, `~/.config/autostart-scripts/disabled/` | Plasma login scripts and autostart scripts turned off in Startup Apps (moved, never deleted). |
 | `~/.config/srs/lineups/*.srslineup` | Your own tab lineups ([6.7](#67-arranging-the-tabs-and-lineups)), the same format as Export lineup. |
 | `~/.cache/srs/empty-items.txt` | The items that had nothing to show on this PC at the last check (hidden from the tabs and lists). Made only by Options -> **Check now** or **Check daily** ([10](#10-options)); delete it to show those items again. |
 | `~/.cache/srs/root/` | Root-only data from `srs-root` (`dmidecode.txt`, `spd.txt`, `smart-*.txt`, `nvme-*.txt`, `acpi-tables/`, `pci-all.txt`, `ioports.txt`, `iomem.txt`, `dmesg.txt`, `msrs.txt`, `collected.txt`; since 2.4 `umc.txt`, `intel-imc.txt`, `aod.bin` / `aod.txt`, `rapl.txt`, `ebda.txt` / `ebda.bin`, `vbios-<pci>.bin`, `gpio.txt`, `efi-systab.txt`, `esrt.txt`, with the opt-ins `pmic-*.txt` and `ec.bin`, and the ACPI evaluation log `acpi-calls.txt`; see [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins)). |
@@ -2538,6 +3104,22 @@ hand is fine while SRS is closed.
 | `Ask CUDA Toolkit` | `1` / `0` | `0` = "Don't ask again" in the NVIDIA CUDA toolkit question; Options -> NVIDIA CUDA toolkit -> **Ask me again** or `sysreport-search cuda-toolkit --ask-again` sets `1` (default `1`) |
 | `SIO Sensors` | e.g. `nct6799:AUXTIN1` | Super-I/O inputs the burner should treat as connected |
 
+Section `[Task Manager]` (2.5) holds the Task Manager settings ([11.1](#111-live-tray-meters-and-the-task-manager-settings)):
+
+| Key | Values | Meaning |
+|---|---|---|
+| `Update Speed` | `0` every 2 s, `1` every 1 s (default), `2` every 0.5 s, `3` every 0.25 s, `4` every 5 s | Performance and Tray Update Speed |
+| `Start Page` | `0` Summary (default), `1` Performance, `2` Processes, `3` Startup Apps, `4` Users, `5` Services | Default Start Page |
+| `Per Core Units` | `0` / `1` | Per-Core CPU Units (default `0`: the whole CPU is 100 %) |
+| `Telemetry Icons` | `0` / `1` | Live Telemetry Icons (default `0` = off) |
+| `Telemetry Meters` | comma list, e.g. `cpu,mem,gpu0` (the default) | Which meters: `cpu`, `cores`, `cpuhist`, `cputemp`, `mem`, `disk`, `space`, `net`, and per card `gpuN`, `gpuhistN`, `gputempN`, `vramN` |
+| `Disk Space Mount` | empty = the fullest file system, else a mount point | Disk Space Mount |
+| `Summon Shortcut` | `0` / `1` | Whether the summon shortcut was bound through the desktop |
+| `Tray Position` | `0` Normal (default), `1` First | Tray Position |
+
+Section `[GPU Top]` key `Update ms` (250, 500, 1000, 2000 or 5000; default 1000) is The Big Top's
+**Update:** (Big Top Update Speed).
+
 Section `[Tabs]` holds the main window's tabs as they are now: `Lineup` (the lineup they came
 from), `Layout` (`row`, `wrap` or `side`), and per page `<page>=id;id;...` and `<page> Every=true`
 when the page shows every item. Page names: `processor`, `memory`, `board`, `graphics`, `storage`,
@@ -2552,7 +3134,6 @@ Environment variables:
 | `SRS_OPEN=item,item` | Same as `--gui-open=` (open panels or tools at start). |
 | `SRS_DOC_DIR=folder` | Where the Guide button, F1 and `guide` look for `SRS-User-Guide.pdf` and `html/` (default `/usr/share/doc/srs-sysinfo`, then beside the program). |
 | `GTK_THEME` | Remembered for "Follow desktop"; the Theme option drives SRS's own look. |
-| `SRS_STARTUP_DRY_RUN=1` | The Startup manager never runs `systemctl` or `pkexec`: it only shows the command it would run (autostart files are still written). For trying it out safely. |
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older, simpler matrix multiply instead of the 2.4 one (for comparing) ([9.18](#918-gpu-burnin)). |
 | `SRS_RSMU_DIR=folder` | Read the ryzen_smu files (`pm_table`, `codename`, `pm_table_version`) from this folder instead of `/sys/kernel/ryzen_smu_drv` (tests). |
 
@@ -2585,7 +3166,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 558 items with the
+- **Two views, same data.** The main window and the classic view show the same 559 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.
@@ -2630,6 +3211,11 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
   settings from the AOD table need `iomem=relaxed` on most kernels, which SRS never asks you to set.
 - The optional **Windows images** (`SRS64X.exe`, `SRS32X.exe`, source build only) have only the
   ID lookup and report search features.
+- **The Big Top and amdgpu_top** (2.5): the GPU view follows amdgpu_top 0.11.5's data and rules, with
+  these differences: the window shows temperatures in °C (the command line keeps amdgpu_top's text);
+  `gpu-top --smi` prints one sample (use `--tui` for a live view); `--process` lists VRAM and GTT
+  only (no "Requested / Evicted / DRM Total" lines yet); `--drm-info` has no planes; `--xdna` shows
+  the kernel's files only; the text view is a plain redraw, one view for all cards.
 
 ## 17. Privacy: before you share a report
 
@@ -2679,7 +3265,12 @@ post. Or save only the items you need: `sysreport-search '-save=[processors][sen
 | DIMM lines, serials, SMART or SPD tabs are empty or say to run srs-root | Run **Menu -> Run as root** once (needs `polkit` for the password prompt), or `sudo srs-root`. Install `dmidecode`, `smartmontools`, `nvme-cli`, `i2c-tools` for full data. |
 | Run as root does nothing / "did not complete" | You cancelled the password prompt, or no polkit agent is running (some minimal window managers). Use `sudo srs-root` in a terminal instead. |
 | No tray icon | Install `libayatana-appindicator`. On GNOME, install and enable the AppIndicator extension. |
-| Closing the window does not exit SRS | "Close button hides to tray" is on. Use **Menu -> Quit** (Ctrl+Q; **Exit** in the classic Menu) or the tray's Exit, or untick the option. |
+| No tray meters | They are off by default: **Options -> Customize Task Manager (Performance tab, tray meters)... -> Live Telemetry Icons** ([11.1](#111-live-tray-meters-and-the-task-manager-settings)). They need a tray that speaks StatusNotifierItem (KDE Plasma; GNOME with the AppIndicator extension). |
+| The Big Top's GPU Metrics panel says "Not read while the card is idle" | Normal for a card that can sleep (no monitor on it, runtime power management on): SRS leaves it asleep. Start something on the card and the values come back ([6.13](#613-the-big-top-live-pc-and-gpu-activity)). |
+| IR Blaster says "Found, but no permission to use it" | If no rule was found: press **Copy Install Command**, run it in a terminal (or install `elksmart-comm-git` or IR Remote), then unplug and replug the dongle. If SRS says the rule is installed, just unplug and replug the dongle. If it says the device file is missing, replug the dongle and check that `/dev/bus/usb` exists ([6.15](#615-ir-blaster)). |
+| IR Blaster: Send works but the device does not react | Point the dongle straight at the device, closer; learn the code again holding the remote within 1 cm of the dongle. |
+| A process action says it needs a password | The process belongs to another user or root: polkit asks for the administrator password. Cancel it to leave the process alone. |
+| Closing the window does not exit SRS | "Close button hides to tray" is on. Use **Menu -> Quit** (Ctrl+Q; **Exit** in the classic Menu) or the tray's **Quit SRS**, or untick the option. |
 | SRS opens the old SIV-style window | **Options -> Start in classic view** is on. Untick it, or use **Menu -> Open the new main window** in the classic Menu, or start `srs-gui --gui-new`. |
 | I want the old SIV-style window back | **Menu -> Classic View**, the **Classic view** button under the sidebar, or `srs-gui --gui-classic`. Tick **Options -> Start in classic view** to always start there. |
 | SRS starts hidden | "Start hidden in tray" or "Start with the desktop" is on; click the tray icon. |
@@ -2724,9 +3315,22 @@ root-only data for you.
 
 **Can it harm my PC?**
 The viewer is read-only. The burn-in and benchmarks load the CPU like any stress tool; they ask first,
-stop at a temperature limit (default 90 C) and stop when you close the window. The Startup manager
-changes what starts with the PC only when you click it, asks before touching parts of the desktop,
-keeps every old file, and has Undo and Restore default.
+stop at a temperature limit (default 90 C) and stop when you close the window. The task manager
+pages of The Big Top (2.5) can end or pause programs, stop services and turn startup items off, but
+only when you click, and they ask first; they never touch PID 1 or kernel threads, never suspend SRS
+itself, and Startup Apps never writes outside your home folder, keeps removed entries in a trash and
+has Undo and Restore Default ([6.14](#614-the-performance-tab-a-task-manager)).
+
+**Why don't I see the tray meters?**
+They are off by default. Turn them on in **Menu -> Options -> Customize Task Manager (Performance tab,
+tray meters)... -> Live Telemetry Icons** ([11.1](#111-live-tray-meters-and-the-task-manager-settings)).
+If they are on but not visible, they may be under the tray's arrow: on Plasma, right-click the arrow >
+**Configure System Tray > Entries** and set the SRS meters to **Always shown**. On GNOME the
+AppIndicator extension must be on.
+
+**What is The Big Top?**
+A live window for the whole PC and each graphics card (Ctrl+G, or the button next to the search box).
+Its GPU tabs are a C reimplementation of amdgpu_top; see [6.13](#613-the-big-top-live-pc-and-gpu-activity).
 
 **Why are there items that say "not present"?**
 They are SIV items for hardware most PCs do not have (Itanium, IPMI, RAID cards...). SRS keeps them

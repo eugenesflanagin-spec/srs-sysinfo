@@ -1,0 +1,41 @@
+# made up for tests
+dev.device_id 5390
+dev.chip_rev 0
+dev.external_rev 1
+dev.pci_rev 193
+dev.family 150
+dev.num_shader_engines 1
+dev.num_shader_arrays_per_engine 2
+dev.max_engine_clock 2900000
+dev.max_memory_clock 3750000
+dev.cu_active_number 16
+dev.num_rb_pipes 4
+dev.ids_flags 1
+dev.vram_type 12
+dev.vram_bit_width 128
+dev.num_tcc_blocks 4
+dev.tcc_disabled_mask 0
+dev.tcp_cache_size 16
+dev.gl1c_cache_size 128
+dev.gl2c_cache_size 4096
+dev.mall_size 0
+mem.vram 1073741824 1006632960 536870912 805306368
+mem.vis 1073741824 251658240 134217728 209715200
+mem.gtt 17179869184 17146314752 268435456 12884901888
+hwip 0 1 10 3 1
+hwip 1 1 10 3 15
+hwip 2 2 5 2 3
+hwip 6 1 3 0 1
+hwip 7 1 3 0 3
+hwip 8 1 3 0 1
+fw 4 0 0 120 40
+fw 10 0 0 6112512 0
+vcap 0 3 1 4096 4096
+vcap 0 4 1 8192 4352
+vcap 1 3 1 4096 2304
+vcap 1 4 1 4096 2304
+vbios.name MADE UP TEST VBIOS
+vbios.pn 113-TEST-000
+vbios.ver 000.000.000.000.000000
+vbios.date 2026/10/31 00:00
+drm 3 64 0

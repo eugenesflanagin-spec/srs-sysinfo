@@ -27,8 +27,12 @@
 #include "bench_gpuburn.h"
 #include "bench_gpucompare.h"
 #include "power.h"
+#include "gpu_top_gui.h"
+#include "gui_ir.h"
+#include "ir.h"
+#include "perf_tray.h"
 #include "tblsort.h"
-#include "gui_startup.h"
+#include "perf_view.h"
 #include "cuda_toolkit.h"
 
 #include <dlfcn.h>
@@ -135,6 +139,8 @@ typedef struct swin {
     GtkWidget *bm_digits, *bm_algo, *bm_threads, *bm_limit, *bm_stop, *bm_superpi;
     GtkWidget *st_dir, *st_size, *st_profile, *st_usb, *st_info;
     GtkWidget *cp_isa, *cp_single;
+    GtkWidget *bm_runall;  /* Run All (Everyday Work, GPU Compute comparison): every test / back end ticked, then Run */
+    GtkWidget *allcores;   /* All Cores (Ma_x) toggle (benchmark threads / Stress CPU threads): this run only, the page's own values come back */
     GtkWidget *wk_grp[WK_NGROUP], *wk_lib[WK_NLIB], *wk_row;
     GtkWidget *nt_local, *nt_inet, *nt_ipv, *nt_info;
     GtkWidget *gp_dev, *gp_mem;   /* GPU windows: device list (filled when opened), GPU benchmark buffer size */
@@ -157,6 +163,7 @@ typedef struct swin {
     /* main-window tab (2.2): a temporary tab is not kept in the page's tab list */
     int temp;
     GtkWidget *tablbl, *tabtxt;
+    int absent;     /* IR Blaster tab: no dongle plugged in, the tab is greyed */
     guint hot_id;   /* Stress & Burnin: the pending "over 100 °C?" check (2.4) */
 } swin;
 
@@ -168,6 +175,7 @@ static int g_home_open;   /* the new main window exists */
 static void open_item(const char *id);   /* new main window: show the item's page, else a classic panel */
 static void home_open(int as_main);
 static void home_refresh_data(void);
+static int item_retired(const char *id);
 static int home_key(swin *w, GdkEventKey *ev);
 static void home_destroyed(swin *w);
 static void open_main(int as_main);
@@ -1057,7 +1065,7 @@ static void tray_close_notice(void)
     d = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "SRS is still running in the tray");
     gtk_window_set_title(GTK_WINDOW(d), "SRS System Information");
     gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "Closing the window only hid it (Options > Close to tray is on). "
-        "Click the tray icon to show SRS again; to quit, right-click the icon and choose Exit, or use Menu > Quit (Ctrl+Q).");
+        "Click the tray icon to show SRS again; to quit, right-click the icon and choose Quit SRS, or use Menu > Quit (Ctrl+Q).");
     cb = gtk_check_button_new_with_mnemonic("_Don't show this again");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(cb), TRUE);
     gtk_box_pack_start(GTK_BOX(gtk_message_dialog_get_message_area(GTK_MESSAGE_DIALOG(d))), cb, FALSE, FALSE, 0);
@@ -1265,6 +1273,8 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "root")) run_root();
     else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
     else if (!strcmp(t, "lists")) lists_update_dialog();
+    else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
+    else if (!strcmp(t, "traysettings")) perf_tray_settings_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL);
     else if (!strcmp(t, "home")) home_open(0);
     else if (!strcmp(t, "classic")) open_main(0);
     else if (!strcmp(t, "exit") && g_main) gtk_widget_destroy(g_main->win);
@@ -1298,7 +1308,8 @@ static void build_menu(GtkWidget *menu)
         { "gpu", "_Graphics / Monitors / Audio" }, { "bus", "_Buses / Devices" }, { "tools", "_Tools" }, { "siv", "S_RS (SIV items)" },
         { NULL, NULL } };
     static const struct { const char *label, *tool; } tools[] = {
-        { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { NULL, NULL } };
+        { "Device _ID Lookup...", "idlookup" }, { "_Find in Report...", "find" }, { "The Big Top (Live GPU and System Activit_y)...", "gputop" },
+        { NULL, NULL } };
     int g, i, n = srs_section_count();
     {
         GtkWidget *sub = gtk_menu_new();
@@ -1318,7 +1329,7 @@ static void build_menu(GtkWidget *menu)
             const srs_item *s = srs_section_at(i);
             char lab[200];
             GtkWidget *it;
-            if (!s || !s->group || strcmp(s->group, groups[g].group)) continue;
+            if (!s || !s->group || strcmp(s->group, groups[g].group) || item_retired(s->id)) continue;
             snprintf(lab, sizeof lab, "%s  [%s]%s", s->title, s->id,
                      s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
             it = gtk_menu_item_new_with_label(lab);
@@ -1814,6 +1825,40 @@ static GtkWidget *make_window(swin *w, const char *title, int width, int height)
     return w->win;
 }
 
+/* Startup programs > Manage: the one startup manager is The Big Top > Performance > Startup Apps (2.5) */
+static void open_startup_apps(GtkWidget *from)
+{
+    GtkWidget *t = from ? gtk_widget_get_toplevel(from) : NULL;
+    perf_view_request_page("startup");
+    gpu_top_window_open_page(t && GTK_IS_WINDOW(t) ? GTK_WINDOW(t) : NULL, GPU_TOP_PAGE_PERFORMANCE);
+}
+
+static void on_open_startup_apps(GtkButton *b, gpointer d) { (void)d; open_startup_apps(GTK_WIDGET(b)); }
+
+static void on_startup_stack(GObject *st, GParamSpec *ps, gpointer d)
+{
+    const char *n = gtk_stack_get_visible_child_name(GTK_STACK(st));
+    (void)ps; (void)d;
+    if (n && !strcmp(n, "manage") && gtk_widget_get_mapped(GTK_WIDGET(st))) open_startup_apps(GTK_WIDGET(st));
+}
+
+static GtkWidget *startup_manage_page(void)
+{
+    GtkWidget *b = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10), *l, *btn;
+    gtk_container_set_border_width(GTK_CONTAINER(b), 24);
+    l = gtk_label_new("Startup programs are managed in The Big Top > Performance > Startup Apps: turn items on and off, add, "
+                      "remove (restorable), Restore Default, Undo, and bring back items the old Startup manager saved.");
+    gtk_label_set_line_wrap(GTK_LABEL(l), TRUE);
+    gtk_label_set_xalign(GTK_LABEL(l), 0);
+    gtk_label_set_max_width_chars(GTK_LABEL(l), 80);
+    btn = gtk_button_new_with_mnemonic("Open Startup _Apps");
+    gtk_widget_set_halign(btn, GTK_ALIGN_START);
+    g_signal_connect(btn, "clicked", G_CALLBACK(on_open_startup_apps), NULL);
+    gtk_box_pack_start(GTK_BOX(b), l, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(b), btn, FALSE, FALSE, 0);
+    return b;
+}
+
 static GtkWidget *make_view(swin *w)
 {
     GtkWidget *sw = gtk_scrolled_window_new(NULL, NULL);
@@ -2151,6 +2196,9 @@ static int gb_live_read(const char *path, gb_live *l)
 }
 
 static void burn_sens(swin *w);
+static int g_bench_busy;
+static void load_ui_update(void);
+static int load_lock_ok(GtkWindow *parent);
 /* the summary, then (when this window started the built-in GPU Burnin) its live page or its result */
 static void render_burn(swin *w)
 {
@@ -2200,7 +2248,7 @@ static gboolean burn_timer(gpointer data)
     w->hist[3][w->nhist] = w->st.cur.gpu_temp;
     w->nhist++;
     render_burn(w);
-    gtk_widget_set_sensitive(w->b_start, !burn_active());
+    gtk_widget_set_sensitive(w->b_start, !burn_active() && !g_bench_busy);
     gtk_widget_set_sensitive(w->b_stop, burn_active());
     burn_sens(w);
     gtk_widget_queue_draw(w->plot);
@@ -2298,7 +2346,6 @@ static int gpu_cmd_ok(swin *w, const char *cmd)
 
 /* one benchmark at a time across all windows, and no burner while one runs: two loads at once
    would spoil each other's results */
-static int g_bench_busy;
 static void gb_val(char *b, size_t n, double v, const char *fmt)
 {
     if (v < 0) snprintf(b, n, "not available");
@@ -2409,7 +2456,12 @@ static void burn_sens(swin *w)
     gtk_widget_set_sensitive(w->b_cpurow, idle && cpu);
     gtk_widget_set_sensitive(w->b_same, idle && cpu);
     gtk_widget_set_sensitive(w->b_limit, idle && cpu);
-    if (w->b_selall) { gtk_widget_set_sensitive(w->b_selall, idle && cpu); gtk_widget_set_sensitive(w->b_deselall, idle && cpu); }
+    if (w->b_selall) {   /* All Cores on: every CPU is ticked for this run, Select / Deselect All wait */
+        int ac = w->allcores && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->allcores));
+        gtk_widget_set_sensitive(w->b_selall, idle && cpu && !ac);
+        gtk_widget_set_sensitive(w->b_deselall, idle && cpu && !ac);
+    }
+    if (w->allcores) gtk_widget_set_sensitive(w->allcores, idle && cpu);
     for (i = 0; i < w->nb_cpu; i++) gtk_widget_set_sensitive(w->b_cpu[i], idle && cpu);
     gtk_widget_set_sensitive(w->b_gb, idle);
     gtk_widget_set_sensitive(w->b_gbrow, idle && gb);
@@ -2500,6 +2552,11 @@ static void on_burn_start(GtkWidget *x, gpointer data)
     if (g_bench_busy) { gtk_widget_error_bell(w->win); return; }
     if (!terms_ok(GTK_WINDOW(w->win))) {
         snprintf(w->st.status, sizeof w->st.status, "Not started: the load test terms were not agreed (Terms... below the controls)");
+        render_burn(w);
+        return;
+    }
+    if (!load_lock_ok(GTK_WINDOW(w->win))) {
+        snprintf(w->st.status, sizeof w->st.status, "Not started: another SRS benchmark is running (see bench.lock); wait for it");
         render_burn(w);
         return;
     }
@@ -2642,6 +2699,7 @@ static void on_burn_start(GtkWidget *x, gpointer data)
     if (getenv("SRS_TEST_MAXSECS")) c.cap_s = atof(getenv("SRS_TEST_MAXSECS"));   /* test hook: hard cap */
     w->nhist = 0;
     if (burn_start(&c) != 0) w->gb_used = 0;
+    else { bench_lock_take("Stress & Burnin"); load_ui_update(); }
     burn_timer(w);
 }
 
@@ -2675,6 +2733,69 @@ static GtkWidget *spin(double lo, double hi, double step, double val)
     GtkWidget *s = gtk_spin_button_new_with_range(lo, hi, step);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(s), val);
     return s;
+}
+
+/* All Cores: on = every logical CPU for this run (threads = all, "1 thread only" off; on Stress & Burnin every CPU ticked),
+   off = the values the page had before. Nothing is saved: the page's own setting stays as it was. */
+static void on_allcores(GtkToggleButton *tb, gpointer data)
+{
+    swin *w = data;
+    int on = gtk_toggle_button_get_active(tb), i;
+    if (w->kind == W_BURN) {
+        for (i = 0; i < w->nb_cpu; i++) {
+            GtkToggleButton *c = GTK_TOGGLE_BUTTON(w->b_cpu[i]);
+            if (on) {
+                g_object_set_data(G_OBJECT(c), "allcores-saved", GINT_TO_POINTER(gtk_toggle_button_get_active(c) + 1));
+                gtk_toggle_button_set_active(c, TRUE);
+            } else if (g_object_get_data(G_OBJECT(c), "allcores-saved"))
+                gtk_toggle_button_set_active(c, GPOINTER_TO_INT(g_object_get_data(G_OBJECT(c), "allcores-saved")) - 1);
+        }
+        if (w->b_selall) gtk_widget_set_sensitive(w->b_selall, !on);
+        if (w->b_deselall) gtk_widget_set_sensitive(w->b_deselall, !on);
+        return;
+    }
+    if (w->bm_threads) {
+        GtkSpinButton *sp = GTK_SPIN_BUTTON(w->bm_threads);
+        if (on) {
+            gtk_spin_button_update(sp);
+            g_object_set_data(G_OBJECT(sp), "allcores-saved", GINT_TO_POINTER(gtk_spin_button_get_value_as_int(sp)));
+            gtk_spin_button_set_value(sp, burn_ncpu());
+        } else if (g_object_get_data(G_OBJECT(sp), "allcores-saved"))
+            gtk_spin_button_set_value(sp, GPOINTER_TO_INT(g_object_get_data(G_OBJECT(sp), "allcores-saved")));
+        gtk_widget_set_sensitive(w->bm_threads, !on);
+    }
+    if (w->cp_single) {
+        GtkToggleButton *c = GTK_TOGGLE_BUTTON(w->cp_single);
+        if (on) {
+            g_object_set_data(G_OBJECT(c), "allcores-saved", GINT_TO_POINTER(gtk_toggle_button_get_active(c) + 1));
+            gtk_toggle_button_set_active(c, FALSE);
+        } else if (g_object_get_data(G_OBJECT(c), "allcores-saved"))
+            gtk_toggle_button_set_active(c, GPOINTER_TO_INT(g_object_get_data(G_OBJECT(c), "allcores-saved")) - 1);
+        gtk_widget_set_sensitive(w->cp_single, !on);
+    }
+}
+
+static int allcores_on(swin *w) { return w->allcores && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->allcores)); }
+
+static GtkWidget *allcores_btn(swin *w)
+{
+    char tip[320];
+    static GtkCssProvider *css;
+    if (!css) {   /* pressed = the theme's selection colour, so "on" is plain to see in light and dark */
+        css = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(css, "button.srs-allcores:checked { background-image: none; background-color: @theme_selected_bg_color; "
+                                             "color: @theme_selected_fg_color; }", -1, NULL);
+        gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+    }
+    w->allcores = gtk_toggle_button_new_with_mnemonic("All Cores (Ma_x)");
+    gtk_style_context_add_class(gtk_widget_get_style_context(w->allcores), "srs-allcores");
+    snprintf(tip, sizeof tip, "Use every logical CPU (%d) for this run only (your saved thread count is kept)%s", burn_ncpu(),
+             w->kind == W_BENCH && (w->sub == BK_CRYPTO || w->sub == BK_COMPUTE || w->sub == BK_WORK)
+                 ? ". Only the all-threads pass runs: the 1-thread column is skipped, so it takes about half the time" : "");
+    gtk_widget_set_tooltip_text(w->allcores, tip);
+    gtk_widget_set_valign(w->allcores, GTK_ALIGN_CENTER);
+    g_signal_connect(w->allcores, "toggled", G_CALLBACK(on_allcores), w);
+    return w->allcores;
 }
 
 static void build_burn(swin *w, GtkWidget *vb)
@@ -2806,6 +2927,7 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_widget_set_tooltip_text(b, "Deselect all the Worker Threads");
     gtk_box_pack_start(GTK_BOX(row), b, FALSE, FALSE, 0);
     w->b_deselall = b;
+    gtk_box_pack_start(GTK_BOX(row), allcores_btn(w), FALSE, FALSE, 0);
     w->b_start = sbtn("S_tart");
     g_signal_connect(w->b_start, "clicked", G_CALLBACK(on_burn_start), w);
     gtk_box_pack_start(GTK_BOX(row), w->b_start, FALSE, FALSE, 0);
@@ -2835,6 +2957,7 @@ typedef struct {
     swin *w;
     int sub, mode, cpus, rounds, threads, algo, rc, profile, allow_usb, stopped;
     int isa, single;                      /* CPU Compute: code path, 1 thread only (Everyday Work too) */
+    int all_only;                         /* All Cores on: Crypto / Compute / Everyday Work run the all-threads pass only */
     unsigned groups, libs;                /* Everyday Work: test groups, compression libraries */
     int net_local, net_internet, ipv;     /* Network: loopback part, internet part (only after its own yes), IP version */
     int device;                           /* GPU windows: device index, -1 = default */
@@ -2879,11 +3002,76 @@ static const char *bk_item(int sub)
     return sub >= 0 && sub <= BK_LAST ? t[sub] : "benchmark";
 }
 
+/* ---- one load at a time (2.5): while a benchmark or Stress & Burnin runs, every other page's Run / Start waits ---- */
+static const char *g_load_name;   /* the running benchmark's title, NULL = none (Stress & Burnin: burn_active()) */
+
+static const char *load_running(void)
+{
+    if (g_bench_busy) return g_load_name ? g_load_name : "A benchmark";
+    if (burn_active()) return "Stress & Burnin";
+    return NULL;
+}
+
+/* the Run / Start buttons of every page that is not the running one: greyed with the reason in the tooltip */
+static void load_ui_update(void)
+{
+    const char *busy = load_running();
+    char tip[200];
+    guint i;
+    if (busy) snprintf(tip, sizeof tip, "%s is running - wait for it or press Stop on its page", busy);
+    for (i = 0; g_wins && i < g_wins->len; i++) {
+        swin *w = g_ptr_array_index(g_wins, i);
+        if (w->kind == W_BENCH && w->bm_run && !w->running) {
+            gtk_widget_set_sensitive(w->bm_run, !busy);
+            gtk_widget_set_tooltip_text(w->bm_run, busy ? tip : NULL);
+            if (w->bm_runall) { gtk_widget_set_sensitive(w->bm_runall, !busy); gtk_widget_set_tooltip_text(w->bm_runall, busy ? tip : NULL); }
+        } else if (w->kind == W_BURN && w->b_start && !burn_active()) {
+            gtk_widget_set_sensitive(w->b_start, !g_bench_busy);
+            gtk_widget_set_tooltip_text(w->b_start, g_bench_busy ? tip : NULL);
+        }
+    }
+    if (!busy) bench_lock_release();   /* this process's bench.lock, when its run is over (Stress & Burnin ends on its own) */
+    if (getenv("SRS_TEST_BENCH_AUTO")) {   /* tests: how many other pages' Run / Start buttons can be pressed now */
+        int pages = 0, live = 0;
+        for (i = 0; g_wins && i < g_wins->len; i++) {
+            swin *w = g_ptr_array_index(g_wins, i);
+            GtkWidget *b = w->kind == W_BENCH ? w->bm_run : w->kind == W_BURN ? w->b_start : NULL;
+            if (!b || w->running) continue;
+            pages++;
+            if (gtk_widget_get_sensitive(b)) live++;
+        }
+        fprintf(stderr, "SRS-TEST: load %s other-pages=%d pressable=%d\n", busy ? busy : "none", pages, live);
+    }
+}
+
+static gboolean load_ui_tick(gpointer d) { (void)d; load_ui_update(); return G_SOURCE_CONTINUE; }
+
+/* another SRS process (or sysreport-search) holds bench.lock: ask before a second load. 1 = go ahead */
+static int load_lock_ok(GtkWindow *parent)
+{
+    char who[100], q[300];
+    int pid = 0, r;
+    GtkWidget *d;
+    const char *t = getenv("SRS_TEST_LOCK_ANSWER");   /* tests: yes / no without a click */
+    if (!bench_lock_other(who, sizeof who, &pid)) return 1;
+    snprintf(q, sizeof q, "Another SRS benchmark (%s, PID %d) is running - start anyway?", who, pid);
+    if (t) { fprintf(stderr, "SRS-TEST: lock ask: %s -> %s\n", q, t); return !strcmp(t, "yes"); }
+    d = gtk_message_dialog_new(parent, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO, "%s", q);
+    gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "Two loads at once skew each other's results (and add up the heat). "
+                                             "Wait for the other one to finish, or start anyway.");
+    gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
+    r = gtk_dialog_run(GTK_DIALOG(d));
+    gtk_widget_destroy(d);
+    return r == GTK_RESPONSE_YES;
+}
+
 static gboolean bench_done(gpointer data)
 {
     benchjob *j = data;
     swin *w = j->w;
     g_bench_busy = 0;
+    g_load_name = NULL;
+    bench_lock_release();
     if (w && g_ptr_array_find(g_wins, w, NULL)) {
         w->jobw = NULL;
         srs_out o;
@@ -2893,6 +3081,7 @@ static gboolean bench_done(gpointer data)
         w->cancelp = NULL;
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
         gtk_widget_set_sensitive(w->bm_run, TRUE);
+        if (w->bm_runall) gtk_widget_set_sensitive(w->bm_runall, TRUE);
         if (w->bm_stop) gtk_widget_set_sensitive(w->bm_stop, FALSE);
         if (w->commit_id) { g_source_remove(w->commit_id); w->commit_id = 0; }   /* a live refresh still waiting */
         if (j->sub == BK_GPU || j->sub == BK_GPUCOMPARE) {
@@ -2939,7 +3128,11 @@ static gboolean bench_done(gpointer data)
         } else if (!strcmp(w->id, "numa-speeds")) srs_section_render(srs_section_find("numa-speeds"), &o);   /* the page with the new run */
         else if (!bench_show_last(name, &o)) so_err(&o, "No result (nothing to run in this mode on this CPU)");
         if (w->plot) gtk_widget_queue_draw(w->plot);
+        if (getenv("SRS_TEST_BENCH_AUTO"))
+            fprintf(stderr, "SRS-TEST: bench %s done stopped=%d rc=%d run=%d status=%s\n", name, j->stopped, j->rc,
+                    gtk_widget_get_sensitive(w->bm_run), gtk_label_get_text(GTK_LABEL(w->bm_status)));
     }
+    load_ui_update();   /* the other pages' Run buttons come back */
     g_free(j->dir);
     g_free(j);
     return G_SOURCE_REMOVE;
@@ -2948,15 +3141,17 @@ static gboolean bench_done(gpointer data)
 static gpointer bench_worker(gpointer data)
 {
     benchjob *j = data;
+    bench_set_cancel(&j->cancel);   /* CPU Benchmark, IPI Delay, Latency and Crypto take their Stop from here */
     if (j->sub == BK_IPI) {
-        if ((j->rc = bench_ipi(j->cpus, j->rounds, NULL)) < 0) {   /* not started: the last result stays */
+        if ((j->rc = bench_ipi(j->cpus, j->rounds, NULL)) == -2) ;   /* stopped: no result, the last one stays ("Stopped - no result") */
+        else if (j->rc < 0) {   /* not started: the last result stays */
             j->rc = -4;
             snprintf(j->why, sizeof j->why, "%s", j->cpus == 1 || burn_ncpu() < 2 ? "IPI Delay needs at least two CPU threads (one pair)" : "out of memory");
         }
     }
-    else if (j->sub == BK_LAT) bench_latency(j->max, NULL);
+    else if (j->sub == BK_LAT) { if (bench_latency(j->max, NULL) == 1) j->stopped = 1; }
     else if (j->sub == BK_PI) j->rc = bench_pi(j->digits, j->threads, j->algo, NULL, &j->cancel, NULL);
-    else if (j->sub == BK_CRYPTO) j->rc = bench_crypto(j->threads, j->secs, NULL);
+    else if (j->sub == BK_CRYPTO) { if ((j->rc = bench_crypto(j->threads, j->secs, j->all_only, NULL)) == 2) { j->rc = 0; j->stopped = 1; } }
     else if (j->sub == BK_PRIME) j->rc = bench_prime((uint64_t)j->limit, j->threads, NULL, &j->cancel);
     else if (j->sub == BK_CACHEMEM) {
         cm_cfg c;
@@ -2985,6 +3180,7 @@ static gpointer bench_worker(gpointer data)
         c.seconds = j->secs;
         c.isa = j->isa;
         c.single_only = j->single;
+        c.multi_only = j->all_only;
         j->rc = bench_compute(&c, NULL, &j->cancel);
         if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
         else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "Stress & Burnin is running, or out of memory"); }
@@ -2996,6 +3192,7 @@ static gpointer bench_worker(gpointer data)
         c.run_mask = j->groups;
         c.codec_mask = j->libs;
         c.single_only = j->single;
+        c.multi_only = j->all_only;
         j->rc = bench_work(&c, NULL, &j->cancel);
         if (j->rc == -2) { j->rc = 0; j->stopped = 1; }
         else if (j->rc == -1) { j->rc = -4; snprintf(j->why, sizeof j->why, "Stress & Burnin is running, or out of memory"); }
@@ -3025,9 +3222,49 @@ static gpointer bench_worker(gpointer data)
         c.software_only = g_gpu_software_only;
         j->rc = bench_gpucompare(&c, NULL, NULL, &j->cancel, j->why, sizeof j->why);
     }
-    else bench_run((bench_mode)j->mode, j->secs, NULL);
+    else if (bench_run((bench_mode)j->mode, j->secs, NULL) == 1) j->stopped = 1;
+    bench_set_cancel(NULL);
     g_idle_add(bench_done, j);
     return NULL;
+}
+
+/* tests (SRS_TEST_BENCH_AUTO="page,seconds,threads,stop-ms"): the smallest settings, Run, and Stop after stop-ms (0 = no Stop) */
+static void on_bench_stop(GtkWidget *x, gpointer data);
+static void on_bench_run(GtkWidget *x, gpointer data);
+static gboolean bench_autostop(gpointer d)
+{
+    swin *w = d;
+    if (g_ptr_array_find(g_wins, w, NULL)) { fprintf(stderr, "SRS-TEST: bench stop pressed\n"); on_bench_stop(NULL, w); }
+    return G_SOURCE_REMOVE;
+}
+
+static void spin_min(GtkWidget *s) { double lo, hi; if (!s) return; gtk_spin_button_get_range(GTK_SPIN_BUTTON(s), &lo, &hi); gtk_spin_button_set_value(GTK_SPIN_BUTTON(s), lo); }
+
+static gboolean bench_autorun(gpointer d)
+{
+    swin *w = d;
+    char page[64];
+    double secs = 0.1;
+    int thr = 1, stopms = 0;
+    if (!g_ptr_array_find(g_wins, w, NULL)) return G_SOURCE_REMOVE;
+    if (sscanf(getenv("SRS_TEST_BENCH_AUTO"), "%63[^,],%lf,%d,%d", page, &secs, &thr, &stopms) < 1) return G_SOURCE_REMOVE;
+    if (w->bm_secs) gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->bm_secs), secs);
+    if (w->bm_threads) gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->bm_threads), thr);
+    spin_min(w->bm_max);
+    spin_min(w->bm_rounds);
+    if (w->bm_cpus) gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->bm_cpus), thr < 2 ? 2 : thr);   /* IPI: threads = CPUs */
+    if (w->sub == BK_IPI && stopms > 0) {   /* long enough pairs that Stop lands between two of them */
+        double lo, hi;
+        gtk_spin_button_get_range(GTK_SPIN_BUTTON(w->bm_rounds), &lo, &hi);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(w->bm_rounds), hi);
+    }
+    if (w->bm_digits) gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_digits), 0);
+    if (w->bm_limit) gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_limit), 0);
+    if (w->bm_mode) gtk_combo_box_set_active(GTK_COMBO_BOX(w->bm_mode), BM_AS);   /* one CPU at a time, never all at once */
+    fprintf(stderr, "SRS-TEST: bench %s run pressed\n", page);
+    on_bench_run(NULL, w);
+    if (stopms > 0) g_timeout_add((guint)stopms, bench_autostop, w);
+    return G_SOURCE_REMOVE;
 }
 
 /* status line while a long benchmark runs: elapsed time and, for SRS Pi, the current step */
@@ -3064,6 +3301,23 @@ static void on_bench_stop(GtkWidget *x, gpointer data)
 }
 
 static void ctk_maybe_ask(GtkWindow *parent, int force);   /* the NVIDIA CUDA toolkit question (below) */
+static void on_bench_run(GtkWidget *x, gpointer data);
+/* tests: SRS_TEST_BENCH_AUTO set = the start questions of the benchmark pages answer Yes (never the internet test's) */
+static int bench_test_yes(void) { return getenv("SRS_TEST_BENCH_AUTO") != NULL; }
+
+/* Run All: tick every test (Everyday Work: groups and libraries; GPU comparison: every installed back end), then Run */
+static void on_bench_runall(GtkWidget *x, gpointer data)
+{
+    swin *w = data;
+    int i;
+    if (w->sub == BK_WORK) {
+        for (i = 0; i < WK_NGROUP; i++) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->wk_grp[i]), TRUE);
+        for (i = 0; i < WK_NLIB; i++) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->wk_lib[i]), TRUE);
+    } else if (w->sub == BK_GPUCOMPARE)
+        for (i = 0; i < GB_N; i++) if (gtk_widget_get_sensitive(w->gc_back[i])) gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->gc_back[i]), TRUE);
+    on_bench_run(x, data);
+}
+
 static void on_bench_run(GtkWidget *x, gpointer data)
 {
     swin *w = data;
@@ -3081,6 +3335,10 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started - the load test terms were not agreed (Terms... below the controls)");
         return;
     }
+    if (!load_lock_ok(GTK_WINDOW(w->win))) {
+        gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started - another SRS benchmark is running (see bench.lock); wait for it");
+        return;
+    }
     if (w->sub == BK_CACHEMEM) {
         GtkWidget *d;
         int ok;
@@ -3090,7 +3348,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
             "It keeps the chosen CPU threads and the memory bus busy for about 20 seconds.\n"
             "For accurate results close other programs, and do not run any other benchmark at the same time.");
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
@@ -3109,7 +3367,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             "small-file operations for about %.0f seconds. Light load: one or two CPUs are busy, never all of them.\n\n"
             "Nothing on the system is changed. The file test works in its own temporary folder in ~/.cache/srs, which is "
             "removed at the end. Close other programs for steadier numbers.", 1 + 2.4 * n / 20000 + s);
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
@@ -3123,17 +3381,19 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         c.threads = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
         c.seconds = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
         c.single_only = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->cp_single));
+        c.multi_only = allcores_on(w);
         d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_YES_NO,
                                    "Start the CPU Compute benchmark?");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
             "It runs matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot and a small ray tracer for about %.0f seconds, "
-            "first on one thread%s.\n\n%s%s"
+            "%s%s.\n\n%s%s"
             "An unstable overclock or undervolt can crash the PC under this kind of load. Tick \"1 thread only\" to keep it light. "
             "Close other programs for accurate results.",
-            cp_estimate_seconds(&c), c.single_only ? " only" : c.threads > 1 ? " and then on the chosen threads at once" : "",
+            cp_estimate_seconds(&c), c.multi_only ? "on all threads at once only (All Cores: the 1-thread pass is skipped)" : "first on one thread",
+            c.multi_only ? "" : c.single_only ? " only" : c.threads > 1 ? " and then on the chosen threads at once" : "",
             c.single_only ? "" : "With all threads every CPU is 100% busy and gets hot. ",
             cp_isa_best() == CP_ISA_AVX512 ? "This CPU has AVX-512, which draws a lot of power. " : "");
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
@@ -3147,6 +3407,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         c.threads = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->bm_threads));
         c.seconds = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
         c.single_only = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->cp_single));
+        c.multi_only = allcores_on(w);
         for (i = 0; i < WK_NGROUP; i++) if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->wk_grp[i]))) c.run_mask |= 1u << i;
         for (i = 0; i < WK_NLIB; i++) if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->wk_lib[i]))) c.codec_mask |= 1u << i;
         if (!c.run_mask) { gtk_label_set_text(GTK_LABEL(w->bm_status), "Not started: tick at least one test group"); return; }
@@ -3157,12 +3418,13 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         d = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_QUESTION, GTK_BUTTONS_YES_NO,
                                    "Start the Everyday Work benchmark?");
         gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d),
-            "It runs compression, sorting, checksum, text and interpreter tests for about %.0f seconds, first on one thread%s.\n\n"
+            "It runs compression, sorting, checksum, text and interpreter tests for about %.0f seconds, %s%s.\n\n"
             "%sThe test data is generated by SRS; none of your files are read or written (only the result is saved). "
             "Close other programs for accurate results.",
-            wk_estimate_seconds(&c), c.single_only ? " only" : c.threads > 1 ? " and then on the chosen threads at once" : "",
+            wk_estimate_seconds(&c), c.multi_only ? "on all threads at once only (All Cores: the 1-thread pass is skipped)" : "first on one thread",
+            c.multi_only ? "" : c.single_only ? " only" : c.threads > 1 ? " and then on the chosen threads at once" : "",
             c.single_only ? "" : "With all threads every CPU is 100% busy, and xz / zstd -19 use about 100 MB of memory per thread. ");
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
     }
@@ -3200,6 +3462,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
                 gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
                 q.kind = BA_CRYPTO;
                 q.secs = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs));
+                q.all_only = allcores_on(w);
             } else {
                 int k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_limit));
                 q.kind = BA_PRIME;
@@ -3215,7 +3478,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             gtk_window_set_title(GTK_WINDOW(d), bk_title(w->sub));
             gtk_message_dialog_format_secondary_text(GTK_MESSAGE_DIALOG(d), "%s", body);
             if (heavy) gtk_dialog_set_default_response(GTK_DIALOG(d), GTK_RESPONSE_NO);
-            ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+            ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
             gtk_widget_destroy(d);
             if (!ok || w->running || g_bench_busy || burn_active()) return;
         }
@@ -3250,7 +3513,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             "SRS never changes clocks, voltages or fans. Stop ends the run at once.\n\n"
             "For accurate results close games and other GPU programs, and do not run another benchmark at the same time.",
             dv[k].name, 10 * secs * 1.5 + 2, secs);
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
         j = g_new0(benchjob, 1);
@@ -3298,7 +3561,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             "ROCm / HIP, CUDA and OpenCL start their own runtimes when it begins. An unstable GPU overclock or undervolt can "
             "crash the PC or the display driver under this load. SRS never changes clocks, voltages or fans. Stop ends the run at once.",
             list, devname, secs, GC_N * nb * secs * 1.5 + 3);
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) return;
         j = g_new0(benchjob, 1);
@@ -3340,7 +3603,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
                 "and no network card is used. Up to %d CPUs are busy while it runs.%s",
                 c.streams, 3 * c.secs + 2 * (c.secs < 1 ? c.secs : 1) + 1, c.streams + 1,
                 inet ? "\n\nThe internet speed test is asked about separately next." : "");
-            ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+            ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
             gtk_widget_destroy(d);
             if (!ok) return;
         }
@@ -3393,7 +3656,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
             where.transport, where.folder, where.fstype, mb, gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->bm_secs)),
             where.rotational ? "\n\nThis is a hard disk: the random tests are slow and noisy." :
             where.usb ? "\n\nThis is a USB drive: some USB enclosures drop off under heavy load. Make sure nothing important is open on it." : "");
-        ok = gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
+        ok = bench_test_yes() || gtk_dialog_run(GTK_DIALOG(d)) == GTK_RESPONSE_YES;
         gtk_widget_destroy(d);
         if (!ok || w->running || g_bench_busy || burn_active()) { g_free(dir); return; }
         {   /* remember the folder for next time */
@@ -3413,6 +3676,7 @@ static void on_bench_run(GtkWidget *x, gpointer data)
     j = g_new0(benchjob, 1);
     j->w = w;
     j->sub = w->sub;
+    j->all_only = allcores_on(w);   /* All Cores: Crypto, Compute and Everyday Work skip their 1-thread pass */
     if (w->sub == BK_BENCH) {
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->bm_secs));
         j->mode = gtk_combo_box_get_active(GTK_COMBO_BOX(w->bm_mode));
@@ -3461,20 +3725,24 @@ static void on_bench_run(GtkWidget *x, gpointer data)
         }
     }
     w->running = 1;
-    w->cancelp = w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET || w->sub == BK_GPU ||
-                 w->sub == BK_GPUCOMPARE ? &j->cancel : NULL;
+    w->cancelp = &j->cancel;   /* every engine stops at its next measurement (bench_set_cancel for the older ones) */
     w->run_t0 = g_get_monotonic_time() / 1e6;
     gtk_widget_set_sensitive(w->bm_run, FALSE);
+    if (w->bm_runall) gtk_widget_set_sensitive(w->bm_runall, FALSE);
     if (w->bm_stop && w->cancelp) gtk_widget_set_sensitive(w->bm_stop, TRUE);
     gtk_label_set_text(GTK_LABEL(w->bm_status), "Running...");
     if (w->sub >= BK_PI && !w->timer) w->timer = g_timeout_add(500, bench_tick, w);
     g_bench_busy = 1;
+    g_load_name = w->sub == BK_BENCH ? "CPU Benchmark" : bk_title(w->sub);
+    bench_lock_take(g_load_name);
     w->jobw = &j->w;
     th = g_thread_try_new("srs-bench", bench_worker, j, NULL);
-    if (th) g_thread_unref(th);
+    if (th) { g_thread_unref(th); load_ui_update(); }
     else {
         w->jobw = NULL;
         g_bench_busy = 0;
+        g_load_name = NULL;
+        bench_lock_release();
         w->running = 0;
         w->cancelp = NULL;
         if (w->timer) { g_source_remove(w->timer); w->timer = 0; }
@@ -3524,6 +3792,7 @@ static GtkWidget *threads_spin(swin *w, GtkWidget *row, int def, const char *tip
     w->bm_threads = spin(1, burn_ncpu(), 1, def);
     gtk_widget_set_tooltip_text(w->bm_threads, tip);
     gtk_box_pack_start(GTK_BOX(row), w->bm_threads, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), allcores_btn(w), FALSE, FALSE, 0);
     return w->bm_threads;
 }
 
@@ -3715,7 +3984,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_combo_box_set_active(GTK_COMBO_BOX(w->st_size), 1);
         gtk_box_pack_start(GTK_BOX(row), w->st_size, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(1, 30, 1, 5);
+        w->bm_secs = spin(1, 60, 1, 5);
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
         w->st_profile = gtk_combo_box_text_new();
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->st_profile), "Standard (4K random Q32T16)");
@@ -3732,13 +4001,13 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_widget_set_tooltip_text(w->bm_max, "Samples for the fast tests; thread / process start, wake-ups and files use a tenth.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_max, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), lbl("Tick test (s)"), FALSE, FALSE, 0);
-        w->bm_secs = spin(1, 30, 1, 3);
+        w->bm_secs = spin(1, 60, 1, 3);
         gtk_widget_set_tooltip_text(w->bm_secs, "How long a 1 ms periodic timer is watched for late wake-ups.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
     } else if (w->sub == BK_COMPUTE) {
         threads_spin(w, row, burn_ncpu(), "The right-hand column uses this many threads (one per CPU); the left column always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 10, 0.1, 0.5);
+        w->bm_secs = spin(0.1, 60, 0.1, 0.5);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_widget_set_tooltip_text(w->bm_secs, "Measuring time of each of the 9 tests, per column.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
@@ -3761,7 +4030,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
         threads_spin(w, row, burn_ncpu(), "The right-hand column uses this many threads (one per CPU); the left column always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 10, 0.1, 0.5);
+        w->bm_secs = spin(0.1, 60, 0.1, 0.5);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_widget_set_tooltip_text(w->bm_secs, "Measuring time of each test, per column.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
@@ -3800,7 +4069,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         gtk_widget_set_tooltip_text(w->bm_threads, "Connections at once for the \"N streams\" tests.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_threads, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(1, 30, 1, 5);
+        w->bm_secs = spin(1, 60, 1, 5);
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
         w->nt_ipv = gtk_combo_box_text_new();
         gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->nt_ipv), "IPv4 or IPv6");
@@ -3823,7 +4092,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         char hint[300], b[400];
         gpu_device_combo(w, row);
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 2, 0.1, 1);
+        w->bm_secs = spin(0.1, 60, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_widget_set_tooltip_text(w->bm_secs, "GPU time per test. Longer = steadier numbers.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
@@ -3849,7 +4118,7 @@ static void build_bench(swin *w, GtkWidget *vb)
         }
         (void)hint;
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 2, 0.1, 1);
+        w->bm_secs = spin(0.1, 60, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(r2), lbl("The GPU is chosen by its Vulkan device; the other back ends use the same card. "
@@ -3859,23 +4128,30 @@ static void build_bench(swin *w, GtkWidget *vb)
     } else if (w->sub == BK_CACHEMEM) {
         threads_spin(w, row, burn_ncpu(), "Bandwidth tests use one pinned thread per chosen CPU thread (all = the full result). Latency always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per test"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.2, 10, 0.1, 1);
+        w->bm_secs = spin(0.2, 60, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_widget_set_tooltip_text(w->bm_secs, "Measuring time for each of the 16 results; the best trial is shown. 1 s gives the same results as 5 s.");
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
     } else {   /* BK_CRYPTO */
         threads_spin(w, row, burn_ncpu(), "The right-hand column uses this many threads; the left column always uses one.");
         gtk_box_pack_start(GTK_BOX(row), lbl("Seconds per measurement"), FALSE, FALSE, 0);
-        w->bm_secs = spin(0.1, 10, 0.1, 1);
+        w->bm_secs = spin(0.1, 60, 0.1, 1);
         gtk_spin_button_set_digits(GTK_SPIN_BUTTON(w->bm_secs), 1);
         gtk_box_pack_start(GTK_BOX(row), w->bm_secs, FALSE, FALSE, 0);
     }
     w->bm_run = sbtn("_Run");
     g_signal_connect(w->bm_run, "clicked", G_CALLBACK(on_bench_run), w);
     gtk_box_pack_start(GTK_BOX(row), w->bm_run, FALSE, FALSE, 0);
-    if (w->sub == BK_PI || w->sub == BK_PRIME || w->sub == BK_CACHEMEM || w->sub == BK_STORAGE || w->sub == BK_OSLAT || w->sub == BK_COMPUTE || w->sub == BK_WORK || w->sub == BK_NET ||
-        w->sub == BK_GPU || w->sub == BK_GPUCOMPARE) {
+    if (w->sub == BK_WORK || w->sub == BK_GPUCOMPARE) {   /* pages with tests to tick: every one in one go */
+        w->bm_runall = sbtn("Run All");
+        gtk_widget_set_tooltip_text(w->bm_runall, w->sub == BK_WORK ? "Tick every test group and every compression library, then Run (asks first)"
+                                                                    : "Tick every installed back end, then Run (asks first)");
+        g_signal_connect(w->bm_runall, "clicked", G_CALLBACK(on_bench_runall), w);
+        gtk_box_pack_start(GTK_BOX(row), w->bm_runall, FALSE, FALSE, 0);
+    }
+    {   /* every page that runs something can be stopped (2.5: CPU Benchmark, IPI Delay, Latency and Crypto too) */
         w->bm_stop = sbtn("S_top");
+        gtk_widget_set_tooltip_text(w->bm_stop, "Stop the run at the next measurement; what was measured so far is shown and marked as stopped");
         gtk_widget_set_sensitive(w->bm_stop, FALSE);
         g_signal_connect(w->bm_stop, "clicked", G_CALLBACK(on_bench_stop), w);
         gtk_box_pack_start(GTK_BOX(row), w->bm_stop, FALSE, FALSE, 0);
@@ -3899,6 +4175,11 @@ static void build_bench(swin *w, GtkWidget *vb)
     gtk_box_pack_start(GTK_BOX(row), w->bm_status, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
     if (w->wk_row) gtk_box_pack_start(GTK_BOX(vb), w->wk_row, FALSE, FALSE, 0);
+    if (getenv("SRS_TEST_BENCH_AUTO")) {   /* tests: "page,seconds,threads,stop-after-ms" runs that page once, tiny */
+        char page[64] = "";
+        if (sscanf(getenv("SRS_TEST_BENCH_AUTO"), "%63[^,]", page) == 1 && !strcmp(page, bk_result(w->sub, -1)))
+            g_timeout_add(1500, bench_autorun, w);
+    }
 }
 
 /* ======================================================================
@@ -4133,6 +4414,7 @@ static struct {
     ai_new_t new_; ai_status_t status; ai_menu_t menu; ai_title_t title; ai_target_t target;
     GtkWidget *showitem;
     int hidden, tried;
+    int category;   /* the AppIndicator category it was made with (it cannot change afterwards) */
     guint timer;
 } g_tray;
 
@@ -4154,13 +4436,15 @@ static int tray_available(void)
     return 1;
 }
 
-static int tray_active(void) { return g_tray.ind && g_opt_tray; }
+/* a way back from hidden: the SRS tray icon, or one of the Task Manager's meter icons (perf_tray.c) */
+static int tray_active(void) { return (g_tray.ind && g_opt_tray) || perf_tray_active(); }
 
 static void srs_hide_all(void)
 {
     guint i;
     if (!tray_active()) return;   /* never hide without a way back */
     for (i = 0; i < g_wins->len; i++) gtk_widget_hide(((swin *)g_ptr_array_index(g_wins, i))->win);
+    if (gpu_top_window_get()) gtk_widget_hide(gpu_top_window_get());   /* GPU Top's threads stop while it is hidden */
     g_tray.hidden = 1;
     if (g_tray.showitem) gtk_menu_item_set_label(GTK_MENU_ITEM(g_tray.showitem), "Show SRS");
 }
@@ -4169,6 +4453,7 @@ static void srs_show_all(void)
 {
     guint i;
     for (i = 0; i < g_wins->len; i++) gtk_widget_show(((swin *)g_ptr_array_index(g_wins, i))->win);
+    if (gpu_top_window_get()) gtk_widget_show(gpu_top_window_get());
     if (g_main) gtk_window_present(GTK_WINDOW(g_main->win));
     g_tray.hidden = 0;
     if (g_tray.showitem) gtk_menu_item_set_label(GTK_MENU_ITEM(g_tray.showitem), "Hide to Tray");
@@ -4211,7 +4496,7 @@ static void tray_build_menu(void)
     gtk_menu_item_set_submenu(GTK_MENU_ITEM(it), sub);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
-    it = gtk_menu_item_new_with_label("Exit");
+    it = gtk_menu_item_new_with_label("Quit SRS");   /* the same words as the meter icons' menu (perf_tray.c) */
     g_signal_connect(it, "activate", G_CALLBACK(on_tray_exit), NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
     gtk_widget_show_all(m);
@@ -4226,18 +4511,30 @@ static gboolean tray_tick(gpointer d)
     (void)d;
     if (!g_tray.ind || !g_tray.title) return G_SOURCE_CONTINUE;
     burn_sample_now(&s);
-    snprintf(t, sizeof t, "SRS  -  CPU %.0f°C %.0f%%  -  GPU %.0f°C %.0f%%", s.cpu_temp, s.cpu_load, s.gpu_temp, s.gpu_load);
+    snprintf(t, sizeof t, "%s  -  CPU %.0f°C %.0f%%  -  GPU %.0f°C %.0f%%", perf_tray_title_prefix(), s.cpu_temp, s.cpu_load, s.gpu_temp, s.gpu_load);
     g_tray.title(g_tray.ind, t);
     return G_SOURCE_CONTINUE;
 }
 
+/* Task Manager's Tray Position (perf_tray): First = APP_INDICATOR_CATEGORY_OTHER (4) and " SRS" titles, so the SRS
+   icon sorts with the meter icons at the front (Plasma sorts by category, then title); Normal = HARDWARE (3) */
+static int tray_category(void) { return perf_prefs_get()->tray_first ? 4 : 3; }
+
 static void tray_apply(void)
 {
     if (g_opt_tray && tray_available()) {
+        if (g_tray.ind && g_tray.category != tray_category()) {   /* the category is fixed at creation: make it anew */
+            g_tray.status(g_tray.ind, 0 /* PASSIVE */);
+            g_object_unref(g_tray.ind);
+            g_tray.ind = NULL;
+            g_tray.showitem = NULL;
+        }
         if (!g_tray.ind) {
-            g_tray.ind = g_tray.new_("srs-sysinfo", "srs", 3 /* APP_INDICATOR_CATEGORY_HARDWARE */);
+            g_tray.category = tray_category();
+            g_tray.ind = g_tray.new_("srs-sysinfo", "srs", g_tray.category);
             if (!g_tray.ind) return;
-            g_tray.timer = g_timeout_add_seconds(2, tray_tick, NULL);
+            if (!g_tray.timer) g_tray.timer = g_timeout_add_seconds(2, tray_tick, NULL);
+            if (getenv("SRS_TEST_TRAY_LOG")) fprintf(stderr, "SRS-TEST: tray main icon category=%d\n", g_tray.category);
         }
         tray_build_menu();
         g_tray.status(g_tray.ind, 1 /* ACTIVE */);
@@ -4281,6 +4578,37 @@ static void autostart_set(int on)
         g_unlink(p);
     }
     g_free(p);
+}
+
+/* what the Task Manager's tray meters (perf_tray.c) may do with SRS */
+static void pt_open_performance(void) { gpu_top_window_open_page(g_main ? GTK_WINDOW(g_main->win) : NULL, GPU_TOP_PAGE_PERFORMANCE); }
+static void pt_quit(void) { on_tray_exit(NULL, NULL); }
+static int pt_hidden(void) { return g_tray.hidden; }
+static int pt_get_close(void) { return g_opt_close_tray; }
+static void tray_apply(void);
+static void settings_save(void);
+static void pt_set_close(int on) { g_opt_close_tray = on; settings_save(); tray_apply(); }
+static void pt_set_autostart(int on) { autostart_set(on); settings_save(); tray_apply(); }
+
+static void on_tray_prefs(void *user) { (void)user; if (g_tray.ind) tray_apply(); }   /* Tray Position changed: the SRS icon follows */
+
+static void perf_tray_start(void)
+{
+    perf_tray_hooks h;
+    memset(&h, 0, sizeof h);
+    h.show_main = srs_show_all;
+    h.open_performance = pt_open_performance;
+    h.quit = pt_quit;
+    h.windows_hidden = pt_hidden;
+    h.get_close_to_tray = pt_get_close;
+    h.set_close_to_tray = pt_set_close;
+    h.get_autostart = autostart_on;
+    h.set_autostart = pt_set_autostart;
+    h.open_guide = gpu_top_open_guide;   /* the settings dialog's Guide button */
+    perf_tray_set_hooks(&h);
+    perf_prefs_listen(on_tray_prefs, NULL);
+    perf_tray_init();
+    perf_tray_shortcut_restore();
 }
 
 enum { OPT_TRAY, OPT_CLOSE, OPT_MIN, OPT_START, OPT_AUTOSTART, OPT_BOOTROOT, OPT_REDACT, OPT_CLASSIC, OPT_SORT, OPT_PMIC, OPT_EC };
@@ -4815,6 +5143,13 @@ static void build_options(GtkWidget *menu)
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
     }
     {
+        GtkWidget *it = gtk_menu_item_new_with_mnemonic("Customi_ze Task Manager (Performance tab, tray meters)...");
+        gtk_widget_set_tooltip_text(it, "The Performance tab of The Big Top and its tray meters: update speed, first page, CPU units, "
+                                        "which live meters sit in the tray, and the shortcut that brings SRS back");
+        g_signal_connect(it, "activate", G_CALLBACK(on_menu_tool), (gpointer)"traysettings");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), it);
+    }
+    {
         GtkWidget *it = gtk_menu_item_new_with_mnemonic("Hide to Tra_y");
         g_signal_connect(it, "activate", G_CALLBACK(on_tray_toggle), NULL);
         gtk_widget_set_sensitive(it, tray_active());
@@ -5115,7 +5450,7 @@ static const catdef g_cats[CAT_N] = {
       { NULL } },
     { "devices", "USB & PCI devices", "preferences-system-devices-symbolic|drive-removable-media-symbolic",
       "Every device in or plugged into the PC. Double-click a line with a device ID to look it up.",
-      { "all-dev", "pci-bus", "usb-bus", "usb-tree", "hid-bus", "thunder", NULL } },
+      { "all-dev", "pci-bus", "usb-bus", "usb-tree", "hid-bus", "thunder", "ir-blaster", NULL } },
     { "os", "Operating system", "distributor-logo-symbolic|applications-system-symbolic",
       "Linux itself: distribution, kernel, drivers, running programs and services.",
       { "windows", "drivers", "processes", "startup", "software", "environment", "users", NULL } },
@@ -5898,6 +6233,13 @@ static swin *home_cur_tab(void)
     return page ? g_object_get_data(G_OBJECT(page), "swin") : NULL;
 }
 
+/* 2.4.1: the ten "Benchmark: <mode>" items (benchmark-ac ... benchmark-pp) are the Mode list of the CPU Benchmarks tab,
+   so the window does not list them as items of their own (tabs, menus, search); sysreport-search and reports keep them */
+static int item_retired(const char *id)
+{
+    return id && !strncmp(id, "benchmark-", 10) && strlen(id) == 12;
+}
+
 static int cat_of_id(const char *id)
 {
     char base[64];
@@ -6218,7 +6560,7 @@ static int tool_inline_ok(void)
     return 1;
 }
 
-/* Quit (Menu, Ctrl+Q, the tray's Exit): a tool tab still running asks first. 1 = go ahead */
+/* Quit (Menu, Ctrl+Q, the tray's Quit SRS): a tool tab still running asks first. 1 = go ahead */
 static int srs_quit_ok(void)
 {
     swin *t = g_home ? bench_running_tab() : NULL;
@@ -6231,6 +6573,24 @@ static int home_close_guard(GtkWidget *win)
     swin *t;
     if (!g_home || win != g_home->w->win || !(t = bench_running_tab())) return 0;
     return tool_leave_guard(t, g_opt_close_tray && tray_active() ? "hide the window" : "close SRS");
+}
+
+/* the IR Blaster tab: greyed while no dongle is plugged in (its Remotes view checks every 2 s) */
+static void strip_rebuild(int cat);
+static void tab_dim(swin *t)
+{
+    GtkStyleContext *sc;
+    if (!t->tabtxt) return;
+    sc = gtk_widget_get_style_context(t->tabtxt);
+    if (t->absent) gtk_style_context_add_class(sc, "dim-label"); else gtk_style_context_remove_class(sc, "dim-label");
+}
+static void ir_tab_state(int state, gpointer d)
+{
+    swin *t = d;
+    int was = t->absent;
+    t->absent = state == IR_ABSENT;
+    tab_dim(t);
+    if (was != t->absent && t->page && gtk_widget_get_parent(t->page)) strip_rebuild(t->cat);
 }
 
 /* temp: opened from the item list, search, Details or a lookup (not kept); pos -1 = at the end */
@@ -6328,14 +6688,28 @@ static swin *tab_add_at(int cat, const char *id, int select, int temp, int pos)
     {
         GtkWidget *sw = make_view(t);
         gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(sw), GTK_SHADOW_NONE);
-        if (!strcmp(id, "startup")) {   /* Startup: the report (read-only, shown first) and the manager (switches, Undo, Add) */
+        if (!strcmp(id, "ir-blaster")) {   /* IR Blaster: the remotes and codes (learn, send; shown first), and the report */
+            GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
+            gtk_stack_set_homogeneous(GTK_STACK(st), FALSE);
+            gtk_stack_add_titled(GTK_STACK(st), ir_manager_new(ir_tab_state, t), "remotes", "Remotes");
+            gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");
+            gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
+            gtk_widget_set_tooltip_text(ss, "Remotes (where the tab opens): learn, name and send codes with the IR blaster. Report: the "
+                                            "IR Blaster item as text, read-only (what Copy and Save Report give).");
+            gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
+            gtk_box_reorder_child(GTK_BOX(bar), ss, 1);
+            gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
+        } else if (!strcmp(id, "startup")) {   /* Startup: the report (read-only, shown first) and the manager (switches, Undo, Add) */
             GtkWidget *st = gtk_stack_new(), *ss = gtk_stack_switcher_new();
             gtk_stack_set_homogeneous(GTK_STACK(st), FALSE);
             gtk_stack_add_titled(GTK_STACK(st), sw, "report", "Report");   /* the first child: the tab opens on it */
-            gtk_stack_add_titled(GTK_STACK(st), startup_manager_new(), "manage", "Manage");
+            gtk_stack_add_titled(GTK_STACK(st), startup_manage_page(), "manage", "Manage");
+            /* choosing Manage opens The Big Top on Startup Apps (the one startup manager since 2.5) */
+            g_signal_connect(st, "notify::visible-child-name", G_CALLBACK(on_startup_stack), NULL);
             gtk_stack_switcher_set_stack(GTK_STACK_SWITCHER(ss), GTK_STACK(st));
             gtk_widget_set_tooltip_text(ss, "Report (where the tab opens): the Startup programs item as text, read-only (what Copy and "
-                                            "Save Report give). Manage: turn startup items off and on, add one.");
+                                            "Save Report give). Manage: opens The Big Top > Performance > Startup Apps, where startup items are turned "
+                                            "off and on, added and removed.");
             gtk_box_pack_start(GTK_BOX(bar), ss, FALSE, FALSE, 0);
             gtk_box_reorder_child(GTK_BOX(bar), ss, 1);   /* first, right after the source line */
             gtk_box_pack_start(GTK_BOX(page), st, TRUE, TRUE, 0);
@@ -6433,6 +6807,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "lists")) lists_update_dialog();
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "classic")) open_main(0);
+    else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
 }
 
 /* ---- summary tiles ---- */
@@ -6835,6 +7210,12 @@ static GtkWidget *build_cat_page(int cat)
                 "Stress & B_urnin...", "stressburn", "Open the Stress & Burnin window. Nothing starts until you press Start and confirm."));
             /* MNEMONIC-END */
         } else {   /* MNEMONIC-MENU: tools-page */
+            grid_add3(fb, launcher("The Big Top", "Live view of the whole PC and each graphics card: a Performance tab like a task manager, "
+                "and per card like amdgpu\x5ftop: what its engines are busy with, "
+                "video memory, which programs use it, clocks, power, temperatures, fan, PCIe link and the driver's gpu_metrics; "
+                "an SMI table shows every card on one line each.",
+                "Ctrl+G or the button beside the search. Only reads; changes nothing on the card.", "The _Big Top...", "gputop",
+                "Open The Big Top window (GPU Top)"));
             grid_add3(fb, launcher("Device ID Lookup", "Turn a PCI or USB ID such as 1002:7550 into the maker and product name.",
                 "Ctrl+L. Also: double-click a device line on any page.", "Loo_kup...", "idlookup", "Open the Device ID Lookup window"));
             grid_add3(fb, launcher("Find in a system report", "Search every section of a full text report made by SRS Full System Report (srs-sysreport).",
@@ -6916,6 +7297,7 @@ static gboolean on_match(GtkEntryCompletion *c, GtkTreeModel *m, GtkTreeIter *it
     gtk_tree_model_get(m, it, 1, &id, -1);
     if (id) {
         if (id[0] == '@') home_go(atoi(id + 1));
+        else if (!strcmp(id, "!bigtop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);   /* old words find it too */
         else open_item(id);
         g_free(id);
     }
@@ -6973,6 +7355,8 @@ static GtkWidget *build_search(void)
     GtkCellRenderer *r = gtk_cell_renderer_text_new();
     GtkTreeIter it;
     int i, n = srs_section_count();
+    gtk_list_store_insert_with_values(ls, &it, -1, 0, "<b>The Big Top</b>  <small>window: Performance, GPU, SMI (Ctrl+G)</small>", 1, "!bigtop",
+                                      2, "the big top gpu top gputop amdgpu_top amdgpu top task manager performance smi gpu activity", -1);
     for (i = 0; i < CAT_N; i++) {
         char id[16], *mk = g_markup_printf_escaped("<b>%s</b>  <small>page</small>", g_cats[i].title), *hay = g_utf8_strdown(g_cats[i].title, -1);
         snprintf(id, sizeof id, "@%d", i);
@@ -6983,7 +7367,7 @@ static GtkWidget *build_search(void)
     for (i = 0; i < n; i++) {
         const srs_item *s = srs_section_at(i);
         char *mk, *h1, *hay;
-        if (!s || !s->id) continue;
+        if (!s || !s->id || item_retired(s->id)) continue;
         mk = g_markup_printf_escaped("%s  <small>[%s]  %s%s</small>", s->title, s->id, g_cats[cat_of_id(s->id)].title,
                                      s->bucket == B_ABSENT ? "  (not present)" : s->bucket == B_WINONLY ? "  (Windows-only)" : "");
         h1 = g_strdup_printf("%s %s %s", s->title, s->id, g_cats[cat_of_id(s->id)].title);
@@ -7166,6 +7550,7 @@ static int home_key(swin *w, GdkEventKey *ev)
             else { gtk_widget_grab_focus(g_home->search); gtk_editable_select_region(GTK_EDITABLE(g_home->search), 0, -1); }
             return TRUE;
         case GDK_KEY_l: open_tool(W_IDLOOKUP, 0); return TRUE;
+        case GDK_KEY_g: gpu_top_window_open(GTK_WINDOW(w->win)); return TRUE;
         case GDK_KEY_s: save_dialog(0); return TRUE;
         case GDK_KEY_q: if (srs_quit_ok()) gtk_widget_destroy(w->win); return TRUE;
         case GDK_KEY_m: on_menu_btn(GTK_BUTTON(g_home->menubtn), NULL); return TRUE;
@@ -7228,6 +7613,12 @@ static void home_open(int as_main)
     gtk_widget_set_tooltip_text(b, "Menu: save a report, options, run as root, classic view, guide (Ctrl+M)");
     g_signal_connect(b, "clicked", G_CALLBACK(on_menu_btn), NULL);
     g_home->menubtn = b;
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), b);
+    b = gtk_button_new_from_icon_name(icon_pick("utilities-system-monitor-symbolic|video-display-symbolic|system-run-symbolic"),
+                                      GTK_ICON_SIZE_BUTTON);   /* The Big Top (GPU Top): between the search and the menu button */
+    gtk_widget_set_tooltip_text(b, "The Big Top: the whole PC live (Performance tab, like a task manager) and each graphics card's "
+                                   "activity, memory, processes, clocks, power and temperatures, like amdgpu_top (Ctrl+G)");
+    g_signal_connect(b, "clicked", G_CALLBACK(on_launch), (gpointer)"gputop");
     gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), b);
     g_home->search = build_search();
     gtk_header_bar_pack_end(GTK_HEADER_BAR(hb), g_home->search);
@@ -7483,6 +7874,7 @@ int main(int argc, char **argv)
     g_free(base);
     if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & Cost, no window */
     if (argc > 1 && !strcmp(argv[1], "--gpu-burn-child")) return gpu_burn_child_main(argc, argv);   /* Stress & Burnin's GPU part */
+    if (argc > 1 && !strcmp(argv[1], "--tray")) { static char gt[] = "--gui-tray"; argv[1] = gt; }   /* srs-gui --tray = --gui-tray */
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
     if (argc > 1 && !strcmp(argv[1], "--gui-scan-empty")) return scan_empty_main();   /* child of the main window */
     gethostname(g_host, sizeof g_host);
@@ -7515,6 +7907,8 @@ int main(int argc, char **argv)
         for (i = 1; i < argc; i++) if (!strcmp(argv[i], "--gui-tray")) { start_hidden = 1; g_opt_tray = 1; }   /* autostart */
         if (g_classic_session) open_main(1); else home_open(1);
         tray_apply();
+        perf_tray_start();   /* the meter icons, when Telemetry Icons is on */
+        g_timeout_add_seconds(1, load_ui_tick, NULL);   /* one load at a time: Run / Start of the other pages */
         if (start_hidden) srs_hide_all();   /* only hides when a tray icon really exists */
     }
     if (getenv("SRS_TEST_ALIGN_DUMP")) g_timeout_add(1500, align_dump, NULL);   /* tests: column alignment */
@@ -7548,9 +7942,12 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "cudaask")) g_idle_add(ctk_open_idle, GINT_TO_POINTER(1));       /* the question before a CUDA run */
             else if (!strcmp(t, "loadterms")) g_idle_add(terms_open_idle, NULL);                  /* Options > Load test terms */
             else if (!strcmp(t, "power-cost") && g_home) home_go(CAT_POWER);
+            else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
+            else if (!strcmp(t, "traysettings")) perf_tray_settings_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL);
             else open_item(t);
         }
     }
     gtk_main();
+    perf_tray_shutdown();   /* take the meter icons off the tray */
     return 0;
 }

@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md) - [Part 2](buses-2.md)
 
-**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+0). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus and Thunderbolt; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.0).** In the main window they are on the **USB & PCI devices** page (Alt+0). Its tabs are ALL Devices, PCI bus, USB bus, USB tree, HID bus, Thunderbolt and (2.5) IR Blaster; **All N items** lists the rest. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group shows how the parts of your PC are wired together: the PCI Express (PCIe) bus that carries
 the graphics card and SSDs, the USB and HID (Human Interface Device) devices, the small management buses
@@ -49,6 +49,7 @@ SRS never opens the risky device files these items are about (`/dev/port`, `/dev
 - [I/O PM2 MMIO](#io-pm2-mmio) `io-mmio`
 - [nForce I/O](#nforce-io) `io-nforce`
 - [I/O ports](#io-ports) `io-ports`
+- [IR Blaster](#ir-blaster) `ir-blaster`
 - [IrDA ports](#irda-ports) `irports`
 - [ISA bus](#isa-bus) `isa-bus`
 - [MCA bus](#mca-bus) `mca-bus`
@@ -810,6 +811,55 @@ there is no srs-root cache. The orange line tells you how to fill it. Two driver
 mean a firmware resource conflict (the kernel log says "resource busy").
 
 **Where Linux gets it.** `/proc/ioports`.
+
+---
+
+## IR Blaster
+
+`ir-blaster` - Linux data
+
+**In plain words.** A small USB infrared dongle (ELK Smart / OCRUSTAR "Smart IR Blaster") that can
+act as a TV remote: SRS learns buttons from your real remote and sends them again. This item reports
+whether a dongle is plugged in and may be used, and lists the codes you saved. New in 2.5. The live
+part - Learn, Send, the remotes - is the **IR Blaster** tab's Remotes view (User Guide 6.15). A report
+never sends anything.
+
+**What you see.**
+
+| Field | Meaning |
+|---|---|
+| Status | **Ready** (green), **Found, but no permission to use it** (orange), or **Not connected** with "No ELK Smart / OCRUSTAR IR blaster found - plug one in." |
+| Dongle | Its name and USB ID, for example `OCRUSTAR Smart IR Blaster (045c:0132)`. |
+| Device | The USB device file SRS opens, `/dev/bus/usb/BBB/DDD`. |
+| Fix / Rule | With no permission, one of three: the device file is missing ("is usbfs / devtmpfs mounted?" - unplug and replug); the udev rule is installed (its path) - unplug and replug so it applies; or install the udev rule (the package's `/usr/lib/udev/rules.d/70-elksmart-ir.rules` from `elksmart-comm-git` or IR Remote, your own copy in `/etc/udev/rules.d`, or the tab's Copy Install Command), then unplug and replug - with the rule's line, `SUBSYSTEM=="usb", ATTRS{idVendor}=="045c", ATTRS{idProduct}=="0132\|0184\|0195\|0134", TAG+="uaccess"`. |
+| Supported | `045c:0132, 045c:0184, 045c:0195, 045c:0134`. |
+| Permission rule | The `70-elksmart-ir.rules` file found in `/etc`, `/run`, `/usr/local/lib` or `/usr/lib` `udev/rules.d`, or "not installed (looked for ... in /etc, /run, /usr/local/lib and /usr/lib udev/rules.d)". |
+| IR Remote app | Where the IR Remote app is installed, or "not installed". |
+| Codes file | `~/.config/irremote/remotes.json` with the number of remotes and codes ("shared with IR Remote"), "not created yet - learn a code to start", or why it cannot be read (red). |
+| Table | Remote, Button, Type (`learned`, `nec` or "not learned"), Bytes (length of the learned code), Frequency (the infrared carrier, usually 38000 Hz), Shortcut (IR Remote's global shortcut, if set). |
+
+**Healthy / typical values.** On the author's PC: Status Ready, `OCRUSTAR Smart IR Blaster
+(045c:0132)`, the rule installed, one remote with a handful of learned codes at 38000 Hz. Without a
+dongle: Not connected - normal.
+
+**Unusual values and what they suggest.**
+- *Found, but no permission*: the udev rule is missing, or the dongle was plugged in before it was
+  installed (the Fix line then names the rule it found), or the device file is missing. Install the
+  rule if needed, then unplug and replug.
+- *Codes file ... cannot be read* (red): the JSON file is damaged. SRS writes nothing until it is
+  fixed; `remotes.json.before-srs` is the copy from before SRS first changed it.
+- A code with 0 bytes / "not learned": the button exists but has no code yet; learn it.
+
+**Where Linux gets it.** `/sys/bus/usb/devices` (vendor `045c`, products `0132`, `0184`, `0195`,
+`0134`; read only), access to `/dev/bus/usb/BBB/DDD`, `70-elksmart-ir.rules` in `/etc`, `/run`,
+`/usr/local/lib` or `/usr/lib` `udev/rules.d`, and `~/.config/irremote/remotes.json`. Learn and Send (in the tab or `sysreport-search ir`) talk to
+the dongle through the kernel's usbfs; the protocol is elksmart-comm's (Přemysl Eric Janouch, 0BSD).
+
+**Background.** An infrared remote sends a button as bursts of light flashed on and off thousands of
+times a second (the *carrier frequency*, usually 38 kHz); the pattern of long and short bursts is the
+code. A *learned code* is that pattern as the dongle recorded it; an *NEC code* is the common
+address + command form that many TVs use. Only the OCRUSTAR / ELKSMART `045c:0132` has been used
+for real so far (plain protocol, one TV); the other three IDs are untested.
 
 ---
 

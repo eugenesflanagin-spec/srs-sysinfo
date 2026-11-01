@@ -1142,6 +1142,7 @@ static void run_cell(wctx *x, wk_cell *cell, int kind, int id, const char *group
         int rc;
         double v;
         if (col && x->c.single_only) break;
+        if (!col && x->c.multi_only) continue;   /* All Cores: the threads column only */
         nt = col ? fit_threads(x, kind, id, x->c.threads) : 1;
         set_stage(group, what, nt);
         rc = measure(x, kind, id, nt, &v, why, sizeof why);
@@ -1152,7 +1153,7 @@ static void run_cell(wctx *x, wk_cell *cell, int kind, int id, const char *group
             break;
         }
         if (rc < 0) {   /* a 1-thread result stays; the note says why the N column is empty */
-            if (!col) cell->state = WK_ST_SKIP;
+            if (!col || x->c.multi_only) cell->state = WK_ST_SKIP;
             snprintf(cell->note, sizeof cell->note, "%s%.70s", col ? "threads column: " : "", why);
             break;
         }
@@ -1311,10 +1312,11 @@ static void render_cell(srs_out *o, const wk_result *r, const char *name, const 
                                                                                   c->state == WK_ST_FAIL ? C_RED : C_GRAY });
         return;
     }
-    fmt_v(a, sizeof a, c->v[0], unit);
+    if (r->multi_only) snprintf(a, sizeof a, "skipped");   /* All Cores: not measured */
+    else fmt_v(a, sizeof a, c->v[0], unit);
     if (r->single_only) snprintf(b, sizeof b, "not run");
     else fmt_v(b, sizeof b, c->v[1], unit);
-    so_row(o, 4, (const char *const[]){ name, a, b, note }, (const int[]){ C_VALUE, C_BLACK, C_GREEN, C_GRAY });
+    so_row(o, 4, (const char *const[]){ name, a, b, note }, (const int[]){ C_VALUE, r->multi_only ? C_GRAY : C_BLACK, C_GREEN, C_GRAY });
 }
 
 static void wk_render(srs_out *o, void *cv)
@@ -1380,6 +1382,7 @@ static void wk_render(srs_out *o, void *cv)
             else so_kvf(o, k, C_GRAY, "not installed (%s)", r->libwhy[lib]);
         }
     so_kv(o, "Self-test", r->self_ok ? C_GREEN : C_RED, r->self);
+    if (r->multi_only) so_kv(o, "Passes", C_GRAY, "1-thread pass skipped (All Cores): only the threads column was measured");
     if (r->failed) so_kvf(o, "Check", C_RED, "%d result%s failed its check - see the red rows", r->failed, r->failed == 1 ? "" : "s");
     else so_kv(o, "Check", C_GREEN, "every result was checked (round trip, order, known value or count) and is right");
     so_kvf(o, "Test data", C_VALUE, "%ld KB each of text, records and random bytes, generated from a fixed seed", r->part_kib);
@@ -1410,7 +1413,7 @@ double wk_estimate_seconds(const wk_cfg *cfg)
     if (!c.codec_mask) c.codec_mask = (1u << WK_NLIB) - 1;
     secs = c.seconds < 0.1 ? 0.5 : c.seconds;
     mb = (c.part_kib < 64 ? 1024 : c.part_kib) * 3 / 1024.0 * 1.048576;
-    cols = c.single_only ? 1 : 2;
+    cols = c.single_only || c.multi_only ? 1 : 2;
     if (c.run_mask & 1u << WK_COMPRESS)
         for (i = 0; i < WK_NCODEC; i++) {
             double pass = mb / mbs[i];
@@ -1428,9 +1431,12 @@ static void hist_add(wctx *x, int g)
     size_t l = 0;
     int i;
     res[0] = 0;
-    snprintf(params, sizeof params, "threads=%d seconds=%.1f part=%ldKB%s", r->threads, r->seconds, r->part_kib, r->single_only ? " single" : "");
-#define ADD(id, cell) do { if ((cell).state == WK_ST_OK && l + 40 < sizeof res) \
-        l += (size_t)snprintf(res + l, sizeof res - l, "%s%s %.4g/%.4g", l ? ", " : "", id, (cell).v[0], (cell).v[1]); } while (0)
+    snprintf(params, sizeof params, "threads=%d seconds=%.1f part=%ldKB%s", r->threads, r->seconds, r->part_kib,
+             r->single_only ? " single" : r->multi_only ? " all-threads-only" : "");
+    /* All Cores: the 1-thread value was not measured - "-", never a 0 that reads like a result */
+#define ADD(id, cell) do { if ((cell).state == WK_ST_OK && l + 40 < sizeof res) { \
+        if (r->multi_only) l += (size_t)snprintf(res + l, sizeof res - l, "%s%s -/%.4g", l ? ", " : "", id, (cell).v[1]); \
+        else l += (size_t)snprintf(res + l, sizeof res - l, "%s%s %.4g/%.4g", l ? ", " : "", id, (cell).v[0], (cell).v[1]); } } while (0)
     if (g == WK_COMPRESS)
         for (i = 0; i < WK_NCODEC; i++) {
             char id[32];
@@ -1440,7 +1446,8 @@ static void hist_add(wctx *x, int g)
     else for (i = 0; i < WT_N; i++) if (wk_test_group(i) == g) ADD(test_id[i], r->t[i]);
 #undef ADD
     if (!l) l = (size_t)snprintf(res, sizeof res, "nothing measured");
-    snprintf(res + l, sizeof res - l, " %s%s%s", wk_unit[g], r->failed ? " CHECK-FAILED" : "", r->cancelled ? " STOPPED" : "");
+    snprintf(res + l, sizeof res - l, " %s%s%s%s", wk_unit[g], r->multi_only ? " 1-THREAD-SKIPPED" : "", r->failed ? " CHECK-FAILED" : "",
+             r->cancelled ? " STOPPED" : "");
     {
         char test[32];
         snprintf(test, sizeof test, "work-%s", wk_group_id[g]);
@@ -1456,6 +1463,7 @@ int bench_work(const wk_cfg *cfg, srs_out *o, volatile int *cancel)
     time_t now = time(NULL);
     cpu_set_t cs;
     int i, g, expected = 0, rc;
+    bench_no_page_merge();
     if (burn_active()) { if (o) so_err(o, "Everyday Work: not started - Stress & Burnin is running"); return -1; }
     if (!atomic_compare_exchange_strong(&g_running, &expected, 1)) {
         if (o) so_err(o, "Everyday Work: not started - it is already running");
@@ -1481,7 +1489,9 @@ int bench_work(const wk_cfg *cfg, srs_out *o, volatile int *cancel)
     if (x->c.threads <= 0 || x->c.threads > x->ncpus) x->c.threads = x->ncpus;
     x->part = (size_t)x->c.part_kib * 1024;
     r->threads = x->c.threads;
+    if (x->c.single_only) x->c.multi_only = 0;
     r->single_only = x->c.single_only;
+    r->multi_only = x->c.multi_only;
     r->seconds = x->c.seconds;
     r->part_kib = x->c.part_kib;
     r->run_mask = x->c.run_mask;

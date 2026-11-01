@@ -18,12 +18,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ACPI namespace** - The tree of named objects in the ACPI tables, e.g. `\_SB_.PCI0.SBRG.EC0_`, which is the firmware's own map of the board's devices. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
 - **AER (Advanced Error Reporting)** - A PCI Express feature that counts and reports link errors (correctable and uncorrectable) to the kernel. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md).*
 - **AES (Advanced Encryption Standard), AES-NI** - the standard way to encrypt data (disk encryption, VPN, HTTPS). AES-NI are CPU instructions that do one AES round in hardware, many times faster than plain code. *See: [tools](SECTIONS/tools.md).*
-- **Affinity mask** - a bit pattern, one bit per CPU, saying which CPUs a task may run on. `FFFF` = CPUs 0-15. *See: [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md).*
+- **Affinity mask** - a bit pattern, one bit per CPU, saying which CPUs a task may run on. `FFFF` = CPUs 0-15. **CPU affinity** is that choice for one process: The Big Top's **Affinity...** sets it with a tick box per logical CPU. *See: [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md), [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **AGM (arithmetic-geometric mean), Gauss-Legendre** - a way to compute pi that doubles the number of correct digits at every step; the method SuperPi uses. *See: [tools](SECTIONS/tools.md).*
 - **AIO** - All-In-One liquid cooler: a sealed pump, radiator and fans in one unit. *See: [tools](SECTIONS/tools.md).*
 - **AIO (all-in-one) cooler** - A sealed liquid cooler with pump, radiator and fans in one kit. *See: [sensors](SECTIONS/sensors.md).*
 - **ALSA (Advanced Linux Sound Architecture)** - The kernel's sound driver layer. It talks to the sound chips and gives each card numbered devices such as `hw:1,0`. *See: [graphics](SECTIONS/graphics.md).*
 - **Alt+letter (underlined letter)** - in a menu or window, the underlined letter of an entry: press Alt and that letter to pick it. Every entry of a menu has its own. *See: [User Guide 6.6](USER-GUIDE.md#66-classic-view-the-siv-style-windows).*
+- **amdgpu_top** - an open-source tool by Umio Yasuno (MIT licence) that shows live usage of AMD graphics cards: busy engines, memory, processes, sensors and the driver's tables. The GPU tabs of The Big Top and `sysreport-search gpu-top` are a C reimplementation of it. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **amd_pstate** - the Linux driver that controls clock speed on AMD Zen 2 and newer CPUs using CPPC; modes are active, guided and passive. *See: [processors](SECTIONS/processors.md).*
 - **AML** - ACPI Machine Language; the bytecode in the DSDT and SSDTs that the operating system runs to control devices. *See: [machine](SECTIONS/machine.md).*
 - **AOD (AMD Overclocking Data) table** - a table the BIOS of AMD boards leaves in memory with its memory settings: ProcODT, drive strengths, RTT values and the voltages it set. Memory Timings reads it when the kernel allows (`iomem=relaxed`). *See: [machine](SECTIONS/machine.md), [User Guide 6.12](USER-GUIDE.md#612-memory-timings).*
@@ -69,6 +70,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## C
 
 - **Carbon intensity** - grams of CO2 released per kWh of electricity on a grid, on average over a year. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **Carrier frequency (infrared)** - how many times a second a remote's infrared light flashes while a burst is "on" - usually 38,000 Hz (38 kHz); the TV's receiver only listens at about that rate. Each saved IR code keeps its frequency. *See: [buses-1](SECTIONS/buses-1.md), [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **CLBlast** - a free, tuned matrix-maths library for OpenCL; the "vendor library" SRS uses on OpenCL when it is installed. *See: [tools](SECTIONS/tools.md).*
 - **Compute error (GPU)** - a GPU result that differs from the right one. GPU Burnin counts them: any error means the card is not stable as set up (overclock, undervolt, heat, power) or faulty. *See: [tools](SECTIONS/tools.md).*
 - **C-state** - an idle power level of a CPU core; C0 is running, deeper states (C1, C2, C3) save more power but take longer to wake. *See: [processors](SECTIONS/processors.md).*
@@ -117,6 +119,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## D
 
+- **D3 (D3hot, D3cold)** - the deepest sleep states of a PCI device such as a graphics card: it uses almost no power and needs a moment to wake. Reading some of its registers or tables would wake it, so The Big Top leaves an idle card that can sleep alone. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **DC power (inside the PC)** - the power after the power supply, used by the parts; always less than the power at the wall. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **debugfs** - a kernel file system (`/sys/kernel/debug`) for developer information, readable by root only; srs-root copies the GPU driver's VBIOS copy and the GPIO table from it. *See: [graphics](SECTIONS/graphics.md), [buses-1](SECTIONS/buses-1.md).*
 - **Device lost** - the GPU stopped answering and its driver reset it; SRS ends a GPU test cleanly when it happens. *See: [tools](SECTIONS/tools.md).*
@@ -198,6 +201,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **FCH (Fusion Controller Hub)** - AMD's built-in southbridge logic: SMBus, LPC, GPIO, power management. *See: [buses-1](SECTIONS/buses-1.md).*
 - **fclk / socclk / dcefclk** - GPU clocks for the internal data fabric, the chip's support logic, and the display engine. *See: [graphics](SECTIONS/graphics.md).*
 - **FCLK / UCLK / MCLK** - on AMD: Infinity Fabric clock, memory controller clock and memory clock. *See: [machine](SECTIONS/machine.md).*
+- **fdinfo (DRM fdinfo)** - small text files in `/proc/<pid>/fdinfo/` in which the kernel's graphics drivers report, for each program, how much video memory it holds and how long it kept each GPU engine busy. The Big Top's per-process GPU columns come from them. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **FFT (Fast Fourier Transform)** - a fast way to split a signal into its frequencies; used in audio, images and science. Counted as 5 N log2 N operations for N points. *See: [tools](SECTIONS/tools.md).*
 - **File descriptor** - a small number a process uses for each open file, pipe, socket or device; the Linux version of a Windows handle. *See: [linux-os](SECTIONS/linux-os.md).*
 - **File lock** - a marker a program sets so others know it is using a file; listed in `/proc/locks`. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -230,10 +234,12 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **GPE (General Purpose Event)** - General Purpose Event; an ACPI event bit used for wake-up and hot-plug signals. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
 - **GPIO (General Purpose Input/Output)** - Simple on/off signal pins that chips use for LEDs, buttons, resets and enables. *See: [buses-1](SECTIONS/buses-1.md).*
 - **GPT** - GUID Partition Table: the modern partition table format, with type GUIDs, PARTUUIDs and names for each partition. *See: [storage](SECTIONS/storage.md).*
+- **gpu_metrics** - a table the amdgpu driver offers in `/sys/class/drm/cardN/device/gpu_metrics`: temperatures, clocks, power, activity and throttle reasons straight from the card's firmware, in versioned layouts (v1.x for graphics cards, v2.x / v3.0 for processors with built-in graphics). The Big Top decodes every field. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
+- **GRBM (Graphics Register Bus Management)** - AMD's name for the part of the graphics chip whose status registers say which blocks (shaders, texture units, command processor, caches ...) are busy. amdgpu_top and The Big Top read them about 100 times a second and show how often each block was busy; reading them can keep the card out of its power-saving states, so it can be turned off (Performance Counters (GRBM), `--no-pc`). *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **GSI** - Global System Interrupt; the interrupt number space used by I/O APICs. *See: [machine](SECTIONS/machine.md).*
 - **GStreamer** - The main Linux media framework; plugins handle file formats, codecs and audio/video effects. *See: [graphics](SECTIONS/graphics.md).*
 - **GT/s (gigatransfers per second)** - Gigatransfers per second: the per-lane speed of a PCIe link (8.0 = PCIe 3.0, 16.0 = PCIe 4.0, 32.0 = PCIe 5.0). *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [srs-items](SECTIONS/srs-items.md), [storage](SECTIONS/storage.md).*
-- **GTT (graphics translation table)** - System RAM that the GPU is allowed to map and use, much slower for the GPU than VRAM. *See: [graphics](SECTIONS/graphics.md).*
+- **GTT (graphics translation table)** - System RAM that the GPU is allowed to map and use, much slower for the GPU than VRAM. The Big Top shows how much of it is in use. *See: [graphics](SECTIONS/graphics.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **GUID** - Globally Unique Identifier; a 128-bit ID, used for WMI interfaces and UEFI variable vendors. *See: [machine](SECTIONS/machine.md).*
 
 ## H
@@ -284,6 +290,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **IPI** - Inter-Processor Interrupt, a signal from one CPU to another. SRS's IPI Delay measures the core-to-core cache-line delay instead. *See: [tools](SECTIONS/tools.md).*
 - **IPMI (Intelligent Platform Management Interface)** - A standard for talking to a server's BMC: sensors, event log, remote power control. *See: [sensors](SECTIONS/sensors.md).*
 - **IrDA** - Infrared data transfer on old laptops and phones. Linux removed support in kernel 4.17. *See: [buses-1](SECTIONS/buses-1.md).*
+- **IR (infrared) remote code** - what a remote control sends for one button: bursts of invisible infrared light, long and short, in a set pattern. An **IR blaster** is a small device that can send such codes, so a PC can work a TV, a sound bar or a fan. *See: [buses-1](SECTIONS/buses-1.md), [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **IRQ (Interrupt Request)** - A signal a device uses to get the CPU's attention. Also the number of that interrupt line. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md).*
 - **ISA (Industry Standard Architecture)** - The original PC expansion bus. Its job now lives on in LPC. *See: [buses-1](SECTIONS/buses-1.md).*
 - **isohybrid** - A CD/DVD image (ISO 9660) built so it can also boot when written straight to a USB stick. *See: [storage](SECTIONS/storage.md).*
@@ -303,7 +310,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Kernel (GPU)** - a small program that runs on the GPU, many copies at once (not the Linux kernel). *See: [tools](SECTIONS/tools.md).*
 - **Kernel module** - a loadable piece of the kernel, usually a driver; the Linux counterpart of a Windows driver. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
 - **KMS (kernel mode setting)** - The part of DRM that sets screen resolutions and refresh rates. *See: [graphics](SECTIONS/graphics.md).*
-- **KSM (Kernel Same-page Merging)** - the kernel finds identical memory pages and keeps only one copy. *See: [srs-items](SECTIONS/srs-items.md).*
+- **KSM (Kernel Same-page Merging)** - **same-page merging**: the kernel finds memory pages (4 KB pieces) that hold exactly the same bytes and keeps only one copy, to save memory (mostly for virtual machines; tools such as ksmtuned can turn it on for every program). A benchmark whose memory is all alike can then be folded into one page that sits in the cache, and report impossible speeds; since 2.5 SRS keeps its benchmark memory out of merging, and Cache & Memory shows such a result as "not valid". *See: [srs-items](SECTIONS/srs-items.md), [tools](SECTIONS/tools.md), [User Guide 9.11](USER-GUIDE.md#911-cache--memory).*
 - **KVM** - Kernel-based Virtual Machine; Linux's built-in hypervisor, available through /dev/kvm. *See: [processors](SECTIONS/processors.md).*
 - **kWh (kilowatt-hour)** - 1000 watts used for one hour; the unit electricity is billed in. *See: [sensors](SECTIONS/sensors.md).*
 - **kW (kilowatt)** - 1,000 watts. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
@@ -318,6 +325,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **LBA** - Logical Block Addressing: numbering a disk's blocks from 0 upwards, the way all modern drives are addressed. *See: [storage](SECTIONS/storage.md).*
 - **LDN (Logical Device Number)** - The number of one function block (serial port, hardware monitor ...) inside a Super I/O chip. *See: [sensors](SECTIONS/sensors.md).*
 - **Leaf (CPUID)** - the question number given to the CPUID instruction; some leaves have several sub-leaves. *See: [processors](SECTIONS/processors.md).*
+- **Learned code** - an infrared code recorded from a real remote: the dongle measures the bursts while you press the button close to it, and SRS (or IR Remote) keeps them, as hex, to send again later. *See: [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **LFC (low framerate compensation)** - A VRR trick that shows frames twice when the frame rate falls below the monitor's VRR minimum. *See: [graphics](SECTIONS/graphics.md).*
 - **Lineup** - a saved arrangement of the main window's tabs: which items each page shows as tabs, in what order, and the tab bar shape. Basic, Enthusiast and Expert are built in; you can save your own. *See: [User Guide 6.7](USER-GUIDE.md#67-arranging-the-tabs-and-lineups).*
 - **Link width (PCIe)** - The number of lanes a PCIe link is using (x1, x4, x8, x16). *See: [buses-1](SECTIONS/buses-1.md).*
@@ -384,12 +392,13 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **N-body simulation** - working out the gravity between every pair of a group of bodies (stars, planets); a classic floating-point workload. *See: [tools](SECTIONS/tools.md).*
 - **Namespace** - A slice of an NVMe SSD presented as one disk; consumer SSDs have one. *See: [storage](SECTIONS/storage.md).*
 - **NDP (Neighbor Discovery Protocol)** - the IPv6 version of ARP. *See: [network](SECTIONS/network.md).*
+- **NEC code (infrared)** - a common infrared remote format: an address (which device) and a command (which button), each one byte, sent with a 38 kHz carrier. SRS's Type Code can save one from its numbers. *See: [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **NetBIOS browsing** - the old Windows way of listing computers on a LAN through an elected master browser. *See: [network](SECTIONS/network.md).*
 - **Netlink** - the socket type tools like `ip` use to talk to the Linux kernel. *See: [network](SECTIONS/network.md).*
-- **Nice** - a process's politeness value (-20 to 19); higher nice means it gives way to other processes. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
+- **Nice** - a process's politeness value (-20 to 19); higher nice means it gives way to other processes. It is the process's **priority** when the CPU is busy: The Big Top's **Priority** menu sets Very High (-15), High (-5), Normal (0), Low (10) or Very Low (19); going above normal may need the administrator password. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md), [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **NMI (Non-Maskable Interrupt)** - an interrupt the CPU cannot ignore, used for watchdogs, profiling and serious hardware errors. *See: [buses-2](SECTIONS/buses-2.md).*
 - **Normalised value** - A SMART attribute's score on the maker's scale (often starting at 100 or 200), which goes down as things get worse. *See: [storage](SECTIONS/storage.md).*
-- **NPU (Neural Processing Unit)** - An AI accelerator such as AMD XDNA in Ryzen AI laptops. *See: [buses-1](SECTIONS/buses-1.md).*
+- **NPU (Neural Processing Unit)** - An AI accelerator such as AMD XDNA in Ryzen AI laptops. The Big Top's NPU (XDNA) tab shows it. *See: [buses-1](SECTIONS/buses-1.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **NQN** - NVMe Qualified Name: a unique name an NVMe subsystem reports about itself. *See: [storage](SECTIONS/storage.md).*
 - **NSS (Name Service Switch)** - glibc's list that decides where names are looked up and in what order. *See: [network](SECTIONS/network.md).*
 - **NTFS** - New Technology File System: the main Windows filesystem; Linux reads and writes it with the ntfs3 driver. *See: [storage](SECTIONS/storage.md).*
@@ -399,6 +408,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **NUMA node** - A group of CPUs and memory that are close to each other. Desktops have one node, which Linux shows as -1 for PCI devices. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
 - **NVMe** - Non-Volatile Memory Express: the protocol fast SSDs use over PCIe. *See: [storage](SECTIONS/storage.md).*
 - **NVMe Composite** - An NVMe drive's own summary temperature, used for its thermal throttling. *See: [sensors](SECTIONS/sensors.md).*
+- **NVML (NVIDIA Management Library)** - NVIDIA's library (`libnvidia-ml.so.1`, part of the NVIDIA driver) that tells programs the clocks, temperatures, memory use and processes of NVIDIA cards; `nvidia-smi` uses it. SRS loads it only when an NVIDIA card is present. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **NVRTC (NVIDIA runtime compiler)** - the part of the CUDA toolkit that turns GPU program text into GPU code while a program runs (`libnvrtc`). SRS used it for its CUDA tests before 2.3; now only when the driver refuses the built-in PTX. ZLUDA has none. *See: [User Guide 9.20](USER-GUIDE.md#920-the-nvidia-cuda-toolkit-optional), [tools](SECTIONS/tools.md).*
 - **NX / XD** - No-Execute (AMD) / Execute Disable (Intel); marks memory as data-only so it cannot be run as code. *See: [processors](SECTIONS/processors.md).*
 
@@ -418,6 +428,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **P-core** - Performance core, a big, fast core on a hybrid CPU. *See: [tools](SECTIONS/tools.md).*
 - **Page fault** - what happens the first time a program touches a page of memory the kernel has not set up yet: the kernel stops the program for a moment and supplies the page. *See: [tools](SECTIONS/tools.md).*
+- **pkexec** - runs one command as root after polkit has asked for the administrator password. SRS uses it for srs-root and for acting on another user's process; polkit also guards starting and stopping system services. *See: [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **PMIC (power management IC)** - the small power chip on every DDR5 module that makes its voltages (VDD, VDDQ, VPP). SRS can read the voltages it is set to (an opt-in). *See: [machine](SECTIONS/machine.md), [User Guide 5.4](USER-GUIDE.md#54-what-srs-root-reads-since-24-and-the-opt-ins).*
 - **P-state** - a performance state: a running speed and voltage level of the CPU. *See: [processors](SECTIONS/processors.md).*
@@ -448,7 +459,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **PnP (Plug and Play)** - The firmware's description of built-in legacy devices, with IDs like `PNP0501`. *See: [buses-1](SECTIONS/buses-1.md).*
 - **PnP ID** - A 3-letter vendor code plus 4 hex digits (`PNP0501`), or with ACPI a 4-letter code plus 4 hex digits (`AMDI0030`). *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md).*
 - **Pointer chase** - a memory test where each load needs the address from the previous load, so prefetching cannot hide the delay. *See: [tools](SECTIONS/tools.md).*
-- **polkit** - the Linux service that decides which desktop users may perform admin actions, and whether a password is needed. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
+- **polkit** - the Linux service that decides which desktop users may perform admin actions, and whether a password is needed. It is what asks for your password when The Big Top acts on another user's process or starts or stops a system service. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md), [User Guide 6.14](USER-GUIDE.md#614-the-performance-tab-a-task-manager).*
 - **Port** - a number (0-65535) that picks which program on a machine receives a packet. *See: [network](SECTIONS/network.md).*
 - **Port path** - the chain of USB port numbers from the root hub to a device, for example 2.3.4. *See: [buses-2](SECTIONS/buses-2.md).*
 - **Power cap** - the power limit firmware holds a chip to. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -502,7 +513,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **RSS (Resident Set Size)** - the RAM a process is really using right now. *See: [linux-os](SECTIONS/linux-os.md).*
 - **RTC (real-time clock)** - the battery-backed clock on the motherboard that keeps time while the PC is off. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
 - **RTT (RttNom, RttWr, RttPark)** - the memory chips' own termination settings for different moments (idle, writing, parked), written as Off or RZQ/n (RZQ = 240 ohms). Set by the BIOS. *See: [machine](SECTIONS/machine.md).*
-- **Runtime PM** - Kernel power management that lets an idle device sleep while the system is running. *See: [graphics](SECTIONS/graphics.md).*
+- **Runtime PM** - Kernel power management that lets an idle device sleep while the system is running (its `power/control` file says `auto` when it may). A graphics card with runtime PM on and no monitor connected can drop into D3; The Big Top then leaves it asleep while it is idle. *See: [graphics](SECTIONS/graphics.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **ryzen_smu** - a third-party kernel driver (AUR `ryzen_smu-dkms-git`) that gives Linux AMD Ryzen's PM table and read access to its internal registers (SMN). SRS reads clocks, voltages and, through srs-root, the memory timings through it; it is not part of SRS. *See: [processors](SECTIONS/processors.md), [machine](SECTIONS/machine.md).*
 
 ## S
@@ -524,6 +535,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SHA-256, SHA-NI** - SHA-256 makes a 256-bit "fingerprint" of data (package checks, backups, git); SHA-NI are CPU instructions that speed it up. *See: [tools](SECTIONS/tools.md).*
 - **Shared library** - a `.so` code file many programs use at once, such as `libc.so.6`. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Sieve of Eratosthenes** - finding prime numbers by crossing out the multiples of each prime; what remains are the primes. *See: [tools](SECTIONS/tools.md).*
+- **SIGTERM, SIGKILL, SIGSTOP, SIGCONT (signals)** - messages the system sends to a program. SIGTERM asks it to close and lets it tidy up (End Task); SIGKILL ends it at once, with no chance to save (Force Kill); SIGSTOP pauses it and SIGCONT lets it go on (Suspend / Resume). *See: [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **Sink / source** - In a sound server, a sink is where sound goes (speakers, HDMI); a source is where sound comes from (microphone, line in). *See: [graphics](SECTIONS/graphics.md).*
 - **SLAAC (stateless address autoconfiguration)** - the way an IPv6 device builds its own address from the router's advertisements. *See: [network](SECTIONS/network.md).*
 - **Slab** - the kernel's allocator for its own small objects; "reclaimable" slab is cache it can drop. *See: [linux-os](SECTIONS/linux-os.md).*
@@ -550,6 +562,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **SSID (Service Set Identifier)** - a Wi-Fi network's name. *See: [network](SECTIONS/network.md).*
 - **_STA** - the ACPI status value of a device; SRS shows it as hex plus letters P (present), E (enabled), S (shown), F (functioning). *See: [machine](SECTIONS/machine.md).*
 - **Standing charge** - what an electricity supplier charges per day whatever you use. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **StatusNotifierItem (tray icon)** - the freedesktop standard by which a program puts an icon with a menu into the desktop's notification area (system tray), over D-Bus. KDE Plasma supports it directly, GNOME with the AppIndicator extension. SRS's live tray meters use it directly, one icon per meter. *See: [User Guide 11.1](USER-GUIDE.md#111-live-tray-meters-and-the-task-manager-settings).*
 - **statvfs** - The system call that returns a mounted filesystem's size, free space and block size. *See: [storage](SECTIONS/storage.md).*
 - **Stratum (NTP)** - how many steps a time server is from a reference clock; stratum 1 is directly attached to one. *See: [linux-os](SECTIONS/linux-os.md).*
 - **Subsystem ID** - The second PCI ID pair, which names the board or card maker and their product built around a chip. *See: [buses-1](SECTIONS/buses-1.md).*
@@ -565,7 +578,8 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **sysfs** - The `/sys` folder tree where the kernel shows devices and their settings as small text files. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
 - **System call** - a request from a program to the operating system kernel (open a file, read the clock, start a thread); the cost of crossing from the program into the kernel and back. *See: [tools](SECTIONS/tools.md).*
 - **systemd target** - a named group of systemd units that the system boots into, similar to a Windows boot mode. *See: [linux-os](SECTIONS/linux-os.md).*
-- **systemd unit** - a systemd configuration object (service, socket, timer...); a service unit is the Linux version of a Windows service. *See: [linux-os](SECTIONS/linux-os.md).*
+- **systemd unit** - a systemd configuration object (service, socket, timer...); a service unit is the Linux version of a Windows service. The Big Top's Services page starts, stops and restarts them. *See: [linux-os](SECTIONS/linux-os.md), [User Guide 6.14.6](USER-GUIDE.md#6146-services).*
+- **systemd user unit** - a systemd unit that runs as you, under your own service manager (`systemctl --user`), from login to logout, instead of as part of the system; a user service is the Linux version of a program that starts with your Windows login. *See: [User Guide 6.14.4](USER-GUIDE.md#6144-startup-apps), [User Guide 6.14.6](USER-GUIDE.md#6146-services).*
 
 ## T
 
@@ -575,6 +589,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **TCP states** - the stages a TCP connection goes through, such as Listen, Established, Close Wait and Time Wait. *See: [network](SECTIONS/network.md).*
 - **Tctl** - AMD's control temperature, the CPU temperature value used for fan control and throttling. *See: [sensors](SECTIONS/sensors.md), [tools](SECTIONS/tools.md).*
 - **Tctl / Tccd** - AMD temperatures: Tctl is the control value used for fans and limits (may include an offset), Tccd is each core die. *See: [processors](SECTIONS/processors.md).*
+- **The Big Top** - SRS's live window (2.5; Ctrl+G): a Performance tab that works like a task manager for the whole PC, and GPU tabs modelled on amdgpu_top. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **Thermal zone** - A firmware-defined temperature area with trip points (passive, active, hot, critical); common on laptops. *See: [sensors](SECTIONS/sensors.md), [srs-items](SECTIONS/srs-items.md).*
 - **Thermistor** - A resistor whose value changes with temperature; most board temperature probes are thermistors. *See: [sensors](SECTIONS/sensors.md).*
 - **THP (Transparent Huge Pages)** - grouping memory into 2 MB pages automatically so the CPU spends less time on address lookups. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
@@ -599,9 +614,10 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## U
 
+- **uaccess (udev tag)** - a udev rule tag (`TAG+="uaccess"`) that gives the person logged in at the screen access to a device file, without root. IR Blaster's rule `70-elksmart-ir.rules` uses it for the dongle; unplug and replug the dongle after installing the rule. *See: [buses-1](SECTIONS/buses-1.md), [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **UART (Universal Asynchronous Receiver-Transmitter)** - The chip behind a serial port, e.g. 16550A. *See: [buses-1](SECTIONS/buses-1.md).*
 - **UAS (USB Attached SCSI)** - USB Attached SCSI: the faster protocol for USB storage; the older one is Bulk-Only Transport (`usb-storage`). *See: [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md), [storage](SECTIONS/storage.md).*
-- **udev** - The Linux device manager; it names devices, creates `/dev/disk/by-*` links and keeps a database of device properties. *See: [buses-1](SECTIONS/buses-1.md), [linux-os](SECTIONS/linux-os.md), [storage](SECTIONS/storage.md).*
+- **udev** - The Linux device manager; it names devices, creates `/dev/disk/by-*` links and keeps a database of device properties. Rules in `/usr/lib/udev/rules.d` and `/etc/udev/rules.d` can also give users access to a device (see uaccess). *See: [buses-1](SECTIONS/buses-1.md), [linux-os](SECTIONS/linux-os.md), [storage](SECTIONS/storage.md).*
 - **UDP (User Datagram Protocol)** - a simple send-and-forget protocol used by DNS, games and voice. *See: [network](SECTIONS/network.md).*
 - **UEFI (Unified Extensible Firmware Interface)** - Unified Extensible Firmware Interface; the modern firmware that replaced the PC BIOS. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
 - **UEFI variable** - a named setting stored in the firmware's flash, such as BootOrder or SecureBoot. *See: [machine](SECTIONS/machine.md).*
@@ -612,7 +628,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **usb.ids** - the community list that maps USB vendor and product numbers to names, installed by the hwdata package. *See: [buses-2](SECTIONS/buses-2.md).*
 - **USB/IP** - a Linux feature that shares USB devices over the network; its virtual host controller is vhci_hcd. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
 - **USB4** - the newest USB standard (up to 40 or 80 Gbps) that can tunnel PCI Express and DisplayPort. *See: [buses-2](SECTIONS/buses-2.md).*
-- **usbfs** - the Linux interface that lets a user program talk to a USB device directly instead of through a kernel driver. *See: [buses-2](SECTIONS/buses-2.md).*
+- **usbfs** - the Linux interface that lets a user program talk to a USB device directly instead of through a kernel driver (the files `/dev/bus/usb/BBB/DDD`). IR Blaster uses it, so it needs no USB library. *See: [buses-2](SECTIONS/buses-2.md), [buses-1](SECTIONS/buses-1.md), [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **UUID (Bluetooth service)** - Universally Unique Identifier: an ID stored in a filesystem, used to mount it reliably. *See: [network](SECTIONS/network.md), [storage](SECTIONS/storage.md).*
 
 ## V
@@ -630,7 +646,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **VKD3D-Proton** - A translation layer that turns Direct3D 12 calls into Vulkan, used by Proton. *See: [graphics](SECTIONS/graphics.md).*
 - **VMD** - Volume Management Device: an Intel PCIe block that gathers NVMe drives for Intel RST and VROC. *See: [storage](SECTIONS/storage.md).*
 - **VPN (virtual private network)** - an encrypted tunnel that carries your traffic through another network or server. *See: [network](SECTIONS/network.md).*
-- **VRAM** - The graphics card's own fast memory. *See: [graphics](SECTIONS/graphics.md).*
+- **VRAM** - The graphics card's own fast memory (video memory). The Big Top shows how much is used, and by which program. *See: [graphics](SECTIONS/graphics.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **VROC** - Virtual RAID on CPU: Intel's RAID for NVMe drives attached to the processor. *See: [storage](SECTIONS/storage.md).*
 - **VRR (variable refresh rate)** - The monitor waits for the GPU's next frame instead of refreshing at a fixed rate. Sold as FreeSync, G-Sync Compatible or HDMI VRR. *See: [graphics](SECTIONS/graphics.md).*
 - **VT-x / VMX** - Intel's hardware virtualization feature. *See: [processors](SECTIONS/processors.md).*
@@ -657,7 +673,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## X
 
 - **x86-64-v2 / v3 / v4** - CPU feature levels; v3 needs AVX2, v4 needs AVX-512. *See: [srs-items](SECTIONS/srs-items.md).*
-- **XDG autostart** - the desktop standard: `.desktop` files in an autostart folder run at login. *See: [srs-items](SECTIONS/srs-items.md).*
+- **XDG autostart** - the desktop standard: `.desktop` files in an autostart folder run at login (`~/.config/autostart` for you, `/etc/xdg/autostart` for everyone; yours wins when both have the same name). Startup Apps turns them on and off. *See: [srs-items](SECTIONS/srs-items.md), [User Guide 6.9](USER-GUIDE.md#69-startup-programs), [User Guide 6.14.4](USER-GUIDE.md#6144-startup-apps).*
 - **XDG (freedesktop.org Cross-Desktop Group) folders** - the standard per-user folders such as `~/.config`, `~/.local/share` and `~/.cache`. *See: [linux-os](SECTIONS/linux-os.md).*
 - **XFS** - A high-performance Linux journaling filesystem. *See: [storage](SECTIONS/storage.md).*
 - **xHCI** - The USB 3 host controller standard. One xHCI controller also serves USB 2 and USB 1 devices. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
@@ -669,6 +685,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 - **zenergy** - An out-of-tree Linux driver that reads AMD energy counters per core and per socket. *See: [sensors](SECTIONS/sensors.md).*
 - **ZLUDA** - A layer that lets programs written for NVIDIA CUDA run on AMD GPUs. *See: [graphics](SECTIONS/graphics.md).*
+- **Zombie process** - a program that has already ended, but whose parent has not yet collected its exit note, so it still has a line in the process list. It uses no CPU or memory and cannot be ended (it is already gone); when its parent collects it or ends, it disappears. The Big Top offers End Parent Process for it. *See: [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **zram** - a RAM-based block device that stores compressed data, often used as fast swap. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md), [storage](SECTIONS/storage.md).*
 - **Zstandard (zstd), LZ4, xz, zlib** - common compression formats and libraries: lz4 is the fastest, zstd fast with good ratios, zlib (gzip / ZIP) the classic, and xz the smallest but slowest. *See: [tools](SECTIONS/tools.md).*
 - **zswap** - a compressed cache in RAM that sits in front of disk swap. *See: [linux-os](SECTIONS/linux-os.md).*

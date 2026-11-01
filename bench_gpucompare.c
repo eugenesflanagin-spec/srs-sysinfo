@@ -317,6 +317,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
     gpucmp_result *r;
     int c, row, rc = 0;
     time_t now = time(NULL);
+    bench_no_page_merge();
     if (why && wn) why[0] = 0;
     if (burn_active() || burn_gpu_pid_set()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU comparison when it has finished"); return -1; }
     if (!gpu_claim("GPU Compute comparison", &who)) { if (why) gpu_claim_text(who, why, wn); return -1; }
@@ -329,7 +330,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
     x->c = *cfg;
     x->cancel = cancel;
     if (x->c.seconds < 0.05) x->c.seconds = 0.05;
-    if (x->c.seconds > 10) x->c.seconds = 10;
+    if (x->c.seconds > 60) x->c.seconds = 60;
     x->gemm_n = x->c.tiny ? 64 : 1024;
     x->mem_bytes = x->c.tiny ? 1048576.0 : 256.0 * 1048576.0;
     x->lat_rounds = x->c.tiny ? 10 : 500;

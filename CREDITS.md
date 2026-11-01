@@ -22,6 +22,25 @@ SRS is an independent project, not affiliated with SIV or its author (see [READM
 | Mesa lavapipe (<https://www.mesa3d.org>) | the software Vulkan renderer the GPU tests run on, so they never touch a real GPU (test only, not shipped) | MIT |
 | hwdata (`pci.ids`, `usb.ids`, `pnp.ids`) | device names (not part of SRS) | GPL-2.0-or-later / BSD-3-Clause |
 
+## The Big Top: GPU view, Performance tab and tray meters (2.5)
+
+The Big Top window, the `gpu-top` / `big-top` command, the Performance tab and the tray meters are
+SRS's own C code. The GPU view is a C reimplementation of the projects below (their data, sampling,
+idle rules, names and output shapes); the task-manager layout of the Performance tab is inspired by
+classic task-manager designs (own code, Cairo drawing and the GTK theme's icons; nothing taken from
+any other task manager).
+
+| What | Used for | Licence / terms |
+|---|---|---|
+| amdgpu_top by Umio Yasuno (<https://github.com/Umio-Yasuno/amdgpu_top>) | The Big Top's GPU tabs and `sysreport-search gpu-top` reimplement it in C: the device info and its order, GRBM / GRBM2 sampling (100 reads per interval), the fdinfo arithmetic, the idle (D3) rule, the SMI table, the dump, gpu_metrics and JSON output shapes | MIT, "Copyright (c) 2023 Umio Yasuno"; credited here and in the source headers |
+| libdrm_amdgpu_sys by Umio Yasuno (the Rust crate amdgpu_top is built on) | the parts amdgpu_top uses, reimplemented in C: ASIC tables, cache sizes, peak rates and output order; its bindings of the kernel's gpu_metrics structs (rev a6a7746), from which SRS's gpu_metrics layout tables were generated | MIT |
+| The Linux kernel's `kgd_pp_interface.h`, `amdgpu_drm.h`, `drm_mode.h` and the AMD SMU PowerPlay table headers | the gpu_metrics v1.0-1.5, v2.0-2.4 and v3.0 layouts (by way of libdrm_amdgpu_sys), the amdgpu info query and DRM connector structures, and the RX 5000 / 6000 / 7000 PowerPlay table layouts | MIT |
+| libdrm (`libdrm_amdgpu.so.1`, `libdrm.so.2`, `amdgpu.ids`) (<https://gitlab.freedesktop.org/mesa/drm>) | AMD device info and GRBM register reads; display connectors for DRM Info; marketing names from `amdgpu.ids`. The system's own, loaded or read at run time, not shipped or linked | MIT |
+| NVIDIA Management Library (`libnvidia-ml.so.1`) | NVIDIA cards in The Big Top; loaded at run time only when an NVIDIA card is present; SRS uses its own prototypes of the documented API (no NVIDIA header, no code from other NVML tools) | NVIDIA driver licence |
+| StatusNotifierItem and com.canonical.dbusmenu (freedesktop.org / KDE specifications) | the tray meters, spoken over D-Bus directly with GDBus | public specifications; no code copied |
+| xdg-desktop-portal GlobalShortcuts (<https://flatpak.github.io/xdg-desktop-portal/>) | the optional summon shortcut | public specification |
+| XDG Autostart and Desktop Entry specifications (freedesktop.org) | Startup Apps (and the Startup manager) | public specifications |
+
 ## Memory Timings, hardware lists and ACPI (2.4)
 
 SRS's code for these is its own. The register layouts below are facts taken from the projects named;
@@ -37,6 +56,13 @@ no code was copied from them.
 | The PCI ID Repository (<https://pci-ids.ucw.cz>) | `pci.ids`, which Update hardware lists can download | GPL-2.0-or-later or BSD-3-Clause |
 | The Linux USB ID list (<http://www.linux-usb.org/usb.ids>) | `usb.ids`, which Update hardware lists can download | the list's own terms; distributed with hwdata (GPL-2.0-or-later / BSD-3-Clause) |
 | hwdata (<https://github.com/vcrhonek/hwdata>) | `pnp.ids` (PnP / monitor maker IDs, from the UEFI PNP ID list), which Update hardware lists can download | GPL-2.0-or-later (hwdata) |
+
+## IR Blaster
+
+| What | Used for | Licence / terms |
+|---|---|---|
+| elksmart-comm by Přemysl Eric Janouch (janouch), from usb-drivers (<https://git.janouch.name/p/usb-drivers>, commit d48653a) | the ELK Smart / OCRUSTAR dongle protocol (identify, learn, the transmit encoding with its Huffman variant, packet framing and checksum), ported into `ir.c`. The author's copyright and 0BSD notice are kept in the file header. SRS's changes are marked there: the kernel's usbfs replaces libusb, learning can be cancelled and has a deadline, and the 045c:0132 learn-acknowledgement fix from IR Remote's packaging is included. `tests/ir-test.sh` checks that the packets are byte-identical to `/usr/bin/elksmart-comm` | 0BSD |
+| IR Remote (<https://github.com/eugenesflanagin-spec/irremote>), Copyright (C) 2026 Eugene Flanagin | the codes file (`~/.config/irremote/remotes.json`, read and written in the same format and shared with that app), the lock file, the wording, the behaviour of reset after a failed learn, and the udev rule `70-elksmart-ir.rules` | MIT |
 
 ## Data in the Power & Cost page
 
@@ -73,3 +99,73 @@ The benchmarks are SRS's own code, written from published sources.
 | Network | Cloudflare speed test (<https://speed.cloudflare.com>): the public endpoints `GET /__down?bytes=N` and `POST /__up` are the default server - a public service run by Cloudflare, Inc. (the endpoints its own speed test page uses), not a documented API; SRS is not affiliated with Cloudflare and uses no Cloudflare code | public service, used as is |
 | Everyday Work | xxHash64: the xxHash design by Yann Collet (BSD-2-Clause reference, <https://github.com/Cyan4973/xxHash>), written for SRS from the published specification and checked against its known values; CRC32 (IEEE 802.3, polynomial 0xEDB88320) and CRC32C (Castagnoli, 0x82F63B78), slicing-by-8 after M. Kounavis and F. Berry (Intel); FNV-1a (G. Fowler, L. C. Noll, K.-P. Vo); Boyer-Moore-Horspool (R. N. Horspool, 1980); multikey quicksort (J. Bentley and R. Sedgewick, 1997); LSD radix sort (textbook) | published methods; all code written for SRS, none copied |
 | OS Latency | Linux and POSIX interfaces as documented in the Linux man-pages project (<https://man7.org/linux/man-pages/>) and the kernel documentation (<https://docs.kernel.org/>: sched_ext, transparent huge pages, clock sources); pipe ping-pong timing of context switches, a widely published method | public documentation; no code copied |
+
+## Licence texts of the third-party parts
+
+The parts of SRS that follow or port other projects keep those projects' notices. The rest of SRS is
+GPL-2.0-or-later (see LICENSE).
+
+### MIT licence - amdgpu_top and libdrm_amdgpu_sys (The Big Top's GPU view, `gpu_top*.c`, `gpu_top*.h`, `gpu_top_metrics.inc`)
+
+```
+Copyright (c) 2023 Umio Yasuno
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### MIT licence - IR Remote (IR Blaster's codes file, wording and udev rule, in `ir.c` and `gui_ir.c`)
+
+```
+Copyright (C) 2026 Eugene Flanagin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### 0BSD licence - elksmart-comm (IR Blaster's dongle protocol, ported in `ir.c`)
+
+```
+Copyright (c) 2024, Přemysl Eric Janouch <p@janouch.name>
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+```

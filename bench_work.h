@@ -55,6 +55,7 @@ typedef struct {
     char libwhy[WK_NLIB][128];          /* why a library was not loaded */
     int threads;                        /* N asked for */
     int single_only;                    /* 1 = only the 1-thread column was measured */
+    int multi_only;                     /* 1 = only the N-thread column was measured (All Cores) */
     double seconds;                     /* timed length of each measurement */
     long part_kib;                      /* size of each corpus part */
     unsigned run_mask, codec_mask;      /* what was asked for */
@@ -75,6 +76,7 @@ typedef struct {
     unsigned run_mask;  /* bits 1u << WK_*; 0 = every group */
     unsigned codec_mask;/* bits 1u << WK_LIB_*; 0 = every library */
     int single_only;    /* 1 = skip the N-thread column (about half the time) */
+    int multi_only;     /* 1 = skip the 1-thread column (All Cores; about half the time); single_only wins */
     long part_kib;      /* each corpus part, KiB (default 1024, 64 .. 16384) */
     wk_cb cb;           /* optional progress callback */
     void *ud;

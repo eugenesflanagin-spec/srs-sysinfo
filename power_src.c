@@ -4,6 +4,8 @@
  * users by design (rate-limited). Otherwise powercap RAPL, which Linux 5.10+ keeps root-only
  * (PLATYPUS, CVE-2020-8694/8695/12912): SRS reads it only when it is readable and never loosens it.
  * GPU: amdgpu power1_average / power1_input (PPT), Intel i915 / xe energy1_input, nouveau power1_input.
+ * A graphics card whose PCI device is runtime-suspended (power/runtime_status = "suspended", e.g. a hybrid
+ * laptop's idle dGPU) is never read: reading its sensors could wake it. It counts as n/a until it is active.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */
 #ifndef _DEFAULT_SOURCE
@@ -50,6 +52,13 @@ static void line(psrc *s, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(s->lines[s->nlines++], sizeof s->lines[0], fmt, ap);
     va_end(ap);
+}
+
+/* 1 = the device behind this runtime_status path is runtime-suspended (do not touch its sensors) */
+static int suspended(const char *rt)
+{
+    char st[32];
+    return rt && rt[0] && rd_str(rt, st, sizeof st) && !strcmp(st, "suspended");
 }
 
 static psrc_chan *add(psrc_chan *arr, int *n, const char *path, const char *label, int counter, double max_w, double range)
@@ -166,11 +175,11 @@ static void gpu_detect(psrc *s)
     struct dirent *e;
     if (!d) return;
     while ((e = readdir(d))) {
-        char p[400], drv[300], base[400], txt[200];
+        char p[400], drv[300], base[400], txt[200], rt[400];
         const char *dn;
         DIR *h;
         struct dirent *he;
-        double vram = -1, v;
+        double vram = -1;
         ssize_t n;
         if (strncmp(e->d_name, "card", 4) || strchr(e->d_name, '-')) continue;
         snprintf(p, sizeof p, "/sys/class/drm/%s/device/driver", e->d_name);
@@ -191,8 +200,12 @@ static void gpu_detect(psrc *s)
                     "package, so it is not added again.", e->d_name, vram / 1048576);
             continue;
         }
+        snprintf(rt, sizeof rt, "/sys/class/drm/%s/device/power/runtime_status", e->d_name);
         snprintf(p, sizeof p, "/sys/class/drm/%s/device/gpu_busy_percent", e->d_name);
-        if (access(p, R_OK) == 0 && s->nbusy < PSRC_CH) snprintf(s->busy_path[s->nbusy++], sizeof s->busy_path[0], "%s", p);
+        if (access(p, R_OK) == 0 && s->nbusy < PSRC_CH) {
+            snprintf(s->busy_rt[s->nbusy], sizeof s->busy_rt[0], "%s", rt);
+            snprintf(s->busy_path[s->nbusy++], sizeof s->busy_path[0], "%s", p);
+        }
         snprintf(base, sizeof base, "/sys/class/drm/%s/device/hwmon", e->d_name);
         if (!(h = opendir(base))) {
             if (!strcmp(dn, "amdgpu") || !strcmp(dn, "nouveau") || !strcmp(dn, "xe")) s->dgpu_unread = 1;
@@ -201,11 +214,13 @@ static void gpu_detect(psrc *s)
         while ((he = readdir(h))) {
             char hp[700];
             if (strncmp(he->d_name, "hwmon", 5)) continue;
+            /* which files exist, without reading them (a read could wake a suspended card) */
             snprintf(hp, sizeof hp, "%s/%s/power1_average", base, he->d_name);
-            if (!rd_dbl(hp, &v)) snprintf(hp, sizeof hp, "%s/%s/power1_input", base, he->d_name);
-            if (rd_dbl(hp, &v) && (!strcmp(dn, "amdgpu") || !strcmp(dn, "nouveau"))) {
+            if (access(hp, R_OK) != 0) snprintf(hp, sizeof hp, "%s/%s/power1_input", base, he->d_name);
+            if (access(hp, R_OK) == 0 && (!strcmp(dn, "amdgpu") || !strcmp(dn, "nouveau"))) {
+                psrc_chan *c;
                 snprintf(txt, sizeof txt, "%s %s (%s)", dn, strstr(hp, "average") ? "PPT power1_average" : "power1_input", e->d_name);
-                add(s->gpu, &s->ngpu, hp, txt, 0, 1500, 0);
+                if ((c = add(s->gpu, &s->ngpu, hp, txt, 0, 1500, 0))) snprintf(c->rt, sizeof c->rt, "%s", rt);
                 if (!strcmp(dn, "amdgpu"))
                     line(s, "GPU %s: amdgpu reported power (PPT): used. This is the graphics chip's power as the "
                             "driver reports it; the rest of the card (fans, memory, power stages) is estimated "
@@ -215,9 +230,10 @@ static void gpu_detect(psrc *s)
                 continue;
             }
             snprintf(hp, sizeof hp, "%s/%s/energy1_input", base, he->d_name);
-            if (rd_dbl(hp, &v) && (!strcmp(dn, "i915") || !strcmp(dn, "xe"))) {
+            if (access(hp, R_OK) == 0 && (!strcmp(dn, "i915") || !strcmp(dn, "xe"))) {
+                psrc_chan *c;
                 snprintf(txt, sizeof txt, "%s energy1_input (%s)", dn, e->d_name);
-                add(s->gpu, &s->ngpu, hp, txt, 1, 1500, 0);
+                if ((c = add(s->gpu, &s->ngpu, hp, txt, 1, 1500, 0))) snprintf(c->rt, sizeof c->rt, "%s", rt);
                 line(s, "GPU %s: Intel %s card energy counter: used.", e->d_name, dn);
             }
         }
@@ -252,6 +268,7 @@ void psrc_read(psrc *s, double dt, pm_meas *m, int *flags)
     for (i = 0; i < s->ncpu + s->ngpu; i++) {
         psrc_chan *c = i < s->ncpu ? &s->cpu[i] : &s->gpu[i - s->ncpu];
         double v;
+        if (suspended(c->rt)) { c->w = NAN; c->c.have = 0; continue; }   /* asleep: n/a, and a new counter baseline later */
         if (!rd_dbl(c->path, &v)) { c->w = NAN; continue; }
         if (c->counter) {
             double j = pm_counter_step(&c->c, v, dt, c->max_w, &f);
@@ -302,7 +319,7 @@ void psrc_load(psrc *s, double *cpu, double *gpu)
     }
     for (i = 0; i < s->nbusy; i++) {
         double b;
-        if (rd_dbl(s->busy_path[i], &b) && (isnan(*gpu) || b > *gpu)) *gpu = b;
+        if (!suspended(s->busy_rt[i]) && rd_dbl(s->busy_path[i], &b) && (isnan(*gpu) || b > *gpu)) *gpu = b;
     }
 }
 

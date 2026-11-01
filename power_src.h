@@ -15,6 +15,7 @@ typedef struct {
     double max_w;
     pm_counter c;
     double w;             /* last watts (NAN unknown) */
+    char rt[320];         /* graphics cards: the PCI device's power/runtime_status; "suspended" = not read (n/a) */
 } psrc_chan;
 
 typedef struct {
@@ -26,6 +27,7 @@ typedef struct {
     char lines[PSRC_LINES][400];       /* plain-words status of every source, for the Sources tab */
     int nlines;
     char busy_path[PSRC_CH][320];      /* gpu_busy_percent of the graphics cards */
+    char busy_rt[PSRC_CH][320];        /* their power/runtime_status (a suspended card is not read) */
     int nbusy;
     unsigned long long cpu_total, cpu_idle;
 } psrc;

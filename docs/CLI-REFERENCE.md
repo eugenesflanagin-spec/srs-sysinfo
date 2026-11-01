@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `cuda-toolkit` and `update-lists`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `cuda-toolkit`, `gpu-top` (also `big-top`), `ir` and `update-lists`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -43,21 +43,23 @@ sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
 sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 sysreport-search latency [--max MB] [--yes]
 sysreport-search pi [--digits 128k|1m|..|32m|16ki|..|1mi|..|32mi|N] [--threads N] [--method chudnovsky|agm] [--save-digits FILE] [--yes]
-sysreport-search crypto [--threads N] [--seconds S] [--yes]
+sysreport-search crypto [--threads N] [--seconds S] [--all-threads-only] [--yes]
 sysreport-search prime [--limit 1e8|1e9|1e10|1e11|N] [--threads N] [--yes]
 sysreport-search storage --dir FOLDER [--size MB] [--seconds S] [--profile standard|light] [--allow-usb] [--yes]
 sysreport-search cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3] [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
 sysreport-search os-latency [--samples N] [--tick-seconds S] [--only syscall,switch,spawn,wake,timer,memory,files] [--yes]
-sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
-sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
+sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [--code auto|c|sse2|avx2|avx512] [--single | --all-threads-only] [--yes]
+sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single | --all-threads-only] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
 sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
 sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
 sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
 sysreport-search update-lists [--list] [--yes]
+sysreport-search ir [--status|--list|--send REMOTE BUTTON|--send-code HEX|--learn [--save REMOTE BUTTON]|--probe|--reset|--export FILE|--import FILE] [--repeat N] [--dry-run] [--yes]
+sysreport-search gpu-top|big-top [--list|--dump|--gpu-metrics|--drm-info|--pp-table|--process|--xdna|--smi|--tui] [-J] [--device N [--wake]] [--pc] [--interval MS] [-n COUNT]
 
-srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray] [--gui-classic | --gui-new]
+srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray | --tray] [--gui-classic | --gui-new]
 srs-gui --power-recorder
 srs-root [--user NAME]
 srs-root --acpi-eval METHOD [ARG...]
@@ -111,8 +113,9 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;
         ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432;
         asks first (with the time and the memory it needs), --yes starts at once
-  crypto [--threads N] [--seconds S] [--yes]
+  crypto [--threads N] [--seconds S] [--all-threads-only] [--yes]
         AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s);
+        --all-threads-only skips the 1-thread pass (the GUI's All Cores; about half the time);
         asks first, --yes starts at once
   cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]
            [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]
@@ -126,14 +129,16 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink
         (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)
   compute [--threads N] [--seconds S] [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
-          [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+          [--code auto|c|sse2|avx2|avx512] [--single | --all-threads-only] [--yes]
         CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /
         Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%
-        busy (--single: one thread); asks first, --yes starts at once
+        busy (--single: one thread; --all-threads-only: N threads only, as All Cores); asks first,
+        --yes starts at once
   work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz]
-       [--single] [--part-kib K] [--yes]
+       [--single | --all-threads-only] [--part-kib K] [--yes]
         Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing
-        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;
+        and a bytecode interpreter, 1 thread and N threads (default all; --all-threads-only: N threads
+        only, as All Cores), every result checked;
         generated data only; asks first, --yes starts at once
   net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]
       [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
@@ -183,7 +188,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.4.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.5.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -194,7 +199,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (558 lines), one per line:
+Lists every item SRS knows (559 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS
@@ -252,7 +257,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.4.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...
@@ -371,6 +376,106 @@ Searching /home/user/sysreports/sysreport-20261017-050453 for "RX 9070"
 
 Numbers on the left are line numbers in that section file. When a section has more matches than
 `--max`, a line says `... N more (raise --max)`.
+
+### `gpu-top` / `big-top` - The Big Top's GPU view
+
+```
+sysreport-search gpu-top [--list | --dump | --gpu-metrics | --drm-info | --pp-table | --process | --xdna |
+                          --smi | --tui] [-J|--json] [--device N [--wake]] [--pc] [--interval MS] [-n COUNT]
+sysreport-search big-top ...        (the same command, named after the window; 2.5)
+```
+
+**In plain words:** what each graphics card is doing right now, in a terminal: the GPU part of The
+Big Top window (User Guide 6.13). It is a C reimplementation of amdgpu_top by Umio Yasuno for AMD
+cards, with NVIDIA cards through NVML, and prints the same data in the same shapes (text and JSON).
+**Read-only:** it never changes a clock, a voltage, a fan or a power limit. Needs no root.
+
+Pick one view (at most one):
+
+| Option | Shows |
+|---|---|
+| `--list` | The GPUs: number, name, PCI bus, vendor, device and revision ID, driver, device nodes, and "asleep (runtime suspended)" for a card that is asleep (listing never wakes it) |
+| `--dump`, `-d` | Device info, in amdgpu_top's `-d` order: chip, type, family, ASIC, shader engines / arrays, compute units, render back ends, ROPs, peak fill rate, clocks and overclock maximum, peak FP32 / FP16, VRAM type / width / vendor / clock / peak bandwidth / Resizable BAR / ECC, VRAM / CPU-visible VRAM / GTT use, sensors (temperatures with critical / emergency limits, power, power cap, fan, PCIe links, FCLK / SOCCLK), power profiles, caches (with Infinity Cache), hardware IP, IP discovery, firmware, video caps, VBIOS, pp_feature_mask and the gpu_metrics version |
+| `--gpu-metrics` | Every field of the driver's gpu_metrics table (versions 1.0-1.5, 2.0-2.4, 3.0) |
+| `--drm-info` | Display connectors, their modes and properties (through libdrm; monitors are not probed again) |
+| `--pp-table` | The PowerPlay table (Radeon RX 5000 / 6000 / 7000; other cards: "not available on this card") |
+| `--process` | The processes using each GPU, with their VRAM and GTT |
+| `--xdna` | The AMD XDNA NPU (Ryzen AI), from `/sys/class/accel` |
+| `--smi` | A compact table, one block per GPU, after one interval (one sample; amdgpu_top's `--smi` is live - use `--tui` for that) |
+| `--tui` | A live terminal view of every GPU; `q` or Ctrl+C quits |
+
+With no view option it runs `--tui` on a terminal and `--smi` otherwise.
+
+| Option | Meaning | Default |
+|---|---|---|
+| `-J`, `--json` | JSON in amdgpu_top's shapes. Alone (no view option) it prints one JSON sample per interval | off |
+| `-n COUNT`, `--count COUNT` | How many JSON samples; `0` = until Ctrl+C | 0 |
+| `--device N`, `-i N` | Only GPU N (the number from `--list`) | every GPU |
+| `--wake` | With `--device N`: wake GPU N up and read it when it is asleep (runtime suspended) | off |
+| `--pc` | Read the GRBM / GRBM2 performance counters for `--smi`, `--tui` and the `-J` stream. Off by default, as in the window: reading them can keep a card out of its power-saving states. The one-shot views never read them. `--no-pc` is still accepted and does nothing | off |
+| `--interval MS`, `-s MS` | Sampling interval, 100-60000 ms, kept exactly (the counters are read in 10 ms steps) | 1000 |
+
+`--tui` and `--json` do not go together. **Sleeping cards are not opened:** a card that is asleep
+(runtime suspended, typically a laptop's second GPU) is skipped with "asleep (runtime suspended) - not
+read", so the command never wakes it. `--device N` alone on a sleeping card exits with 2 and says to
+add `--wake`; `--device N --wake` wakes it and reads it. An awake card that no program uses is also
+left free to fall asleep: values that would keep it awake are not read (the same rule as the window).
+
+```
+$ sysreport-search gpu-top --list
+$ sysreport-search gpu-top --smi
+$ sysreport-search gpu-top --gpu-metrics --device 0
+$ sysreport-search big-top -J -n 5 --interval 500
+```
+
+Libraries, each loaded at run time only when needed (none is needed to build SRS):
+`libdrm_amdgpu.so.1` (AMD device info and GRBM), `libdrm.so.2` (`--drm-info`) and
+`libnvidia-ml.so.1` (only when an NVIDIA card, PCI vendor 0x10de, is present; never on an AMD-only PC).
+
+Exit code 0: printed; 1: no GPU found or a GPU could not be opened; 2: a bad option or value, two
+views at once, `--tui` with `--json`, a `--device` that does not exist, or `--device N` on a sleeping
+card without `--wake`.
+
+### `ir` - IR Blaster: learn and send infrared codes
+
+```
+sysreport-search ir [--status | --list | --send REMOTE BUTTON [--repeat N] | --send-code HEX [--nec] [--frequency HZ] [--repeat N] |
+                     --learn [--save REMOTE BUTTON] [--timeout S] [--frequency HZ] | --probe | --reset |
+                     --export FILE | --import FILE [--replace]] [--dry-run] [--huffman] [--yes]
+```
+
+**In plain words:** uses an ELK Smart / OCRUSTAR USB infrared dongle (USB IDs `045c:0132`, `045c:0184`,
+`045c:0195`, `045c:0134`) as a TV remote: learn a button from your real remote, keep it under a name,
+send it again. The codes live in IR Remote's `~/.config/irremote/remotes.json` and are shared with
+that app (User Guide 6.15). Only the `045c:0132` has been used for real so far.
+
+| Option | Meaning |
+|---|---|
+| `--status` | (default) Is a dongle plugged in, and may it be used? Read-only (sysfs). Its `Rule` line shows the `70-elksmart-ir.rules` found (in `/etc`, `/run`, `/usr/local/lib` or `/usr/lib` `udev/rules.d`) or "not installed"; with no permission it says how to fix it (install the rule, or replug when the rule is there, or a missing device file) |
+| `--list` | The remotes and their codes |
+| `--send REMOTE BUTTON` | Send a saved code (names as `--list` shows them; case does not matter) |
+| `--send-code HEX` | Send a code given as hex; with `--nec`, NEC address + command pairs (4 hex digits per press) |
+| `--learn` | Wait for one button of a remote, held within 1 cm of the dongle, and print its code; `--save REMOTE BUTTON` also keeps it (a new remote or button is made when needed) |
+| `--probe` | Ask the dongle to identify itself and say which protocol it uses (plain or Huffman); sends no infrared. Exits 1 when the dongle is busy (IR Remote or another SRS action is using it): it was not asked |
+| `--reset` | USB reset, for a dongle that stopped answering (for example left in learn mode); sends no infrared |
+| `--export FILE`, `--import FILE` | Copy the codes to / from a file in IR Remote's format; import adds, `--replace` replaces them all |
+| `--repeat N`, `-r N` | Send it N times (1-100), 0.1 s apart |
+| `--frequency HZ`, `-f HZ` | Carrier frequency for `--send-code` / `--learn`, 10000-100000 (default 38000) |
+| `--timeout S`, `-t S` | How long `--learn` waits, 1-600 s (default 20) |
+| `--dry-run` | With `--send` / `--send-code`: print the USB packets only, send nothing (works without a dongle); `--huffman` for a dongle that uses the compressed protocol |
+| `--yes` | `--send` and `--learn` ask first (`[y/N]`); `--yes` starts at once |
+
+```
+$ sysreport-search ir --status
+$ sysreport-search ir --send TV Power --dry-run
+$ sysreport-search ir --send TV "Volume Up" --repeat 3
+$ sysreport-search ir --learn --save TV "Input"
+```
+
+The first time SRS changes the codes file it keeps a copy, `remotes.json.before-srs`; it never
+overwrites a file it cannot read. Exit code 0: done (or `--status` found a usable dongle); 1: no usable
+dongle, not confirmed (or no terminal and no `--yes`), nothing learned, or the dongle did not answer;
+2: a bad option or value, or two actions at once.
 
 ---
 
@@ -518,12 +623,14 @@ when it was not started. See
 ### `crypto` - AES-128 and SHA-256 speed
 
 ```
-sysreport-search crypto [--threads N] [--seconds S] [--yes]
+sysreport-search crypto [--threads N] [--seconds S] [--all-threads-only] [--yes]
 ```
 
 Measures AES-128-CTR and SHA-256 in MB/s on one thread and on N threads (default all), with
 AES-NI / SHA-NI when the CPU has them and in plain C. `--seconds S` per measurement, 0.1 to 60
-(default 1), about 8 measurements in all. **Asks first** (with all threads it warns that every CPU
+(default 1), about 8 measurements in all (4 with `--all-threads-only`, which skips the 1-thread
+pass like the window's **All Cores**: the 1-thread column says "skipped", the run history has "-" there
+and `1-THREAD-SKIPPED`). **Asks first** (with all threads it warns that every CPU
 thread is 100% busy); `--yes` starts at once. The FIPS test vectors are checked first; exit code 1
 if they fail, 2 for a bad option or when it was not started. See
 [tools.md](SECTIONS/tools.md#crypto-benchmark).
@@ -619,7 +726,7 @@ See [tools.md](SECTIONS/tools.md#os-latency-benchmark).
 ```
 sysreport-search compute [--threads N] [--seconds S]
                          [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]
-                         [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
+                         [--code auto|c|sse2|avx2|avx512] [--single | --all-threads-only] [--yes]
 ```
 
 Matrix multiply (SGEMM / DGEMM), peak multiply-add, FFT, N-body, Mandelbrot and a small ray tracer,
@@ -636,6 +743,7 @@ PC under this load; `--single` keeps it light.
 | `--tests` | Run only some tests, e.g. `--tests dgemm,mandelbrot` |
 | `--code` | Force a code path (a path the CPU lacks falls back to the best it has) |
 | `--single` | Only the 1-thread column (light load, half the time) |
+| `--all-threads-only` | Only the N-threads column, as the window's **All Cores**: the 1-thread column says "skipped", the history line has "-" and `1-THREAD-SKIPPED` (about half the time; not with `--single`) |
 
 Exit code 0 when every check passed, 1 when a check failed (WRONG) or it was stopped, 2 when it did
 not start (bad option, not confirmed, Stress & Burnin running). Example:
@@ -650,7 +758,7 @@ See [tools.md](SECTIONS/tools.md#cpu-compute-benchmark).
 
 ```
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]
-                      [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]
+                      [--libs zlib,zstd,lz4,xz] [--single | --all-threads-only] [--part-kib K] [--yes]
 ```
 
 Compression and decompression with the system's zlib, zstd, lz4 and xz libraries (MB/s and
@@ -668,6 +776,7 @@ skipped.
 | `--only` | Test groups, e.g. `--only compress,hash` |
 | `--libs` | Compression libraries, e.g. `--libs zstd,lz4` |
 | `--single` | Only the 1-thread column |
+| `--all-threads-only` | Only the N-threads column, as the window's **All Cores** ("skipped" in the 1-thread column, `1-THREAD-SKIPPED` in the history; not with `--single`) |
 | `--part-kib K` | Size of each generated data part per thread, 64-16384 KiB (default 1024) |
 
 Exit code 0 when every check passed, 1 when a check failed or it was stopped, 2 when it did not
@@ -743,7 +852,7 @@ terminal and without `--yes` it does not start (exit code 2).
 | Option | Meaning |
 |---|---|
 | `--device N` | The Vulkan device to test, numbered as `--list` shows them (default: the first discrete GPU, else the first device) |
-| `--seconds S` | GPU time per test, 0.1-10 (default 1) |
+| `--seconds S` | GPU time per test, 0.1-60 (default 1) |
 | `--only LIST` | Run only these tests (comma-separated): fp32, fp16, fp64, int32, read, write, copy, upload, download, latency |
 | `--mem-mib M` | Buffer size of the memory and transfer tests in MiB, 1-4096 (default: 256, less on small cards); a size above a quarter of the video memory or of the PC's memory is lowered to that, and the result says so |
 | `--list` | List the Vulkan devices (number, name, type, video memory, driver) and exit; nothing runs on a GPU (like `vulkaninfo`, this creates a Vulkan instance to name the devices) |
@@ -835,7 +944,7 @@ tests that did not run say "not run".
 | Option | Meaning |
 |---|---|
 | `--backends L` | Comma-separated: `vulkan`, `hip`, `cuda`, `opencl` (default: every installed one). `--backend B` is the same |
-| `--seconds S` | GPU time per test, 0.1-10 (default 1) |
+| `--seconds S` | GPU time per test, 0.1-60 (default 1) |
 | `--device N` | The Vulkan device that fixes "the GPU" (numbers from `gpu --list`); the others use the card at the same PCI address (default: the first discrete GPU) |
 | `--yes` | Start without asking |
 
@@ -918,6 +1027,7 @@ Every `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu
 | (none) | Open the main window (the window with the sidebar, or the classic one when **Options -> Start in classic view** is on). |
 | `--gui-open=WHAT[,WHAT...]` | Also open these panels or tools at start. In the main window an item opens on its page (for example `sensors` on the Sensors page); in the classic view it opens as its own panel. |
 | `--gui-tray` | Start hidden in the system tray (used by the autostart entry). |
+| `--tray` | The same as `--gui-tray` (2.5): start with only the tray icons - SRS's own and / or the live tray meters (User Guide 11.1). |
 | `--gui-classic` | Start in the classic view: SIV's main window with its button row, every item in its own panel (as in SRS 1.1). |
 | `--gui-new` | Start in the main window with the sidebar, even when **Start in classic view** is on. |
 | `--power-recorder` | Record **Power & Cost** history with no window, following the page's Recording setting (Off / For a set time / Always). Used by the optional systemd user service that **Power & Cost -> Setup -> Keep recording when SRS is closed** writes. Only one process records at a time (a lock file beside the database); stop it with Ctrl+C or SIGTERM. |
@@ -951,6 +1061,8 @@ or one of these tool names:
 | `lists` | Update hardware lists (asks first) (2.4) |
 | `acpieval` | ACPI method evaluation (the one-time warning first, if not accepted yet) (2.4) |
 | `idlookup` | Device ID Lookup |
+| `gputop` | The Big Top window (2.5), on its Performance tab |
+| `traysettings` | The Task Manager Settings (update speeds, start page, CPU units, tray meters, summon shortcut) (2.5) |
 | `find` | Find |
 | `menu` | Pops up the Menu |
 | `power-cost` | Shows the Power & Cost page (the item `power` is the expert Power status tab on Sensors) |
@@ -1044,7 +1156,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | Code | Meaning |
 |---|---|
 | 0 | Success; `find` found matches; `burn` passed |
-| 1 | `find` found no matches; lookup or benchmark failed; `burn` failed |
+| 1 | `find` found no matches; lookup or benchmark failed; `burn` failed; `gpu-top` found no GPU or could not open one |
 | 2 | Usage error (missing or unknown argument, bad value); `find` found no report folder; `burn` had nothing to run; a benchmark was not started (answered No, or no terminal and no `--yes`) |
 | 130 | `burn` stopped with Ctrl+C |
 

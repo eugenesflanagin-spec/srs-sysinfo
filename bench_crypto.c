@@ -411,7 +411,7 @@ static double crypto_measure(int test, int nthreads, double secs)
     return sum;
 }
 
-typedef struct { double v[CT_N][2]; int threads, hw_aes, hw_sha, ok; double secs; char self[200], when[32]; } cctx;
+typedef struct { double v[CT_N][2]; int threads, hw_aes, hw_sha, ok, all_only, stopped; double secs; char self[200], when[32]; } cctx;
 
 static void crypto_render(srs_out *o, void *c)
 {
@@ -420,6 +420,7 @@ static void crypto_render(srs_out *o, void *c)
     int t;
     char h2[32];
     so_siv_header(o, "Crypto benchmark (AES-128 encryption and SHA-256 hashing, MB/s)");
+    if (x->stopped) { so_err(o, "Stopped before the end - the cells with \"-\" were not measured"); so_par(o); }
     so_tabs(o, tabs, 2);
     snprintf(h2, sizeof h2, "%d threads", x->threads);
     so_row(o, 3, (const char *const[]){ "Test", "1 thread", h2 }, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
@@ -430,30 +431,35 @@ static void crypto_render(srs_out *o, void *c)
             so_row(o, 3, (const char *const[]){ ct_name[t], "not available on this CPU", "" }, (const int[]){ C_LABEL, C_GRAY, C_GRAY });
             continue;
         }
-        snprintf(a, sizeof a, x->v[t][0] > 0 ? "%.0f MB/s" : "-", x->v[t][0]);
+        if (x->all_only) snprintf(a, sizeof a, "skipped");   /* not measured: All Cores ran the all-threads pass only */
+        else snprintf(a, sizeof a, x->v[t][0] > 0 ? "%.0f MB/s" : "-", x->v[t][0]);
         snprintf(b, sizeof b, x->v[t][1] > 0 ? "%.0f MB/s" : "-", x->v[t][1]);
-        so_row(o, 3, (const char *const[]){ ct_name[t], a, b }, (const int[]){ C_LABEL, hw ? C_GREEN : C_BLACK, hw ? C_GREEN : C_BLACK });
+        so_row(o, 3, (const char *const[]){ ct_name[t], a, b },
+               (const int[]){ C_LABEL, x->all_only ? C_GRAY : hw ? C_GREEN : C_BLACK, hw ? C_GREEN : C_BLACK });
     }
     so_par(o);
     so_tabs(o, tabs, 1);
     so_kv(o, "Check", x->ok ? C_GREEN : C_RED, x->self);
+    if (x->all_only) so_kv(o, "Passes", C_GRAY, "1-thread pass skipped (All Cores): only the all-threads column was measured");
     so_kvf(o, "Run", C_GRAY, "%s, %.1f s per measurement, 64 KB buffer per thread", x->when, x->secs);
     so_kv(o, "Build", C_GRAY, bench_build_tag());
     so_note(o, "1 MB = 1,000,000 bytes. The plain C rows show what the same work costs without the CPU's crypto instructions.");
     so_board_footer(o);
 }
 
-int bench_crypto(int threads, double secs, srs_out *o)
+int bench_crypto(int threads, double secs, int all_only, srs_out *o)
 {
     cctx c;
     int t, k;
     time_t now = time(NULL);
     char params[64], res[200];
+    bench_no_page_merge();
     memset(&c, 0, sizeof c);
     if (threads < 1 || threads > burn_ncpu()) threads = burn_ncpu();
     if (secs < 0.1) secs = 0.1;
     c.threads = threads;
     c.secs = secs;
+    c.all_only = all_only;
     c.hw_aes = crypto_have_aesni();
     c.hw_sha = crypto_have_shani();
     pthread_once(&aes_once, aes_tables);
@@ -462,12 +468,28 @@ int bench_crypto(int threads, double secs, srs_out *o)
     if (c.ok)
         for (t = 0; t < CT_N; t++) {
             if ((t == CT_AES_HW && !c.hw_aes) || (t == CT_SHA_HW && !c.hw_sha)) continue;
-            for (k = 0; k < 2; k++) c.v[t][k] = crypto_measure(t, k ? threads : 1, secs);
+            for (k = all_only ? 1 : 0; k < 2; k++) {
+                if (bench_cancelled()) { c.stopped = 1; break; }   /* Stop: at the next measurement */
+                c.v[t][k] = crypto_measure(t, k ? threads : 1, secs);
+            }
         }
     bench_save_render("crypto", crypto_render, &c, o);
-    snprintf(params, sizeof params, "threads=%d seconds=%.1f", threads, secs);
-    snprintf(res, sizeof res, "aes-hw %.0f/%.0f aes-c %.0f/%.0f sha-hw %.0f/%.0f sha-c %.0f/%.0f MB/s%s",
-             c.v[0][0], c.v[0][1], c.v[1][0], c.v[1][1], c.v[2][0], c.v[2][1], c.v[3][0], c.v[3][1], c.ok ? "" : " SELFTEST-FAILED");
+    snprintf(params, sizeof params, "threads=%d seconds=%.1f%s", threads, secs, all_only ? " all-threads-only" : "");
+    if (all_only)   /* the 1-thread values were not measured: "-", never a 0 that reads like a result */
+        snprintf(res, sizeof res, "aes-hw -/%.0f aes-c -/%.0f sha-hw -/%.0f sha-c -/%.0f MB/s 1-THREAD-SKIPPED%s",
+                 c.v[0][1], c.v[1][1], c.v[2][1], c.v[3][1], c.ok ? "" : " SELFTEST-FAILED");
+    else {
+        /* a Stopped run: the cells it never reached are "-", not a 0 that reads like a result */
+        char cv[4][2][24];
+        for (t = 0; t < 4; t++)
+            for (k = 0; k < 2; k++) {
+                if (c.stopped && c.v[t][k] <= 0) snprintf(cv[t][k], sizeof cv[t][k], "-");
+                else snprintf(cv[t][k], sizeof cv[t][k], "%.0f", c.v[t][k]);
+            }
+        snprintf(res, sizeof res, "aes-hw %s/%s aes-c %s/%s sha-hw %s/%s sha-c %s/%s MB/s%s",
+                 cv[0][0], cv[0][1], cv[1][0], cv[1][1], cv[2][0], cv[2][1], cv[3][0], cv[3][1], c.ok ? "" : " SELFTEST-FAILED");
+    }
+    if (c.stopped) strncat(res, " STOPPED", sizeof res - strlen(res) - 1);
     bench_history_add("crypto", params, res);
-    return c.ok ? 0 : 1;
+    return !c.ok ? 1 : c.stopped ? 2 : 0;
 }

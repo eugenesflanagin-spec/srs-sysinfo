@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=My Own App
+Exec=sh -c "sleep 3 && true --mine"
+X-GNOME-Autostart-Delay=3

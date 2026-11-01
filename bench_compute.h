@@ -34,6 +34,7 @@ typedef struct {
     cp_cell t[CP_NTEST];
     int threads;        /* N asked for */
     int single_only;    /* 1 = only the 1-thread column was measured */
+    int multi_only;     /* 1 = only the N-thread column was measured (All Cores: the 1-thread pass was skipped) */
     double seconds;     /* timed length of each measurement */
     unsigned run_mask;
     int self_ok;        /* self-test result (1 = pass) */
@@ -53,6 +54,7 @@ typedef struct {
     unsigned run_mask;  /* bits 1u << CP_*; 0 = every test */
     int isa;            /* CP_ISA_*; default CP_ISA_AUTO */
     int single_only;    /* 1 = skip the N-thread column */
+    int multi_only;     /* 1 = skip the 1-thread column (All Cores; about half the time); single_only wins */
     cp_cb cb;
     void *ud;
 } cp_cfg;

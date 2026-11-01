@@ -4,6 +4,206 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.5.0 - 2026-10-31
+
+**The Big Top**: a live window for the whole PC and each graphics card - a task manager with process actions, startup
+apps, users and services, and a GPU view modelled on amdgpu_top - plus live tray meters (off by default), an IR Blaster
+tab for USB infrared dongles, one startup manager, an All Cores toggle on the CPU benchmarks, benchmark times up to
+60 s and a Cache & Memory fix for kernel page merging. (2.4.1 was never released on its own; its changes are part of
+2.5.0.)
+
+### Added
+
+- **The Big Top** (window "SRS - The Big Top"; the button between the search box and the menu, Ctrl+G, the Tools
+  page's **The Big Top...**, Classic Menu > **The Big Top (Live GPU and System Activity)...**, `--gui-open=gputop`).
+  One window, opened on its Performance tab; it also opens without a graphics card. Hide to tray hides it too. Its
+  threads and timers run only while it is shown.
+- **GPU tabs**, a C reimplementation of amdgpu_top by Umio Yasuno (MIT) for AMD cards, with NVIDIA cards through NVML
+  (loaded only when an NVIDIA card is present). **GPU**: Device Info, XDNA NPU Info, Hardware IP, IP Discovery,
+  Video Caps, VBIOS, Firmware and Connector Info in a side panel; GRBM / GRBM2 with 30 s graphs, VRAM / CPU-visible
+  VRAM / GTT, GFX / Memory / Media activity, per-process fdinfo (sortable, Full List), sensors with graphs (clocks,
+  VDDGFX, power, fan, edge / junction / memory temperature, CPU Tctl, PCIe link, power state, profile, throttle
+  status, DPM levels), PCIe bandwidth and ECC counts where reported, every gpu_metrics field (v1.0-1.5, v2.0-2.4,
+  v3.0) with units, and a throttling log. **SMI** (every card on one line, processes of all cards), **DRM Info**
+  (connectors, modes, properties via libdrm), **PowerPlay Table** (RX 5000 / 6000 / 7000) and **NPU (XDNA)**.
+  Top row: device list (a sleeping card is woken only when picked), Info, Pause, **Performance Counters (GRBM)** (its
+  tooltip says the register reads can keep the card out of power saving), **Update** (every 0.25 / 0.5 / 1 / 2 / 5 s,
+  saved as `[GPU Top] Update ms`), **Settings...**. Temperatures in °C (the CLI and JSON keep amdgpu_top's text).
+  Read-only: never changes a clock, voltage, fan or limit.
+- **Idle cards are left asleep, and only those**: a card that can really sleep (runtime power management `auto` and
+  no monitor connected; not an APU) is not read in ways that would wake it while no program uses it, as amdgpu_top
+  does; the GPU Metrics panel says "Not read while the card is idle, so it can go to sleep; it comes back when the
+  card is used." and the status line says the card is asleep (D3). A card that drives a monitor or has runtime PM off
+  is always read in full (during development the D3 rule blanked those cards' panels at desktop idle). The Power &
+  Cost sources and the Performance tab never read a runtime-suspended card ("Suspended (not woken)").
+- **`sysreport-search gpu-top`** (also **`big-top`**): `--list`, `--dump` / `-d`, `--gpu-metrics`, `--drm-info`,
+  `--pp-table`, `--process`, `--xdna`, `--smi`, `--tui` (the default on a terminal, else `--smi`), `-J` / `--json`
+  (amdgpu_top's JSON; alone one sample per interval, `-n COUNT`), `--device N [--wake]`, `--pc`, `--interval MS`
+  (100-60000). Exit 0 / 1 (no GPU, cannot open) / 2 (usage, or `--device N` on a sleeping card without `--wake`). libdrm_amdgpu, libdrm and libnvidia-ml are loaded at
+  run time: no new build or package dependency.
+- **Performance tab** (a task manager): **Summary** (LED meters, CPU Overview, Top CPU Processes, Memory Utilization,
+  System Pressure / Network / Disk / GPU tiles, Settings...), **Performance** (CPU with a graph per logical CPU,
+  memory, CPU power, thermals, every disk, adapter and GPU), **Processes** (Applications and Background Processes,
+  sortable, filter, detail pane), **Startup Apps**, **Users** and **Services**, with **Run New Task...**. Graphs keep
+  their history for the window's lifetime; time while the tab was hidden shows as a shaded gap.
+- **Process actions** on the Processes page and Summary's Top CPU Processes: End Task (SIGTERM, then a Force Kill offer
+  after 3 s), Force Kill, End Process Tree, Suspend / Resume, Priority (Very High ... Very Low), CPU Affinity,
+  Properties, Open File Location, Copy Command Line; Delete / Shift+Delete. Ending a process always asks first (Suspend
+  asks only for SRS's own session and desktop parts), with stronger warnings for SRS itself, the session SRS runs in and
+  desktop parts; PID 1 and kernel threads are never touched, SRS never
+  suspends itself, a reused PID is never signalled. Zombies are explained, with End Parent Process. Other users' and
+  root's processes through pkexec (polkit asks for the password).
+- **Startup Apps**: XDG autostart (yours over the system's), systemd user units, Plasma login scripts and
+  autostart-scripts, with Source and Notes (why an entry is hidden or will not start); Show Hidden; sortable columns;
+  a dash for "on, but will not start here". One-click on / off, Add (installed application, program or script,
+  command; delay; only in this desktop), Remove to `~/.config/autostart/.srs-trash` (Restore Removed...), Disable for
+  Me on system entries, Properties, Undo (the last 50 changes, also after a restart), Open File Location, Copy
+  Command. Never writes `/etc` or needs root; atomic writes; `.srs-bak` of your own file once; asks before turning
+  off a part of the desktop session.
+- **Users** (logind sessions with their processes; Disconnect, never for the session SRS runs in) and **Services**
+  (system or user units; Start / Stop / Restart ask first, warn for core units, run through polkit for system units).
+- **Live tray meters**, **off by default**: CPU Meter, CPU Cores, CPU History, CPU Temp, Memory Used, per card GPU
+  Meter / History / Temp / VRAM Used, Disk Activity, Disk Space and Network, each its own notification-area icon
+  (StatusNotifierItem over D-Bus, no libappindicator needed), updating while SRS is hidden. Left click opens The Big
+  Top's Performance tab; right click: Open SRS, Settings..., Notification Area Items, Quit SRS. The SRS icons stay
+  together in the settings' meter order (titles "SRS 01 CPU Meter", ...; stable ids `srs-meter-<id>`, so a tray's
+  "Always shown" choice sticks). **Tray Position** (`[Task Manager] Tray Position`): Normal (with the hardware icons:
+  volume, network, battery) or First (the group Plasma sorts first, after Notifications); the desktop decides the
+  final order. The settings point to Plasma's Configure System Tray > Entries > Always shown.
+- **Task Manager Settings** (Menu > Options > **Customize Task Manager (Performance tab, tray meters)...**, Settings...
+  in The Big Top, the meters' menu, `--gui-open=traysettings`): Performance and Tray Update Speed, Big Top Update
+  Speed, Default Start Page, Per-Core CPU Units, **Live Telemetry Icons**, the meters, Disk Space Mount, Keep Running
+  in the Tray When the Window Is Closed, Start Minimised to the Tray at Login, and a summon shortcut bound through the
+  desktop's GlobalShortcuts portal. Saved in `SRSDEF.ini`, group `[Task Manager]`.
+- **`srs-gui --tray`** = `--gui-tray`: start with only the tray icons.
+- **All Cores (Max)** (Alt+X) beside Threads on SRS Pi, Prime Sieve, CPU Compute, Everyday Work, Cache & Memory and
+  Crypto, and on Stress & Burnin's CPU list: every logical CPU for this run; the page's own values come back when it
+  is off; nothing is saved. On Crypto, CPU Compute and Everyday Work it runs **only the all-threads pass** (about half
+  the time): the 1-thread cells say "skipped", the result says "1-thread pass skipped (All Cores)", and Benchmark History
+  stores "-" (never 0) with `all-threads-only` / `1-THREAD-SKIPPED`. Command line: `--all-threads-only` on `crypto`,
+  `compute` and `work` (not together with `--single`).
+- **IR Blaster** (USB & PCI devices > IR Blaster, item `ir-blaster`; `sysreport-search ir`): ELK Smart / OCRUSTAR USB
+  infrared dongles (045c:0132 / 0184 / 0195 / 0134) as a remote control. The Remotes view: status with Test (identify,
+  no infrared) and Reset Dongle, remotes (Add / Rename / Delete), codes (Button, Type, Bytes, Frequency, Shortcut),
+  Send (Repeat 1-20, Dry Run shows the USB packets only), Learn Code (20 s countdown, Cancel resets the dongle, then
+  name it and pick its remote), Type Code (hex or NEC), Rename, Delete, Import (Add or Replace All) and Export; a
+  Report view for Copy and Save Report. The codes are IR Remote's `~/.config/irremote/remotes.json`, shared with that
+  app: read fresh before each change, unknown fields kept, written atomically, a one-time `remotes.json.before-srs`
+  copy, never written over a file that cannot be read; the view reloads when IR Remote changes it. Without access it
+  shows the udev rule `70-elksmart-ir.rules` (`TAG+="uaccess"`) and a Copy Install Command button. The tab is in the
+  Enthusiast and Expert lineups, greyed while no dongle is plugged in (checked every 2 s), and never hidden as empty.
+  The protocol is a port of elksmart-comm by Přemysl Eric Janouch (0BSD) over the kernel's usbfs: no libusb, no new
+  dependency; it includes the 045c:0132 learn-acknowledgement fix, and learning can be cancelled and has a deadline.
+  `sysreport-search ir`: `--status` (default), `--list`, `--send REMOTE BUTTON`, `--send-code HEX [--nec]`, `--learn
+  [--save REMOTE BUTTON]`, `--probe`, `--reset`, `--export` / `--import [--replace]`, `--repeat`, `--frequency`,
+  `--timeout`, `--dry-run`, `--yes` (send and learn ask first). `tests/ir-test.sh` checks that the packets are
+  byte-identical to `/usr/bin/elksmart-comm`. Used for real with one OCRUSTAR / ELKSMART 045c:0132 dongle (plain
+  protocol) and one TV: status, probe, send, repeat and learn worked.
+- **Startup Apps: Restore Default** (button and right-click menu; asks first; Undo takes it back): a system entry
+  loses your per-user copy, your own entry gets its original back (`.srs-bak` or the old Startup manager's saved
+  original), a systemd user unit gets `systemctl --user preset`. **Restore Removed** also lists the copies the 2.2
+  Startup manager saved in `~/.config/srs/startup-backup` ("Saved by the old Startup manager") and brings them back
+  as copies, never deleting them or replacing an entry that is there; a one-time bar says how many exist. Open File
+  Location and Copy Command are icon buttons.
+- **Guide buttons**: The Big Top's Guide button and F1 open the user guide at the tab shown (on the Performance tab, at
+  the page shown); the Task Manager Settings have their own Guide button. `guide` accepts a `#section` anchor.
+- Tests: `tests/gpu-top-test.sh` (fixtures: a captured RX 9070 XT and a made-up five-GPU PC with an NVML stand-in),
+  `tests/perf-view-test.sh` (sampler on `/proc` + `/sys` fixtures, every page under Xvfb, process actions on
+  test-started processes only), `tests/autostart-test.sh` (Startup Apps on a throw-away HOME with a fake systemctl),
+  `tests/perf-tray-test.sh` (the meters on a private bus with a fake tray).
+- **One load at a time.** While any benchmark or Stress & Burnin runs, every other page's Run / Start / Run All is
+  greyed, its tooltip naming the running test ("Crypto Benchmark is running - wait for it or press Stop on its page");
+  browsing, The Big Top and the non-load tools stay usable. A lock file (`$XDG_RUNTIME_DIR/srs/bench.lock`, or
+  `~/.cache/srs/bench.lock` without a runtime folder - never `/tmp`; a folder only this user can write, no symlinks
+  followed; PID + test, stale-PID aware) covers other SRS windows and `sysreport-search`: the window asks "Another SRS benchmark
+  (..., PID n) is running - start anyway?"; the command line refuses without a terminal, asks in one, and warns and
+  starts with `--yes`.
+- **Stop on every benchmark page**: CPU Benchmark (next CPU set), IPI Delay (next pair; a stopped run keeps the last full
+  matrix), Latency (next block size) and Crypto (next measurement) now have Stop too; what was measured is shown and
+  marked stopped (Crypto's history line gets STOPPED). **Run All** on Everyday Work (every group and library) and the
+  GPU Compute comparison (every installed back end).
+- Tests: `tests/all-threads-only-test.sh`, `tests/bench-lock-test.sh` (stale PID, two holders, CLI, GUI under Xvfb),
+  `tests/bench-stop-test.sh` (Run then Stop on eight pages under Xvfb, tiny settings).
+
+### Changed
+
+- **One startup manager.** Operating System > Startup programs > **Manage** now opens The Big Top > Performance >
+  Startup Apps (the Manage page keeps a short note and an Open Startup Apps button). The 2.2 Startup manager is
+  removed; its Restore Default and its saved copies live on in Startup Apps (above), and entries it marked
+  `X-SRS-Override` / `X-SRS-Added` work as before. System services are started and stopped on the Services page;
+  Startup Apps never writes `/etc`. `SRS_STARTUP_DRY_RUN` is gone with it.
+- **The Big Top's Performance Counters (GRBM) are off by default**: turn them on when you need the GRBM panels.
+  Reading the GRBM registers 100 times a second can keep the card out of its power-saving states.
+- **Longer test times**: every benchmark's time per measurement (or per test) now goes up to 60 seconds, in the
+  window and on the command line. Before, the limits differed: Compute, Everyday work, Cache and memory and Crypto
+  stopped at 10 s, Storage, OS latency's tick test and Network at 30 s, and the GPU and GPU Compare pages at 2 s
+  (command line 10 s). Longer runs give steadier numbers and hold a load longer. The benchmarks have no temperature
+  limit (Stress & Burnin has one); Stop ends a run at any time.
+- **The ten "Benchmark: <mode>" items are gone from the window** (benchmark-ac ... benchmark-pp: all CPUs
+  concurrent, D+D then W+W ...). They only showed the last result and pointed to the CPU Benchmarks tab, whose Mode
+  list runs the same ten modes, so in the Expert lineup they filled the Benchmarks & Stress page with tabs that did
+  nothing (28 items there, now 20). They are left out of the page tabs, the Classic menus and the search; the CPU
+  Benchmarks tab still shows the last result of every mode. sysreport-search and saved reports keep them.
+- The SRS tray menu's **Exit** and the close-to-tray notice now say **Quit SRS**, like the meter icons. Hide to tray
+  also hides The Big Top; Show brings it back. The meter icons count as a way back, so SRS can hide with only them.
+- `gpu-top --smi` prints one sample (amdgpu_top's `--smi` is live; use `--tui`).
+- **`gpu-top` reads the GRBM counters only with `--pc`** (off by default, as in the window; `--no-pc` is accepted and
+  does nothing). **Sleeping GPUs are not opened**: a runtime-suspended card is listed as "asleep (runtime suspended) -
+  not read"; `--device N --wake` wakes and reads it. `--interval` is kept exactly (the counters are read in 10 ms
+  steps). The Big Top starts on the first awake card and opens a sleeping one only when you pick it.
+- Performance tab, Startup Apps, Users, Services and Task Manager Settings: Alt letters that do not clash with The Big
+  Top's top row or tab row (End Task Alt+T, End Process Tree Alt+O, Force Kill Alt+K, Resume Alt+M, Priority Alt+Y,
+  Affinity Alt+F; Startup Apps Undo Alt+O, Restore Default Alt+F, Remove Alt+V, Restore Removed Alt+M, Show Hidden
+  Alt+H; Disconnect Alt+O; Services Stop Alt+O, User Services Alt+V; Stop Using the Shortcut Alt+H). The Startup
+  right-click menu has its own letters.
+- IR Blaster: the udev rule is found in `/etc`, `/run`, `/usr/local/lib` or `/usr/lib` `udev/rules.d` (a copy made
+  by Copy Install Command counts); when the rule is there but access is still denied SRS says to replug the dongle,
+  and a missing device file gets its own message. **Dry Run** in Title Case.
+- The Power & Cost sources never read a runtime-suspended graphics card (no wake-up of a laptop's second GPU).
+
+### Fixed
+
+- **Cache & Memory could report impossible memory speeds on long runs** (1,037,181 MB/s "memory read" on DDR5 in a
+  60 s run). Its buffers were filled with one byte value, so every page was the same, and when kernel same-page merging
+  (KSM) is on for all programs (animaksm, ksmtuned, PR_SET_MEMORY_MERGE) the kernel had time to fold the whole buffer
+  into one page, which then came from the cache. The buffers now hold different data on every page and are marked
+  not to be merged, and every benchmark takes SRS out of process-wide page merging before it starts (other benchmarks
+  give each thread its own copy of the same data, which KSM could merge the same way).
+  A KSM governor can switch merging back on in a program that stays open, so the window got it again on later runs
+  (787,451 MB/s): Cache & Memory now leaves merging and splits any merged buffer pages again before **every** test,
+  and a RAM result faster than the installed memory can deliver (speed x 8 bytes x channels, from the srs-root data;
+  without it, a read far above the copy speed) is shown as "not valid" in red with a Check line, never as a number.
+- The Big Top: per-process GPU use falls back to `drm-total-*` fdinfo keys when a driver has no `drm-memory-*`
+  ones; card names in JSON are UTF-8 safe; an unknown VRAM size shows n/a; gpu_metrics v3.0 GFX activity is
+  scaled the same in the metrics panel, `--gpu-metrics` and Activity; a slot's state is read under its lock.
+- Sensors: no sort on an empty sensor chip (qsort guard).
+- Processes: a row is the PID plus its start time and name, so a reused PID or an `exec()` gets a new row; the
+  elevated renice names every thread; the zombie bar's End Parent Process and Copy Command Line got clash-free
+  letters. Users: Disconnect copies the session's id and user before the confirmation and checks them again after.
+- Benchmarks: a stopped Crypto run shows "-" for cells it never measured; a stopped CPU Benchmark's total reads
+  "Total (partial)". Cache & Memory's "not valid" limit counts each stick as a channel when not every stick names
+  its channel (an upper bound), so a real result is never painted "not valid".
+- IR Blaster: `--probe` (and Test) fail with exit 1 when the dongle is busy instead of reporting success; the
+  identify flush is bounded; Learn / Send / Test / Reset come back at once after a failed or discarded Learn; each
+  save writes its own temporary file (the mode is kept); a kernel driver detached from the dongle is given back; an
+  incomplete learned code says "received N of M bytes".
+- **Build warnings with GCC 16**: the GPU VBIOS status page's part-number check is written so that GCC 16 no longer
+  warns about it in LTO and FORTIFY package builds (no change in what it shows).
+
+### Tested, and what was not
+
+Tested on one PC: Radeon RX 9070 XT, Ryzen 7 7800X3D, ASUS X870 board, KDE Plasma 6 on Wayland. The GPU view matched amdgpu_top 0.11.5
+there (`--list`, `--dump`, `--gpu-metrics`, `--process`, `--no-pc --smi`). **Untested** on real hardware, so please
+expect a bug or two: NVIDIA cards (a stand-in library only), Intel GPUs, other AMD generations (the RX 5000-7000
+PowerPlay tables on made-up data), APUs (gpu_metrics v2.x / v3.0 on made-up data), NPUs / XDNA, several GPUs in one
+PC, the GRBM counters on real hardware (recorded samples), laptops and hybrid graphics, other desktops' trays (GNOME
+with AppIndicator, XFCE, waybar) and the GlobalShortcuts portal, HiDPI screens and panels, Intel CPUs in the
+Performance tab, remote and multi-seat sessions, Startup Apps on desktops other than Plasma, the pkexec path of the
+process actions, Disconnect and Start / Stop / Restart for real, and the IR dongle models 045c:0184, 0195 and 0134
+and the compressed (Huffman) protocol (one 045c:0132 dongle with plain protocol was used). If something looks wrong on your PC, please open an
+issue on [GitHub](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware and the report SRS
+made.
+
 ## 2.4.0 - 2026-10-30
 
 A Memory Timings page with the live DDR5 timings, a GPU Burnin that loads the card much harder, stop limits up to

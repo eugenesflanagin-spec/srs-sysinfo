@@ -366,6 +366,7 @@ static int scan_empty_main(void)
         /* never the network items or Ping: they look at (or send to) the network, and this check must
            not reach the network, whether the user started it or the daily check did */
         if (!strcmp(s->id, "ping") || (s->group && !strcmp(s->group, "network"))) continue;
+        if (!strcmp(s->id, "ir-blaster")) continue;   /* plugged in and out: its tab stays, greyed while there is no dongle */
         if (s->needs_root && !so_root_file("collected.txt")) continue;   /* empty only for want of root data: keep it (and its Run as root button) */
         e.first = g_string_new(NULL);
         memset(&o, 0, sizeof o);
@@ -498,7 +499,7 @@ static GPtrArray *page_items(int cat)
     int i, n = srs_section_count();
     for (i = 0; i < n; i++) {
         const srs_item *s = srs_section_at(i);
-        if (s && s->id && cat_of_id(s->id) == cat) g_ptr_array_add(v, (gpointer)s);
+        if (s && s->id && !item_retired(s->id) && cat_of_id(s->id) == cat) g_ptr_array_add(v, (gpointer)s);
     }
     g_ptr_array_sort(v, item_title_cmp);
     return v;
@@ -572,7 +573,7 @@ static void page_fill(int cat)
     }
     for (i = 0; ps->tabs && i < ps->tabs->len; i++) {
         const char *id = cat == CAT_BENCH ? tool_alias(g_ptr_array_index(ps->tabs, i)) : g_ptr_array_index(ps->tabs, i);
-        if (g_hash_table_contains(seen, id) || !srs_section_find(id) || (!g_opt_showhidden && item_hidden(id))) continue;
+        if (g_hash_table_contains(seen, id) || !srs_section_find(id) || item_retired(id) || (!g_opt_showhidden && item_hidden(id))) continue;
         g_hash_table_add(seen, (gpointer)id);
         g_ptr_array_add(want, g_strdup(id));
     }
@@ -708,6 +709,7 @@ static void strip_rebuild(int cat)
         lab = gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(lab), mk);
         g_free(mk);
+        if (t->absent) gtk_style_context_add_class(gtk_widget_get_style_context(lab), "dim-label");
         gtk_container_add(GTK_CONTAINER(b), lab);
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(b), i == cur);
         gtk_button_set_relief(GTK_BUTTON(b), i == cur ? GTK_RELIEF_NORMAL : GTK_RELIEF_NONE);
@@ -978,7 +980,9 @@ static GtkWidget *tab_label_new(swin *t)
     gtk_label_set_markup(GTK_LABEL(t->tabtxt), mk);
     g_free(mk);
     gtk_box_pack_start(GTK_BOX(tl), t->tabtxt, FALSE, FALSE, 0);
-    snprintf(s, sizeof s, "%s  [%s]%s\nRight-click: Keep, Replace with..., Move, Close. Drag to move.", title, t->id,
+    tab_dim(t);
+    snprintf(s, sizeof s, "%s  [%s]%s%s\nRight-click: Keep, Replace with..., Move, Close. Drag to move.", title, t->id,
+             t->absent ? "\nNo IR blaster plugged in (greyed until one is)" : "",
              t->temp ? "\nTemporary tab: not kept when SRS closes (right-click > Keep this tab)" : "");
     gtk_widget_set_tooltip_text(eb, s);
     x = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);

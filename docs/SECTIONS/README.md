@@ -3,7 +3,7 @@
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe, RH Software (rh-software.com).
 ## How to use this reference
 
-This reference explains **every item SRS can show** - all 558 of them - one by one. For each item it
+This reference explains **every item SRS can show** - all 559 of them - one by one. For each item it
 says, in this order:
 
 1. **In plain words** - what it is, in one to three short sentences.
@@ -36,6 +36,13 @@ Every technical word is explained the first time a page uses it, and again in th
   brackets), or the panel buttons named in each group's introduction.
 - **From the command line:** `sysreport-search '-save=[id]'`.
 
+**Not items:** The Big Top window (2.5: its Performance tab with Summary, Performance, Processes,
+Startup Apps, Users and Services, and its GPU, SMI, DRM Info, PowerPlay Table and NPU (XDNA) tabs) and
+the live tray meters are not report items, so they are not in this reference. They are described in
+the User Guide, sections [6.13](../USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity),
+[6.14](../USER-GUIDE.md#614-the-performance-tab-a-task-manager) and
+[11.1](../USER-GUIDE.md#111-live-tray-meters-and-the-task-manager-settings).
+
 ## Groups
 
 The groups are in the same order as SRS's Menu.
@@ -49,7 +56,7 @@ The groups are in the same order as SRS's Menu.
 | Network | 36 | [network.md](network.md) | Network |
 | Linux (SIV's Windows items) | 78 | [linux-os.md](linux-os.md) | Operating system |
 | Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & Audio |
-| Buses / Devices (part 1) | 64 | [buses-1.md](buses-1.md) | USB & PCI devices |
+| Buses / Devices (part 1) | 65 | [buses-1.md](buses-1.md) | USB & PCI devices |
 | Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
 | Tools | 34 | [tools.md](tools.md) | Benchmarks & Stress; Tools |
 | SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
@@ -454,6 +461,7 @@ The groups are in the same order as SRS's Menu.
 | [I/O PM2 MMIO](buses-1.md#io-pm2-mmio) | `io-mmio` | Linux data - Needs root data |
 | [nForce I/O](buses-1.md#nforce-io) | `io-nforce` | Not present on most PCs |
 | [I/O ports](buses-1.md#io-ports) | `io-ports` | Linux data - Needs root data |
+| [IR Blaster](buses-1.md#ir-blaster) | `ir-blaster` | Linux data |
 | [IrDA ports](buses-1.md#irda-ports) | `irports` | Not present on most PCs |
 | [ISA bus](buses-1.md#isa-bus) | `isa-bus` | Linux data |
 | [MCA bus](buses-1.md#mca-bus) | `mca-bus` | Not present on most PCs |

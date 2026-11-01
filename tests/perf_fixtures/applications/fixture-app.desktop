@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Fixture App
+Exec=/usr/bin/fixture-app %U

@@ -26,9 +26,11 @@ HDRS      := srs.h
 SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c mem_timings.c lists.c sec_sensors.c sec_storage.c sec_network.c \
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
              bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c bench_net.c \
-             bench_gpu.c bench_gpuburn.c bench_gpucompare.c gpu_vk.c gpu_backend.c gpuburn_vk.c gpuburn_rt.c gpuburn_cl.c cuda_toolkit.c guide.c
+             bench_gpu.c bench_gpuburn.c bench_gpucompare.c gpu_vk.c gpu_backend.c gpuburn_vk.c gpuburn_rt.c gpuburn_cl.c cuda_toolkit.c guide.c \
+             gpu_top.c gpu_top_amd.c gpu_top_nvml.c ir.c
 SECHDRS   := sec.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h bench_work.h bench_net.h \
-             bench_gpu.h bench_gpuburn.h bench_gpucompare.h gpu_vk.h gpu_backend.h gpu_kernels.h gpu_kernels_ptx.inc cuda_toolkit.h bench_gpu_spv.inc sec_default_save.inc guide_map.inc
+             bench_gpu.h bench_gpuburn.h bench_gpucompare.h gpu_vk.h gpu_backend.h gpu_kernels.h gpu_kernels_ptx.inc cuda_toolkit.h bench_gpu_spv.inc sec_default_save.inc guide_map.inc \
+             gpu_top.h gpu_top_int.h gpu_top_metrics.inc ir.h
 # -ldl on the Linux link lines: the benchmarks load optional libraries (zlib, zstd, lz4, xz, libcurl) at
 # run time with dlopen, and so do the GPU benchmarks (libvulkan, ROCm/HIP, CUDA, OpenCL, hipBLAS, cuBLAS, CLBlast);
 # glibc 2.34+ has dlopen in libc, older glibc needs libdl. The GPU shaders are pre-compiled into
@@ -97,8 +99,8 @@ GTKLIBS  := $(shell pkg-config --libs gtk+-3.0 sqlite3)
 POWER    := power.c power_src.c power_model.c power_db.c power_rates.c
 POWERHDR := power.h power_src.h power_model.h power_db.h power_rates.h power_rates_data.inc
 # the GTK GUI's own extra sources (main window: sortable tables, tab lineups, startup manager)
-GUIX     := tblsort.c gui_startup.c
-GUIXHDRS := tblsort.h gui_tabs.inc gui_startup.h
+GUIX     := tblsort.c gui_ir.c gpu_top_gui.c perf_data.c perf_view.c perf_admin.c perf_tray.c perf_sni.c perf_autostart.c perf_procs.c
+GUIXHDRS := tblsort.h gui_tabs.inc gui_ir.h gpu_top_gui.h perf_data.h perf_view.h perf_admin.h perf_tray.h perf_sni.h perf_autostart.h perf_procs.h
 $(DIST)/linux-x86_64/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDRS) $(SECHDRS) $(GUIXHDRS) $(POWERHDR)
 	@mkdir -p $(@D)
 	$(CC) $(BASE) $(LINUX) -Wno-deprecated-declarations -DSRS_NO_MAIN $(GTKFLAGS) -s -o $@ gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(GTKLIBS) -lm -ldl
@@ -149,7 +151,8 @@ $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDR
 # URLs (no network) and srs-root's --acpi-eval input checks; none of them needs root, a GPU runtime or the network.
 BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh tests/bench-net-test.sh \
               tests/bench-gpu-test.sh tests/gpu-stub-test.sh tests/cuda-toolkit-test.sh \
-              tests/mem-timings-test.sh tests/lists-test.sh tests/root-pages-test.sh tests/srs-root-args-test.sh
+              tests/mem-timings-test.sh tests/lists-test.sh tests/root-pages-test.sh tests/srs-root-args-test.sh \
+              tests/gpu-top-test.sh tests/autostart-test.sh tests/perf-tray-test.sh tests/perf-view-test.sh tests/ir-test.sh tests/all-threads-only-test.sh tests/bench-lock-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done
 

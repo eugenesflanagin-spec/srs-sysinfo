@@ -192,7 +192,7 @@ CF="-std=c11 -Wall -Wextra -Wno-format-truncation -DSRS_HAVE_SECTIONS -D_DEFAULT
 : > "$TMP/build.log"
 ( cd "$SRC" && for f in $GPUSRC; do nice /usr/bin/gcc $CF -O1 -g $SAN -c -o "$TMP/${f%.c}.o" "$f" || exit 1; done ) 2>>"$TMP/build.log"
 if [ -f "$TMP/bench_gpucompare.o" ]; then
-    ( cd "$SRC" && nice /usr/bin/gcc $CF -O1 $SAN -DSRS_NO_MAIN -o "$TMP/harness" "$TMP/harness.c" core.c cli.c plat_posix.c $(printf '%s\n' $SECS | grep -vE '^(bench_gpu|gpu_|gpuburn_)') "$TMP"/gpu_vk.o "$TMP"/gpu_backend.o "$TMP"/gpuburn_*.o "$TMP"/bench_gpu*.o -lm ) 2>>"$TMP/build.log"
+    ( cd "$SRC" && nice /usr/bin/gcc $CF -O1 $SAN -DSRS_NO_MAIN -o "$TMP/harness" "$TMP/harness.c" core.c cli.c plat_posix.c $(printf '%s\n' $SECS | grep -vE '^(bench_gpu|gpu_vk|gpu_backend|gpuburn_)') "$TMP"/gpu_vk.o "$TMP"/gpu_backend.o "$TMP"/gpuburn_*.o "$TMP"/bench_gpu*.o -lm ) 2>>"$TMP/build.log"
 fi
 if [ -x "$TMP/harness" ]; then
     grep -E "gpu|bench_gpu.*warning" "$TMP/build.log" | grep -q "warning" && { grep warning "$TMP/build.log" | head; bad "compiler warnings"; } || ok "built, no warnings"
@@ -333,7 +333,7 @@ fi
 "$BIN" gpu-compare --help | grep -q "usage: sysreport-search gpu-compare" && ok "gpu-compare --help" || bad "gpu-compare --help"
 "$BIN" gpu-compare --bogus >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: unknown option -> exit 2" || bad "gpu-compare --bogus"
 "$BIN" gpu-compare --backends vulkan,metal >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: unknown back end -> exit 2" || bad "gpu-compare --backends metal"
-"$BIN" gpu-compare --seconds 50 >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: --seconds 50 -> exit 2" || bad "gpu-compare --seconds 50"
+"$BIN" gpu-compare --seconds 61 >/dev/null 2>&1; [ $? = 2 ] && ok "gpu-compare: --seconds 61 -> exit 2" || bad "gpu-compare --seconds 61"
 out=$(SRS_HIP_LIB=/nonexistent/libhip.so "$BIN" gpu-compare --backend hip --yes 2>&1); rc=$?
 [ $rc = 2 ] && grep -q "none of the chosen back ends is installed" <<<"$out" && ok "gpu-compare --backend hip with no HIP: not started" || bad "gpu-compare hip missing: $rc $out"
 out=$("$BIN" gpu-compare --backends vulkan --seconds 0.1 </dev/null 2>&1); rc=$?

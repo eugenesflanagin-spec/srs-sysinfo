@@ -9,6 +9,7 @@
 #define _GNU_SOURCE
 #include "sec.h"
 #include "srs.h"
+#include "ir.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -2194,6 +2195,7 @@ const srs_item sec_bus[] = {
     { "io-gpio", "hardware", "I/O GPIO", B_LINUX, 0, "/sys/bus/gpio/devices; gpio.txt cache (debugfs gpio, srs-root)", s_io_gpio, 0, "bus" },
     { "io-mmio", "hardware", "I/O PM2 MMIO", B_LINUX, 1, "/proc/iomem; iomem.txt", s_io_mmio, 0, "bus" },
     { "io-ports", "hardware", "I/O ports", B_LINUX, 1, "/proc/ioports; ioports.txt", s_io_ports, 0, "bus" },
+    { "ir-blaster", "hardware", "IR Blaster", B_LINUX, 0, "/sys/bus/usb/devices (045c:0132 / 0184 / 0195 / 0134, read only); ~/.config/irremote/remotes.json (shared with IR Remote)", s_ir_blaster, 0, "bus" },
     { "isa-bus", "hardware", "ISA bus", B_LINUX, 0, "/sys/bus/pnp/devices; /sys/bus/isa", s_isa_bus, 0, "bus" },
     { "mch", "hardware", "Chipset MCH", B_LINUX, 1, "/sys/bus/pci/devices/0000:00:00.0; pci-all.txt", s_mch, 0, "bus" },
     { "npu-names", "hardware", "NPU names", B_ABSENT, 0, "/sys/class/accel", s_npu, 0, "bus" },

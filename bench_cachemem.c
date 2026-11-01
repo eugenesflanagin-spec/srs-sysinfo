@@ -125,9 +125,35 @@ static void *alloc_pages(size_t bytes, int huge)
     void *p = NULL;
     if (posix_memalign(&p, al, sz)) return NULL;
     madvise(p, sz, huge ? MADV_HUGEPAGE : MADV_NOHUGEPAGE);
+#ifdef MADV_UNMERGEABLE
+    madvise(p, sz, MADV_UNMERGEABLE);   /* 2.4.1: see fill_unique */
+#endif
     return p;
 }
+
+/* 2.4.1: fill a buffer so that no two pages are alike. With memset(1) every page was the same, and when kernel
+   same-page merging (KSM) is on for all programs (ksmtuned, animaksm, PR_SET_MEMORY_MERGE) a long run gave KSM time to
+   fold the whole buffer into one page: "memory" read then came from the cache (1,037,181 MB/s on DDR5 in a 60 s run). */
+static void fill_unique(void *b, size_t n)
+{
+    uint64_t *q = b, k = (uint64_t)(uintptr_t)b;
+    size_t i;
+    for (i = 0; i < n / 8; i++) q[i] = (k + i) * 0x9E3779B97F4A7C15ull;
+}
 static void *alloc_huge(size_t bytes) { return alloc_pages(bytes, 1); }
+
+/* 2.4.1: undo any merging before each test. A KSM governor (animaksm here) switches process-wide merging back on
+   in running programs after SRS turned it off, so a window that stays open got merged buffers on later runs
+   (787,451 MB/s "memory" read). MADV_UNMERGEABLE also splits pages that were already merged. */
+static void unmerge(void *p, size_t bytes)
+{
+#ifdef MADV_UNMERGEABLE
+    size_t al = 2u << 20;
+    if (p) madvise(p, (bytes + al - 1) / al * al, MADV_UNMERGEABLE);
+#else
+    (void)p; (void)bytes;
+#endif
+}
 
 /* first logical CPU of every physical core among `cpus` */
 static int core_list(const int *cpus, int n, int *out)
@@ -467,7 +493,7 @@ static double mem_write_clzero(const int *cpus, int ncpu, size_t total, double s
     if (n > ncpu) n = ncpu;
     total = total / ((size_t)n * CLZ_CHUNK) * ((size_t)n * CLZ_CHUNK);
     if (!total || !(buf = alloc_huge(total))) return 0;
-    memset(buf, 1, total);
+    fill_unique(buf, total);
     w = calloc((size_t)n, sizeof *w);
     if (!w) { page_free(buf); return 0; }
     pthread_barrier_init(&start, NULL, (unsigned)n + 1);
@@ -589,6 +615,7 @@ int cm_run(const cm_cfg *cfg, cm_result *r, cm_cb cb, void *ud, volatile int *ca
     size_t per[CM_NLEVEL];
     char **bufs;
     pthread_t tid[MAXT];
+    bench_no_page_merge();
     memset(r, 0, sizeof *r);
     n = cfg->threads > 0 && cfg->threads < ncpu ? cfg->threads : ncpu;
     if (n < 1) return -1;
@@ -635,7 +662,7 @@ int cm_run(const cm_cfg *cfg, cm_result *r, cm_cb cb, void *ud, volatile int *ca
             p->w[i].cpu = cpus[i];
             p->w[i].buf = bufs[i];
             /* first touch by the owning thread happens in the warm-up trial; pre-fault here once */
-            memset(bufs[i], 1, per[CM_MEM] > per[CM_L3] ? per[CM_MEM] : per[CM_L3]);
+            fill_unique(bufs[i], per[CM_MEM] > per[CM_L3] ? per[CM_MEM] : per[CM_L3]);
             pthread_create(&tid[i], NULL, worker_main, &p->w[i]);
         }
         r->clock_mhz = cm_measure_mhz();
@@ -645,6 +672,8 @@ int cm_run(const cm_cfg *cfg, cm_result *r, cm_cb cb, void *ud, volatile int *ca
                 if (cfg->run_mask && !(cfg->run_mask & bit)) continue;
                 if (cancel && *cancel) { rc = 1; break; }
                 if (cb) cb(lv, te, 0, r, ud);
+                bench_no_page_merge();   /* again before every test: a KSM governor may have switched it back on */
+                for (i = 0; i < n; i++) unmerge(bufs[i], per[CM_MEM] > per[CM_L3] ? per[CM_MEM] : per[CM_L3]);
                 if (te == CM_LAT) {
                     /* single thread on the first CPU; chain over the level's block size */
                     /* block per level: L1 = half of L1d; L2 = half of L2 (few L1 hits); L3 = 8 x L2 (few L2
@@ -667,7 +696,7 @@ int cm_run(const cm_cfg *cfg, cm_result *r, cm_cb cb, void *ud, volatile int *ca
                     /* cache latency on ordinary 4 KB pages (includes first-level TLB misses, as on a normal
                        desktop); memory latency on 2 MB pages so page walks do not dominate it */
                     own = alloc_pages(bytes, lv == CM_MEM);
-                    if (own) { memset(own, 1, bytes); lb = own; }
+                    if (own) { fill_unique(own, bytes); lb = own; }
                     else if (bytes > (per[CM_MEM] > per[CM_L3] ? per[CM_MEM] : per[CM_L3])) bytes = per[CM_MEM] > per[CM_L3] ? per[CM_MEM] : per[CM_L3];
                     old = aff_save();
                     pin(cpus[0]);
@@ -791,7 +820,7 @@ static void dimms(int *count, int *mts, char *type, size_t tn, int *channels)
     const char *path = so_root_file("dmidecode.txt");
     char l[512], chan[8][32];
     FILE *f;
-    int in17 = 0, size_ok = 0, nch = 0, i;
+    int in17 = 0, size_ok = 0, nch = 0, i, labelled = 0;
     *count = 0; *mts = 0; type[0] = 0; *channels = 0;
     if (!path || !(f = fopen(path, "r"))) return;
     while (fgets(l, sizeof l, f)) {
@@ -809,6 +838,7 @@ static void dimms(int *count, int *mts, char *type, size_t tn, int *channels)
         } else if (size_ok && !strncmp(t, "Bank Locator:", 13)) {
             char *c = strstr(t, "CHANNEL "), cb[32];
             if (c) {
+                labelled++;
                 snprintf(cb, sizeof cb, "%s", c + 8);
                 cb[strcspn(cb, " \t\n")] = 0;
                 for (i = 0; i < nch; i++) if (!strcmp(chan[i], cb)) break;
@@ -817,7 +847,9 @@ static void dimms(int *count, int *mts, char *type, size_t tn, int *channels)
         }
     }
     fclose(f);
-    *channels = nch;
+    /* every populated stick must name its channel, else the count may be short (one "CHANNEL A", one "BANK 1"):
+       then take the sticks as the channels, an upper bound, so a real result is never called "not valid" */
+    *channels = labelled >= *count ? nch : *count > nch ? *count : nch;
 }
 
 static const char *const cm_row_name[CM_NLEVEL] = { "Memory (RAM)", "L1 cache", "L2 cache", "L3 cache" };
@@ -828,25 +860,47 @@ static void cm_render(srs_out *o, void *c)
 {
     static const int tabs[] = { 150, 290, 430, 570 }, tabs2[] = { 230 };
     cmctx *x = c;
-    int lv, te, mts = 0, n = 0, nch = 0;
+    int lv, te, mts = 0, n = 0, nch = 0, nbad = 0, bad[CM_NTEST] = { 0 };
     char type[32];
+    double peak = 0;
     so_siv_header(o, "Cache & Memory benchmark (bandwidth and latency of the RAM and each cache level)");
+    dimms(&n, &mts, type, sizeof type, &nch);
+    /* 2.4.1: a RAM result above what the sticks can deliver is not a measurement (merged pages read from the cache);
+       peak = transfers/s x 8 bytes per 64-bit channel x channels, plus 10 % for rounding in the reported speed */
+    if (mts > 0 && nch > 0) peak = (double)mts * 1e6 * 8.0 * nch * 1.10 / (x->mib ? 1048576.0 : 1e6);
+    for (te = 0; te < CM_NTEST; te++) {
+        double v = x->r.v[CM_MEM][te];
+        if (te == CM_LAT || v <= 0) continue;
+        if (peak > 0 ? v > peak : (te == CM_READ && x->r.v[CM_MEM][CM_COPY] > 0 && v > 4.0 * x->r.v[CM_MEM][CM_COPY]))
+            bad[te] = 1, nbad++;
+    }
     so_tabs(o, tabs, 4);
     so_row(o, 5, (const char *const[]){ "", "Read", "Write", "Copy", "Latency" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL, C_LABEL, C_LABEL });
     for (lv = 0; lv < CM_NLEVEL; lv++) {
-        char cell[CM_NTEST][32];
+        char cell[CM_NTEST][48];
         const char *cp[5];
+        int col[5] = { C_LABEL, C_BLACK, C_BLACK, C_BLACK, C_BLACK };
         for (te = 0; te < CM_NTEST; te++) {
             double v = x->r.v[lv][te];
-            if (v <= 0) snprintf(cell[te], 32, "-");
-            else if (te == CM_LAT) snprintf(cell[te], 32, "%.1f ns", v);
-            else cm_format_bw(cell[te], 32, lv, v, x->mib);
+            if (v <= 0) snprintf(cell[te], sizeof cell[te], "-");
+            else if (te == CM_LAT) snprintf(cell[te], sizeof cell[te], "%.1f ns", v);
+            else if (lv == CM_MEM && bad[te]) { snprintf(cell[te], sizeof cell[te], "not valid"); col[te + 1] = C_RED; }
+            else cm_format_bw(cell[te], sizeof cell[te], lv, v, x->mib);
         }
         cp[0] = cm_row_name[lv]; cp[1] = cell[0]; cp[2] = cell[1]; cp[3] = cell[2]; cp[4] = cell[3];
-        so_row(o, 5, cp, (const int[]){ C_LABEL, C_BLACK, C_BLACK, C_BLACK, C_BLACK });
+        so_row(o, 5, cp, col);
     }
     so_par(o);
     so_tabs(o, tabs2, 1);
+    if (nbad) {
+        char m[200];
+        double v = x->r.v[CM_MEM][CM_READ] > 0 && bad[CM_READ] ? x->r.v[CM_MEM][CM_READ] : 0;
+        if (peak > 0)
+            snprintf(m, sizeof m, "RAM result%s faster than the memory can deliver (%.0f %s at most)%s - run it again",
+                     nbad > 1 ? "s" : "", peak / 1.10, x->mib ? "MiB/s" : "MB/s", v > 0 ? "; pages were probably merged (KSM)" : "");
+        else snprintf(m, sizeof m, "RAM read is far faster than RAM copy, which is not possible - pages were probably merged (KSM); run it again");
+        so_kv(o, "Check", C_RED, m);
+    }
     if (x->cancelled) so_kv(o, "Status", C_ORANGE, "Stopped before the end - the empty cells were not measured");
     so_kvf(o, "Threads / code", C_VALUE, "%d threads, %s vector code", x->r.threads, cm_isa_name(x->r.isa));
     if (x->r.mem_write) so_kv(o, "RAM write method", C_VALUE, x->r.mem_write == CM_MW_CLZERO ?
@@ -857,7 +911,6 @@ static void cm_render(srs_out *o, void *c)
     else so_kv(o, "Base clock", C_VALUE, "100 MHz (nominal; could not be measured)");
     if (x->r.clock_mhz > 0) so_kvf(o, "Multiplier", C_VALUE, "%.2f x", x->r.clock_mhz / (x->base > 0 ? x->base : 100.0));
     so_kv(o, "Infinity Fabric clock", C_VALUE, x->fclk);
-    dimms(&n, &mts, type, sizeof type, &nch);
     if (mts > 0) {
         so_kvf(o, "Memory", C_VALUE, "%s-%d, %d stick%s%s%.0d%s", type[0] ? type : "DRAM", mts, n, n == 1 ? "" : "s",
                nch > 0 ? ", " : "", nch, nch > 1 ? " channels" : nch == 1 ? " channel" : "");

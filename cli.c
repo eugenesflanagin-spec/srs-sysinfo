@@ -19,7 +19,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,update-lists} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,gpu-top,big-top,ir,update-lists} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -59,8 +59,9 @@ static const char *HELP =
     "        SRS Pi: pi to N decimal places (default 1m, 1 thread), every digit checked;\n"
     "        ki / mi = SuperPi sizes (powers of two): 1mi = 1,048,576 digits, 32mi = 33,554,432;\n"
     "        asks first (with the time and the memory it needs), --yes starts at once\n"
-    "  crypto [--threads N] [--seconds S] [--yes]\n"
+    "  crypto [--threads N] [--seconds S] [--all-threads-only] [--yes]\n"
     "        AES-128 and SHA-256 speed, plain C and with AES-NI / SHA-NI (default all threads, 1 s);\n"
+    "        --all-threads-only skips the 1-thread pass (the GUI's All Cores; about half the time);\n"
     "        asks first, --yes starts at once\n"
     "  cachemem [--threads N] [--seconds S] [--isa avx512|avx2|sse2] [--mem-mib M] [--only mem,l1,l2,l3]\n"
     "           [--tests read,write,copy,latency] [--mib] [--mem-write auto|clzero|stream] [--yes]\n"
@@ -74,14 +75,16 @@ static const char *HELP =
     "        timer lateness (with the CPU scheduler in use), page faults, file create / stat / unlink\n"
     "        (default 20000 samples, 3 s tick test; ~6 s on one or two CPUs; asks first, --yes starts at once)\n"
     "  compute [--threads N] [--seconds S] [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]\n"
-    "          [--code auto|c|sse2|avx2|avx512] [--single] [--yes]\n"
+    "          [--code auto|c|sse2|avx2|avx512] [--single | --all-threads-only] [--yes]\n"
     "        CPU Compute: matrix multiply, peak multiply-add, FFT, N-body, Mandelbrot, ray tracer in GFLOPS /\n"
     "        Mpixels/s, 1 thread and N threads (default all), every answer checked; ~10 s, all threads 100%\n"
-    "        busy (--single: one thread); asks first, --yes starts at once\n"
+    "        busy (--single: one thread; --all-threads-only: N threads only, as All Cores); asks first,\n"
+    "        --yes starts at once\n"
     "  work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz]\n"
-    "       [--single] [--part-kib K] [--yes]\n"
+    "       [--single | --all-threads-only] [--part-kib K] [--yes]\n"
     "        Everyday work: compression (system zlib / zstd / lz4 / xz), sorting, checksums, text processing\n"
-    "        and a bytecode interpreter, 1 thread and N threads (default all), every result checked;\n"
+    "        and a bytecode interpreter, 1 thread and N threads (default all; --all-threads-only: N threads\n"
+    "        only, as All Cores), every result checked;\n"
     "        generated data only; asks first, --yes starts at once\n"
     "  net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6]\n"
     "      [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]\n"
@@ -109,6 +112,14 @@ static const char *HELP =
     "        is for, the install command for this distribution; --install runs that command after you type\n"
     "        yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built\n"
     "        in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it\n"
+    "  gpu-top [--list|--dump|--gpu-metrics|--drm-info|--pp-table|--process|--xdna|--smi|--tui] [-J] [--device N]\n"
+    "          [--no-pc] [--interval MS] [-n COUNT]       (big-top is the same command)\n"
+    "        The Big Top's GPU part: activity, GRBM blocks, VRAM, sensors, gpu_metrics and processes of every GPU (AMD like\n"
+    "        amdgpu_top; NVIDIA through NVML); read-only, changes nothing\n"
+    "  ir [--status|--list|--send REMOTE BUTTON [--repeat N]|--send-code HEX [--nec]|--learn [--save REMOTE BUTTON]|\n"
+    "     --probe|--reset|--export FILE|--import FILE [--replace]] [--dry-run] [--yes]\n"
+    "        IR Blaster: ELK Smart / OCRUSTAR USB infrared dongles - learn and send remote-control codes, kept in IR\n"
+    "        Remote's remotes.json (shared with that app); --send and --learn ask first, --yes starts at once\n"
     "  update-lists [--list] [--yes]\n"
     "        download fresh pci.ids, usb.ids and pnp.ids from their official sources into\n"
     "        ~/.local/share/srs/lists (no root); SRS then uses the newer of these and the system's copies.\n"
@@ -739,7 +750,8 @@ static int cmd_compute(int argc, char **argv)
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
             puts("usage: sysreport-search compute [--threads N] [--seconds S]\n"
                  "                                [--tests sgemm,dgemm,fma-sp,fma-dp,fft-sp,fft-dp,nbody,mandelbrot,raytrace]\n"
-                 "                                [--code auto|c|sse2|avx2|avx512] [--single] [--yes]");
+                 "                                [--code auto|c|sse2|avx2|avx512] [--single | --all-threads-only] [--yes]\n"
+                 "  --all-threads-only  skip the 1-thread pass (the GUI's All Cores): only the N-threads column, about half the time");
             help_risk();
             return 0;
         }
@@ -748,6 +760,7 @@ static int cmd_compute(int argc, char **argv)
         if (!strcmp(a, "--threads")) c.threads = atoi(v);
         else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
         else if (!strcmp(a, "--single")) c.single_only = 1;
+        else if (!strcmp(a, "--all-threads-only")) c.multi_only = 1;
         else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
         else if (!strcmp(a, "--code")) {
             int k;
@@ -771,10 +784,12 @@ static int cmd_compute(int argc, char **argv)
     }
     if (c.seconds < 0.1 || c.seconds > 60) return usage_error("compute: --seconds must be 0.1..60");
     if (c.threads < 0 || c.threads > BURN_MAXCPU) return usage_error("compute: --threads must be 1 or more (0 = all)");
+    if (c.single_only && c.multi_only) return usage_error("compute: --single and --all-threads-only exclude each other");
     if (!cp_available()) { bench_compute(&c, &o, NULL); return 2; }
     snprintf(what, sizeof what, "CPU Compute runs matrix multiply, multiply-add, FFT, N-body, Mandelbrot and a ray tracer for about %.0f s,\n"
              "%s%s\nAn unstable overclock or undervolt can crash the PC under this load (--single keeps it light).",
-             cp_estimate_seconds(&c), c.single_only ? "on one thread only." : "on one thread and then on all chosen threads at once: every CPU 100% busy.",
+             cp_estimate_seconds(&c), c.single_only ? "on one thread only." : c.multi_only ? "on all chosen threads at once only (the 1-thread pass is skipped): every CPU 100% busy."
+             : "on one thread and then on all chosen threads at once: every CPU 100% busy.",
              cp_isa_best() == CP_ISA_AVX512 && (c.isa == CP_ISA_AUTO || c.isa == CP_ISA_AVX512) ? " It uses AVX-512, which draws a lot of power." : "");
     if (!yes && !ask_start("compute", what)) return 2;
     rc = bench_compute(&c, &o, NULL);
@@ -820,7 +835,8 @@ static int cmd_work(int argc, char **argv)
                    !strcmp(a, "--part-kib");
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
             puts("usage: sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp]\n"
-                 "                             [--libs zlib,zstd,lz4,xz] [--single] [--part-kib K] [--yes]");
+                 "                             [--libs zlib,zstd,lz4,xz] [--single | --all-threads-only] [--part-kib K] [--yes]\n"
+                 "  --all-threads-only  skip the 1-thread pass (the GUI's All Cores): only the N-threads column, about half the time");
             help_risk();
             return 0;
         }
@@ -830,6 +846,7 @@ static int cmd_work(int argc, char **argv)
         else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
         else if (!strcmp(a, "--part-kib")) c.part_kib = atol(v);
         else if (!strcmp(a, "--single")) c.single_only = 1;
+        else if (!strcmp(a, "--all-threads-only")) c.multi_only = 1;
         else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
         else if (!strcmp(a, "--only")) { if (!parse_ids("work", "--only", v, wk_group_id, WK_NGROUP, &c.run_mask)) return 2; }
         else if (!strcmp(a, "--libs")) { if (!parse_ids("work", "--libs", v, wk_lib_id, WK_NLIB, &c.codec_mask)) return 2; }
@@ -838,10 +855,12 @@ static int cmd_work(int argc, char **argv)
     if (c.seconds < 0.1 || c.seconds > 60) return usage_error("work: --seconds must be 0.1..60");
     if (c.part_kib < 64 || c.part_kib > 16384) return usage_error("work: --part-kib must be 64..16384");
     if (c.threads < 0 || c.threads > BURN_MAXCPU) return usage_error("work: --threads must be 1 or more (0 = all)");
+    if (c.single_only && c.multi_only) return usage_error("work: --single and --all-threads-only exclude each other");
     if (!wk_available()) { bench_work(&c, &o, NULL); return 2; }
     snprintf(what, sizeof what, "Everyday work runs compression, sorting, checksum, text and interpreter tests for about %.0f s,\n"
              "%s\nThe test data is generated; none of your files are read or written (only the result is saved).",
-             wk_estimate_seconds(&c), c.single_only ? "on one thread only." :
+             wk_estimate_seconds(&c), c.single_only ? "on one thread only." : c.multi_only ?
+             "on all chosen threads at once only (the 1-thread pass is skipped): every CPU 100% busy, up to ~100 MB of memory per thread." :
              "on one thread and then on all chosen threads at once: every CPU 100% busy, up to ~100 MB of memory per thread.");
     if (!yes && !ask_start("work", what)) return 2;
     rc = bench_work(&c, &o, NULL);
@@ -946,7 +965,7 @@ static int cmd_gpu(int argc, char **argv)
         "usage: sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency]\n"
         "                            [--mem-mib M] [--list] [--yes]\n"
         "  --device N   the Vulkan device to test (number from --list; default: the first discrete GPU)\n"
-        "  --seconds S  GPU time per test, 0.1..10 (default 1)\n"
+        "  --seconds S  GPU time per test, 0.1..60 (default 1)\n"
         "  --only ...   run only these tests (comma-separated)\n"
         "  --mem-mib M  buffer size of the memory and transfer tests in MiB, 1..4096 (default: 256, less on small cards)\n"
         "  --list       list the Vulkan devices and exit (runs nothing on the GPU)\n"
@@ -983,7 +1002,7 @@ static int cmd_gpu(int argc, char **argv)
             if (!c.tests) return usage_error("gpu: --only needs at least one test");
         } else { fprintf(stderr, "gpu: unknown option '%s'\n", a); return 2; }
     }
-    if (c.seconds < 0.1 || c.seconds > 10) return usage_error("gpu: --seconds must be 0.1..10");
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("gpu: --seconds must be 0.1..60");
     if (c.mem_mib < 0 || c.mem_mib > 4096) return usage_error("gpu: --mem-mib must be 1..4096 (0 = auto)");
     gpu_quiet_layers();   /* main thread, before any Vulkan call: no overlays (MangoHud ...) in the run */
     if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
@@ -1162,7 +1181,7 @@ static int cmd_gpu_compare(int argc, char **argv)
         "usage: sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]\n"
         "  --backends L  the back ends to compare (comma-separated; default: every installed one);\n"
         "                --backend B is the same for one\n"
-        "  --seconds S   GPU time per test, 0.1..10 (default 1)\n"
+        "  --seconds S   GPU time per test, 0.1..60 (default 1)\n"
         "  --device N    the Vulkan device that names the GPU (see gpu --list); the other back ends\n"
         "                use the same GPU, found by its PCI address (default: the first discrete GPU)\n"
         "  --yes         start without asking";
@@ -1193,7 +1212,7 @@ static int cmd_gpu_compare(int argc, char **argv)
             }
         } else { fprintf(stderr, "gpu-compare: unknown option '%s'\n", a); return 2; }
     }
-    if (c.seconds < 0.1 || c.seconds > 10) return usage_error("gpu-compare: --seconds must be 0.1..10");
+    if (c.seconds < 0.1 || c.seconds > 60) return usage_error("gpu-compare: --seconds must be 0.1..60");
     gpu_quiet_layers();
     if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
     for (i = 0; i < GB_N; i++) {   /* dlopen only: which back ends are installed */
@@ -1271,10 +1290,17 @@ static int cmd_bench2(int argc, char **argv)
     }
     if (!strcmp(argv[1], "crypto")) {
         double secs = 1;
+        int all_only = 0;
         for (i = 2; i < argc; i++) {
             const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
-            if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts("usage: sysreport-search crypto [--threads N] [--seconds S] [--yes]"); help_risk(); return 0; }
+            if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
+                puts("usage: sysreport-search crypto [--threads N] [--seconds S] [--all-threads-only] [--yes]\n"
+                     "  --all-threads-only  skip the 1-thread pass (the GUI's All Cores): only the N-threads column, about half the time");
+                help_risk();
+                return 0;
+            }
             if (!strcmp(a, "--yes") || !strcmp(a, "-y")) { yes = 1; continue; }
+            if (!strcmp(a, "--all-threads-only")) { all_only = 1; continue; }
             if (!v) return usage_error("crypto: option needs a value");
             if (!strcmp(a, "--threads")) threads = atoi(v);
             else if (!strcmp(a, "--seconds")) secs = atof(v);
@@ -1282,9 +1308,9 @@ static int cmd_bench2(int argc, char **argv)
             i++;
         }
         if (secs < 0.1 || secs > 60) return usage_error("--seconds must be 0.1..60");
-        q.kind = BA_CRYPTO; q.threads = threads; q.secs = secs;
+        q.kind = BA_CRYPTO; q.threads = threads; q.secs = secs; q.all_only = all_only;
         if (!yes && !ask_bench("crypto", &q)) return 2;
-        return bench_crypto(threads, secs, &o) ? 1 : 0;
+        return bench_crypto(threads, secs, all_only, &o) ? 1 : 0;
     }
     {
         double lim = 1e9;
@@ -1453,6 +1479,646 @@ static int cmd_cuda_toolkit(int argc, char **argv)
 }
 #endif
 
+#if defined(SRS_HAVE_SECTIONS) && defined(__linux__)
+/* ------------------------------------------------------------------ ir: the IR Blaster (ELK Smart / OCRUSTAR
+   USB infrared dongles; protocol from elksmart-comm by Přemysl Eric Janouch, 0BSD). Codes live in IR Remote's
+   remotes.json. --send and --learn use the dongle and ask first unless --yes; the rest only read. */
+#include "ir.h"
+
+static int ir_ask(const char *what)
+{
+    char a[16] = "";
+    if (!isatty(0)) { fprintf(stderr, "ir: not started - run it from a terminal to be asked, or pass --yes\n"); return 0; }
+    fprintf(stderr, "%s [y/N] ", what);
+    fflush(stderr);
+    return fgets(a, sizeof a, stdin) && (a[0] == 'y' || a[0] == 'Y');
+}
+
+static int ir_ready_or_say(void)
+{
+    ir_dongle d;
+    char s[700];
+    if (ir_detect(&d) == IR_READY) return 1;
+    ir_status_text(&d, s, sizeof s);
+    fprintf(stderr, "ir: %s\n", s);
+    if (d.state == IR_NOPERM) fprintf(stderr, "    The rule is one line:\n    %s\n", IR_UDEV_LINE);
+    return 0;
+}
+
+static int cmd_ir(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search ir [--status | --list | --send REMOTE BUTTON [--repeat N] | --send-code HEX [--nec]\n"
+        "                            [--frequency HZ] [--repeat N] | --learn [--save REMOTE BUTTON] [--timeout S] [--frequency HZ] |\n"
+        "                            --probe | --reset | --export FILE | --import FILE [--replace]] [--dry-run] [--huffman] [--yes]\n"
+        "  IR Blaster: ELK Smart / OCRUSTAR USB infrared dongles (" IR_SUPPORTED_IDS ").\n"
+        "  The codes are IR Remote's (~/.config/irremote/remotes.json), shared with that app.\n"
+        "  --status     (default) is a dongle plugged in, may it be used (read-only: sysfs)\n"
+        "  --list       the remotes and their codes\n"
+        "  --send       press a saved button (REMOTE and BUTTON as listed; case does not matter)\n"
+        "  --send-code  send a hex code (--nec: NEC address+command pairs, 4 hex digits per press)\n"
+        "  --learn      wait for one button of a remote (hold it within 1 cm of the dongle) and print its code;\n"
+        "               --save REMOTE BUTTON also stores it (a new remote / button is made when needed)\n"
+        "  --probe      ask the dongle to identify itself (sends no infrared)\n"
+        "  --reset      USB reset, for a dongle that stopped answering (left in learn mode)\n"
+        "  --export / --import   copy the codes to / from a file (import merges; --replace replaces them all)\n"
+        "  --dry-run    with --send / --send-code: only print the USB packets, nothing is sent (--huffman: for a\n"
+        "               dongle that uses the compressed protocol)\n"
+        "  --send and --learn ask first; --yes starts at once.";
+    enum { M_STATUS, M_LIST, M_SEND, M_SENDCODE, M_LEARN, M_PROBE, M_RESET, M_EXPORT, M_IMPORT } mode = M_STATUS;
+    const char *a1 = NULL, *a2 = NULL, *save_r = NULL, *save_b = NULL;
+    unsigned long freq = 0;
+    int i, repeat = 1, yes = 0, dry = 0, nec = 0, huff = 0, replace = 0, nmodes = 0;
+    double timeout = 20;
+    char msg[1200], err[400];
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i];
+        int more = argc - i - 1;
+#define IR_NEED(n) do { if (more < (n)) { fprintf(stderr, "ir: %s needs %s\n%s\n", a, (n) == 2 ? "two values" : "a value", usage); return 2; } } while (0)
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        else if (!strcmp(a, "--status")) { mode = M_STATUS; nmodes++; }
+        else if (!strcmp(a, "--list")) { mode = M_LIST; nmodes++; }
+        else if (!strcmp(a, "--send")) { IR_NEED(2); mode = M_SEND; a1 = argv[++i]; a2 = argv[++i]; nmodes++; }
+        else if (!strcmp(a, "--send-code")) { IR_NEED(1); mode = M_SENDCODE; a1 = argv[++i]; nmodes++; }
+        else if (!strcmp(a, "--learn")) { mode = M_LEARN; nmodes++; }
+        else if (!strcmp(a, "--probe")) { mode = M_PROBE; nmodes++; }
+        else if (!strcmp(a, "--reset")) { mode = M_RESET; nmodes++; }
+        else if (!strcmp(a, "--export")) { IR_NEED(1); mode = M_EXPORT; a1 = argv[++i]; nmodes++; }
+        else if (!strcmp(a, "--import")) { IR_NEED(1); mode = M_IMPORT; a1 = argv[++i]; nmodes++; }
+        else if (!strcmp(a, "--save")) { IR_NEED(2); save_r = argv[++i]; save_b = argv[++i]; }
+        else if (!strcmp(a, "--repeat") || !strcmp(a, "-r")) { IR_NEED(1); repeat = atoi(argv[++i]); if (repeat < 1 || repeat > 100) { fprintf(stderr, "ir: --repeat needs 1..100\n"); return 2; } }
+        else if (!strcmp(a, "--frequency") || !strcmp(a, "-f")) { IR_NEED(1); freq = strtoul(argv[++i], NULL, 10); if (freq < 10000 || freq > 100000) { fprintf(stderr, "ir: --frequency needs 10000..100000 (Hz)\n"); return 2; } }
+        else if (!strcmp(a, "--timeout") || !strcmp(a, "-t")) { IR_NEED(1); timeout = atof(argv[++i]); if (timeout < 1 || timeout > 600) { fprintf(stderr, "ir: --timeout needs 1..600 (s)\n"); return 2; } }
+        else if (!strcmp(a, "--nec") || !strcmp(a, "-n")) nec = 1;
+        else if (!strcmp(a, "--dry-run")) dry = 1;
+        else if (!strcmp(a, "--huffman")) huff = 1;
+        else if (!strcmp(a, "--replace")) replace = 1;
+        else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
+        else { fprintf(stderr, "ir: unknown option '%s'\n%s\n", a, usage); return 2; }
+#undef IR_NEED
+    }
+    if (nmodes > 1) { fprintf(stderr, "ir: choose one of --status, --list, --send, --send-code, --learn, --probe, --reset, --export, --import\n"); return 2; }
+    if (save_r && mode != M_LEARN) { fprintf(stderr, "ir: --save goes with --learn\n"); return 2; }
+    if (dry && mode != M_SEND && mode != M_SENDCODE) { fprintf(stderr, "ir: --dry-run goes with --send or --send-code\n"); return 2; }
+    if (mode == M_STATUS) {
+        ir_dongle d;
+        ir_detect(&d);
+        ir_status_text(&d, msg, sizeof msg);
+        printf("%s\n", msg);
+        if (d.state != IR_ABSENT) printf("Device   %s\nSysfs    %s\n", d.node, d.sysdir);
+        {
+            char rule[600];
+            const char *have = ir_udev_rule_found(rule, sizeof rule);
+            printf("Rule     %s\n", have ? have : "not installed (" IR_UDEV_RULE " from elksmart-comm-git or IR Remote, or a copy in /etc/udev/rules.d)");
+            if (d.state == IR_NOPERM && !have && !d.nonode) printf("         %s\n", IR_UDEV_LINE);
+        }
+        printf("Codes    %s\n", ir_codes_path());
+        return d.state == IR_READY ? 0 : 1;
+    }
+    if (mode == M_PROBE) { int ok = ir_probe(msg, sizeof msg); fprintf(ok ? stdout : stderr, "%s\n", msg); return !ok; }
+    if (mode == M_RESET) { int ok = ir_reset(msg, sizeof msg); fprintf(ok ? stdout : stderr, "%s\n", msg); return !ok; }
+    if (mode == M_SENDCODE) {
+        if (dry) {
+            char *out = ir_dry_run(a1, nec, freq, huff, msg, sizeof msg);
+            if (!out) { fprintf(stderr, "ir: %s\n", msg); return 1; }
+            fputs(out, stdout);
+            printf("%s\n", msg);
+            free(out);
+            return 0;
+        }
+        if (ir_code_problem(a1, nec)) { fprintf(stderr, "ir: %s\n", ir_code_problem(a1, nec)); return 1; }
+        if (!ir_ready_or_say()) return 1;
+        snprintf(msg, sizeof msg, "Send this %s code (%zu hex digits, %lu Hz)%s through the IR blaster now?", nec ? "NEC" : "learned",
+                 strlen(a1), freq ? freq : IR_DEFAULT_FREQ, repeat > 1 ? " several times" : "");
+        if (!yes && !ir_ask(msg)) { fprintf(stderr, "not sent\n"); return 1; }
+        if (!ir_send(a1, nec, freq, repeat, NULL, msg, sizeof msg)) { fprintf(stderr, "ir: %s\n", msg); return 1; }
+        printf("%s\n", msg);
+        return 0;
+    }
+    {
+        int exists = 0, r, b;
+        const char *path = ir_codes_path();
+        ir_doc *doc = ir_doc_load(path, &exists, err, sizeof err);
+        if (!doc) { fprintf(stderr, "ir: %s\n", err); return 1; }
+        if (mode == M_LIST) {
+            if (!exists) printf("No codes yet (%s does not exist). Learn one: sysreport-search ir --learn --save REMOTE BUTTON\n", path);
+            for (r = 0; r < ir_nremotes(doc); r++) {
+                printf("%s\n", ir_remote_name(doc, r));
+                for (b = 0; b < ir_nbuttons(doc, r); b++) {
+                    ir_button bt;
+                    ir_button_at(doc, r, b, &bt);
+                    printf("  %-24s %-11s %5zu bytes  %6lu Hz%s%s\n", bt.name, *bt.code ? bt.type : "not learned", strlen(bt.code) / 2, bt.freq,
+                           *bt.shortcut ? "  " : "", bt.shortcut);
+                }
+            }
+            ir_doc_free(doc);
+            return 0;
+        }
+        if (mode == M_EXPORT) {
+            int ok = ir_doc_export(doc, a1, err, sizeof err);
+            if (ok) printf("Exported %d remote%s to %s\n", ir_nremotes(doc), ir_nremotes(doc) == 1 ? "" : "s", a1);
+            else fprintf(stderr, "ir: %s\n", err);
+            ir_doc_free(doc);
+            return !ok;
+        }
+        if (mode == M_IMPORT) {
+            int ex2 = 0, ok;
+            ir_doc *in = ir_doc_load(a1, &ex2, err, sizeof err);
+            if (!in || !ex2) { fprintf(stderr, "ir: can't import %s: %s\n", a1, in ? "no such file" : err); ir_doc_free(in); ir_doc_free(doc); return 1; }
+            if (replace) { ir_doc_free(doc); doc = in; in = NULL; ok = 1; }
+            else ok = ir_doc_merge(doc, in);
+            ok = ok && ir_doc_save(doc, path, err, sizeof err);
+            if (ok) printf("Imported %d remote%s%s into %s\n", ir_nremotes(in ? in : doc), ir_nremotes(in ? in : doc) == 1 ? "" : "s",
+                           replace ? " (replacing all)" : " (merged)", path);
+            else fprintf(stderr, "ir: %s\n", *err ? err : "out of memory");
+            ir_doc_free(in);
+            ir_doc_free(doc);
+            return !ok;
+        }
+        if (mode == M_SEND) {
+            ir_button bt;
+            int ok;
+            if ((r = ir_find_remote(doc, a1)) < 0) {
+                fprintf(stderr, "ir: no remote called \"%s\" (have:", a1);
+                for (b = 0; b < ir_nremotes(doc); b++) fprintf(stderr, "%s \"%s\"", b ? "," : "", ir_remote_name(doc, b));
+                fprintf(stderr, "%s)\n", ir_nremotes(doc) ? "" : " none");
+                ir_doc_free(doc);
+                return 1;
+            }
+            if ((b = ir_find_button(doc, r, a2)) < 0) {
+                fprintf(stderr, "ir: \"%s\" has no button \"%s\" (have:", ir_remote_name(doc, r), a2);
+                for (i = 0; i < ir_nbuttons(doc, r); i++) { ir_button_at(doc, r, i, &bt); fprintf(stderr, "%s \"%s\"", i ? "," : "", bt.name); }
+                fprintf(stderr, "%s)\n", ir_nbuttons(doc, r) ? "" : " none");
+                ir_doc_free(doc);
+                return 1;
+            }
+            ir_button_at(doc, r, b, &bt);
+            if (!*bt.code) { fprintf(stderr, "ir: %s / %s isn't learned yet - learn it first\n", ir_remote_name(doc, r), bt.name); ir_doc_free(doc); return 1; }
+            if (dry) {
+                char *out = ir_dry_run(bt.code, !strcmp(bt.type, "nec"), bt.freq, huff, msg, sizeof msg);
+                ok = out != NULL;
+                if (out) { printf("Would send %s / %s (%s code, %zu bytes, %lu Hz) x%d\n", ir_remote_name(doc, r), bt.name, bt.type, strlen(bt.code) / 2, bt.freq, repeat);
+                           fputs(out, stdout); printf("%s\n", msg); free(out); }
+                else fprintf(stderr, "ir: %s\n", msg);
+                ir_doc_free(doc);
+                return !ok;
+            }
+            if (!ir_ready_or_say()) { ir_doc_free(doc); return 1; }
+            snprintf(msg, sizeof msg, "Send %s / %s%s through the IR blaster now?", ir_remote_name(doc, r), bt.name, repeat > 1 ? " several times" : "");
+            if (!yes && !ir_ask(msg)) { fprintf(stderr, "not sent\n"); ir_doc_free(doc); return 1; }
+            ok = ir_send(bt.code, !strcmp(bt.type, "nec"), bt.freq, repeat, NULL, msg, sizeof msg);
+            if (ok) printf("%s %s / %s\n", msg, ir_remote_name(doc, r), bt.name);
+            else fprintf(stderr, "ir: %s\n", msg);
+            ir_doc_free(doc);
+            return !ok;
+        }
+        /* M_LEARN */
+        ir_doc_free(doc);
+        if (!ir_ready_or_say()) return 1;
+        if (!yes && !ir_ask("Put the IR blaster in learn mode now (it waits for one remote button)?")) { fprintf(stderr, "not started\n"); return 1; }
+        {
+            char code[8192], hint[256];
+            int ok;
+            fprintf(stderr, "Hold the remote within 1 cm of the dongle and press the button (waiting up to %.0f s)...\n", timeout);
+            ok = ir_learn(timeout, NULL, code, sizeof code, hint, sizeof hint, msg, sizeof msg);
+            if (!ok) { fprintf(stderr, "ir: %s\n", msg); return 1; }
+            printf("%s\n", code);
+            if (*hint) fprintf(stderr, "Attempted pulse decode: %s\n", hint);
+            if (save_r) {
+                if (!(doc = ir_doc_load(path, &exists, err, sizeof err))) { fprintf(stderr, "ir: not saved: %s\n", err); return 1; }   /* fresh: IR Remote may have changed it */
+                r = ir_remote_add(doc, save_r);
+                b = r >= 0 ? ir_button_set(doc, r, save_b, code, 0, freq) : -1;
+                ok = b >= 0 && ir_doc_save(doc, path, err, sizeof err);
+                if (ok) fprintf(stderr, "Saved as %s / %s\n", ir_remote_name(doc, r), save_b);
+                else fprintf(stderr, "ir: not saved: %s\n", b < 0 ? "a remote and a button need a name" : err);
+                ir_doc_free(doc);
+                return !ok;
+            }
+        }
+        return 0;
+    }
+}
+#endif
+
+#if defined(SRS_HAVE_SECTIONS) && defined(__linux__)
+/* ------------------------------------------------------------------ gpu-top (a C reimplementation of
+   amdgpu_top by Umio Yasuno, MIT; NVIDIA through NVML). Read-only: it never changes a clock, a fan or a limit. */
+#include "gpu_top.h"
+#include <termios.h>
+#include <poll.h>
+#include <time.h>
+
+static volatile sig_atomic_t gt_stop;
+static void gt_on_sig(int s) { (void)s; gt_stop = 1; }
+
+static void gt_print_sections(const gt_info *in)
+{
+    for (int i = 0; i < in->nsect; i++) {
+        const gt_section *s = &in->sect[i];
+        int w = 0, list = s->n && !s->kv[0].label[0];
+        for (int k = 0; k < s->n; k++) if ((int)strlen(s->kv[k].label) > w) w = (int)strlen(s->kv[k].label);
+        if (!strcmp(s->title, "Power Profiles") || !strcmp(s->title, "pp_feature_mask")) {
+            if (!s->n) continue;
+            printf("\n%s: [", !strcmp(s->title, "Power Profiles") ? "Supported Power Profiles" : "pp_feature_mask");
+            for (int k = 0; k < s->n; k++) printf("%s\"%s\"", k ? ", " : "", s->kv[k].value);
+            printf("]\n");
+            continue;
+        }
+        if (!strcmp(s->title, "Hardware IP") || !strcmp(s->title, "IP Discovery") || !strcmp(s->title, "Firmware") ||
+            !strcmp(s->title, "Video Caps") || !strcmp(s->title, "VBIOS")) {
+            printf("\n%s:\n", !strcmp(s->title, "Hardware IP") ? "Hardware IP info" : !strcmp(s->title, "IP Discovery") ? "IP Discovery table" :
+                   !strcmp(s->title, "Firmware") ? "Firmware info" : !strcmp(s->title, "Video Caps") ? "Video caps (WIDTHxHEIGHT)" : "VBIOS info");
+            if (!strcmp(s->title, "IP Discovery")) printf("    die_id: %2d\n", 0);
+            for (int k = 0; k < s->n; k++) {
+                if (!strcmp(s->title, "IP Discovery")) printf("        %-10s %s\n", s->kv[k].label, s->kv[k].value);
+                else if (!strcmp(s->title, "VBIOS")) printf("    %-7s: %s\n", s->kv[k].label, s->kv[k].value);
+                else if (!strcmp(s->title, "Video Caps")) printf("    %-10s: %s\n", s->kv[k].label, s->kv[k].value);
+                else printf("    %-8s %s\n", s->kv[k].label, s->kv[k].value);
+            }
+            continue;
+        }
+        printf("\n");
+        for (int k = 0; k < s->n; k++) {
+            if (list) printf("    %s\n", s->kv[k].value);
+            else printf("%-*s: %s\n", w, s->kv[k].label, s->kv[k].value);
+        }
+    }
+}
+
+static int gt_parse_int(const char *opt, const char *v, int lo, int hi, int *out)
+{
+    char *e;
+    long x = v ? strtol(v, &e, 10) : 0;
+    if (!v || !*v || *e || x < lo || x > hi) {
+        fprintf(stderr, "gpu-top: %s needs a number %d..%d\n", opt, lo, hi);
+        return -1;
+    }
+    *out = (int)x;
+    return 0;
+}
+
+/* "used/total" in MiB, "____/____" when the card did not say (no driver data: not 0 of -1) */
+static const char *gt_mib2(char *b, size_t n, long long used, long long total, int w)
+{
+    if (used == GT_NA || total == GT_NA || total <= 0) snprintf(b, n, "%*s/%*s", w, "____", w, "____");
+    else snprintf(b, n, "%*lld/%*lld", w, used >> 20, w, total >> 20);
+    return b;
+}
+
+static void gt_smi_header(void)
+{
+    printf("GPU %-25s %10s|%-16s|%18s|\n", "Name", "", " PCI Bus", "    VRAM Usage    ");
+    printf("SCLK    MCLK    VDDGFX  Power           | GFX%% UMC%%Media%%| GTT (RAM) Usage  |\n");
+    printf("GPU/MEM_T  %-7s %-57s|\n", "Fan", "Throttle_Status");
+    printf("-----------------------------------------------------------------------------------\n");
+}
+
+static void gt_smi_line(int i, const gt_info *in, const gt_stat *s)
+{
+    char thr[128] = "";
+    double pw = s->power_avg >= 0 ? s->power_avg : s->power_input;
+    char vm[32], gm[32];
+    printf("#%-2d [%-25.25s](%7s)| %s   |%s MiB |\n", i, in->dev.name, in->gfx_target, in->dev.pci, gt_mib2(vm, sizeof vm, s->vram_used, s->vram_total, 6));
+    if (s->sclk != GT_NA) printf("%4dMHz ", s->sclk); else printf("____MHz ");
+    if (s->mclk != GT_NA) printf("%4dMHz ", s->mclk); else printf("____MHz ");
+    if (s->vddgfx != GT_NA) printf("%4dmV ", s->vddgfx); else printf("____mV ");
+    if (pw >= 0 && s->power_cap != GT_NA) printf(" %3.0f/%3dW ", pw, s->power_cap);
+    else if (pw >= 0) printf(" %3.0f/___W ", pw);
+    else printf(" ___/___W ");
+    printf("       |");
+    for (int k = 0; k < 3; k++) {
+        int u = k == 0 ? s->gfx : k == 1 ? s->umc : s->media;
+        if (u != GT_NA) printf(" %3d%%", u); else printf(" ___%%");
+    }
+    printf(" |%s MiB |\n", gt_mib2(gm, sizeof gm, s->gtt_used, s->gtt_total, 6));
+    {
+        int t = s->junction != GT_NA ? s->junction : s->edge;
+        if (t != GT_NA && s->memtemp != GT_NA) printf("%3dC/%3dC", t, s->memtemp);
+        else if (t != GT_NA) printf("%3dC/___C", t);
+        else printf("___C/___C");
+    }
+    if (s->fan_rpm != GT_NA) printf("  %4dRPM ", s->fan_rpm); else printf("  ____RPM ");
+    if ((s->metrics.present && s->metrics.v[GT_M_INDEP_THROTTLE_STATUS] != GT_NA) || s->nthr) {
+        snprintf(thr, sizeof thr, "[");
+        for (int k = 0; k < s->nthr; k++) { strncat(thr, k ? ", " : "", sizeof thr - strlen(thr) - 1); strncat(thr, s->thr[k], sizeof thr - strlen(thr) - 1); }
+        strncat(thr, "]", sizeof thr - strlen(thr) - 1);
+    } else if (s->idle_d3 && s->pci_power_state[0]) snprintf(thr, sizeof thr, "N/A (%s)", s->pci_power_state);
+    else snprintf(thr, sizeof thr, "N/A");
+    printf("%-57.57s|\n", thr);
+}
+
+static void gt_bar(const char *label, int pct, int width)
+{
+    int n = pct < 0 ? 0 : pct > 100 ? width : pct * width / 100;
+    printf(" %-34.34s [", label);
+    for (int i = 0; i < width; i++) putchar(i < n ? '|' : ' ');
+    if (pct == GT_NA) printf("]  n/a\n"); else printf("] %3d%%\n", pct);
+}
+
+static void gt_tui_draw(int ndev, gt_dev **dv, gt_stat *st, int no_pc, int interval)
+{
+    printf("\033[H\033[2J");
+    printf("SRS GPU Top - %d GPU%s, every %d ms (q or Ctrl+C quits)%s\n", ndev, ndev == 1 ? "" : "s", interval,
+           no_pc ? ", no GRBM counters" : "");
+    for (int i = 0; i < ndev; i++) {
+        const gt_info *in = gt_info_of(dv[i]);
+        const gt_stat *s = &st[i];
+        double pw = s->power_avg >= 0 ? s->power_avg : s->power_input;
+        printf("\n#%d %s (%s) %s%s\n", i, in->dev.name, in->dev.pci, in->gfx_target, s->idle_d3 ? "  [idle - not woken]" : "");
+        gt_bar("GFX", s->gfx, 40);
+        gt_bar("Memory", s->umc, 40);
+        gt_bar("Media", s->media, 40);
+        if (s->pc_ok && !no_pc) {
+            printf(" GRBM\n");
+            for (int k = 0; k < s->ngrbm; k++) gt_bar(s->grbm[k].name, s->grbm[k].pct, 30);
+            printf(" GRBM2\n");
+            for (int k = 0; k < s->ngrbm2; k++) gt_bar(s->grbm2[k].name, s->grbm2[k].pct, 30);
+        } else if (!no_pc) printf(" GRBM / GRBM2: not available on this card\n");
+        {
+            char a[32], b[32], c[32];
+            printf(" VRAM %s MiB   CPU-Visible %s MiB   GTT %s MiB\n", gt_mib2(a, sizeof a, s->vram_used, s->vram_total, 6),
+                   gt_mib2(b, sizeof b, s->vis_vram_used, s->vis_vram_total, 6), gt_mib2(c, sizeof c, s->gtt_used, s->gtt_total, 6));
+        }
+        {
+            char t[8][16];
+            int v[8] = { s->sclk, s->mclk, s->fclk, s->vddgfx, s->edge, s->junction, s->memtemp, s->fan_rpm };
+            for (int k = 0; k < 8; k++) { if (v[k] == GT_NA) snprintf(t[k], sizeof t[k], "____"); else snprintf(t[k], sizeof t[k], "%4d", v[k]); }
+            printf(" SCLK %s MHz  MCLK %s MHz  FCLK %s MHz  VDDGFX %s mV  Power ", t[0], t[1], t[2], t[3]);
+            if (pw >= 0) printf("%3.0f", pw); else printf("___");
+            if (s->power_cap != GT_NA) printf("/%3d W\n", s->power_cap); else printf("/___ W\n");
+            printf(" Temp. edge %s C  junction %s C  memory %s C  Fan %s RPM", t[4], t[5], t[6], t[7]);
+            if (s->pcie_gen != GT_NA) printf("  PCIe Gen%dx%d", s->pcie_gen, s->pcie_width);
+            printf("  %s  %s\n", s->pci_power_state, s->power_profile);
+        }
+        if (s->nthr) {
+            printf(" Throttle:");
+            for (int k = 0; k < s->nthr; k++) printf(" %s", s->thr[k]);
+            printf("\n");
+        }
+        printf(" %-20s %8s %6s %6s %4s %4s %4s %4s %4s\n", "Process", "PID", "VRAM", "GTT", "CPU", "GFX", "COMP", "DMA", "MEDIA");
+        for (int k = 0; k < s->nproc && k < 12; k++) {
+            const gt_proc *p = &s->proc[k];
+            int v[5] = { p->cpu, p->gfx, p->compute, p->dma, p->media };
+            printf(" %-20.20s %8d %5lldM %5lldM", p->name, p->pid, p->vram_kib >> 10, p->gtt_kib >> 10);
+            for (int c = 0; c < 5; c++) { if (v[c] == GT_NA) printf("    -"); else printf(" %4d", v[c]); }
+            printf("\n");
+        }
+    }
+    fflush(stdout);
+}
+
+static int cmd_gpu_top(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search gpu-top [--list | --dump | --gpu-metrics | --drm-info | --pp-table | --process | --xdna |\n"
+        "                                 --smi | --tui] [-J|--json] [--device N [--wake]] [--pc] [--interval MS] [-n COUNT]\n"
+        "  (also: sysreport-search big-top ...)\n"
+        "  The Big Top's GPU part: what each GPU is doing now - a C reimplementation of amdgpu_top (AMD) with NVIDIA through NVML.\n"
+        "  Read-only: it never changes a clock, a voltage, a fan or a power limit.\n"
+        "  --list         the GPUs (number, name, PCI bus, vendor, driver, device nodes)\n"
+        "  --dump         device info: ASIC, shaders, clocks, VRAM, caches, sensors, IP versions, firmware, video caps, VBIOS\n"
+        "  --gpu-metrics  the decoded gpu_metrics table (every field the card reports)\n"
+        "  --drm-info     display connectors, modes and their properties\n"
+        "  --pp-table     the PowerPlay table (Radeon RX 5000 / 6000 / 7000 only)\n"
+        "  --process      the processes using each GPU and their VRAM / GTT\n"
+        "  --xdna         the AMD XDNA NPU (Ryzen AI), where there is one\n"
+        "  --smi          a compact table, one block per GPU (after one interval)\n"
+        "  --tui          a live terminal view (default in a terminal); q or Ctrl+C quits\n"
+        "  -J, --json     JSON in amdgpu_top's shape; alone it prints one sample per interval (-n COUNT, 0 = forever)\n"
+        "  --device N     only GPU N (number from --list)\n"
+        "  --wake         with --device N: wake GPU N up and read it when it is asleep (runtime suspended); without it a\n"
+        "                 sleeping card is not read (\"asleep (runtime suspended) - not read\"), so it can stay asleep\n"
+        "  --pc           read the GRBM / GRBM2 performance counters (--smi, --tui, the -J stream). Off by default, as in the\n"
+        "                 window: reading them can keep the GPU out of its power-saving states (--no-pc is accepted, a no-op)\n"
+        "  --interval MS  sampling interval, 100..60000 ms (default 1000)";
+    enum { M_NONE, M_LIST, M_DUMP, M_METRICS, M_DRM, M_PPT, M_PROC, M_XDNA, M_SMI, M_TUI, M_CAPTURE } mode = M_NONE;
+    int json = 0, dev = -1, interval = 1000, count = 0, count_set = 0, n, first, last, rc = 0, wake = 0;
+    gt_opts op;
+    gt_device list[GT_MAX_DEV];
+    const char *capture = NULL;
+    memset(&op, 0, sizeof op);
+    op.no_pc = 1;   /* GRBM off by default, as in the window (2.5): --pc turns it on */
+    for (int i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
+        int m = M_NONE;
+        if (!strcmp(a, "-h") || !strcmp(a, "--help")) { puts(usage); return 0; }
+        if (!strcmp(a, "--list")) m = M_LIST;
+        else if (!strcmp(a, "--dump") || !strcmp(a, "-d")) m = M_DUMP;
+        else if (!strcmp(a, "--gpu-metrics")) m = M_METRICS;
+        else if (!strcmp(a, "--drm-info")) m = M_DRM;
+        else if (!strcmp(a, "--pp-table")) m = M_PPT;
+        else if (!strcmp(a, "--process")) m = M_PROC;
+        else if (!strcmp(a, "--xdna")) m = M_XDNA;
+        else if (!strcmp(a, "--smi")) m = M_SMI;
+        else if (!strcmp(a, "--tui")) m = M_TUI;
+        else if (!strcmp(a, "--capture-info")) { if (!v) { fprintf(stderr, "gpu-top: --capture-info needs a file\n%s\n", usage); return 2; } capture = v; i++; m = M_CAPTURE; }
+        else if (!strcmp(a, "-J") || !strcmp(a, "--json")) { json = 1; continue; }
+        else if (!strcmp(a, "--no-pc")) { op.no_pc = 1; continue; }   /* the default since 2.5; kept for amdgpu_top users */
+        else if (!strcmp(a, "--pc")) { op.no_pc = 0; continue; }
+        else if (!strcmp(a, "--wake")) { wake = 1; continue; }
+        else if (!strcmp(a, "--device") || !strcmp(a, "-i")) { if (gt_parse_int(a, v, 0, GT_MAX_DEV - 1, &dev)) return 2; i++; continue; }
+        else if (!strcmp(a, "--interval") || !strcmp(a, "-s")) { if (gt_parse_int(a, v, 100, 60000, &interval)) return 2; i++; continue; }
+        else if (!strcmp(a, "-n") || !strcmp(a, "--count")) { if (gt_parse_int(a, v, 0, 1000000, &count)) return 2; count_set = 1; i++; continue; }
+        else { fprintf(stderr, "gpu-top: unknown option '%s'\n%s\n", a, usage); return 2; }
+        if (mode != M_NONE && (int)mode != m) { fprintf(stderr, "gpu-top: choose one of --list, --dump, --gpu-metrics, --drm-info, --pp-table, --process, --xdna, --smi, --tui\n"); return 2; }
+        mode = m;
+    }
+    if (mode == M_TUI && json) { fprintf(stderr, "gpu-top: --tui and --json do not go together\n"); return 2; }
+    if (mode == M_NONE) mode = json ? M_NONE : (isatty(1) ? M_TUI : M_SMI);
+    if (mode == M_XDNA) {
+        char b[8192] = "";
+        int r = gt_xdna_text(b, sizeof b);
+        if (json) { printf("{\"xdna\":%s}\n", r ? "null" : "\"present\""); return 0; }
+        fputs(b, stdout);
+        return 0;
+    }
+    n = gt_device_list(list, GT_MAX_DEV);
+    if (n == 0) { fprintf(stderr, "gpu-top: no GPU found\n"); return 1; }
+    if (dev >= n) { fprintf(stderr, "gpu-top: there is no GPU %d (see --list)\n", dev); return 2; }
+    first = dev >= 0 ? dev : 0;
+    last = dev >= 0 ? dev : n - 1;
+    if (mode == M_LIST) {
+        if (json) printf("[");
+        for (int i = first; i <= last; i++) {
+            const gt_device *g = &list[i];
+            char nm[600], drv[200];
+            gt_json_escape(nm, sizeof nm, g->name);   /* names come from pci.ids / amdgpu.ids / NVML: escape them */
+            gt_json_escape(drv, sizeof drv, g->driver);
+            if (json) printf("%s{\"index\":%d,\"render\":\"%s\",\"card\":\"%s\",\"pci\":\"%s\",\"DeviceID\":%u,\"RevisionID\":%u,"
+                             "\"DeviceName\":\"%s\",\"Vendor\":\"%s\",\"Driver\":\"%s\",\"active\":%s}",
+                             i > first ? "," : "", i, g->render, g->card, g->pci, g->device_id, g->revision_id, nm,
+                             gt_vendor_name(g->vendor), drv, g->active ? "true" : "false");
+            else printf("#%d: %s (%s)\n    vendor %s (0x%04x), device 0x%04x rev 0x%02x, driver %s\n    card %s, render %s%s\n",
+                        i, g->name, g->pci, gt_vendor_name(g->vendor), g->vendor_id, g->device_id, g->revision_id,
+                        g->driver[0] ? g->driver : "(none)", g->card[0] ? g->card : "-", g->render[0] ? g->render : "-",
+                        g->active ? "" : "\n    asleep (runtime suspended): not read by the other pages (--device N --wake reads it)");
+        }
+        if (json) printf("]\n");
+        return 0;
+    }
+    {
+        gt_dev *dv[GT_MAX_DEV];
+        int idx[GT_MAX_DEV];   /* the --list number of each opened GPU */
+        gt_stat *st = calloc(GT_MAX_DEV, sizeof *st);
+        char *buf = malloc(1 << 20);
+        int nd = 0;
+        char err[200];
+        if (!st || !buf) { free(st); free(buf); fprintf(stderr, "gpu-top: out of memory\n"); return 1; }
+        /* one-shot pages never read GRBM registers */
+        if (mode != M_SMI && mode != M_TUI && !(json && mode == M_NONE)) op.no_pc = 1;
+        for (int i = first; i <= last; i++) {
+            gt_dev *d;
+            if (!list[i].active && !(dev >= 0 && wake)) {   /* opening it would wake it (a laptop's dGPU): only when asked */
+                fprintf(stderr, "gpu-top: #%d %s: asleep (runtime suspended) - not read%s\n", i, list[i].pci,
+                        dev >= 0 ? "; add --wake to wake it up and read it" : " (--device N --wake reads it)");
+                if (dev >= 0) { free(st); free(buf); return 2; }
+                continue;
+            }
+            d = gt_open(i, &op, err, sizeof err);
+            if (!d) { fprintf(stderr, "gpu-top: #%d %s: %s\n", i, list[i].pci, err); rc = 1; continue; }
+            idx[nd] = i;
+            dv[nd++] = d;
+        }
+        if (!nd) { fprintf(stderr, "gpu-top: no GPU was read\n"); free(st); free(buf); return 1; }
+        if (mode == M_CAPTURE) {
+            rc = gt_capture_info(dv[0], capture);
+            if (rc) fprintf(stderr, "gpu-top: could not write %s (AMD GPUs only)\n", capture);
+        } else if (mode == M_DUMP || mode == M_METRICS || mode == M_PROC) {
+            for (int i = 0; i < nd; i++) gt_finish(dv[i], 0, &st[i]);
+            if (json) {
+                int np = 0;
+                printf("[");
+                for (int i = 0; i < nd; i++) {
+                    const gt_info *in = gt_info_of(dv[i]);
+                    buf[0] = 0;
+                    if (mode == M_DUMP) gt_json_dump(dv[i], &st[i], buf, 1 << 20);
+                    else if (mode == M_METRICS) {
+                        if (!st[i].metrics.present) continue;
+                        char nm[600];
+                        gt_json_escape(nm, sizeof nm, in->dev.name);
+                        printf("%s{\"device_path\":{\"render\":\"%s\",\"card\":\"%s\",\"pci\":\"%s\",\"DeviceID\":%u,\"RevisionID\":%u,"
+                               "\"DeviceName\":\"%s\"},\"gpu_metrics\":", np++ ? "," : "", in->dev.render, in->dev.card, in->dev.pci,
+                               in->dev.device_id, in->dev.revision_id, nm);
+                        gt_json_metrics(&st[i].metrics, buf, 1 << 20);
+                        printf("%s}", buf);
+                        continue;
+                    } else gt_json_device(dv[i], &st[i], 1, buf, 1 << 20);
+                    printf("%s%s", np++ ? "," : "", buf);
+                }
+                printf("]\n");
+            } else {
+                printf("SRS GPU Top %s (amdgpu_top-compatible)\n", SRS_VERSION);
+                for (int i = 0; i < nd; i++) {
+                    const gt_info *in = gt_info_of(dv[i]);
+                    const gt_stat *s = &st[i];
+                    if (mode == M_PROC) {
+                        char vm[32], gm[32];
+                        printf("\n%s (%s), VRAM %s MiB, GTT %s MiB\n", in->dev.pci, in->dev.name, gt_mib2(vm, sizeof vm, s->vram_used, s->vram_total, 5),
+                               gt_mib2(gm, sizeof gm, s->gtt_used, s->gtt_total, 5));
+                        for (int k = 0; k < s->nproc; k++) {
+                            const gt_proc *p = &s->proc[k];
+                            long long vt = s->vram_total >> 20, tt = s->gtt_total >> 20;
+                            printf("    %-15s (%7d)%s, VRAM %5lld MiB (%3lld%%), GTT %5lld MiB (%3lld%%)\n", p->name, p->pid,
+                                   p->is_kfd ? " KFD" : "", p->vram_kib >> 10, vt > 0 ? (p->vram_kib >> 10) * 100 / vt : 0,
+                                   p->gtt_kib >> 10, tt > 0 ? (p->gtt_kib >> 10) * 100 / tt : 0);
+                        }
+                        if (!s->nproc) printf("    (no process has this GPU open, or none that this user may look at)\n");
+                        continue;
+                    }
+                    printf("\n--------\n#%d %s (%s, 0x%X:0x%X)\n", idx[i], in->dev.name, in->dev.pci, in->dev.device_id, in->dev.revision_id);
+                    if (mode == M_DUMP) {
+                        if (in->drm_version[0]) printf("drm version: %s\n", in->drm_version);
+                        gt_print_sections(in);
+                        if (s->metrics.present) printf("\nGPU Metrics Version: v%d.%d\n", s->metrics.format_rev, s->metrics.content_rev);
+                    } else {
+                        buf[0] = 0;
+                        gt_metrics_text(&s->metrics, buf, 1 << 20);
+                        printf("\n%s", buf);
+                    }
+                }
+            }
+        } else if (mode == M_DRM || mode == M_PPT) {
+            for (int i = 0; i < nd; i++) {
+                buf[0] = 0;
+                if (mode == M_DRM) gt_drm_info_text(dv[i], buf, 1 << 20); else gt_pp_table_text(dv[i], buf, 1 << 20);
+                if (mode == M_PPT) printf("\n--------\n#%d ", idx[i]);
+                fputs(buf, stdout);
+            }
+        } else if (mode == M_SMI) {
+            /* every GPU over the same interval: the GRBM reads of all of them in one loop */
+            int step = 10, steps = interval / step, rest = interval % step;   /* amdgpu_top's 10 ms reads; 250 ms = 25 steps */
+            for (int i = 0; i < nd; i++) gt_pc_begin(dv[i]);
+            for (int k = 0; k < steps; k++) {
+                struct timespec ts = { 0, (long)step * 1000000L };
+                for (int i = 0; i < nd; i++) gt_pc_read(dv[i]);
+                nanosleep(&ts, NULL);
+            }
+            if (rest) { struct timespec ts = { 0, (long)rest * 1000000L }; nanosleep(&ts, NULL); }
+            for (int i = 0; i < nd; i++) gt_finish(dv[i], interval, &st[i]);
+            if (json) {
+                printf("[");
+                for (int i = 0; i < nd; i++) { buf[0] = 0; gt_json_device(dv[i], &st[i], op.no_pc, buf, 1 << 20); printf("%s%s", i ? "," : "", buf); }
+                printf("]\n");
+            } else {
+                gt_smi_header();
+                for (int i = 0; i < nd; i++) gt_smi_line(idx[i], gt_info_of(dv[i]), &st[i]);
+            }
+        } else {   /* JSON stream or the TUI */
+            struct termios old, raw;
+            int tty = mode == M_TUI && isatty(0);
+            long it = 0;
+            if (!count_set) count = 0;
+            signal(SIGINT, gt_on_sig);
+            signal(SIGTERM, gt_on_sig);
+            if (tty && tcgetattr(0, &old) == 0) {
+                raw = old;
+                raw.c_lflag &= ~(tcflag_t)(ICANON | ECHO);
+                tcsetattr(0, TCSANOW, &raw);
+                printf("\033[?1049h");
+            } else tty = 0;
+            for (int i = 0; i < nd; i++) gt_finish(dv[i], 0, &st[i]);   /* the first fdinfo pass: percent from the next one */
+            while (!gt_stop) {
+                /* each GPU sampled over the same interval: GRBM reads for all of them in one loop */
+                long long t0;
+                int step = 10, steps = interval / step, rest = interval % step;   /* 10 ms reads: the interval exactly */
+                for (int i = 0; i < nd; i++) gt_pc_begin(dv[i]);
+                t0 = 0;
+                for (int k = 0; k < steps && !gt_stop; k++) {
+                    struct pollfd pf = { 0, POLLIN, 0 };
+                    for (int i = 0; i < nd; i++) gt_pc_read(dv[i]);
+                    if (tty && poll(&pf, 1, step) > 0) {
+                        char c;
+                        if (read(0, &c, 1) == 1 && (c == 'q' || c == 'Q' || c == 3)) gt_stop = 1;
+                    } else if (!tty) {
+                        struct timespec ts = { step / 1000, (long)(step % 1000) * 1000000L };
+                        nanosleep(&ts, NULL);
+                    }
+                    t0 += step;
+                }
+                if (rest && !gt_stop) { struct timespec ts = { 0, (long)rest * 1000000L }; nanosleep(&ts, NULL); t0 += rest; }
+                if (gt_stop) break;
+                for (int i = 0; i < nd; i++) gt_finish(dv[i], (int)t0, &st[i]);
+                if (mode == M_TUI) gt_tui_draw(nd, dv, st, op.no_pc, interval);
+                else {
+                    printf("{\"devices\":[");
+                    for (int i = 0; i < nd; i++) { buf[0] = 0; gt_json_device(dv[i], &st[i], op.no_pc, buf, 1 << 20); printf("%s%s", i ? "," : "", buf); }
+                    printf("],\"devices_len\":%d,\"period\":{\"duration\":%d,\"unit\":\"ms\"},\"title\":\"SRS GPU Top\"}\n", nd, (int)t0);
+                    fflush(stdout);
+                }
+                if (count && ++it >= count) break;
+            }
+            if (tty) { printf("\033[?1049l"); tcsetattr(0, TCSANOW, &old); }
+            signal(SIGINT, SIG_DFL);
+            signal(SIGTERM, SIG_DFL);
+        }
+        for (int i = 0; i < nd; i++) gt_close(dv[i]);
+        free(st);
+        free(buf);
+    }
+    return rc;
+}
+#endif
+
 int srs_cli_main(int argc, char **argv)
 {
     opts o;
@@ -1493,6 +2159,40 @@ int srs_cli_main(int argc, char **argv)
         return srs_save(items, file);
     }
 #ifdef __linux__
+    {   /* the commands that load the PC: one at a time across SRS processes (bench.lock, see bench.h) */
+        static const char *const load[] = { "burn", "bench", "ipi", "latency", "pi", "crypto", "prime", "cachemem", "storage",
+                                            "os-latency", "compute", "work", "net", "gpu", "gpu-burn", "gpu-compare", NULL };
+        int k, is_load = 0, help = 0, yes = 0, rc;
+        for (k = 0; load[k]; k++) if (!strcmp(cmd, load[k])) is_load = 1;
+        for (k = 2; k < argc; k++) {
+            if (!strcmp(argv[k], "-h") || !strcmp(argv[k], "--help")) help = 1;
+            if (!strcmp(argv[k], "--yes") || !strcmp(argv[k], "-y")) yes = 1;
+        }
+        if (is_load && !help) {
+            char who[100], what[300];
+            int pid = 0;
+            if (bench_lock_other(who, sizeof who, &pid)) {
+                snprintf(what, sizeof what, "another SRS benchmark (%s, PID %d) is running; two loads at once skew each other's results.", who, pid);
+                if (yes) fprintf(stderr, "%s: warning - %s Starting anyway (--yes).\n", cmd, what);
+                else if (!ask_start(cmd, what)) return 2;
+            }
+            bench_lock_take(cmd);
+            if (!strcmp(cmd, "burn")) rc = cmd_burn(argc, argv);
+            else if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) rc = cmd_bench(argc, argv);
+            else if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) rc = cmd_bench2(argc, argv);
+            else if (!strcmp(cmd, "cachemem")) rc = cmd_cachemem(argc, argv);
+            else if (!strcmp(cmd, "storage")) rc = cmd_storage(argc, argv);
+            else if (!strcmp(cmd, "os-latency")) rc = cmd_os_latency(argc, argv);
+            else if (!strcmp(cmd, "compute")) rc = cmd_compute(argc, argv);
+            else if (!strcmp(cmd, "work")) rc = cmd_work(argc, argv);
+            else if (!strcmp(cmd, "net")) rc = cmd_net(argc, argv);
+            else if (!strcmp(cmd, "gpu")) rc = cmd_gpu(argc, argv);
+            else if (!strcmp(cmd, "gpu-burn")) rc = cmd_gpu_burn(argc, argv);
+            else rc = cmd_gpu_compare(argc, argv);
+            bench_lock_release();
+            return rc;
+        }
+    }
     if (!strcmp(cmd, "burn")) return cmd_burn(argc, argv);
     if (!strcmp(cmd, "bench") || !strcmp(cmd, "ipi") || !strcmp(cmd, "latency")) return cmd_bench(argc, argv);
     if (!strcmp(cmd, "pi") || !strcmp(cmd, "crypto") || !strcmp(cmd, "prime")) return cmd_bench2(argc, argv);
@@ -1506,6 +2206,8 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
     if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
     if (!strcmp(cmd, "cuda-toolkit")) return cmd_cuda_toolkit(argc, argv);
+    if (!strcmp(cmd, "gpu-top") || !strcmp(cmd, "big-top")) return cmd_gpu_top(argc, argv);   /* big-top: the window's name since 2.5 */
+    if (!strcmp(cmd, "ir")) return cmd_ir(argc, argv);
     if (!strcmp(cmd, "update-lists")) return cmd_update_lists(argc, argv);
     if (!strcmp(cmd, "intel-imc-dump")) return mt_intel_dump(stdout);   /* srs-root only (root): Intel memory timings, read-only */
 #endif

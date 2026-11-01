@@ -457,6 +457,7 @@ int bench_gpu(const gpu_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
     time_t now = time(NULL);
     char params[600], res[700];
     size_t rl;
+    bench_no_page_merge();
     if (why && wn) why[0] = 0;
     if (burn_active() || burn_gpu_pid_set()) { if (why) snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU Benchmark when it has finished"); return -1; }
     if (!gpu_claim("GPU Benchmark", &who)) { if (why) gpu_claim_text(who, why, wn); return -1; }
@@ -469,7 +470,7 @@ int bench_gpu(const gpu_cfg *cfg, srs_out *o, volatile int *cancel, char *why, s
     }
     x->c = *cfg;
     if (x->c.seconds < 0.05) x->c.seconds = 0.05;
-    if (x->c.seconds > 10) x->c.seconds = 10;
+    if (x->c.seconds > 60) x->c.seconds = 60;
     x->cancel = cancel;
     want = cfg->tests ? cfg->tests : (1u << GT_N) - 1;
     g_stage = "Opening the GPU";

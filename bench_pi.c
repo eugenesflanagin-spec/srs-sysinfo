@@ -728,6 +728,7 @@ int bench_pi(size_t digits, int threads, int algo, srs_out *o, volatile int *can
     double t0;
     int ok;
     time_t now = time(NULL);
+    bench_no_page_merge();
     if (digits < 100 || digits > PI_MAXDIGITS) return -1;
     if (threads < 1) threads = 1;
     if (threads > burn_ncpu()) threads = burn_ncpu();

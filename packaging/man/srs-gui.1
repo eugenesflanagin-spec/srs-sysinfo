@@ -1,9 +1,9 @@
-.TH SRS-GUI 1 "October 2026" "srs-sysinfo 2.4.0" "User Commands"
+.TH SRS-GUI 1 "2026-10-31" "srs-sysinfo 2.5.0" "User Commands"
 .SH NAME
 srs-gui \- SRS system information viewer (GTK 3)
 .SH SYNOPSIS
 .B srs-gui
-[\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR] [\fB\-\-gui\-classic\fR | \fB\-\-gui\-new\fR]
+[\fB\-\-gui\-open=\fIPANEL\fR[,\fIPANEL\fR...]] [\fB\-\-gui\-tray\fR | \fB\-\-tray\fR] [\fB\-\-gui\-classic\fR | \fB\-\-gui\-new\fR]
 .br
 .B srs-gui
 \fB\-\-power\-recorder\fR
@@ -47,10 +47,51 @@ unless "Show hidden items" is on; items that come out empty are hidden too after
 "Check now" or the opt-in "Check daily" (off by default; it never runs the network items or Ping). Click a table's column heading to sort it (numbers by value with their
 units, dates by date); Reset view, Copy and Save Report keep the item's own order. CPU Clocks
 shows each clock at stock next to what is in effect (measured base clock, FCLK / UCLK / MCLK from
-the SMU). The Startup programs tab opens on its read-only Report; Manage, next to it, turns
-autostart entries and services off and on without deleting anything (Undo, Restore default, Add
-to startup). A badge in the title bar says "Full access"
+the SMU). The Startup programs tab opens on its read-only Report; Manage, next to it, opens The Big
+Top \(-> Performance \(-> Startup Apps (since 2.5 the one startup manager; the 2.2 Startup manager is
+gone, and the copies it saved are offered in Restore Removed). A badge in the title bar says "Full access"
 or "Limited (user)".
+.PP
+\fBThe Big Top\fR (new in 2.5; the button between the search box and the menu, \fBCtrl+G\fR, the
+Tools page, or Classic Menu \(-> The Big Top (Live GPU and System Activity)...) is a window titled
+"SRS \- The Big Top". Its \fBPerformance\fR tab is a task manager for the whole PC: Summary,
+Performance (CPU, memory, CPU power, thermals, disks, network, GPUs), Processes (End Task, Force Kill,
+End Process Tree, Suspend / Resume, Priority, CPU Affinity, Properties; always asks first; PID 1 and
+kernel threads are never touched; other users' processes through pkexec), Startup Apps (per-user
+autostart entries, systemd user services and Plasma scripts on and off with Undo and a restorable
+trash; never writes /etc), Users (sessions, Disconnect) and Services (Start / Stop / Restart, asks
+first). Its GPU, SMI, DRM Info, PowerPlay Table and NPU (XDNA) tabs are a GPU view modelled on
+amdgpu_top by Umio Yasuno (AMD; NVIDIA through NVML) and only read; Performance Counters (GRBM) is off
+by default (turn it on when you need the GRBM panels). A card that can sleep (runtime PM
+on, no monitor connected) is left asleep while idle.
+.PP
+\fBLive tray meters\fR (2.5) put CPU, core, temperature, memory, GPU, VRAM, disk and network meters
+in the notification area as their own icons (StatusNotifierItem over D\-Bus; no libappindicator
+needed). \fBThey are off by default\fR: Options \(-> Customize Task Manager (Performance tab, tray
+meters)... \(-> Live Telemetry Icons. Left click opens The Big Top's Performance tab; right click
+has Open SRS, Settings..., the meter list and Quit SRS. The same Task Manager Settings dialog sets
+the update speeds (every 0.25 s to 5 s), the first page, per-core CPU units, keep running in the
+tray, start minimised at login and a summon shortcut (through the desktop's GlobalShortcuts portal).
+The SRS icons stay together in the settings' meter order; \fBTray Position\fR puts them with the
+hardware icons (Normal, the default) or in the tray's first group (First); the desktop decides the final
+order (on Plasma: Configure System Tray \(-> Entries \(-> Always shown).
+.PP
+\fBIR Blaster\fR (2.5; USB & PCI devices \(-> IR Blaster): with an ELK Smart / OCRUSTAR USB infrared
+dongle (045c:0132, 0184, 0195, 0134) SRS learns buttons of a remote, keeps them in IR Remote's
+~/.config/irremote/remotes.json (shared with that app) and sends them again (Send, Repeat, Dry Run,
+Learn Code, Type Code, Import / Export, Test, Reset Dongle). The tab is greyed while no dongle is
+plugged in. Without permission it shows the udev rule 70\-elksmart\-ir.rules (TAG+="uaccess") and a
+Copy Install Command button; replug the dongle after installing it. Only the 045c:0132 was used for
+real (plain protocol, one TV).
+.PP
+The CPU benchmark pages and Stress & Burnin have an \fBAll Cores (Max)\fR toggle (\fBAlt+X\fR, 2.5):
+every logical CPU for this run, without changing a saved setting.
+Only one load runs at a time: while a benchmark or Stress & Burnin runs, the other pages' Run and Start
+buttons are greyed, and a lock file (\fI$XDG_RUNTIME_DIR/srs/bench.lock\fR) makes Start ask when another SRS
+process is running one. Every benchmark page has \fBStop\fR (Alt+T); Everyday Work and the GPU Compute
+comparison have \fBRun All\fR. On Crypto, CPU Compute and Everyday
+Work it also skips the 1\-thread pass (only the all\-threads column runs; the 1\-thread cells say
+"skipped").
 .PP
 \fBPower & Cost\fR (new in 2.2) estimates how much power the whole PC draws at the wall, with a
 likely range: the processor (zenergy, amd_energy or a readable RAPL counter) and the graphics card
@@ -95,10 +136,13 @@ hardware state\fR; it stays off until you accept a warning once.
 .BI \-\-gui\-open= PANEL
 Open the named items or tools at start: in the main window an item opens on its page, in the
 classic view as its own panel. For example
-.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " cudatoolkit ", " lists ", " acpieval ", " idlookup ", " find .
+.BR sensors ", " processors ", " burnin ", " stress ", " bench ", " ipi ", " latency ", " pi ", " crypto ", " prime ", " cachemem ", " storagebench ", " oslatency ", " compute ", " work ", " netbench ", " gpubench ", " gpuburn ", " gpucompare ", " cudatoolkit ", " lists ", " acpieval ", " idlookup ", " find ", " gputop " (The Big Top), " traysettings " (Task Manager Settings).
 .TP
 .B \-\-gui\-tray
 start in the system tray.
+.TP
+.B \-\-tray
+the same as \fB\-\-gui\-tray\fR (2.5): start with only the tray icons (SRS's own and / or the live tray meters).
 .TP
 .B \-\-gui\-classic
 start in the classic view: the SIV-style main window with its button row, every item in its own panel.
@@ -132,7 +176,8 @@ not recommended (it can break or remove ZLUDA): SRS warns and asks twice.
 Every tab and panel has a \fBGuide\fR button (also \fBF1\fR, and "Open guide for this item"
 in its right-click menu) that opens the user guide at that item's section: in
 Okular, Evince or Papers at the right page, otherwise the HTML guide in the web
-browser. \fBMenu \(-> User Guide\fR opens the start; \fBShift+F1\fR opens the Help panel.
+browser. The Big Top's \fBGuide\fR button and \fBF1\fR open the section of the tab or Performance
+page shown, and the Task Manager Settings dialog has its own Guide button. \fBMenu \(-> User Guide\fR opens the start; \fBShift+F1\fR opens the Help panel.
 .SH ENVIRONMENT
 .TP
 .B SRS_OPEN
@@ -146,10 +191,6 @@ use another Power & Cost history database or settings file (for tests).
 .TP
 .B SRS_DATA_DIR
 directory holding power-zip-rates.tsv (default: next to the program, then /usr/share/srs-sysinfo).
-.TP
-.B SRS_STARTUP_DRY_RUN
-when set to 1, the Startup manager shows the systemctl / pkexec command it would run instead of
-running it (autostart files are still written).
 .TP
 .B SRS_CTK_DRY_RUN
 when set to 1, the NVIDIA CUDA toolkit install shows the command it would run and runs nothing (tests).
@@ -170,7 +211,9 @@ the user guide (PDF and HTML), with its Markdown sources in the same folder.
 .I ~/.config/srs/SRSDEF.ini
 settings (theme, update interval, tray, "Classic View=1" for Start in classic view,
 "Ask CUDA Toolkit=0" after Don't ask again, "Stress CPU Limit", "Accepted High Temperature Limits",
-"Read DIMM PMIC", "Read EC", "Accepted ACPI Evaluation", ...).
+"Read DIMM PMIC", "Read EC", "Accepted ACPI Evaluation", ...); group [Task Manager] (Update Speed,
+Start Page, Per Core Units, Telemetry Icons (0 = off, the default), Telemetry Meters, Disk Space
+Mount, Summon Shortcut, Tray Position) and [GPU Top] Update ms (The Big Top's update speed).
 .TP
 .I ~/.cache/srs/root/
 root-only data collected by srs-root, and acpi\-calls.txt, the log of ACPI method evaluation.
@@ -182,7 +225,16 @@ pci.ids, usb.ids and pnp.ids downloaded by Update hardware lists (the previous c
 your own tab lineups (the same format as Export lineup).
 .TP
 .I ~/.config/srs/startup-backup/
-autostart files the Startup manager moved aside or changed (nothing is deleted).
+only from SRS 2.2\-2.4: files the old Startup manager saved; Startup Apps' Restore Removed brings them
+back as copies (nothing there is deleted).
+.TP
+.I ~/.config/irremote/remotes.json, remotes.json.before\-srs
+IR Blaster's codes, shared with the IR Remote app, and the one-time copy from before SRS first
+changed the file.
+.TP
+.I ~/.config/autostart/.srs-trash/, ~/.local/state/srs/autostart-undo.log
+entries removed in Startup Apps (Restore Removed brings them back) and its Undo history (the last 50
+changes); the first change to an autostart file of yours keeps \fIname\fR.desktop.srs\-bak once.
 .TP
 .I ~/.cache/srs/empty-items.txt
 items that had nothing to show on this PC at the last check (made only by Options > Check now or

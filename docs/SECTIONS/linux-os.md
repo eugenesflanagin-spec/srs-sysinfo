@@ -943,7 +943,11 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## Processes  
 `processes` - Linux data
 
-**In plain words.** Every running process, like Task Manager's Details tab.
+**In plain words.** Every running process, like the detailed process list of a desktop task manager.
+
+**Live list and actions (2.5).** This item is a report (text). The live, sortable process list with
+End Task, Force Kill, Suspend, Priority, CPU Affinity and Properties is on the Processes page of The
+Big Top's Performance tab: [User Guide 6.14.3](../USER-GUIDE.md#6143-processes).
 
 **What you see.** One row per process, sorted by name:
 - `Parent` - the PID of the process that started it, in brackets.
@@ -1124,6 +1128,8 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 
 **In plain words.** Windows services are systemd **service units** on Linux. There are two sets: system services (run as root or service accounts) and user services (run inside your login).
 
+To start, stop or restart one (each asks first), use the Services page of The Big Top's Performance tab (2.5): [User Guide 6.14.6](../USER-GUIDE.md#6146-services). This item only reports.
+
 **What you see.** Two tables, `System services` then `User services`, each with:
 - `Service Name` - the unit name.
 - `Load` - `loaded`, `not-found` (referenced but no file), `masked` (blocked).
@@ -1240,7 +1246,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 ## Startup programs  
 `startup` - Linux data
 
-**In plain words.** Like the Windows Startup folder and Task Manager's Startup tab: what starts when you log in, and which systemd units are enabled at boot.
+**In plain words.** Like a Startup folder or a task manager's startup list: what starts when you log in, and which systemd units are enabled at boot.
 
 **What you see.**
 - `XDG autostart (user) ~/.config/autostart` and `XDG autostart (system) /etc/xdg/autostart` - each `.desktop` file with a box (ticked = will start), the file name, the app name, and its command. Notes in brackets:
@@ -1254,9 +1260,13 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 
 **Unusual values and what they suggest.** A ticked entry you do not recognise: check its command. Malware and adware often hide in `~/.config/autostart`. Two entries starting the same tray app: you get two icons. Slow logins: look for `sleep N &&` commands and heavy apps here.
 
-**Turning items off and on (2.2).** In the main window the Startup programs tab opens on **Report**:
-this item as text, as above. **Manage**, next to it, is every entry with a switch, Undo, Restore
-default and Add to startup. Nothing is deleted. See the user guide, section 6.9.
+**Turning items off and on.** In the main window the Startup programs tab opens on **Report**: this
+item as text, as above. **Manage**, next to it, opens The Big Top > Performance > **Startup Apps**
+(since 2.5 the one startup manager in SRS): one-click on / off, Add, Remove to a restorable trash,
+Disable for Me, Restore Default, Undo that survives a restart, and Restore Removed, which also brings
+back what the old 2.2-2.4 Startup manager saved in `~/.config/srs/startup-backup`. It works only in
+your home folder. See [User Guide 6.9](../USER-GUIDE.md#69-startup-programs) and
+[6.14.4](../USER-GUIDE.md#6144-startup-apps).
 
 **Where Linux gets it.** `~/.config/autostart/*.desktop` (or `$XDG_CONFIG_HOME/autostart`), `/etc/xdg/autostart/*.desktop`, `~/.config/plasma-workspace/env`, `systemctl list-unit-files --state=enabled` (and `--user`).
 
@@ -1402,6 +1412,8 @@ default and Add to startup. Nothing is deleted. See the user guide, section 6.9.
 `users` - Linux data
 
 **In plain words.** The accounts on this PC: real people first, then the system accounts that services run as, then the account rules.
+
+Who is logged in right now, with each session's processes and a Disconnect button, is on the Users page of The Big Top's Performance tab (2.5): [User Guide 6.14.5](../USER-GUIDE.md#6145-users).
 
 **What you see.**
 - Table of human accounts (UID at or above `UID_MIN`, not `nobody`): `User Name` (yours is green), `UID`, `GID` (main group), `Full Name` (first field of the comment), `Home`, `Shell`.

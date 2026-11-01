@@ -1,0 +1,8 @@
+processor	: 0
+model name	: Fixture CPU 2-Thread
+flags		: fpu svm sse2
+
+processor	: 1
+model name	: Fixture CPU 2-Thread
+flags		: fpu svm sse2
+

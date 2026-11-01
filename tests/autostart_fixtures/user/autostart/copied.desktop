@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Copied By User
+Exec=true --users-copy

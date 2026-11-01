@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root, the Classic view and (2.4) Update hardware lists and ACPI method evaluation (User Guide 9.21 and 9.22); its **All N items** lists the other items of this group. In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root, the Classic view, (2.4) Update hardware lists and ACPI method evaluation (User Guide 9.21 and 9.22), and (2.5) **The Big Top**, the live window for the whole PC and each graphics card (also Ctrl+G; it is a window, not a report item: see [User Guide 6.13](../USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity) and [6.14](../USER-GUIDE.md#614-the-performance-tab-a-task-manager)); its **All N items** lists the other items of this group. Since 2.5 the pages with a **Threads** setting (SRS Pi, Prime Sieve, CPU Compute, Everyday Work, Cache & Memory, Crypto) and Stress & Burnin have an **All Cores (Max)** toggle (Alt+X): every logical CPU for this run, without changing a saved setting ([User Guide 9.0](../USER-GUIDE.md#90-use-at-your-own-risk)). In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the Stress & Burnin load test (CPU and GPU), a core-to-core delay test, a memory latency test, and the
@@ -124,6 +124,10 @@ little lower, why mixed work shares a core better), see the User Guide, section 
 ---
 ## Benchmark: all CPUs concurrent  
 `benchmark-ac` - Linux data
+
+**Where to find it (2.5).** The ten "Benchmark: <mode>" items are not listed in the window any more: pick the mode
+in the **CPU Benchmarks** tab's Mode list, which runs it and shows the last result of every mode. sysreport-search and
+saved reports still have these items.
 
 **In plain words.** Every logical CPU runs Dhrystone at the same time, then every logical CPU runs
 Whetstone at the same time. This is the "whole chip, fully loaded" score.
@@ -568,6 +572,16 @@ vary by a few % from run to run.
   **never run another benchmark (or a second copy of SRS) at the same time** - both results are
   spoiled.
 
+**"not valid" and KSM (2.5).** Linux can merge memory pages that hold identical bytes into one
+copy (KSM, kernel same-page merging), and tools such as ksmtuned turn that on for every program. A
+buffer that is all alike can then be read from one cached page, and the RAM figure comes out
+impossibly high (over 1,000,000 MB/s on DDR5 in a 60 s run). Since 2.5 the buffers hold different
+data on every page and are marked not to be merged, every benchmark takes SRS out of process-wide
+merging before it starts, and Cache & Memory switches merging off and splits any merged pages again
+before **every** test. A RAM result faster than the installed memory can deliver (speed x 8 bytes x
+channels, from the srs-root data; without it, a read far above the copy speed) is shown as **not
+valid** in red, with a **Check** line saying why and "run it again".
+
 **Where Linux gets it.** Built in. The measuring engine comes unchanged from Linux System Audit
 (LSA) 0.2.0, the same author's project, now part of SRS. x86-64 CPUs only (it uses x86-64 vector
 code). The base clock is the TSC rate x 100 / the CPU's ACPI CPPC nominal frequency; the Infinity
@@ -597,7 +611,7 @@ Q = requests in flight per thread, T = threads; Q x T requests are in flight at 
 |---|---|
 | Folder | Any folder you can write to on the drive you want to test (default: your home folder) |
 | Test file | 256 MB, 1 GB (default), 4 GB, 16 GB |
-| Seconds per test | 1-30 (default 5) |
+| Seconds per test | 1-60 (default 5) |
 | Profile | Standard (4K random Q32T16 = 16 threads) or Light (Q8T4 = at most 4 threads) |
 | Allow USB drives | Off by default |
 
@@ -667,7 +681,7 @@ folder is shown as "your home folder", so no user name lands in the result). Tim
 | Setting | Choices |
 |---|---|
 | Samples | 1,000-200,000 in the window (command line 100-1,000,000), default 20,000 |
-| Tick test | 1-30 s in the window (command line 0.1-60), default 3 |
+| Tick test | 1-60 s in the window (command line 0.1-60), default 3 |
 
 **Safety.** It asks before it starts. It only reads system settings: no root, and no scheduler,
 priority or timer change. At most two CPUs are busy at a time, for about 6 seconds at the
@@ -722,7 +736,7 @@ code path used (**Code**) and the check. Below: the self-test, the threads and t
 | Setting | Choices |
 |---|---|
 | Threads | 1 to all logical CPUs (default all) |
-| Seconds per test | 0.1-10 in the window (command line 0.1-60), default 0.5 |
+| Seconds per test | 0.1-60, default 0.5 |
 | Code | best available (default), plain C, SSE2, AVX2 + FMA, AVX-512; a path the CPU lacks falls back to the best it has |
 | 1 thread only | skip the N-thread column |
 
@@ -782,7 +796,7 @@ library versions found, the self-test, the data size and the threads.
 | Setting | Choices |
 |---|---|
 | Threads | 1 to all logical CPUs (default all) |
-| Seconds per test | 0.1-10 in the window (command line 0.1-60), default 0.5 |
+| Seconds per test | 0.1-60, default 0.5 |
 | Test groups / libraries | tick boxes (command line `--only`, `--libs`) |
 | 1 thread only | skip the N-thread column |
 | Data size | 1024 KB of each kind per thread (command line `--part-kib`, 64-16384); Stop is checked between passes, so at 16384 one xz -6 pass can keep "Stopping..." for 10-20 s |
@@ -849,7 +863,7 @@ the IP version used, the libcurl version and whether a proxy variable is set (on
 |---|---|
 | Parts | On this computer (default on), Internet speed test (default off; asks separately) |
 | Streams | 1-32 (default 4) |
-| Seconds per test | 1-30 in the window (command line 0.1-60), default 5; round trip tests use at most 1 s |
+| Seconds per test | 1-60 in the window (command line 0.1-60), default 5; round trip tests use at most 1 s |
 | IP version | IPv4 or IPv6 (default), IPv4 only, IPv6 only |
 | Data cap per transfer test | 250 MB (command line `--max-mb`, 0 = no cap) |
 
@@ -920,7 +934,7 @@ second.
 | Setting | Choices |
 |---|---|
 | GPU | Default (the first discrete GPU, else the first device) or a device from the list; the list is read when you open it (through Vulkan, like `vulkaninfo`: the GPUs are named, no work is sent before Yes) |
-| Seconds per test | 0.1-2 in the window (command line 0.1-10), default 1 |
+| Seconds per test | 0.1-60, default 1 |
 | Memory test size | 0 = auto (256 MiB, less on small cards), up to 4096 MiB; a size above a quarter of the video memory or of the PC's memory is lowered to that, and the result says so |
 
 **Safety.** It asks before it starts, naming the GPU, the time (about 15 seconds at the defaults)
@@ -1092,7 +1106,7 @@ and the **Build** line.
 |---|---|
 | GPU | the Vulkan device that names the card (Default = the first discrete GPU); the other back ends use the card at the same PCI address |
 | Back ends | Vulkan, ROCm / HIP, CUDA, OpenCL (only installed ones can be ticked) |
-| Seconds per test | 0.1-2 in the window (command line 0.1-10), default 1 |
+| Seconds per test | 0.1-60, default 1 |
 
 **Safety.** It asks first (the back ends, the GPU, the time, full GPU load, the overclock /
 undervolt warning). HIP, CUDA and OpenCL start their runtimes only after that Yes. Work is cut
@@ -1291,7 +1305,7 @@ row says `none`: SRS loads no kernel driver of its own, and root-only data comes
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.4.0.
+`/usr/bin/sysreport-search`, V2.5.0.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

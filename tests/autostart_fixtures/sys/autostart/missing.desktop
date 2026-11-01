@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Program Missing
+Exec=srs-no-such-program --flag

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=KDE Conditional
+Exec=true
+X-KDE-autostart-condition=kaccessrc:Keyboard:Gestures:false

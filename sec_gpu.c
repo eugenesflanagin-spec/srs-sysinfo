@@ -923,7 +923,7 @@ static void vbios_image(srs_out *o, const gpu_t *g)
         }
         off = e + 1;
     }
-    for (k = 0; k < nparts; k++) so_kv(o, strncmp(parts[k], "113-", 4) ? "Build string" : "Part number", C_BLACK, parts[k]);
+    for (k = 0; k < nparts; k++) { const char *pk = parts[k]; so_kv(o, pk[0] == '1' && pk[1] == '1' && pk[2] == '3' && pk[3] == '-' ? "Part number" : "Build string", C_BLACK, pk); }   /* no str* call: GCC 16 -Wstringop-overread false alarm in LTO builds */
     /* the image chain: each image has a PCI data structure ("PCIR") */
     so_par(o);
     so_tabs(o, itabs, 5);

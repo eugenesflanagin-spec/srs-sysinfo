@@ -31,6 +31,7 @@ const char *srs_guide_anchor(const char *idarg)
     char id[64];
     int i;
     if (!idarg || !*idarg) return "user-guide";
+    if (idarg[0] == '#' && idarg[1]) return idarg + 1;   /* "#anchor": a guide section that is not an item (GPU Top, Task Manager) */
     snprintf(id, sizeof id, "%.*s", (int)strcspn(idarg, ":"), idarg);
     for (i = 0; g_map[i].id; i++) if (!strcmp(g_map[i].id, id)) return g_map[i].anchor;
     return NULL;

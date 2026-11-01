@@ -39,10 +39,10 @@ for c in bench ipi latency pi crypto prime; do
 done
 if command -v script >/dev/null 2>&1; then   # on a terminal: "n" does not start, "y" does
     out=$(printf 'n\n' | HOME=$ASK XDG_CACHE_HOME=$ASK/.cache script -qec "'$BIN' pi --digits 5000" /dev/null 2>&1)
-    grep -q "Start now? \[y/N\]" <<<"$out" && grep -q "pi: not started" <<<"$out" && [ -z "$(ls -A "$ASK")" ] \
+    grep -q "Start now.*\[y/N\]" <<<"$out" && grep -q "pi: not started" <<<"$out" && [ -z "$(ls -A "$ASK")" ] \
         && ok "on a terminal pi asks; answer n: not started" || bad "pi on a terminal, answer n: $out"
     out=$(printf 'y\n' | HOME=$ASK XDG_CACHE_HOME=$ASK/.cache script -qec "'$BIN' pi --digits 5000" /dev/null 2>&1)
-    grep -q "Start now? \[y/N\]" <<<"$out" && grep -q "first 100 digits right" <<<"$out" \
+    grep -q "Start now.*\[y/N\]" <<<"$out" && grep -q "first 100 digits right" <<<"$out" \
         && ok "on a terminal pi asks; answer y: it runs" || bad "pi on a terminal, answer y: $out"
 else
     echo "  skip  terminal answers (no 'script' command)"

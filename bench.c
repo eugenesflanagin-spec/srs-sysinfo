@@ -14,6 +14,17 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined(__linux__)
+#include <sys/prctl.h>
+#ifndef PR_SET_MEMORY_MERGE
+#define PR_SET_MEMORY_MERGE 67
+#endif
+void bench_no_page_merge(void) { prctl(PR_SET_MEMORY_MERGE, 0, 0, 0, 0); }   /* also unmerges what was merged */
+#else
+void bench_no_page_merge(void) {}
+#endif
+
+
 static double now_s(void)
 {
     struct timespec ts;
@@ -300,7 +311,7 @@ static void render_bench(srs_out *o, bench_mode m, const brow *r, int n, double 
         tw += r[i].w;
     }
     so_par(o);
-    so_f(o, C_GREEN, "Total"); so_tab(o); so_f(o, C_GREEN, "%.0f DMIPS", td); so_tab(o); so_f(o, C_GREEN, "%.0f MWIPS", tw); so_par(o);
+    so_f(o, C_GREEN, note ? "Total (partial)" : "Total"); so_tab(o);   /* a Stopped run sums what it measured */ so_f(o, C_GREEN, "%.0f DMIPS", td); so_tab(o); so_f(o, C_GREEN, "%.0f MWIPS", tw); so_par(o);
     so_board_footer(o);
 }
 
@@ -314,6 +325,103 @@ void bench_save_render(const char *name, void (*fn)(srs_out *, void *), void *ct
     if (o) fn(o, ctx);
 }
 
+#if defined(__linux__)
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+/* the lock lives in the user's own folder: $XDG_RUNTIME_DIR/srs, else ~/.cache/srs; never in a world-shared /tmp.
+   The folder must be a real directory owned by this user and not writable by others; the file is opened with
+   O_NOFOLLOW (a planted symlink is refused). NULL = no lock (no such folder): the run simply takes no lock. */
+static const char *lock_path(void)
+{
+    static char p[1100];
+    const char *t = getenv("SRS_TEST_BENCH_LOCK"), *r = getenv("XDG_RUNTIME_DIR"), *h = getenv("HOME");
+    char d[1060];
+    struct stat st;
+    if (t && *t) return t;
+    if (r && *r) snprintf(d, sizeof d, "%s/srs", r);
+    else if (h && *h) { snprintf(d, sizeof d, "%s/.cache", h); mkdir(d, 0700); snprintf(d, sizeof d, "%s/.cache/srs", h); }
+    else return NULL;
+    mkdir(d, 0700);
+    if (lstat(d, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != geteuid() || (st.st_mode & 022)) return NULL;
+    snprintf(p, sizeof p, "%s/bench.lock", d);
+    return p;
+}
+
+static FILE *lock_open(int write)
+{
+    const char *p = lock_path();
+    int fd;
+    FILE *f;
+    if (!p) return NULL;
+    fd = open(p, write ? O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC : O_RDONLY | O_NOFOLLOW | O_CLOEXEC, 0600);
+    if (fd < 0) return NULL;
+    if (!(f = fdopen(fd, write ? "w" : "r"))) { close(fd); return NULL; }
+    return f;
+}
+
+static int lock_read(int *pid, char *who, size_t wn)
+{
+    FILE *f = lock_open(0);
+    char line[200] = "";
+    int n = 0;
+    *pid = 0;
+    if (who && wn) who[0] = 0;
+    if (!f) return 0;
+    if (fgets(line, sizeof line, f)) {
+        char *nl = strchr(line, '\n');
+        if (nl) *nl = 0;
+        if (sscanf(line, "%d %n", pid, &n) >= 1 && who && wn) snprintf(who, wn, "%s", line + n);
+    }
+    fclose(f);
+    return *pid > 0;
+}
+
+int bench_lock_other(char *who, size_t wn, int *pid)
+{
+    int p;
+    if (!lock_read(&p, who, wn)) return 0;
+    if (pid) *pid = p;
+    if (p == (int)getpid()) return 0;
+    if (kill((pid_t)p, 0) < 0 && errno == ESRCH) return 0;   /* stale: that process is gone */
+    return 1;
+}
+
+static char g_lock_prev[200];   /* the other live holder's line, put back when this run ends */
+
+void bench_lock_take(const char *test)
+{
+    FILE *f;
+    char who[100];
+    int p;
+    g_lock_prev[0] = 0;
+    if (bench_lock_other(who, sizeof who, &p)) snprintf(g_lock_prev, sizeof g_lock_prev, "%d %s\n", p, who);
+    if (!(f = lock_open(1))) return;
+    fprintf(f, "%d %s\n", (int)getpid(), test && *test ? test : "a benchmark");
+    fclose(f);
+}
+
+void bench_lock_release(void)
+{
+    int p;
+    FILE *f;
+    if (!lock_read(&p, NULL, 0) || p != (int)getpid()) return;
+    if (g_lock_prev[0] && sscanf(g_lock_prev, "%d", &p) == 1 && !(kill((pid_t)p, 0) < 0 && errno == ESRCH) && (f = lock_open(1))) {
+        fputs(g_lock_prev, f);   /* two holders: the other one's lock stays */
+        fclose(f);
+    } else if (lock_path()) unlink(lock_path());
+    g_lock_prev[0] = 0;
+}
+#else
+int bench_lock_other(char *who, size_t wn, int *pid) { (void)who; (void)wn; if (pid) *pid = 0; return 0; }
+void bench_lock_take(const char *test) { (void)test; }
+void bench_lock_release(void) {}
+#endif
+
+static volatile int *g_bench_cancel;
+void bench_set_cancel(volatile int *cancel) { g_bench_cancel = cancel; }
+int bench_cancelled(void) { return g_bench_cancel && *g_bench_cancel; }
+
 typedef struct { bench_mode m; brow *r; int n; double secs; const char *note; } bctx;
 static void bench_fn(srs_out *o, void *c) { bctx *b = c; render_bench(o, b->m, b->r, b->n, b->secs, b->note); }
 
@@ -325,6 +433,7 @@ int bench_run(bench_mode m, double secs, srs_out *o)
     bctx c;
     unsigned char is_e[BURN_MAXCPU];
     int ne;
+    bench_no_page_merge();
     if (ncpu > BURN_MAXCPU) ncpu = BURN_MAXCPU;
     ne = bench_ecores(is_e, ncpu);
     if ((m == BM_EC || m == BM_EP) && !ne) {
@@ -342,8 +451,10 @@ int bench_run(bench_mode m, double secs, srs_out *o)
             if (m == BM_EC && !is_e[i]) continue;
             js[n].cpu = i; js[n].kind = 'D'; n++;
         }
+        if (bench_cancelled()) { n = 0; break; }
         run_set(js, n);
         for (i = 0; i < n; i++) { js[i].kind = 'W'; r[i].cpu = js[i].cpu; r[i].d = js[i].dmips; }
+        if (bench_cancelled()) break;   /* Dhrystone measured, Whetstone not */
         run_set(js, n);
         for (i = 0; i < n; i++) r[i].w = js[i].mwips;
         break;
@@ -352,6 +463,7 @@ int bench_run(bench_mode m, double secs, srs_out *o)
             int sib = sibling_of(i), primary = sib < 0 || i < sib;
             if ((m == BM_PP && (!primary || is_e[i])) || (m == BM_LP && primary)) continue;
             if (m == BM_EP && !is_e[i]) continue;
+            if (bench_cancelled()) break;
             js[0].cpu = i; js[0].kind = 'B';
             run_set(js, 1);
             r[n].cpu = i; r[n].d = js[0].dmips; r[n].w = js[0].mwips;
@@ -362,6 +474,7 @@ int bench_run(bench_mode m, double secs, srs_out *o)
         for (i = 0; i < ncpu; i++) {
             int sib = sibling_of(i);
             if (sib >= 0 && sib < i) continue;
+            if (bench_cancelled()) break;
             js[0].cpu = i; js[1].cpu = sib < 0 ? i : sib;
             if (m == BM_DD) {
                 js[0].kind = js[1].kind = 'D'; run_set(js, sib < 0 ? 1 : 2);
@@ -379,9 +492,10 @@ int bench_run(bench_mode m, double secs, srs_out *o)
         break;
     default: break;
     }
-    c.m = m; c.r = r; c.n = n; c.secs = secs; c.note = NULL;
+    c.m = m; c.r = r; c.n = n; c.secs = secs;
+    c.note = bench_cancelled() ? "Stopped before the end - the CPUs not listed (and empty cells) were not measured" : NULL;
     bench_save_render(mode_ids[m], bench_fn, &c, o);
-    return 0;
+    return bench_cancelled() ? 1 : 0;
 }
 
 /* ======================================================================
@@ -485,8 +599,10 @@ int bench_ask_text(const bench_ask *a, char *title, size_t tn, char *body, size_
         int th = a->threads < 1 || a->threads > ncpu ? ncpu : a->threads;
         char load[120];
         heavy = th >= ncpu && ncpu > 1;
-        ask_time(8 * a->secs + 0.3, t, sizeof t);
-        if (th == 1) snprintf(load, sizeof load, "Each test runs on one CPU thread (light load).");
+        ask_time((a->all_only ? 4 : 8) * a->secs + 0.3, t, sizeof t);
+        if (th == 1 && !a->all_only) snprintf(load, sizeof load, "Each test runs on one CPU thread (light load).");
+        else if (a->all_only) snprintf(load, sizeof load, "Each test runs on %d threads at once only (All Cores: the 1-thread pass is skipped)%s.", th,
+                                       heavy ? " - every CPU thread 100% busy" : "");
         else snprintf(load, sizeof load, "Each test runs on one CPU thread and then on %d threads at once%s.", th,
                       heavy ? " (every CPU thread 100% busy)" : "");
         snprintf(title, tn, "Start the Crypto benchmark?");
@@ -596,9 +712,10 @@ int bench_ipi(int max_cpus, int rounds, srs_out *o)
     c.m = calloc((size_t)(n * n), sizeof(double));
     if (!c.m) return -1;
     sched_getaffinity(0, sizeof saved, &saved);
-    for (i = 0; i < n; i++)
-        for (j = i + 1; j < n; j++) c.m[i * n + j] = c.m[j * n + i] = pingpong(i, j, rounds);
+    for (i = 0; i < n && !bench_cancelled(); i++)
+        for (j = i + 1; j < n && !bench_cancelled(); j++) c.m[i * n + j] = c.m[j * n + i] = pingpong(i, j, rounds);
     sched_setaffinity(0, sizeof saved, &saved);
+    if (bench_cancelled()) { free(c.m); return -2; }   /* a half matrix is not a result: the last one stays */
     bench_save_render("ipi-delay", ipi_fn, &c, o);
     free(g_ipi_m);
     g_ipi_m = c.m;   /* kept for the GUI heat map */
@@ -638,7 +755,7 @@ static const char *lat_level(long size, const long csz[4])
 }
 
 static volatile size_t g_lat_sink;
-typedef struct { int n; long size[40]; double ns[40]; } lctx;
+typedef struct { int n, stopped; long size[40]; double ns[40]; } lctx;
 static lctx g_lat;
 int bench_latency_last(const long **sizes, const double **ns) { *sizes = g_lat.size; *ns = g_lat.ns; return g_lat.n; }
 static void lat_fn(srs_out *o, void *c)
@@ -649,6 +766,7 @@ static void lat_fn(srs_out *o, void *c)
     long csz[4];
     cache_sizes(csz);
     so_siv_header(o, "Memory Latency (random dependent loads, 64-byte lines)");
+    if (x->stopped) { so_err(o, "Stopped before the end - the larger blocks were not measured"); so_par(o); }
     so_tabs(o, tabs, 2);
     so_row(o, 3, (const char *const[]){ "Block", "Latency", "Level" }, (const int[]){ C_LABEL, C_LABEL, C_LABEL });
     for (i = 0; i < x->n; i++) {
@@ -680,7 +798,7 @@ int bench_latency(long max_bytes, srs_out *o)
     /* Spin ~200 ms first so the core is at full clock before the small blocks
      * (which only take a few ms each) are timed. */
     { double t = now_s(); while (now_s() - t < 0.2) g_lat_sink++; }
-    for (sz = 4096; sz <= max_bytes && c.n < 40; sz *= 2) {
+    for (sz = 4096; sz <= max_bytes && c.n < 40 && !(c.stopped = bench_cancelled()); sz *= 2) {   /* Stop: at the next size */
         size_t lines = (size_t)sz / 64, i, idx = 0, stride = 64 / sizeof(size_t);
         size_t *perm = malloc(lines * sizeof(size_t));
         long hops = 2000000, h;
@@ -710,7 +828,7 @@ int bench_latency(long max_bytes, srs_out *o)
     free(buf);
     bench_save_render("latency", lat_fn, &c, o);
     g_lat = c;
-    return 0;
+    return c.stopped ? 1 : 0;
 }
 
 void bench_history_add(const char *test, const char *params, const char *result)

@@ -1,0 +1,5 @@
+NetworkManager.service enabled enabled
+ModemManager.service disabled disabled
+sshd.service enabled disabled
+getty@.service enabled enabled
+fake-backup.service disabled disabled

@@ -39,8 +39,8 @@ Every one of SIV64X 5.87's **538 report items** has a counterpart in SRS
 as "not present" on a typical PC (Itanium, Xeon PIRs, RAID cards, IPMI, ...) and **38**
 Windows-only items, most of which show their Linux equivalent instead (services -> systemd,
 drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> coredumpctl, ...).
-SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin, Find, ID Lookup and a few more), so
-`sysreport-search --list` shows **558** in all.
+SRS adds 21 items of its own (its benchmarks and their history, Stress & Burnin, Find, ID Lookup, IR Blaster and a few
+more), so `sysreport-search --list` shows **559** in all.
 
 | Program | What |
 |---|---|
@@ -76,11 +76,45 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
   - **Sortable tables** (2.2): click a column heading (first click ascending ▲, second descending ▼);
     numbers sort by value with their units (MB/GB, MHz, °C, RPM, %), dates by date. **Reset view**
     puts the item's order back; Copy and Save Report always keep it.
-  - **Startup manager** (2.2, Operating system -> Startup programs; the tab opens on the read-only
-    **Report**, **Manage** is next to it): turn any autostart
-    entry, user service or (after a warning, with pkexec) system service off and on again without
-    deleting anything; Undo, Restore default, and **Add to startup** for a program or a command with
-    an optional delay. Desktop essentials (Plasma, PipeWire, KWallet, portals, polkit agent) ask first.
+  - **Startup programs** (Operating system page): the tab opens on the read-only **Report**;
+    **Manage** next to it opens The Big Top's **Startup Apps** (below), since 2.5 the one startup
+    manager in SRS. The 2.2 Startup manager is gone; Startup Apps has its Restore Default, and its
+    Restore Removed brings back the copies the old manager saved.
+  - **The Big Top** (2.5; the button between the search box and the menu, Ctrl+G, the Tools page,
+    or Classic Menu -> The Big Top (Live GPU and System Activity)...): a live window for the whole PC and
+    each graphics card.
+    - **Performance** tab, a task manager: **Summary** (LED meters, CPU overview, top processes,
+      memory, pressure, network, disk and GPU tiles), **Performance** (CPU per logical CPU, memory,
+      CPU power, thermals, every disk, adapter and GPU, with graphs), **Processes** (grouped,
+      sortable, filterable; End Task, Force Kill, End Process Tree, Suspend / Resume, Priority, CPU
+      Affinity, Properties - always asking first, never touching PID 1 or kernel threads, other users'
+      processes through a polkit password; zombies explained, with End Parent Process),
+      **Startup Apps** (everything that starts at login, one-click on / off, Add, Remove to a restorable
+      trash, Disable for Me on system entries, Undo that survives a restart; never writes `/etc`),
+      **Users** (sessions, guarded Disconnect), **Services** (Start / Stop / Restart, asks first) and
+      **Run New Task**.
+    - **GPU** tabs modelled on [amdgpu_top](https://github.com/Umio-Yasuno/amdgpu_top) by Umio Yasuno
+      (MIT), reimplemented in C: GPU (device info, GRBM / GRBM2, VRAM / GTT, activity, per-process
+      fdinfo, sensors, PCIe, ECC, every gpu_metrics field, throttling log), SMI (every card on one
+      line), DRM Info, PowerPlay Table and NPU (XDNA); NVIDIA cards through NVML. Performance Counters
+      (GRBM) are off by default - turn them on when you need the GRBM panels. Read-only; a card that
+      can sleep (runtime PM on, no monitor) is left asleep while idle. Update every 0.25 s to 5 s;
+      Guide button / F1 at each tab's section.
+  - **Live tray meters** (2.5, **off by default**): CPU, cores, CPU history and temperature, memory, per
+    card GPU busy / history / temperature / VRAM, disk activity, disk space and network as their own
+    updating tray icons. Turn them on in **Menu -> Options -> Customize Task Manager (Performance tab,
+    tray meters)... -> Live Telemetry Icons**. Left click opens The Big Top's Performance tab. The SRS
+    icons stay together in the settings' order; **Tray Position** puts them with the hardware icons or first.
+  - **IR Blaster** (2.5, USB & PCI devices page; `sysreport-search ir`): an ELK Smart / OCRUSTAR USB
+    infrared dongle (`045c:0132`, `0184`, `0195`, `0134`) as a remote control - learn a button of your
+    TV remote, name it, send it again (Repeat, Dry Run), Type Code, Import / Export, Test and Reset
+    Dongle. The codes are shared with the [IR Remote](https://github.com/eugenesflanagin-spec/irremote)
+    app (`~/.config/irremote/remotes.json`, one-time `.before-srs` copy). Greyed while no dongle is
+    plugged in; shows the udev rule `70-elksmart-ir.rules` and a Copy Install Command button when access
+    is missing. Talks usbfs directly (no new dependency). Used for real with one 045c:0132 dongle and one
+    TV; the other models are untested.
+  - **All Cores (Max)** (2.5, Alt+X) beside Threads on the CPU benchmark pages and on Stress & Burnin:
+    every logical CPU for this run, without changing a saved setting.
   - **Badge** in the title bar: **Full access** when SRS runs as root or root data was collected
     (hover for when), else **Limited (user)** with a **Run as root...** button.
   - **Memory Timings** (2.4, Memory page): on AMD Ryzen 7000 / 9000 desktop processors the live DDR5
@@ -201,7 +235,8 @@ SRS adds 20 items of its own (its benchmarks and their history, Stress & Burnin,
 - Hot-keys (classic view): Ctrl+F Find, Ctrl+L Lookup, Ctrl+D ALL Dev, Ctrl+M Menu, Ctrl+S Save, Ctrl+H Highlight,
   F3 / Shift+F3, F5 Refresh, F1 Help, Esc closes a panel. In the new main window Ctrl+F goes to
   the search box (Ctrl+Shift+F opens Find), Alt+1 ... Alt+0, Alt+-, Alt+= and Alt+Backspace jump to a page,
-  Ctrl+T adds a tab, Ctrl+W closes the tab in view and Ctrl+PageUp / Ctrl+PageDown step through the tabs.
+  Ctrl+T adds a tab, Ctrl+W closes the tab in view, Ctrl+PageUp / Ctrl+PageDown step through the tabs
+  and Ctrl+G opens The Big Top (2.5).
 
 ## System tray
 
@@ -211,7 +246,23 @@ menu (Show / Hide to Tray, Sensors, Processors, Stress & Burnin, Benchmark, Find
 Menu, Exit; middle-click toggles). The first time the close button only hides SRS to the tray, a
 notice says how to quit. **Menu -> Options** sets: tray icon, Close button hides to
 tray, Minimize hides to tray (X11/XWayland), Start hidden in tray, and Start with the desktop
-(autostart into the tray). `srs-gui --gui-tray` starts hidden. See [CHANGELOG.md](CHANGELOG.md).
+(autostart into the tray). `srs-gui --gui-tray` (or `--tray`, 2.5) starts hidden. The tray menu and the
+close notice say **Quit SRS**. See [CHANGELOG.md](CHANGELOG.md).
+
+**Live tray meters** (2.5) are separate icons, one per meter, redrawn every second and kept updating
+while SRS is hidden. **They are off by default**; turn them on in **Menu -> Options -> Customize Task
+Manager (Performance tab, tray meters)...** (the Task Manager Settings): tick **Live Telemetry Icons**,
+then the meters (CPU Meter, Memory Used and GPU Meter at first). Left click opens The Big Top's
+Performance tab; right click has Open SRS, Settings..., the meter list and Quit SRS. The icons stay
+together in the order of the settings ("SRS 01 CPU Meter", ...); **Tray Position** keeps the SRS icons
+with the hardware icons (Normal) or in the tray's first group (First) - the desktop still decides the
+final order. On Plasma, Configure System Tray > Entries > Always shown keeps them out from under the
+tray arrow. The same dialog sets the update speed (every 0.25 s to 5 s), the first page, per-core CPU
+units, Keep Running in the
+Tray When the Window Is Closed, Start Minimised to the Tray at Login and a summon shortcut (bound
+through the desktop's portal; Ctrl+Shift+Esc suggested). The meters speak StatusNotifierItem over
+D-Bus directly, so they need no libayatana-appindicator; tested on KDE Plasma (a test tray), not yet on
+GNOME, XFCE or other trays.
 
 ## Live updates
 
@@ -273,6 +324,8 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
     srs-gui cuda-toolkit [--check|--install|--ask-again|--never-ask]   the optional NVIDIA CUDA toolkit
     srs-gui update-lists [--list] [--yes]   newest pci.ids / usb.ids / pnp.ids into ~/.local/share/srs/lists
+    srs-gui gpu-top [--list|--dump|--gpu-metrics|--smi|--tui|--process|...] [-J] [--device N [--wake]] [--pc]   The Big Top's GPU view (also big-top; GRBM only with --pc, sleeping GPUs only with --wake)
+    srs-gui --tray                         start with only the tray icons (SRS's own and / or the live meters)
     srs-gui work [--threads N] [--seconds S] [--only GROUPS] [--libs zlib,zstd,lz4,xz] [--single] [--yes]
     srs-gui compute [--threads N] [--seconds S] [--tests LIST] [--code auto|c|sse2|avx2|avx512] [--single] [--yes]
 
@@ -295,11 +348,14 @@ further: **Read DIMM voltages from their PMIC chips** reads the modules' power c
 experts) is the one feature that can change hardware state: it runs BIOS code you choose, only after
 a one-time warning, and logs every call. Burner and benchmarks never start on their own (not from `-save` either), and
 every benchmark asks before it starts. Root-only
-data comes only from `srs-root`'s cache in `~/.cache/srs/root`. The one thing that changes your
-system is the Startup manager, and only when you click a switch or a button there: it writes
-autostart files in `~/.config/autostart` (never deletes; old versions go to
-`~/.config/srs/startup-backup`) and runs `systemctl --user` or, after a warning, `pkexec systemctl`
-for system services. `SRS_STARTUP_DRY_RUN=1` shows those commands instead of running them.
+data comes only from `srs-root`'s cache in `~/.cache/srs/root`. Since 2.5 The Big Top's Performance
+tab can also change things, only when you click and always after asking first for anything that ends,
+stops or turns off: it ends, pauses or re-prioritises processes (never PID 1 or kernel threads, never a
+reused PID; another user's process only through a polkit password), turns startup apps on and off in
+your home folder only (never `/etc`; removed entries go to a restorable trash, Undo survives a
+restart), starts and stops services and disconnects sessions. Its GPU tabs only read. **IR Blaster**
+(2.5) sends infrared only when you press Send or Learn (the command line asks first); it writes only
+IR Remote's codes file, keeping a one-time `.before-srs` copy.
 
 ## Install
 
@@ -309,10 +365,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.4.0-x86_64.AppImage
-    ./srs-sysinfo-2.4.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.4.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.4.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
+    ./srs-sysinfo-2.5.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.5.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.5.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -373,7 +429,13 @@ window page has two entries with the same Alt+letter.
 | `mem_timings.c` | Memory Timings (2.4): AMD UMC, PM table, AOD and SPD decoding, Intel memory controller reading (experimental) |
 | `lists.c` | Update hardware lists (2.4): download, checks, and the newer-copy choice for `pci.ids` / `usb.ids` / `pnp.ids` |
 | `power*.c`, `tools/gen_power_rates.py`, `data/` | the Power & Cost page: `power_model.c` (estimate, counters, prices, alarms; `make test-power`), `power_src.c` (sysfs sources), `power_db.c` (SQLite history), `power_rates.c` + `power_rates_data.inc` (offline price / CO2 tables, made by the script) |
-| `gui_tabs.inc`, `tblsort.c`, `gui_startup.c` | main window: tab lineups and the item jump list; unit-aware table sorting; the Startup manager |
+| `gpu_top.h`, `gpu_top.c`, `gpu_top_amd.c`, `gpu_top_nvml.c`, `gpu_top_metrics.inc` | The Big Top's GPU data layer (2.5): device list, sysfs sensors, gpu_metrics layouts, GRBM sampling, per-process fdinfo, AMD (libdrm_amdgpu via dlopen) and NVIDIA (NVML via dlopen) back ends, text and JSON output; a C reimplementation of amdgpu_top |
+| `gpu_top_gui.c` | The Big Top window: the GPU, SMI, DRM Info, PowerPlay Table and NPU (XDNA) tabs, top row, Guide buttons |
+| `perf_view.c`, `perf_data.c`, `perf_procs.c`, `perf_admin.c`, `perf_autostart.c` | The Big Top's Performance tab: the pages, the shared sampler (`/proc`, `/sys`, GPU), process actions, Startup Apps / Users / Services / Run New Task, and the autostart core |
+| `perf_tray.c`, `perf_sni.c` | live tray meters (StatusNotifierItem + dbusmenu over GDBus) and the Task Manager Settings |
+| `tests/gpu-top-test.sh`, `tests/perf-view-test.sh`, `tests/autostart-test.sh`, `tests/perf-tray-test.sh` | GPU Top on recorded fixtures (five made-up GPUs, an NVML stand-in), the Performance tab on `/proc` + `/sys` fixtures under Xvfb, Startup Apps on a throw-away HOME with a fake systemctl, the tray meters on a private bus with a fake tray |
+| `ir.c`, `gui_ir.c`, `tests/ir-test.sh` | IR Blaster (2.5): dongle detection, the elksmart-comm protocol over usbfs, IR Remote's codes file, `sysreport-search ir`; the IR Blaster tab; tests (packets checked byte for byte against elksmart-comm) |
+| `gui_tabs.inc`, `tblsort.c` | main window: tab lineups and the item jump list; unit-aware table sorting |
 | `gui.c`, `plat_win32.c`, `srs.rc` | optional Windows build (`SRS64X.exe` / `SRS32X.exe`, search features only) |
 | `guide.c`, `guide_map.inc` | Guide button / F1 / `guide`: item -> guide section (map generated by `docs/gen_guide_map.py`) |
 | `sync_checklist.py` | copies each item's bucket, root flag and source from the code into `CHECKLIST.tsv` |
@@ -411,6 +473,16 @@ were tested on Mesa's lavapipe software renderer (MIT). GPU Burnin's way of find
 matrix libraries (hipBLAS, cuBLAS, CLBlast) are opened at run time when installed and are not
 shipped. SRS Pi's reference checksums were computed once
 with [mpmath](https://mpmath.org) (BSD licence); mpmath is not part of SRS.
+
+The Big Top (2.5) is SRS's own C code. Its GPU tabs and `sysreport-search gpu-top` reimplement
+amdgpu_top and the parts of libdrm_amdgpu_sys it uses, both by Umio Yasuno (MIT,
+<https://github.com/Umio-Yasuno/amdgpu_top>); the gpu_metrics and PowerPlay table layouts come from the
+Linux kernel's AMD headers (MIT). libdrm and NVIDIA's NVML are loaded at run time when present and are
+not shipped. The Performance tab's layout is inspired by classic task-manager designs; its code,
+drawing and icons are SRS's own or the GTK theme's. IR Blaster's dongle protocol is a port of
+elksmart-comm by Přemysl Eric Janouch (0BSD, <https://git.janouch.name/p/usb-drivers>), and its codes
+file, wording and udev rule follow IR Remote (MIT, the same author as SRS). Details:
+[CREDITS.md](CREDITS.md).
 
 The Power & Cost page's built-in price and CO2 tables come from public data: U.S. Energy
 Information Administration (Electric Power Monthly; public domain), NREL utility rates by ZIP code

@@ -612,7 +612,7 @@ static void load_chip(chip *c)
     }
     dir_free(names, n);
     for (i = 0; i < c->n; i++) c->s[i].nc = sio_nc(c, &c->s[i]);
-    qsort(c->s, (size_t)c->n, sizeof *c->s, sens_cmp);
+    if (c->n) qsort(c->s, (size_t)c->n, sizeof *c->s, sens_cmp);   /* a chip with no sensors: s is NULL (UBSan nonnull) */
 }
 
 /* every hwmon chip; energy inputs get watts; tracked min/max updated. Caller holds g_mx. */

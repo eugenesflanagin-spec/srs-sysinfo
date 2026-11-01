@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Plain System App
+Name[de]=Einfache Systemanwendung
+# a comment that must survive
+Exec=true --plain
+Icon=utilities-terminal

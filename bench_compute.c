@@ -1094,8 +1094,9 @@ static void cp_render(srs_out *o, void *c)
         char a[40], b[40];
         int col = C_GREEN;
         if (r->run_mask && !(r->run_mask >> t & 1)) continue;
-        if (e->state == CP_ST_OK || (e->state == CP_ST_NOTRUN && e->v[0] > 0)) {
+        if (e->state == CP_ST_OK || (e->state == CP_ST_NOTRUN && (e->v[0] > 0 || e->v[1] > 0))) {
             snprintf(a, sizeof a, e->v[0] > 0 ? "%.1f %s" : "-", e->v[0], cp_unit[t]);
+            if (r->multi_only) snprintf(a, sizeof a, "skipped");   /* All Cores: not measured */
             snprintf(b, sizeof b, e->v[1] > 0 ? "%.1f %s" : "-", e->v[1], cp_unit[t]);
         } else if (e->state == CP_ST_FAIL) {
             snprintf(a, sizeof a, "WRONG result");
@@ -1107,13 +1108,14 @@ static void cp_render(srs_out *o, void *c)
             col = C_GRAY;
         }
         so_row(o, 4, (const char *const[]){ cp_test_name[t], a, r->single_only ? "" : b, cp_isa_name(e->isa ? e->isa : CP_ISA_C) },
-               (const int[]){ C_LABEL, col, col, C_TEAL });
+               (const int[]){ C_LABEL, r->multi_only && col == C_GREEN ? C_GRAY : col, col, C_TEAL });
         if (*e->note) { so_t(o, e->state == CP_ST_FAIL ? C_RED : C_GRAY, e->note); so_par(o); }
     }
     so_par(o);
     so_tabs(o, tabs, 1);
     if (r->cancelled) { so_err(o, "Stopped before the end - the rows marked \"not measured\" were not run."); so_par(o); }
     so_kv(o, "Check", r->self_ok && !r->failed ? C_GREEN : C_RED, r->self_ok && r->failed ? "a timed result was wrong (see the red rows)" : r->self);
+    if (r->multi_only) so_kv(o, "Passes", C_GRAY, "1-thread pass skipped (All Cores): only the threads column was measured");
     so_kvf(o, "Run", C_GRAY, "%s, %.1f s per measurement, %.0f s in all", r->when, r->seconds, x->secs_total);
     so_kv(o, "Build", C_GRAY, bench_build_tag());
     so_note(o, "GFLOPS = billion floating-point operations per second (a multiply-add counts as 2). Matrix multiply: "
@@ -1139,7 +1141,7 @@ double cp_estimate_seconds(const cp_cfg *c)
     int t, n = 0;
     double s = c->seconds < 0.1 ? 0.1 : c->seconds > 60 ? 60 : c->seconds;
     for (t = 0; t < CP_NTEST; t++) if (!c->run_mask || (c->run_mask >> t & 1)) n++;
-    return 0.5 + n * (s + 0.1) * (c->single_only ? 1 : 2);
+    return 0.5 + n * (s + 0.1) * (c->single_only || c->multi_only ? 1 : 2);
 }
 
 int bench_compute(const cp_cfg *cfg, srs_out *o, volatile int *cancel)
@@ -1151,15 +1153,18 @@ int bench_compute(const cp_cfg *cfg, srs_out *o, volatile int *cancel)
     double t_all = now_s();
     time_t now = time(NULL);
     int t, k, len;
+    bench_no_page_merge();
     if (cfg) c = *cfg; else cp_cfg_default(&c);
     if (burn_active()) return -1;
     if (c.threads < 1 || c.threads > burn_ncpu()) c.threads = burn_ncpu();
     if (!(c.seconds >= 0.1)) c.seconds = 0.1;
     if (c.seconds > 60) c.seconds = 60;
+    if (c.single_only) c.multi_only = 0;
     c.run_mask &= (1u << CP_NTEST) - 1;
     memset(&x, 0, sizeof x);
     r->threads = c.threads;
     r->single_only = c.single_only;
+    r->multi_only = c.multi_only;
     r->seconds = c.seconds;
     r->run_mask = c.run_mask;
     strftime(r->when, sizeof r->when, "%Y-%m-%d %H:%M:%S", localtime(&now));
@@ -1173,7 +1178,7 @@ int bench_compute(const cp_cfg *cfg, srs_out *o, volatile int *cancel)
         if (cancel && *cancel) { r->cancelled = 1; break; }
         if (c.cb) c.cb(r, 0, c.ud);
         if (ref_make(&ref, t, 0)) { e->state = CP_ST_SKIP; snprintf(e->note, sizeof e->note, "not enough memory"); continue; }
-        for (k = 0; k < (c.single_only ? 1 : 2); k++) {
+        for (k = c.multi_only ? 1 : 0; k < (c.single_only ? 1 : 2); k++) {
             int ok, n = k ? c.threads : 1;
             set_stage(t, n);
             e->v[k] = cp_measure(&ref, e->isa, n, c.seconds, cancel, &ok, e->note, sizeof e->note) / cp_scale[t];
@@ -1188,14 +1193,18 @@ int bench_compute(const cp_cfg *cfg, srs_out *o, volatile int *cancel)
     g_stage = "";
     x.secs_total = now_s() - t_all;
     bench_save_render("compute", cp_render, &x, o);
-    snprintf(params, sizeof params, "threads=%d seconds=%.1f code=%s%s", c.threads, c.seconds, cp_isa_id(c.isa), c.single_only ? " single" : "");
+    snprintf(params, sizeof params, "threads=%d seconds=%.1f code=%s%s", c.threads, c.seconds, cp_isa_id(c.isa),
+             c.single_only ? " single" : c.multi_only ? " all-threads-only" : "");
     len = 0;
     res[0] = 0;
     for (t = 0; t < CP_NTEST && len < (int)sizeof res - 64; t++) {
         const cp_cell *e = &r->t[t];
-        if (e->state == CP_ST_OK) len += snprintf(res + len, sizeof res - len, "%s%s %.1f/%.1f", len ? " " : "", cp_test_id[t], e->v[0], e->v[1]);
+        if (e->state == CP_ST_OK && c.multi_only)   /* the 1-thread value was not measured: "-", not 0 */
+            len += snprintf(res + len, sizeof res - len, "%s%s -/%.1f", len ? " " : "", cp_test_id[t], e->v[1]);
+        else if (e->state == CP_ST_OK) len += snprintf(res + len, sizeof res - len, "%s%s %.1f/%.1f", len ? " " : "", cp_test_id[t], e->v[0], e->v[1]);
         else if (e->state == CP_ST_FAIL) len += snprintf(res + len, sizeof res - len, "%s%s WRONG", len ? " " : "", cp_test_id[t]);
     }
+    if (c.multi_only && len < (int)sizeof res - 24) len += snprintf(res + len, sizeof res - len, "%s1-THREAD-SKIPPED", len ? " " : "");
     if (!r->self_ok) snprintf(res + len, sizeof res - len, "%sSELFTEST-FAILED", len ? " " : "");
     else if (r->cancelled) snprintf(res + len, sizeof res - len, "%sSTOPPED", len ? " " : "");
     bench_history_add("compute", params, res);

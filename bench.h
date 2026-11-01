@@ -24,6 +24,20 @@ double dhrystone_dmips(long runs, double *secs);
 int bench_run(bench_mode m, double secs_per_cpu, srs_out *o);
 int bench_ipi(int max_cpus, int rounds, srs_out *o);          /* core-to-core latency matrix */
 int bench_latency(long max_bytes, srs_out *o);                 /* memory latency by block size */
+/* Stop for the engines above and Crypto, which take no cancel argument: while *cancel is set they stop at the next
+   measurement boundary (CPU Benchmark: next CPU set, IPI: next pair, Latency: next block size, Crypto: next
+   measurement). bench_run / bench_latency then return 1 (partial result, marked stopped), bench_ipi -2 (no result),
+   bench_crypto 2 (partial, STOPPED in the history). NULL = no stop (the CLI). */
+void bench_set_cancel(volatile int *cancel);
+int  bench_cancelled(void);
+
+/* ---- one load at a time across SRS processes: $XDG_RUNTIME_DIR/srs/bench.lock ("PID test name") ----
+   bench_lock_other: 1 when another live process holds it (who = its test, pid = its PID); a lock of a process that
+   is gone (stale) or of this process does not count. bench_lock_take writes this process's PID and test (replacing
+   any other); bench_lock_release removes it only when it is still this process's. SRS_TEST_BENCH_LOCK = the file. */
+int  bench_lock_other(char *who, size_t wn, int *pid);
+void bench_lock_take(const char *test);
+void bench_lock_release(void);
 int bench_ecores(unsigned char *is_e, int ncpu);                 /* hybrid CPUs: E-core map, returns count */
 int bench_show_last(const char *name, srs_out *o);             /* render cached result, 0 if found */
 /* last measured data for the GUI plots (valid after a run in this process) */
@@ -42,6 +56,7 @@ typedef struct {
     double secs;              /* BA_BENCH, BA_CRYPTO: seconds per measurement */
     double max_mb;            /* BA_LAT: largest block */
     double digits, limit;     /* BA_PI, BA_PRIME */
+    int all_only;             /* BA_CRYPTO: only the all-threads pass (All Cores) */
 } bench_ask;
 /* title: "Start the ...?"; body: plain sentences (paragraphs split by a blank line) saying what runs,
    about how long, how many CPU threads are busy and (SRS Pi) the memory it needs.
@@ -70,7 +85,8 @@ int bench_pi(size_t digits, int threads, int algo, srs_out *o, volatile int *can
 const char *pi_stage(void);                         /* what the running calculation is doing */
 
 /* ---- Crypto (bench_crypto.c): AES-128-CTR and SHA-256, plain C and AES-NI / SHA-NI ---- */
-int  bench_crypto(int threads, double secs, srs_out *o);   /* 0 ok, 1 self-test failed */
+/* all_only = 1: only the all-threads pass (All Cores; the 1-thread column shows "skipped") */
+int  bench_crypto(int threads, double secs, int all_only, srs_out *o);   /* 0 ok, 1 self-test failed */
 int  crypto_selftest(char *msg, size_t mn);                /* 1 ok */
 int  crypto_have_aesni(void);
 int  crypto_have_shani(void);
@@ -93,5 +109,9 @@ double storage_temp_c(const storage_where *w);             /* drive temperature,
 const char *storage_stage(void);
 /* 0 ok, 1 stopped, -1 not started (why says why), -2 I/O error (result shown) */
 int  bench_storage(const storage_cfg *c, srs_out *o, volatile int *cancel, char *why, size_t wn);
+
+/* 2.4.1: before a benchmark, take SRS out of kernel same-page merging (KSM) when a tool such as animaksm turned it on
+   for every program: KSM folds identical buffers into one page and the results come out too fast. Linux only. */
+void bench_no_page_merge(void);
 
 #endif

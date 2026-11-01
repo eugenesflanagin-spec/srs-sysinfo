@@ -1,0 +1,8 @@
+drm-driver:	amdgpu
+drm-client-id:	900
+drm-pdev:	0000:0a:00.0
+drm-memory-vram:	1048576 KiB
+drm-memory-gtt: 	2048 KiB
+drm-memory-cpu: 	0 KiB
+drm-engine-gfx:	5300000000 ns
+drm-engine-compute:	1100000000 ns

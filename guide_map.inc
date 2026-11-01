@@ -258,6 +258,7 @@
 { "ipmi-info", "sections-sensors--ipmi-status" },
 { "ipmi-time", "sections-sensors--ipmi-time" },
 { "ipmi-wait", "sections-sensors--ipmi-wait" },
+{ "ir-blaster", "sections-buses-1--ir-blaster" },
 { "irports", "sections-buses-1--irda-ports" },
 { "isa-bus", "sections-buses-1--isa-bus" },
 { "jmb-raid", "sections-storage--jmicron-jmb-raid" },

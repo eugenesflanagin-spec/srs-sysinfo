@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent
-FILES = ["gui_gtk.c", "gui_tabs.inc"]
+FILES = ["gui_gtk.c", "gui_tabs.inc", "gui_ir.c"]
 LIT = r'"(?:[^"\\]|\\.)*"'
 TERNARY = re.compile(r'\?\s*(' + LIT + r')\s*:\s*(' + LIT + r')')
 
