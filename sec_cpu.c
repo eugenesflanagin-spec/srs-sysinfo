@@ -900,6 +900,27 @@ static void s_amd_cpu(srs_out *o)
 
 /* AMD SMU via the ryzen_smu driver (read-only attributes) */
 #define RSMU "/sys/kernel/ryzen_smu_drv"
+
+/* 2.6.0: the ryzen_smu driver's codename number as a name, e.g. "20" -> "20 (Raphael: Ryzen 7000, Zen 4)".
+   The numbers are the driver's own list (enum smu_processor_codename in its smu.h, leogx9r / amkillam fork);
+   the products in brackets are the usual retail families. Unknown numbers stay as they are. */
+static void smu_codename_text(const char *num, char *out, size_t sz)
+{
+    static const char *const names[] = {
+        NULL, "Colfax: Threadripper 1000/2000, Zen / Zen+", "Renoir: Ryzen 4000 APU, Zen 2", "Picasso: Ryzen 3000 APU, Zen+",
+        "Matisse: Ryzen 3000, Zen 2", "Threadripper", "Castle Peak: Threadripper 3000, Zen 2", "Raven Ridge: Ryzen 2000 APU, Zen",
+        "Raven Ridge 2: Zen", "Summit Ridge: Ryzen 1000, Zen", "Pinnacle Ridge: Ryzen 2000, Zen+", "Rembrandt: Ryzen 6000 mobile, Zen 3+",
+        "Vermeer: Ryzen 5000, Zen 3", "Van Gogh: Steam Deck APU, Zen 2", "Cezanne: Ryzen 5000 APU, Zen 3", "Milan: EPYC 7003, Zen 3",
+        "Dali: Zen", "Lucienne: Ryzen 5000 mobile, Zen 2", "Naples: EPYC 7001, Zen", "Chagall: Threadripper PRO 5000, Zen 3",
+        "Raphael: Ryzen 7000, Zen 4", "Phoenix: Ryzen 7040 / 8000G, Zen 4", "Strix Point: Ryzen AI 300, Zen 5",
+        "Granite Ridge: Ryzen 9000, Zen 5", "Hawk Point: Ryzen 8040, Zen 4", "Storm Peak: Threadripper 7000, Zen 4",
+        "Strix Halo: Ryzen AI Max, Zen 5" };
+    char *e;
+    long n = strtol(num, &e, 10);
+    if (*num && (*e == 0 || *e == '\n') && n > 0 && n < (long)(sizeof names / sizeof names[0]) && names[n])
+        snprintf(out, sz, "%ld (%s)", n, names[n]);
+    else snprintf(out, sz, "%s", *num ? num : "-");
+}
 static void s_amd_smu(srs_out *o)
 {
     static const int tabs[] = { 220 };
@@ -921,6 +942,7 @@ static void s_amd_smu(srs_out *o)
             if (n == 4) { unsigned x; memcpy(&x, raw, 4); snprintf(v, sizeof v, "0x%08X (%u)", x, x); }
             else if (n == 8) { unsigned long long x; memcpy(&x, raw, 8); snprintf(v, sizeof v, "%llu bytes", x); }
         } else rd_str(p, v, sizeof v);
+        if (!strcmp(attrs[i], "codename")) { char t[128]; smu_codename_text(v, t, sizeof t); snprintf(v, sizeof v, "%s", t); }
         so_kv(o, labels[i], C_BLACK, *v ? v : "-");
     }
     so_par(o);
@@ -960,7 +982,9 @@ static int smu_fabric_clocks(double *fclk, double *uclk, double *mclk, char *why
     snprintf(p, sizeof p, "%s/codename", dir);
     rd_str(p, cn, sizeof cn);
     if (!((ver & 0xFFFF00u) == 0x540100u || (!ver && atoi(cn) == 20))) {
-        snprintf(why, wn, "PM table layout not known (codename %s, version 0x%06X)", *cn ? cn : "?", ver);
+        char t[128];
+        smu_codename_text(cn, t, sizeof t);
+        snprintf(why, wn, "PM table layout not known (codename %s, version 0x%06X)", t, ver);
         return 0;
     }
     snprintf(p, sizeof p, "%s/pm_table", dir);
@@ -1050,7 +1074,11 @@ static void s_amd_pmt_layout(srs_out *o)
     if ((f = fopen(RSMU "/pm_table_version", "rb"))) { if (fread(raw, 1, 4, f) == 4) memcpy(&ver, raw, 4); fclose(f); }
     if ((f = fopen(RSMU "/pm_table_size", "rb"))) { if (fread(raw, 1, 8, f) == 8) memcpy(&sz, raw, 8); fclose(f); }
     rd_str(RSMU "/codename", codename, sizeof codename);
-    so_kv(o, "ryzen_smu codename", C_VALUE, codename);
+    {
+        char t[128];
+        smu_codename_text(codename, t, sizeof t);
+        so_kv(o, "ryzen_smu codename", C_VALUE, t);
+    }
     so_kvf(o, "PM table version", C_BLACK, "0x%06X", ver);
     so_kvf(o, "PM table size", C_BLACK, "%llu bytes (%llu 32-bit values)", sz, sz / 4);
     so_kv(o, "Value type", C_VALUE, "IEEE 754 single-precision floats, little-endian");

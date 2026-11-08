@@ -204,7 +204,7 @@ SMU mailbox commands, which SRS never sends.
 | Field | Meaning | Why it matters |
 |---|---|---|
 | Driver version | Version of the `ryzen_smu` driver (`drv_version`) | Old drivers may not know new CPUs. |
-| Codename | The driver's number for your CPU generation (`codename`) | Tells the driver which table layout to use. |
+| Codename | The driver's number for your CPU generation (`codename`), since 2.6.0 with its name, e.g. 20 (Raphael: Ryzen 7000, Zen 4) | Tells the driver which table layout to use. |
 | SMU firmware version | SMU firmware version (the driver's `version` file), e.g. `4.84.4.0` | Changes with BIOS (AGESA) updates. |
 | MP1 interface version | Version of the MP1 mailbox interface (`mp1_if_version`) | Driver/firmware compatibility. |
 | PM table version | Layout version of the PM table, in hex and decimal (`pm_table_version`, a binary 32-bit value) | You need this to know what each [PM table](#amd-pm-table) slot means. |
@@ -212,7 +212,7 @@ SMU mailbox commands, which SRS never sends.
 
 A closing note says SRS is read-only and never sends SMU commands.
 
-**Healthy / typical values.** On the author's 7800X3D: drv_version 0.1.7, codename 20, mp1_if_version 2,
+**Healthy / typical values.** On the author's 7800X3D: drv_version 0.1.7, codename 20 (Raphael), mp1_if_version 2,
 pm_table_version 0x00540104 (5505284), pm_table_size 1704. A field shows `-` when the driver does not
 provide it.
 

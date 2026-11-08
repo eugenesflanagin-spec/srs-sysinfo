@@ -27,6 +27,8 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 - **Memory Timings**: five more DDR5 fields on every channel, tMODPDA, tMRDPDA, tTRCPAGE, tWRPRE and tRDPRE (register
   fields as listed by QTuxTimings / TuxTimings, facts only). **AGESA version** (from SMBIOS type 40, after Run as root
   once) on the summary's BIOS line, BIOS Maker and the firmware page.
+- **AMD SMU / PM Table layout**: the ryzen_smu codename number with its name, e.g. "20 (Raphael: Ryzen 7000, Zen 4)"
+  (the driver's own numbering, 26 generations).
 - **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's.
 
 ### Fixed
