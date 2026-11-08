@@ -4,6 +4,19 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.6.0 - unreleased
+
+### Fixed
+
+- **CPU speeds on a PC with a base clock other than 100 MHz** (BCLK, or eCLK on AM5): the kernel works out the
+  cpufreq limits at a 100 MHz base, so Base Speed, Maximum Speed, the CPU Speeds table's Minimum / Maximum / HW Min /
+  HW Max and the CPU Power States frequencies were too low by the base-clock factor (with eCLK 104: Maximum Speed
+  5.05 GHz while the CPU ran at 5.12 GHz). They are now shown at the measured base clock (TSC x 100 / CPPC nominal,
+  the method the Stock and in effect now table already used), with a note saying so; the current and average clocks
+  were already measured and are unchanged. The Big Top's Performance tab also shows **Base Clock** on such a PC, and
+  its Base Speed falls back to ACPI CPPC nominal_freq (it said "Not reported" on amd-pstate kernels without
+  amd_pstate_nominal_freq).
+
 ## 2.5.0 - 2026-10-31
 
 **The Big Top**: a live window for the whole PC and each graphics card - a task manager with process actions, startup

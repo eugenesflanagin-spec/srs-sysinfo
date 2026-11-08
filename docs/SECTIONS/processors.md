@@ -599,12 +599,18 @@ refreshes it every second.
 | Average | Average clock over a short recent window (needs a recent kernel) | Smoother than Current. |
 | Minimum / Maximum | Allowed range set by the OS (scaling limits) | What policy currently allows. |
 | HW Min / HW Max | Range the hardware supports | The absolute floor and ceiling. |
+
+Since 2.6.0 Minimum, Maximum, HW Min and HW Max are shown at the **measured base clock**: the kernel works
+these limits out at a 100 MHz base clock, so on a PC with a raised BCLK or eCLK they would read too low next
+to Current. A note under the table gives the factor (for example x 1.040 for a 104 MHz eCLK). Current and
+Average are measured (APERF/MPERF x the TSC rate), so they already include the base clock and are not scaled.
 | Governor | Speed policy | `performance` = always aim high; `powersave` under amd-pstate-epp still boosts but follows EPP. |
 | EPP | Energy Performance Preference | Speed vs power hint. |
 
 **Healthy / typical values.** On the author's 7800X3D: driver amd-pstate-epp, boost on; Current 4.2-5.1GHz
-under light load; HW Min 426MHz, HW Max 5.05GHz. Current can read a little above Maximum (5.11GHz vs
-5.05GHz) because of rounding and a raised reference clock.
+under light load. With the author's 104 MHz eCLK: HW Min 443MHz and HW Max 5.25GHz (the kernel's own
+figures are 426MHz and 5.05GHz, at 100 MHz). Before 2.6.0 Current could read above Maximum (5.12GHz vs
+5.05GHz) for that reason.
 
 **Unusual values and what they suggest.**
 - Every core stuck at a low Current under load: a thermal or power limit, or the `powersave` governor
@@ -969,6 +975,8 @@ were busy during the run, or the L3 is shared with a busy neighbour. Re-run with
 - **Lowest perf** - absolute minimum level.
 - **Nominal frequency** / **Lowest frequency** - the clocks for nominal and lowest levels.
 - **Maximum (boost) frequency** - top clock from cpufreq.
+- Since 2.6.0 the three frequencies are shown at the measured base clock (the kernel works them out at
+  100 MHz); on a PC with a raised BCLK or eCLK a note under them gives the factor.
 - **Transition latency** - time to change speed, in ns (0 = the hardware does it itself).
 
 *Idle states (cpu0)* - each C-state with its description and exit latency in microseconds. A disabled
@@ -981,7 +989,7 @@ state is shown grey with "(disabled)".
 - **Hibernate mode** - from `/sys/power/disk`; [bracketed] is active.
 
 **Healthy / typical values.** On the author's 7800X3D: Highest perf 166, Nominal 138, Lowest non-linear
-98, Lowest 14, nominal 4.20GHz, lowest 545MHz, boost 5.05GHz, transition 0 ns. Idle states POLL, C1, C2
+98, Lowest 14, nominal 4.37GHz, lowest 567MHz, boost 5.25GHz (104 MHz eCLK; 4.20GHz / 545MHz / 5.05GHz at 100 MHz), transition 0 ns. Idle states POLL, C1, C2
 (18 us), C3 (350 us). Sleep: freeze mem disk, suspend type `[deep]`, hibernate `[platform]`.
 
 **Unusual values and what they suggest.**

@@ -21,7 +21,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 CC=/usr/bin/gcc   # full path, like the Makefile (/opt/aocc/bin shadows gcc here; $CC may be clang)
 FLAGS="-std=c11 -Wall -Wextra -Werror -Wno-format-truncation -O2 -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -pthread -D_FORTIFY_SOURCE=2"
-DATA="perf_data.c power_src.c power_model.c gpu_top.c gpu_top_amd.c gpu_top_nvml.c lists.c plat_posix.c"
+DATA="perf_data.c cpu_clock.c power_src.c power_model.c gpu_top.c gpu_top_amd.c gpu_top_nvml.c lists.c plat_posix.c"
 fail=0
 ok()  { printf '  ok    %s\n' "$*"; }
 bad() { printf '  FAIL  %s\n' "$*"; fail=1; }
@@ -43,6 +43,10 @@ has "$O" "cpu0: 30.0 10.0" "CPU 0 user / kernel"
 has "$O" "cpu1: 10.0 0.0" "CPU 1 user / kernel"
 has "$O" "mhz: 3500" "average clock"
 has "$O" "max_mhz: 5000" "maximum clock"
+# 2.6.0: limits worked out at 100 MHz follow the base clock (BCLK / eCLK); the current clock is already real
+O104=$(SRS_BASE_CLOCK_MHZ=104 XDG_DATA_DIRS=$F XDG_DATA_HOME=/nonexistent "$TMP/pdh" "$F/t0" "$F/t1")
+has "$O104" "max_mhz: 5200" "maximum clock x 1.04 at a 104 MHz base clock"
+has "$O104" "mhz: 3500" "current clock not scaled at a 104 MHz base clock (already measured)"
 has "$O" "governor: schedutil" "governor"
 has "$O" "cpu_temp: 61.2 (k10temp Tctl)" "k10temp Tctl"
 has "$O" "mem_used: 8192000000" "memory in use = total - available"

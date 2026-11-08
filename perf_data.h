@@ -112,7 +112,8 @@ typedef struct {
     char cpu_model[96];
     int ncpu, cores, sockets, virt;   /* virt: 1 = AMD-V / VT-x flag present */
     char governor[32], freq_driver[32];
-    double base_mhz, max_mhz;      /* <= 0 unknown */
+    double base_mhz, max_mhz;      /* <= 0 unknown; at the real base clock (cpu_clock.c), like mhz */
+    double ref_mhz;                /* measured base clock (BCLK / eCLK) when it is not 100 MHz, else 0 */
     double cpu, cpu_user, cpu_kernel;   /* % of the whole machine */
     short cpu_id[PD_MAX_CPU];      /* the kernel's number of each online logical CPU ("cpuN") */
     float cu[PD_MAX_CPU], ck[PD_MAX_CPU];   /* per logical CPU: user, kernel % */

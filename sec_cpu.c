@@ -20,6 +20,7 @@
 static unsigned long long __rdtsc(void) { return 0; }
 #endif
 #include <math.h>
+#include "cpu_clock.h"
 #include <sched.h>
 #include <stdint.h>
 #include <ctype.h>
@@ -100,6 +101,29 @@ static void freq_str(int cpu, const char *file, char *b, size_t sz)
     char p[256];
     snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/%s", cpu, file);
     if (rd_long(p, &v)) fmt_hz(v * 1000.0, b, sz); else snprintf(b, sz, "-");
+}
+
+/* a cpufreq limit (worked out by the kernel at a 100 MHz base clock) at the real base clock, so it
+   matches the measured current clock on a BCLK / eCLK PC (2.6.0, cpu_clock.c) */
+static void freq_str_r(int cpu, const char *file, char *b, size_t sz)
+{
+    long v;
+    char p[256];
+    snprintf(p, sizeof p, SYSCPU "/cpu%d/cpufreq/%s", cpu, file);
+    if (rd_long(p, &v)) fmt_hz(v * 1000.0 * cpu_clock_ratio(), b, sz); else snprintf(b, sz, "-");
+}
+
+/* "x 1.040 for the measured 104.0 MHz base clock" note, or nothing at a 100 MHz base clock */
+static void clock_ratio_note(srs_out *o, const char *what, int has_current)
+{
+    char b[400];
+    double r = cpu_clock_ratio();
+    if (r == 1.0) return;
+    so_par(o);
+    snprintf(b, sizeof b, "%s: the kernel works these out at a 100 MHz base clock, so they are shown x %.3f for the "
+             "measured %.1f MHz base clock (BCLK / eCLK).%s", what, r, r * 100.0,
+             has_current ? " Current and Average are measured, so they are already real." : "");
+    so_note(o, b);
 }
 
 static long topo(int cpu, const char *f)
@@ -729,15 +753,16 @@ static void s_cpu_speeds(srs_out *o)
         snprintf(c[0], 64, "CPU-%d", i);
         freq_str(i, "scaling_cur_freq", c[1], 64);
         freq_str(i, "cpuinfo_avg_freq", c[2], 64);
-        freq_str(i, "scaling_min_freq", c[3], 64);
-        freq_str(i, "scaling_max_freq", c[4], 64);
-        freq_str(i, "cpuinfo_min_freq", c[5], 64);
-        freq_str(i, "cpuinfo_max_freq", c[6], 64);
+        freq_str_r(i, "scaling_min_freq", c[3], 64);
+        freq_str_r(i, "scaling_max_freq", c[4], 64);
+        freq_str_r(i, "cpuinfo_min_freq", c[5], 64);
+        freq_str_r(i, "cpuinfo_max_freq", c[6], 64);
         rd_fmt(c[7], 64, SYSCPU "/cpu%d/cpufreq/scaling_governor", i);
         rd_fmt(c[8], 64, SYSCPU "/cpu%d/cpufreq/energy_performance_preference", i);
         for (k = 0; k < 9; k++) cells[k] = *c[k] ? c[k] : "-";
         so_row(o, 9, cells, (const int[]){ C_LABEL, C_BLACK, C_BLACK, C_GRAY, C_GRAY, C_TEAL, C_TEAL, C_ORANGE, C_ORANGE });
     }
+    clock_ratio_note(o, "Minimum, Maximum, HW Min and HW Max", 1);
     clocks_vs_stock(o);
 }
 
@@ -913,21 +938,7 @@ static void s_amd_smu(srs_out *o)
  * ---------------------------------------------------------------------- */
 static double base_clock_mhz(double *tsc_out, double *nom_out)
 {
-    static int done;
-    static double base, tsc, nom;
-    if (!done) {
-        long n = 0;
-        done = 1;
-        if (has_flag(flags(), "constant_tsc") && rd_long(SYSCPU "/cpu0/acpi_cppc/nominal_freq", &n) && n > 0) {
-            nom = (double)n;
-            tsc = measure_tsc_mhz();
-            base = tsc * 100.0 / nom;
-            if (base < 50 || base > 200) base = 0;
-        }
-    }
-    if (tsc_out) *tsc_out = tsc;
-    if (nom_out) *nom_out = nom;
-    return base;
+    return cpu_clock_base_mhz(tsc_out, nom_out);   /* shared with the Performance page (2.6.0) */
 }
 
 /* FCLK / UCLK / MCLK in MHz from the PM table: 1 if this table layout is known and the values make
@@ -1597,9 +1608,10 @@ static void s_power_states(srs_out *o)
     if (rd_str(SYSCPU "/cpu0/acpi_cppc/nominal_perf", b, sizeof b)) so_kv(o, "Nominal perf", C_BLACK, b);
     if (rd_str(SYSCPU "/cpu0/acpi_cppc/lowest_nonlinear_perf", b, sizeof b)) so_kv(o, "Lowest non-linear perf", C_BLACK, b);
     if (rd_str(SYSCPU "/cpu0/acpi_cppc/lowest_perf", b, sizeof b)) so_kv(o, "Lowest perf", C_BLACK, b);
-    if (rd_str(SYSCPU "/cpu0/acpi_cppc/nominal_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e6, h, sizeof h); so_kv(o, "Nominal frequency", C_BLACK, h); }
-    if (rd_str(SYSCPU "/cpu0/acpi_cppc/lowest_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e6, h, sizeof h); so_kv(o, "Lowest frequency", C_BLACK, h); }
-    if (rd_str(SYSCPU "/cpu0/cpufreq/cpuinfo_max_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e3, h, sizeof h); so_kv(o, "Maximum (boost) frequency", C_BLACK, h); }
+    if (rd_str(SYSCPU "/cpu0/acpi_cppc/nominal_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e6 * cpu_clock_ratio(), h, sizeof h); so_kv(o, "Nominal frequency", C_BLACK, h); }
+    if (rd_str(SYSCPU "/cpu0/acpi_cppc/lowest_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e6 * cpu_clock_ratio(), h, sizeof h); so_kv(o, "Lowest frequency", C_BLACK, h); }
+    if (rd_str(SYSCPU "/cpu0/cpufreq/cpuinfo_max_freq", b, sizeof b)) { fmt_hz(atof(b) * 1e3 * cpu_clock_ratio(), h, sizeof h); so_kv(o, "Maximum (boost) frequency", C_BLACK, h); }
+    clock_ratio_note(o, "Nominal, lowest and maximum frequency", 0);
     if (rd_str(SYSCPU "/cpu0/cpufreq/cpuinfo_transition_latency", b, sizeof b)) so_kvf(o, "Transition latency", C_GRAY, "%s ns", b);
     so_par(o);
     so_b(o, C_VALUE, "Idle states (cpu0)"); so_par(o);

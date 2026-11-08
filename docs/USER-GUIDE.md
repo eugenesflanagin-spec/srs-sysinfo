@@ -1225,6 +1225,8 @@ every network adapter and every graphics card. Pick one for its big meter, graph
 - **CPU:** one graph per logical CPU (user time green, kernel time red), Utilization, Speed,
   Processes, Threads, Up Time, Base and Maximum Speed, Sockets, Cores, Logical Processors,
   Virtualization, Governor, Frequency Driver, Temperature, Package Power, Kernel Time, Load Average.
+  Base and Maximum Speed are shown at the measured base clock; on a PC with a raised BCLK or eCLK
+  a **Base Clock** line (for example 104.0 MHz) says so (2.6.0).
 - **Memory:** In Use, Available, Committed, Cached, Swap, Free, Buffers, Shared, Kernel Slab, Dirty,
   Memory Stalls, and a swap graph.
 - **CPU Power:** the processor package and each graphics card, with a graph and where each figure

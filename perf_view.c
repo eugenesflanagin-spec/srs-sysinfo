@@ -1229,6 +1229,7 @@ static void update_detail(pv *v)
         SM("Base Speed:", "%s", s->base_mhz > 0 ? x : "Not reported");
         pd_fmt_mhz(s->max_mhz, x, sizeof x);
         SM("Maximum Speed:", "%s", x);
+        if (s->ref_mhz > 0) SM("Base Clock:", "%.1f MHz (BCLK / eCLK, included above)", s->ref_mhz);
         SM("Sockets:", "%d", s->sockets);
         SM("Cores:", "%d", s->cores);
         SM("Logical Processors:", "%d", s->ncpu);

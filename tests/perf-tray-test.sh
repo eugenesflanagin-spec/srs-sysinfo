@@ -28,7 +28,7 @@ DRV=$TMP/perf_tray_test
 echo "== build the driver (warnings are errors)"
 (cd "$SRC" && "$CC" -std=c11 -Wall -Wextra -Wno-format-truncation -Werror -O2 -DSRS_HAVE_SECTIONS -D_DEFAULT_SOURCE -D_FORTIFY_SOURCE=2 \
     -pthread -Wno-deprecated-declarations $(pkg-config --cflags gtk+-3.0) -o "$DRV" tests/perf_tray_test.c perf_tray.c perf_sni.c \
-    perf_data.c power_src.c power_model.c gpu_top.c gpu_top_amd.c gpu_top_nvml.c lists.c plat_posix.c $(pkg-config --libs gtk+-3.0) -lm -ldl) \
+    perf_data.c cpu_clock.c power_src.c power_model.c gpu_top.c gpu_top_amd.c gpu_top_nvml.c lists.c plat_posix.c $(pkg-config --libs gtk+-3.0) -lm -ldl) \
     > "$TMP/build.log" 2>&1 && ok "driver builds warning-free" || { bad "driver build"; cat "$TMP/build.log"; exit 1; }
 
 # one run: $1 = name, $2 = seconds, $3 = [Task Manager] lines; the fake tray starts 1 s after the meters (re-register path)

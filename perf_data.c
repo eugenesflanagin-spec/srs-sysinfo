@@ -14,6 +14,7 @@
 #endif
 #include "perf_data.h"
 #include "power_src.h"
+#include "cpu_clock.h"
 
 #include <glib.h>
 
@@ -237,6 +238,19 @@ static void cpu_static(pd_sampler *s)
     else {
         pth(p, sizeof p, "/sys/devices/system/cpu/cpu0/cpufreq/amd_pstate_nominal_freq");   /* newer amd-pstate */
         if (rd_ll(p, &v)) o->base_mhz = v / 1000.0;
+        else {
+            pth(p, sizeof p, "/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq");          /* MHz (2.6.0) */
+            if (rd_ll(p, &v)) o->base_mhz = (double)v;
+        }
+    }
+    /* 2.6.0: these are worked out at a 100 MHz base clock; the current clock (scaling_cur_freq =
+       APERF/MPERF x the TSC rate) is real, so scale them to match on a BCLK / eCLK PC. A test root
+       never mixes its fake /sys with this PC's TSC: there only SRS_BASE_CLOCK_MHZ counts. */
+    {
+        double r = testing() && !getenv("SRS_BASE_CLOCK_MHZ") ? 1.0 : cpu_clock_ratio();
+        o->max_mhz *= r;
+        o->base_mhz *= r;
+        o->ref_mhz = r != 1.0 ? r * 100.0 : 0;
     }
 }
 
