@@ -6,6 +6,13 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ## 2.6.0 - unreleased
 
+### Changed
+
+- **The Big Top from the tray, like a task manager**: the SRS tray icon's right-click menu has **The Big Top (Task
+  Manager)** right under Show SRS / Hide to Tray, and every tray meter's menu has it at the top; it opens The Big Top's
+  Performance tab without the main window (a meter's left click already did). Closing or minimising the main window
+  to the tray now leaves The Big Top open; the tray's Hide to Tray still hides every window.
+
 ### Fixed
 
 - **CPU speeds on a PC with a base clock other than 100 MHz** (BCLK, or eCLK on AM5): the kernel works out the

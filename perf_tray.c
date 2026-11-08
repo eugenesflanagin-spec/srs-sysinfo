@@ -953,7 +953,7 @@ static void on_snap(const pd_snap *s, void *user)
 }
 
 /* ---------------------------------------------------------------- menu and clicks */
-enum { MI_OPEN = 1, MI_SETTINGS, MI_QUIT, MI_HEADER, MI_CLICK = 90, MI_METER = 100 };   /* MI_CLICK: a left click, not a menu entry */
+enum { MI_OPEN = 1, MI_SETTINGS, MI_QUIT, MI_HEADER, MI_BIGTOP, MI_CLICK = 90, MI_METER = 100 };   /* MI_CLICK: a left click, not a menu entry */
 
 static void present_token(const char *token)
 {
@@ -980,7 +980,7 @@ typedef struct { int id; char token[256]; } menu_job;
 static gboolean menu_idle(gpointer d)
 {
     menu_job *j = d;
-    if (j->id == MI_CLICK) open_srs(j->token);   /* left click: the Performance tab */
+    if (j->id == MI_CLICK || j->id == MI_BIGTOP) open_srs(j->token);   /* left click / The Big Top: its Performance tab, not the main window */
     else if (j->id == MI_OPEN) { present_token(j->token); if (T.hk.show_main) T.hk.show_main(); }   /* the main window */
     else if (j->id == MI_SETTINGS) { present_token(j->token); perf_tray_settings_dialog(NULL); }
     else if (j->id == MI_QUIT) { if (T.hk.quit) T.hk.quit(); else gtk_main_quit(); }
@@ -1026,6 +1026,7 @@ static void build_menus(void)
     int n = perf_tray_meter_count(), k = 0;
     psni_menu_item *mi = g_new0(psni_menu_item, n + 8);
     char (*lab)[48] = g_malloc0(sizeof *lab * (size_t)n);
+    mi[k++] = (psni_menu_item){ MI_BIGTOP, "The _Big Top (Task Manager)", -1, 1 };   /* 2.6.0: without the main window */
     mi[k++] = (psni_menu_item){ MI_OPEN, "_Open SRS", -1, 1 };
     mi[k++] = (psni_menu_item){ MI_SETTINGS, "_Settings...", -1, 1 };
     mi[k++] = (psni_menu_item){ 50, NULL, -1, 1 };

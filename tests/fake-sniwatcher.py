@@ -252,6 +252,12 @@ def step_quit():
     svc = by_id("srs-meter-cpu")
     if svc:
         _, _, entries = layout_items(svc)
+        bid, _ = find(entries, "The _Big Top (Task Manager)")   # 2.6.0: The Big Top without the main window
+        if bid is None:
+            err("no The Big Top entry")
+        else:
+            call(svc, "/MenuBar", "com.canonical.dbusmenu", "Event", GLib.Variant("(isvu)", (bid, "clicked", GLib.Variant("i", 0), 0)), None)
+            ok("clicked The Big Top")
         oid, _ = find(entries, "_Open SRS")
         if oid is None:
             err("no Open SRS entry")

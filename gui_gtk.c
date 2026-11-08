@@ -4439,15 +4439,18 @@ static int tray_available(void)
 /* a way back from hidden: the SRS tray icon, or one of the Task Manager's meter icons (perf_tray.c) */
 static int tray_active(void) { return (g_tray.ind && g_opt_tray) || perf_tray_active(); }
 
-static void srs_hide_all(void)
+/* keep_bigtop (2.6.0): closing or minimising the main window to the tray leaves The Big Top open, like a
+   task manager; the tray's Hide to Tray and Start hidden still hide everything */
+static void srs_hide_all_but(int keep_bigtop)
 {
     guint i;
     if (!tray_active()) return;   /* never hide without a way back */
     for (i = 0; i < g_wins->len; i++) gtk_widget_hide(((swin *)g_ptr_array_index(g_wins, i))->win);
-    if (gpu_top_window_get()) gtk_widget_hide(gpu_top_window_get());   /* GPU Top's threads stop while it is hidden */
+    if (gpu_top_window_get() && !keep_bigtop) gtk_widget_hide(gpu_top_window_get());   /* GPU Top's threads stop while it is hidden */
     g_tray.hidden = 1;
     if (g_tray.showitem) gtk_menu_item_set_label(GTK_MENU_ITEM(g_tray.showitem), "Show SRS");
 }
+static void srs_hide_all(void) { srs_hide_all_but(0); }
 
 static void srs_show_all(void)
 {
@@ -4472,6 +4475,12 @@ static void on_tray_open(GtkMenuItem *mi, gpointer d)
     else open_item(t);
 }
 static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main && srs_quit_ok()) gtk_widget_destroy(g_main->win); }
+/* 2.6.0: The Big Top straight from the tray, like a task manager: its own window, the main one stays hidden */
+static void on_tray_bigtop(GtkMenuItem *mi, gpointer d)
+{
+    (void)mi; (void)d;
+    gpu_top_window_open_page(g_main ? GTK_WINDOW(g_main->win) : NULL, GPU_TOP_PAGE_PERFORMANCE);
+}
 
 static void tray_build_menu(void)
 {
@@ -4483,6 +4492,9 @@ static void tray_build_menu(void)
     g_tray.showitem = gtk_menu_item_new_with_label(g_tray.hidden ? "Show SRS" : "Hide to Tray");
     g_signal_connect(g_tray.showitem, "activate", G_CALLBACK(on_tray_toggle), NULL);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), g_tray.showitem);
+    it = gtk_menu_item_new_with_label("The Big Top (Task Manager)");   /* the same words as the meter icons' menu */
+    g_signal_connect(it, "activate", G_CALLBACK(on_tray_bigtop), NULL);
+    gtk_menu_shell_append(GTK_MENU_SHELL(m), it);
     gtk_menu_shell_append(GTK_MENU_SHELL(m), gtk_separator_menu_item_new());
     for (i = 0; quick[i].label; i++) {
         it = gtk_menu_item_new_with_label(quick[i].label);
@@ -5163,7 +5175,7 @@ static gboolean on_main_delete(GtkWidget *wid, GdkEvent *ev, gpointer d)
 {
     (void)wid; (void)ev; (void)d;
     if (home_close_guard(wid)) return TRUE;   /* a tool tab still running: stop it, or keep the window */
-    if (g_opt_close_tray && tray_active()) { srs_hide_all(); tray_close_notice(); return TRUE; }
+    if (g_opt_close_tray && tray_active()) { srs_hide_all_but(1); tray_close_notice(); return TRUE; }
     return FALSE;
 }
 
@@ -5173,7 +5185,7 @@ static gboolean on_main_state(GtkWidget *wid, GdkEventWindowState *ev, gpointer 
     if ((ev->changed_mask & GDK_WINDOW_STATE_ICONIFIED) && (ev->new_window_state & GDK_WINDOW_STATE_ICONIFIED) &&
         g_opt_min_tray && tray_active()) {
         gtk_window_deiconify(GTK_WINDOW(wid));
-        srs_hide_all();
+        srs_hide_all_but(1);
     }
     return FALSE;
 }
