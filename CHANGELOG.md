@@ -22,6 +22,13 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   2 s) instead of all at once, and each meter's NewToolTip goes out at most every max(Tray Meter Speed, 3 s) while the
   tooltip it serves is always the latest. Icons were already sent only when the picture changes.
 
+### Added
+
+- **Memory Timings**: five more DDR5 fields on every channel, tMODPDA, tMRDPDA, tTRCPAGE, tWRPRE and tRDPRE (register
+  fields as listed by QTuxTimings / TuxTimings, facts only). **AGESA version** (from SMBIOS type 40, after Run as root
+  once) on the summary's BIOS line, BIOS Maker and the firmware page.
+- **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's.
+
 ### Fixed
 
 - **CPU speeds on a PC with a base clock other than 100 MHz** (BCLK, or eCLK on AM5): the kernel works out the

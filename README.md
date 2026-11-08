@@ -450,7 +450,8 @@ part of SRS; Update hardware lists (2.4) downloads newer copies from the PCI ID 
 
 The Memory Timings page (2.4) is SRS's own code. Its AMD memory controller register map and SPD /
 AOD table layouts follow ZenStates-Core / ZenTimings by Ivan Rusanov, and its AMD and Intel memory
-controller layouts memtest86+ by Sam Demeulemeester and contributors - facts only, no code copied.
+controller layouts memtest86+ by Sam Demeulemeester and contributors; five of its DDR5 fields come from
+QTuxTimings (drizzt) / TuxTimings (Death4two) - facts only, no code copied.
 It reads through the ryzen_smu driver (leogx9r, amkillam fork), and ACPI method evaluation uses the
 acpi_call kernel module; neither is shipped. Details: [CREDITS.md](CREDITS.md).
 

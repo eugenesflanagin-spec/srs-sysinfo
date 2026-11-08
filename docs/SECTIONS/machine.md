@@ -922,6 +922,7 @@ says it supports.
 | BIOS Version | The version you compare with the board maker's download page |
 | BIOS Date | Release date |
 | BIOS Release | Major.minor release number from SMBIOS |
+| AGESA | (2.6.0) AMD's firmware base the BIOS is built on, e.g. ComboAm5PI 1.3.0.1d, from the SMBIOS Additional Information string; needs Run as root once (dmidecode). Board makers' download pages list it next to each BIOS |
 | Board Maker / Board | Motherboard maker and model |
 | Firmware Type | UEFI or Legacy BIOS (how this boot started) |
 | Address, Runtime Size, ROM Size, BIOS Revision, Firmware Revision | From the srs-root cache, when listed by SMBIOS |
@@ -1589,8 +1590,11 @@ tCL, tRCDRD, tRCDWR, tRP, tRAS, tRC (the main ones), tRRDS / tRRDL, tFAW, tWTRS 
 tCWL, tREFI (time between refreshes, in microseconds), tRFC / tRFC2 / tRFCsb (refresh cycle times),
 the read-to-read and write-to-write turnarounds (tRDRDSCL, tRDRDSC, tRDRDSD, tRDRDDD, tWRWRSCL,
 tWRWRSC, tWRWRSD, tWRWRDD), tRDWR, tWRRD, tCKE, tXP, tCPDED, tPD, tCSH, tMOD, tMRD, tPPD, tSTAG,
-tSTAGsb and the PHY delays tPHYWRD, tPHYWRL, tPHYRDL. A channel that differs from the others is a
-normal result of memory training for the PHY and turnaround values.
+tSTAGsb and the PHY delays tPHYWRD, tPHYWRL, tPHYRDL. Since 2.6.0 also tMODPDA / tMRDPDA (the mode
+register times in per-DRAM addressability mode), tTRCPAGE (a row activation limit used against row
+hammer; 0 = not used) and the write / read preamble settings tWRPRE / tRDPRE. A channel that differs
+from the others is a normal result of memory training for the PHY, turnaround and preamble values
+(the author's PC: tWRPRE / tRDPRE 3 / 3 on channel A, 2 / 4 on channel B).
 
 *Modules (SPD)* - per DDR5 module, no root: **Slot**, **Module** (maker and part number), **Size** (size,
 ranks, chip size and width), **DRAM chips** (chip maker), **Made** (year and week), **Temperature**,
