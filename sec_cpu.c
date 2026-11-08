@@ -733,6 +733,7 @@ static void s_cpuid0(srs_out *o)
  * ====================================================================== */
 static void clocks_vs_stock(srs_out *o);
 
+static void pmc_show_clocks(srs_out *o);   /* 2.6.0, after the PM table reader below */
 static void s_cpu_speeds(srs_out *o)
 {
     static const int tabs[] = { 70, 160, 250, 340, 430, 520, 620, 760 };
@@ -763,6 +764,7 @@ static void s_cpu_speeds(srs_out *o)
         so_row(o, 9, cells, (const int[]){ C_LABEL, C_BLACK, C_BLACK, C_GRAY, C_GRAY, C_TEAL, C_TEAL, C_ORANGE, C_ORANGE });
     }
     clock_ratio_note(o, "Minimum, Maximum, HW Min and HW Max", 1);
+    pmc_show_clocks(o);
     clocks_vs_stock(o);
 }
 
@@ -1001,6 +1003,145 @@ static int smu_fabric_clocks(double *fclk, double *uclk, double *mclk, char *why
     return 1;
 }
 
+/* 2.6.0: CPU telemetry from the SMU PM table (ryzen_smu, read-only; the driver fetches a fresh table on each read).
+   Only the layout checked on real hardware is trusted: version 0x540104 (Zen 4 desktop, Raphael) with up to 8 cores,
+   whose per-core arrays have 8 slots. Positions (32-bit floats): 2 PPT limit (W), 3 PPT now (W), 11 hotspot (°C),
+   271 VCORE (V, telemetry), 275 VID (V, requested), 301-308 core voltage, 309-316 core temperature, 317-324 core
+   effective clock (GHz). Checked on a 7800X3D against the Super-I/O Vcore, k10temp Tctl and cpufreq; indices as
+   listed by QTuxTimings / TuxTimings (facts only). Every value is range-checked: < 0 = not valid. */
+#define PMC_MAXC 8
+typedef struct {
+    double ppt, ppt_lim, hotspot, vcore, vid;
+    int ncore;
+    double cv[PMC_MAXC], ct[PMC_MAXC], cf[PMC_MAXC];
+} pm_cpu;
+
+static double pmc_in(const float *t, int i, double lo, double hi) { return t[i] >= lo && t[i] <= hi ? t[i] : -1; }
+
+static int physical_cores(void)
+{
+    int i, n = 0, seen[256] = { 0 };
+    for (i = 0; i < ncpu() && i < 256; i++) {
+        long c = topo(i, "core_id"), pk = topo(i, "physical_package_id");
+        if (c >= 0 && c < 256 && pk <= 0 && !seen[c]) { seen[c] = 1; n++; }
+    }
+    return n;
+}
+
+static int pm_cpu_read(pm_cpu *o, char *why, size_t wn)
+{
+    const char *dir = getenv("SRS_RSMU_DIR");
+    char p[400];
+    unsigned char raw[4];
+    unsigned ver = 0;
+    static float t[1024];
+    size_t got;
+    FILE *f;
+    int i, n;
+    memset(o, 0, sizeof *o);
+    if (!dir || !*dir) dir = RSMU;
+    snprintf(p, sizeof p, "%s/pm_table", dir);
+    if (!path_exists(p)) { snprintf(why, wn, "needs the ryzen_smu driver (%s)", dir); return 0; }
+    snprintf(p, sizeof p, "%s/pm_table_version", dir);
+    if ((f = fopen(p, "rb"))) { if (fread(raw, 1, 4, f) == 4) memcpy(&ver, raw, 4); fclose(f); }
+    n = physical_cores();
+    if (ver != 0x540104u) { snprintf(why, wn, "not known for PM table version 0x%06X (only 0x540104, Zen 4 desktop, is checked)", ver); return 0; }
+    if (n < 1 || n > PMC_MAXC) { snprintf(why, wn, "not known for %d cores with this table (its per-core lists have %d places)", n, PMC_MAXC); return 0; }
+    snprintf(p, sizeof p, "%s/pm_table", dir);
+    if (!(f = fopen(p, "rb"))) { snprintf(why, wn, "pm_table not readable"); return 0; }
+    got = fread(t, 1, sizeof t, f);
+    fclose(f);
+    if (got < 325 * sizeof(float)) { snprintf(why, wn, "pm_table too short"); return 0; }
+    o->ppt_lim = pmc_in(t, 2, 10, 1000);
+    o->ppt = pmc_in(t, 3, 0, 1000);
+    o->hotspot = pmc_in(t, 11, 1, 125);
+    o->vcore = pmc_in(t, 271, 0.2, 1.7);
+    o->vid = pmc_in(t, 275, 0.2, 1.7);
+    o->ncore = n;
+    for (i = 0; i < n; i++) {
+        o->cv[i] = pmc_in(t, 301 + i, 0.2, 1.7);
+        o->ct[i] = pmc_in(t, 309 + i, 1, 125);
+        o->cf[i] = pmc_in(t, 317 + i, 0.05, 7.5);   /* 0 = the core slept the whole interval */
+    }
+    if (o->vcore < 0 && o->ppt < 0 && o->hotspot < 0) { snprintf(why, wn, "PM table values out of range (layout differs)"); return 0; }
+    return 1;
+}
+
+/* "Core 3 (CPU 3, 11)": the logical CPUs whose core_id is k */
+static void core_label(int k, char *b, size_t sz)
+{
+    int i, n = 0;
+    size_t l = (size_t)snprintf(b, sz, "Core %d (CPU ", k);
+    for (i = 0; i < ncpu() && l < sz; i++)
+        if (topo(i, "core_id") == k && topo(i, "physical_package_id") <= 0)
+            l += (size_t)snprintf(b + l, sz - l, "%s%d", n++ ? ", " : "", i);
+    if (l < sz) snprintf(b + l, sz - l, ")");
+}
+
+static const char *const pmc_note = "From the SMU's PM table through the ryzen_smu driver (read-only). The per-core "
+    "clock is the effective clock over the SMU's last interval, so a resting core reads lower than cpufreq's request.";
+
+/* the three page blocks (2.6.0) */
+static void pmc_show_volts(srs_out *o)
+{
+    pm_cpu c;
+    char why[200], lab[64];
+    int i;
+    so_par(o);
+    so_b(o, C_VALUE, "From the SMU PM table");
+    so_par(o);
+    if (!pm_cpu_read(&c, why, sizeof why)) { so_kv(o, "SMU telemetry", C_GRAY, why); return; }
+    if (c.vcore >= 0) so_kvf(o, "VCORE (SMU telemetry)", C_BLACK, "%.3f V", c.vcore);
+    if (c.vid >= 0) so_kvf(o, "VID (voltage requested)", C_BLACK, "%.3f V", c.vid);
+    if (c.ppt >= 0 && c.ppt_lim >= 0) so_kvf(o, "Package power (PPT)", C_BLACK, "%.1f W of %.0f W limit", c.ppt, c.ppt_lim);
+    else if (c.ppt >= 0) so_kvf(o, "Package power (PPT)", C_BLACK, "%.1f W", c.ppt);
+    for (i = 0; i < c.ncore; i++) {
+        core_label(i, lab, sizeof lab);
+        if (c.cv[i] >= 0) so_kvf(o, lab, C_BLACK, "%.3f V", c.cv[i]);
+        else so_kv(o, lab, C_GRAY, "-");
+    }
+    so_par(o);
+    so_note(o, "From the SMU's PM table through the ryzen_smu driver (read-only). VCORE is what the SMU measures, VID what it "
+               "asks the voltage regulator for; the board's own Vcore sense (above) can read a little differently.");
+}
+
+static void pmc_show_temps(srs_out *o)
+{
+    pm_cpu c;
+    char why[200], lab[64];
+    int i;
+    so_par(o);
+    so_b(o, C_VALUE, "From the SMU PM table");
+    so_par(o);
+    if (!pm_cpu_read(&c, why, sizeof why)) { so_kv(o, "SMU telemetry", C_GRAY, why); return; }
+    if (c.hotspot >= 0) so_kvf(o, "Hotspot", C_BLACK, "%.1f°C", c.hotspot);
+    for (i = 0; i < c.ncore; i++) {
+        core_label(i, lab, sizeof lab);
+        if (c.ct[i] >= 0) so_kvf(o, lab, C_BLACK, "%.1f°C", c.ct[i]);
+        else so_kv(o, lab, C_GRAY, "-");
+    }
+}
+
+static void pmc_show_clocks(srs_out *o)
+{
+    pm_cpu c;
+    char why[200], lab[64];
+    int i;
+    static const int tabs[] = { 200 };
+    so_par(o);
+    so_tabs(o, tabs, 1);   /* this page's own tabs are for its 9-column table */
+    so_b(o, C_VALUE, "Effective clock per core (SMU PM table)");
+    so_par(o);
+    if (!pm_cpu_read(&c, why, sizeof why)) { so_kv(o, "SMU telemetry", C_GRAY, why); return; }
+    for (i = 0; i < c.ncore; i++) {
+        core_label(i, lab, sizeof lab);
+        if (c.cf[i] >= 0) so_kvf(o, lab, C_BLACK, "%.0f MHz", c.cf[i] * 1000);
+        else so_kv(o, lab, C_GRAY, "resting (0)");
+    }
+    so_par(o);
+    so_note(o, pmc_note);
+}
+
 static void cv_row(srs_out *o, const char *name, double stock, double now, int measured, const char *how)
 {
     char a[48] = "-", b[48] = "-", d[64] = "-";
@@ -1197,6 +1338,7 @@ static void s_amd_thm(srs_out *o)
     if (!found) so_err(o, "k10temp not loaded");
     so_par(o);
     so_note(o, "Tctl is the control temperature (may include an offset); TccdN are the per-CCD die sensors.");
+    pmc_show_temps(o);   /* 2.6.0 */
 }
 
 /* [amd-fus]: the factory per-core values the firmware hands to amd_pstate (CPPC), readable without root */
@@ -1529,8 +1671,7 @@ static void s_cpu_volts(srs_out *o)
         }
     }
     dir_free(hw, n);
-    so_par(o);
-    so_note(o, "Per-core VID needs SVI telemetry not exposed by Linux drivers; the board's Vcore sense is shown.");
+    pmc_show_volts(o);   /* 2.6.0: SMU VCORE / VID / per-core voltages, or why not */
 }
 
 /* NUMA */

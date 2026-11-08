@@ -29,6 +29,12 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   once) on the summary's BIOS line, BIOS Maker and the firmware page.
 - **AMD SMU / PM Table layout**: the ryzen_smu codename number with its name, e.g. "20 (Raphael: Ryzen 7000, Zen 4)"
   (the driver's own numbering, 26 generations).
+- **CPU telemetry from the SMU PM table** (Zen 4 desktop, table 0x540104, up to 8 cores; ryzen_smu, read-only): CPU
+  Voltages adds VCORE, VID, package power with its limit and one voltage per core; AMD Temperatures adds the hotspot
+  and one temperature per core; CPU Speeds adds each core's effective clock. Every value is range-checked; any
+  other table version or core count says "not known" instead of guessing. Positions as listed by QTuxTimings /
+  TuxTimings (facts only), checked on a 7800X3D against the board's Vcore sense, k10temp and cpufreq. Untested:
+  16-core Ryzen 7000 and every other table version (shown as not known).
 - **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's.
 
 ### Fixed

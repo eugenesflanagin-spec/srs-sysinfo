@@ -151,7 +151,7 @@ $(NATIVE)/srs-gui: gui_gtk.c $(GUIX) plat_posix.c $(POWER) $(CORE) $(SECS) $(HDR
 # URLs (no network) and srs-root's --acpi-eval input checks; none of them needs root, a GPU runtime or the network.
 BENCHTESTS := tests/bench-test.sh tests/bench-os-test.sh tests/bench-compute-test.sh tests/bench-work-test.sh tests/bench-net-test.sh \
               tests/bench-gpu-test.sh tests/gpu-stub-test.sh tests/cuda-toolkit-test.sh \
-              tests/mem-timings-test.sh tests/lists-test.sh tests/root-pages-test.sh tests/srs-root-args-test.sh \
+              tests/mem-timings-test.sh tests/pm-cpu-test.sh tests/lists-test.sh tests/root-pages-test.sh tests/srs-root-args-test.sh \
               tests/gpu-top-test.sh tests/autostart-test.sh tests/perf-tray-test.sh tests/perf-view-test.sh tests/ir-test.sh tests/all-threads-only-test.sh tests/bench-lock-test.sh
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; $$t $(NATIVE)/sysreport-search || exit 1; done

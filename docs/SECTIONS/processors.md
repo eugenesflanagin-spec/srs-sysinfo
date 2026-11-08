@@ -274,7 +274,9 @@ regulator what voltage to give it, and to read back current and voltage.
 - **Tccd1, Tccd2 ...** - one per CCD (core chiplet), the die that holds the cores.
 - Other labels the driver adds are shown as-is; unlabelled ones as `temp1`, `temp2` ...
 
-A note at the end explains Tctl and TccdN.
+A note at the end explains Tctl and TccdN. Since 2.6.0 a block **From the SMU PM table** adds the
+**Hotspot** (the hottest point the SMU sees) and one temperature per core (Zen 4 desktop, PM table
+0x540104, up to 8 cores; otherwise "not known").
 
 **Healthy / typical values.** On the author's 7800X3D (one CCD): Tctl 53.6°C, Tccd1 48.1°C. Idle on a
 desktop is usually 35-55°C. Under full load an X3D chip normally stays below about 89°C, the point
@@ -285,7 +287,8 @@ where it starts holding clocks back.
 - Tctl jumps quickly up and down by 10°C or more: normal for Ryzen at light load (single cores boosting).
 - "k10temp not loaded": the module is missing or blocked; some boards also hide it behind another driver.
 
-**Where Linux gets it.** `k10temp` hwmon: `/sys/class/hwmon/hwmonN/temp*_input` and `temp*_label`.
+**Where Linux gets it.** `k10temp` hwmon: `/sys/class/hwmon/hwmonN/temp*_input` and `temp*_label`; the SMU
+block from the ryzen_smu PM table (11 hotspot, 309-316 core temperatures).
 
 ---
 ## AMD THM registers @ second die  
@@ -618,6 +621,10 @@ figures are 426MHz and 5.05GHz, at 100 MHz). Before 2.6.0 Current could read abo
 - HW Max equal to the base clock: boost off in the BIOS.
 - All columns `-`: no cpufreq driver (virtual machine, or the driver failed to load).
 
+Since 2.6.0 an **Effective clock per core (SMU PM table)** block comes first (Zen 4 desktop, PM table
+0x540104, up to 8 cores): the clock each core actually averaged over the SMU's last interval, so a resting
+core reads lower than its cpufreq request and one that slept the whole interval shows "resting (0)".
+
 Since 2.2 the same **Stock and in effect now** table as [CPU Clocks](#cpu-clocks) follows the
 per-CPU table (both items share one page).
 
@@ -699,10 +706,17 @@ performance governor is selected; switch to `powersave` to see the full list.
 **What you see.** One line per voltage input of a supported motherboard sensor chip (Nuvoton `nct*`,
 ITE `it87*`, ASUS `asus*`, or `zenpower`): chip name, input label, and volts with three decimals.
 `in0` is shown as "Vcore sense" when it has no label; `in1` is shown too; other unlabelled inputs are
-skipped. A note says per-core voltage (VID) is not available from Linux drivers, so the board reading
-is shown.
+skipped.
 
-**Healthy / typical values.** On the author's PC: nct6799 in0 (Vcore sense) 1.096 V, in1 1.000 V.
+Since 2.6.0 a block **From the SMU PM table** follows (Zen 4 desktop, PM table version 0x540104, up to 8
+cores, through the ryzen_smu driver, read-only): **VCORE** (what the SMU measures), **VID** (what it asks the
+voltage regulator for), **Package power (PPT)** with its limit, and one voltage per core, labelled with
+its logical CPUs ("Core 3 (CPU 3, 11)"). For any other table version, or more than 8 cores, it says
+"not known" instead of guessing; a table whose values make no sense is refused.
+
+**Healthy / typical values.** On the author's PC: nct6799 in0 (Vcore sense) 1.096 V, in1 1.000 V; SMU
+VCORE 1.160 V, VID 1.109 V, PPT 50.9 W of 140 W at light desktop load, core voltages 0.89-1.06 V
+(each core runs at its own voltage, so they differ).
 Ryzen 7000 Vcore usually sits between about 0.9 and 1.35 V and moves constantly with load and boost.
 
 **Unusual values and what they suggest.**
@@ -710,7 +724,10 @@ Ryzen 7000 Vcore usually sits between about 0.9 and 1.35 V and moves constantly 
 - Vcore above about 1.40 V at all-core load: a manual overvolt or aggressive BIOS setting; check heat.
 - A reading of 0 or a fixed, unchanging odd value: that input is not wired to Vcore on your board.
 
-**Where Linux gets it.** Super-I/O hwmon drivers, `/sys/class/hwmon/hwmonN/in*_input` and `in*_label`.
+**Where Linux gets it.** Super-I/O hwmon drivers, `/sys/class/hwmon/hwmonN/in*_input` and `in*_label`;
+the SMU block from `/sys/kernel/ryzen_smu_drv/pm_table` (32-bit floats: 2 PPT limit, 3 PPT, 271 VCORE,
+275 VID, 301-308 core voltages; positions as listed by QTuxTimings / TuxTimings and checked on a 7800X3D
+against the board's Vcore sense).
 
 **Background.** Vcore is the main supply voltage of the CPU cores. The CPU asks the board's voltage
 regulator for a voltage (VID); the board's sensor measures what actually arrives.
