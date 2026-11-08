@@ -18,6 +18,9 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   the PC at the faster of the two, the meters still change only at theirs; with only the meters it reads at their
   rate. Until it is set it follows the Update Speed, so nothing changes on upgrade. Slower meters are lighter on the
   desktop's tray (a Plasma tray crash while tooltips were being rebuilt is being looked into).
+- **Tray meters are lighter on the desktop's tray**: they signal one after another across the interval (at most
+  2 s) instead of all at once, and each meter's NewToolTip goes out at most every max(Tray Meter Speed, 3 s) while the
+  tooltip it serves is always the latest. Icons were already sent only when the picture changes.
 
 ### Fixed
 

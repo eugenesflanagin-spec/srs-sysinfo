@@ -54,6 +54,14 @@ grep -q '^FAIL' "$R/watcher.log" && { bad "fake tray checks"; grep '^FAIL' "$R/w
 [ "$(J "$R/watcher.json" 'print(all(i.get("sizes")==[22,32,64] for i in d["items"]))')" = True ] && ok "IconPixmap 22, 32 and 64 px on every item" || bad "pixmap sizes"
 c=$(J "$R/watcher.json" 'print([len(i["newicon"]) for i in d["items"] if i["id"]=="srs-meter-cpuhist"][0])')
 [ "$c" -ge 7 ] && [ "$c" -le 15 ] && ok "CPU History: $c NewIcon signals in about 12 s at 1 s" || bad "CPU History NewIcon count $c"
+# 2.6.0 pacing: a tooltip changes every sample, but NewToolTip goes out at most every max(Tray Meter Speed, 3 s)
+c=$(J "$R/watcher.json" 'print([i["newtooltip"] for i in d["items"] if i["id"]=="srs-meter-cpu"][0])')
+[ "$c" -ge 1 ] && [ "$c" -le 5 ] && ok "CPU Meter: $c NewToolTip in about 12 s at 1 s (at most every 3 s, not every second)" \
+    || bad "CPU Meter NewToolTip count $c (wanted 1..5)"
+# the meters there from the start (registered in the first 3 s): their first icons spread across the interval (<= 2 s)
+c=$(J "$R/watcher.json" 'm=sorted(i["newicon"][0] for i in d["items"] if i["newicon"] and i["t"] < 3); print("%.2f" % (m[-1]-m[0]) if len(m)>1 else "0")')
+awk -v s="$c" 'BEGIN{exit !(s >= 0.3 && s <= 2.5)}' && ok "first icons of the starting meters spread over ${c} s (one after another, within the interval)" \
+    || bad "first icons spread ${c} s (wanted 0.3..2.5)"
 c=$(J "$R/watcher.json" 'print([len(i["newicon"]) for i in d["items"] if i["id"]=="srs-meter-space"][0])')
 [ "$c" -le 1 ] && ok "Disk Space: $c NewIcon (not redrawn while the value stays)" || bad "Disk Space NewIcon count $c"
 J "$R/watcher.json" 'print("\n".join("%s|%s" % (i["id"], i.get("tooltip")) for i in d["items"]))' > "$R/tips"

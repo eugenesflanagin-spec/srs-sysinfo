@@ -107,6 +107,10 @@ struct psni {
     char token[256];
     int dead;                      /* being freed: callbacks ignored */
     int calls;                     /* D-Bus calls in flight; the last reply frees a dead item */
+    unsigned delay_ms, tt_min_ms;  /* 2.6.0 pacing (psni_set_pacing) */
+    int icon_due, tt_due;          /* a NewIcon / NewToolTip waits for the flush */
+    gint64 tt_last;                /* when NewToolTip last went out (monotonic us), 0 = never */
+    guint icon_src, tt_src;        /* the pending NewIcon / NewToolTip, 0 = none */
 };
 
 static int log_on(void) { const char *e = getenv("SRS_TEST_TRAY_LOG"); return e && *e && strcmp(e, "0"); }
@@ -447,6 +451,8 @@ void psni_free(psni *it)
 {
     if (!it) return;
     it->dead = 1;
+    if (it->icon_src) { g_source_remove(it->icon_src); it->icon_src = 0; }   /* never a flush on a freed item */
+    if (it->tt_src) { g_source_remove(it->tt_src); it->tt_src = 0; }
     if (it->watch_id) g_bus_unwatch_name(it->watch_id);
     if (it->own_id) g_bus_unown_name(it->own_id);
     if (it->obj_id) g_dbus_connection_unregister_object(it->conn, it->obj_id);
@@ -471,6 +477,54 @@ unsigned psni_icon_sends(const psni *it) { return it ? it->icon_sends : 0; }
 const char *psni_bus_name(const psni *it) { return it ? it->bus : ""; }
 
 /* ---------------------------------------------------------------- content */
+/* 2.6.0 pacing: icons and tooltips have their own timers, so a tooltip waiting for its turn never holds up an icon */
+static gboolean icon_flush(gpointer d)
+{
+    psni *it = d;
+    it->icon_src = 0;
+    if (it->dead || !it->icon_due) return G_SOURCE_REMOVE;
+    it->icon_due = 0;
+    it->icon_sends++;
+    emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewIcon", NULL);
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean tt_flush(gpointer d)
+{
+    psni *it = d;
+    it->tt_src = 0;
+    if (it->dead || !it->tt_due) return G_SOURCE_REMOVE;
+    it->tt_due = 0;
+    it->tt_last = g_get_monotonic_time();
+    emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewToolTip", NULL);
+    return G_SOURCE_REMOVE;
+}
+
+static void schedule_icon(psni *it)
+{
+    it->icon_due = 1;
+    if (!it->icon_src && !it->dead) it->icon_src = g_timeout_add(it->delay_ms, icon_flush, it);   /* GLib 2.72: no _once */
+}
+
+static void schedule_tooltip(psni *it)
+{
+    guint ms = it->delay_ms;
+    it->tt_due = 1;
+    if (it->tt_src || it->dead) return;
+    if (it->tt_last) {   /* at most every tt_min_ms; the first one at once */
+        gint64 left = it->tt_last + (gint64)it->tt_min_ms * 1000 - g_get_monotonic_time();
+        if (left > 0 && (guint)(left / 1000) + 1 > ms) ms = (guint)(left / 1000) + 1;
+    }
+    it->tt_src = g_timeout_add(ms, tt_flush, it);
+}
+
+void psni_set_pacing(psni *it, unsigned delay_ms, unsigned tooltip_min_ms)
+{
+    if (!it) return;
+    it->delay_ms = delay_ms;
+    it->tt_min_ms = tooltip_min_ms;
+}
+
 int psni_set_icon(psni *it, cairo_surface_t *const *surf, int n)
 {
     GVariantBuilder b;
@@ -515,8 +569,12 @@ int psni_set_icon(psni *it, cairo_surface_t *const *surf, int n)
     it->last = now;
     if (it->pix) g_variant_unref(it->pix);
     it->pix = g_variant_ref_sink(g_variant_builder_end(&b));
-    it->icon_sends++;
-    emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewIcon", NULL);
+    if (!it->delay_ms && !it->tt_min_ms) {   /* no pacing: at once, as before 2.6.0 */
+        it->icon_sends++;
+        emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewIcon", NULL);
+    } else {
+        schedule_icon(it);
+    }
     return 1;
 }
 
@@ -527,7 +585,8 @@ void psni_set_tooltip(psni *it, const char *title, const char *body)
     g_free(it->tt_title); g_free(it->tt_body);
     it->tt_title = g_strdup(title);
     it->tt_body = g_strdup(body);
-    emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewToolTip", NULL);
+    if (!it->delay_ms && !it->tt_min_ms) { emit(it, SNI_PATH, "org.kde.StatusNotifierItem", "NewToolTip", NULL); return; }
+    schedule_tooltip(it);
 }
 
 void psni_set_title(psni *it, const char *title)

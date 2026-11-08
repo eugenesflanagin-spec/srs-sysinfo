@@ -1133,6 +1133,12 @@ static void rebuild_icons(void)
         g_ptr_array_free(old, TRUE);
     }
     T.meters = now;
+    {   /* 2.6.0 pacing, lighter on the desktop's tray: the meters signal one after another across the interval (at most
+           2 s), and each tooltip at most every max(Tray Meter Speed, 3 s); the stored tooltip stays current */
+        unsigned ms = (unsigned)perf_prefs_tray_ms(), slice = now->len ? MIN(ms, 2000u) / now->len : 0;
+        for (guint i = 0; i < now->len; i++)
+            psni_set_pacing(((meter *)g_ptr_array_index(now, i))->sni, i * slice, MAX(ms, 3000u));
+    }
     if (now->len) {   /* registering is asynchronous: remember whether a tray exists, so SRS may hide at once (--gui-tray) */
         GDBusConnection *b = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
         GVariant *r = b ? g_dbus_connection_call_sync(b, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",

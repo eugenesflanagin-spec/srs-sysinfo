@@ -40,6 +40,10 @@ int psni_registered(const psni *it);
 int psni_set_icon(psni *it, cairo_surface_t *const *surf, int n);
 /* tooltip title and body (plain text); NewToolTip only on change */
 void psni_set_tooltip(psni *it, const char *title, const char *body);
+/* 2.6.0 pacing, lighter on the desktop's tray: NewIcon / NewToolTip go out delay_ms after the change (so several items
+   do not all signal at once), and NewToolTip at most once every tooltip_min_ms (the first one at once). The stored
+   tooltip is always the latest, so a tray that reads it gets current text. 0, 0 = signal at once (the default). */
+void psni_set_pacing(psni *it, unsigned delay_ms, unsigned tooltip_min_ms);
 void psni_set_title(psni *it, const char *title);
 /* the SNI Category ("Hardware" by default). Trays read it once, when the item registers: call it right after psni_new. */
 void psni_set_category(psni *it, const char *category);
