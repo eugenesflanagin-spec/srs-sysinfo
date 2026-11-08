@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/bench-stop-test.sh - Stop on the benchmark pages (2.5: CPU Benchmark, IPI Delay, Latency and Crypto got one):
 # under Xvfb each page is run once with its smallest settings (0.1 s, 1 thread; CPU Benchmark one CPU at a time) and
 # Stop is pressed shortly after Run; the page must come back to idle (Run sensitive again) and say Stopped / show

@@ -33,6 +33,9 @@ static const char *umc_fixture(void)
         { 0x50214, 0x0010081C },                            /* tCWL 28, tWTRS 8, tWTRL 16 */
         { 0x50218, 0x0000005A },                            /* tWR 90 */
         { 0x50230, 0x00003A98 },                            /* tREFI 15000 */
+        { 0x5021C, 0x00500002 },                            /* tPPD 2, tTRCPAGE 5 (2.6.0) */
+        { 0x50234, 0x20202a2a },                            /* tMODPDA 32, tMRDPDA 32, tMOD 42, tMRD 42 (this PC) */
+        { 0x502A4, 0x00001303 },                            /* tWRPRE 3, tRDPRE 3 (this PC, channel A) */
         { 0x50260, 0x01e00374 },                            /* tRFC 884, tRFC2 480 */
         { 0x502C0, 0x00000186 },                            /* tRFCsb 390 */
         { 0x50DF0, 0x0001fd08 },                            /* bit 19 clear: channel on */
@@ -160,6 +163,18 @@ static void t_umc(void)
     for (i = 0; i < nd; i++)
         if (!strcmp(d[i].name, "tRP")) found = mt_field(&ch[1], d[i].off, d[i].hi, d[i].lo) == 38;
     CHECK(found, "the mt_defs table entry for tRP reads 38 on channel B too");
+    {   /* 2.6.0: the five fields from QTuxTimings / TuxTimings, read through the mt_defs table */
+        static const struct { const char *name; int want; } w[] = {
+            { "tMODPDA", 32 }, { "tMRDPDA", 32 }, { "tMOD", 42 }, { "tMRD", 42 }, { "tTRCPAGE", 5 }, { "tPPD", 2 },
+            { "tWRPRE", 3 }, { "tRDPRE", 3 } };
+        int ok = 1, j;
+        for (j = 0; j < (int)(sizeof w / sizeof w[0]); j++) {
+            int got = -2;
+            for (i = 0; i < nd; i++) if (!strcmp(d[i].name, w[j].name)) got = mt_field(&ch[0], d[i].off, d[i].hi, d[i].lo);
+            if (got != w[j].want) { ok = 0; printf("        %s: got %d, wanted %d\n", w[j].name, got, w[j].want); }
+        }
+        CHECK(ok, "tMODPDA 32, tMRDPDA 32, tMOD 42, tMRD 42, tTRCPAGE 5, tPPD 2, tWRPRE 3, tRDPRE 3 from the table");
+    }
     {   /* tRFC: the BIOS's reset value 0x00C00138 is skipped for the next register */
         static mt_umc c2[MT_NCH];
         mt_umc_parse("ch0 0x50200 00050bb8\nch0 0x50000 0\nch0 0x50008 1\nch0 0x50260 00c00138\nch0 0x50264 01e00374\n", c2);

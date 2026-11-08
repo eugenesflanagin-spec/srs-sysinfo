@@ -103,6 +103,28 @@ static uint16_t le16(const unsigned char *p) { return (uint16_t)(p[0] | p[1] << 
 static uint32_t le32(const unsigned char *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24; }
 static uint64_t le64(const unsigned char *p) { return (uint64_t)le32(p) | (uint64_t)le32(p + 4) << 32; }
 
+static int dmid_get(int type, int inst, const char *key, char *out, size_t sz);
+
+/* 2.6.0: the AGESA version from SMBIOS type 40 (Additional Information), the string AMD boards put there, e.g.
+   "AGESA!V9 ComboAm5PI 1.3.0.1d" -> "ComboAm5PI 1.3.0.1d". srs-root cache only (dmidecode needs root); 0 = not known.
+   QTuxTimings / TuxTimings show it too (they scan /dev/mem; SMBIOS is enough). */
+static int agesa_version(char *out, size_t sz)
+{
+    char s[160];
+    int i;
+    out[0] = 0;
+    for (i = 0; i < 32; i++) {
+        const char *p;
+        if (!dmid_get(40, i, "String", s, sizeof s)) continue;
+        if (!(p = strstr(s, "AGESA"))) continue;
+        p += 5;
+        if (*p == '!') { while (*p && *p != ' ') p++; }   /* "!V9": the marker's version, not AGESA's */
+        while (*p == ' ' || *p == ':') p++;
+        if (*p) { snprintf(out, sz, "%s", p); return 1; }
+    }
+    return 0;
+}
+
 /* ======================================================================
  * dmidecode.txt (srs-root cache) parser
  * ====================================================================== */
@@ -1221,7 +1243,10 @@ static void s_hardware(srs_out *o)
         dmi_rd("bios_vendor", vn, sizeof vn);
         dmi_rd("bios_version", bv, sizeof bv);
         dmi_rd("bios_date", bd, sizeof bd);
-        so_kvf(o, "BIOS", C_VALUE, "%s %s %s (%s)", vn, bv, bd, path_exists(EFI_DIR) ? "UEFI" : "Legacy");
+        char ag[96];
+        if (agesa_version(ag, sizeof ag))   /* 2.6.0 */
+            so_kvf(o, "BIOS", C_VALUE, "%s %s %s (%s), AGESA %s", vn, bv, bd, path_exists(EFI_DIR) ? "UEFI" : "Legacy", ag);
+        else so_kvf(o, "BIOS", C_VALUE, "%s %s %s (%s)", vn, bv, bd, path_exists(EFI_DIR) ? "UEFI" : "Legacy");
     }
     n = slots_get(sl, 16, &src);
     for (i = 0; i < n; i++) if (sl[i].present) { pop++; sum += sl[i].bytes; }
@@ -1331,6 +1356,7 @@ static void s_bios_make(srs_out *o)
     dmi_rd("bios_version", v, sizeof v); so_kv(o, "BIOS Version", C_VALUE, v);
     dmi_rd("bios_date", v, sizeof v); so_kv(o, "BIOS Date", C_VALUE, v);
     dmi_rd("bios_release", v, sizeof v); so_kv(o, "BIOS Release", C_VALUE, v);
+    if (agesa_version(v, sizeof v)) so_kv(o, "AGESA", C_VALUE, v);   /* 2.6.0, SMBIOS type 40 (srs-root cache) */
     dmi_rd("board_vendor", v, sizeof v); so_kv(o, "Board Maker", C_VALUE, v);
     dmi_rd("board_name", v, sizeof v); so_kv(o, "Board", C_VALUE, v);
     so_kv(o, "Firmware Type", C_PURPLE, path_exists(EFI_DIR) ? "UEFI" : "Legacy BIOS");
@@ -1548,6 +1574,7 @@ static void s_firmware(srs_out *o)
         dmi_rd("bios_date", d, sizeof d);
         so_kvf(o, "BIOS Version", C_VALUE, "%s %s", ver, d);
     }
+    if (agesa_version(v, sizeof v)) so_kv(o, "AGESA", C_VALUE, v);   /* 2.6.0 */
     {
         long long fs = -1, bl = -1, ebs = -1, ebe = -1;
         char t[64];

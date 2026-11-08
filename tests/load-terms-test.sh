@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/load-terms-test.sh - the load test terms (2.3.1): asked before the first stress test / benchmark, "I Disagree" blocks,
 # "I Agree" is kept across restarts, Options > Load test terms withdraws it. The dialog is answered by SRS_TEST_TERMS_ANSWER.
 #

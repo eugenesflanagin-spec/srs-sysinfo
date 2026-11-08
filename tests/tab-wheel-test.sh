@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/tab-wheel-test.sh - the mouse wheel over the side (vertical) tab list: down / up = the next / previous tab, one notch per
 # tab, no wrap-around; over the page itself and with tabs on top the wheel does not change the tab.
 #

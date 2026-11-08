@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/perf-view-test.sh - the Performance tab of the GPU Top window: the sampler (perf_data.c) on two /proc + /sys
 # snapshots taken one second apart (every rate and percentage checked against hand-worked numbers), the GPU part on the
 # RX 9070 XT fixture, then each of the six pages for 10 s under xvfb (no crash, no GTK criticals).

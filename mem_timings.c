@@ -109,7 +109,13 @@ static const mt_def g_defs[] = {
     { "tCSH", "Other", "chip select hold", 0x50244, 25, 20, 0 },
     { "tMOD", "Other", "mode register set to other commands", 0x50234, 13, 8, 0 },
     { "tMRD", "Other", "mode register set to mode register set", 0x50234, 5, 0, 0 },
+    /* 2.6.0: register fields as listed by QTuxTimings / TuxTimings (facts only, see CREDITS.md) */
+    { "tMODPDA", "Other", "mode register set to other commands, per-DRAM (PDA) mode", 0x50234, 29, 24, 0 },
+    { "tMRDPDA", "Other", "mode register set to mode register set, per-DRAM (PDA) mode", 0x50234, 21, 16, 0 },
     { "tPPD", "Other", "precharge to precharge", 0x5021C, 2, 0, 0 },
+    { "tTRCPAGE", "Other", "row activation page limit (row-hammer protection; 0 = not used)", 0x5021C, 31, 20, 0 },
+    { "tWRPRE", "Other", "write preamble setting", 0x502A4, 10, 8, 0 },
+    { "tRDPRE", "Other", "read preamble setting", 0x502A4, 2, 0, 0 },
     { "tSTAG", "Other", "refresh stagger", 0x50250, 26, 16, 0 },
     { "tSTAGsb", "Other", "same-bank refresh stagger", 0x50250, 8, 0, 0 },
     { "tPHYWRD", "PHY", "PHY write data delay", 0x50258, 26, 24, 0 },
@@ -226,7 +232,7 @@ const char *mt_jep106(unsigned code)
    turnarounds, tWRRD, tRDWR, then CAD bus / proc data / ProcODT / DRAM data drive strengths, RttNomWr, RttNomRd, RttWr,
    RttPark, RttParkDqs (MemClk + 104 .. + 136) and the memory VDD, VDDQ, VPP and CPU VDDIO in mV (MemClk + 172 .. + 184).
    The block is found at 8924, else at the last place the MEMCLK value appears, and used only when its timings match the
-   live ones. Checked on a Ryzen 7 7800X3D (ASUS BIOS 1805, AGESA 1.2.x). */
+   live ones. Checked on a Ryzen 7 7800X3D (ASUS BIOS 1805, AGESA ComboAm5PI 1.3.0.1d). */
 static int i32(const unsigned char *d, size_t n, size_t o) { int v; if (o + 4 > n) return -1; memcpy(&v, d + o, 4); return v; }
 int mt_aod_decode(const unsigned char *d, size_t n, int memclk, int cl, int rcd, mt_aod *a)
 {

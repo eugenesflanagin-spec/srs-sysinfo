@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/bench-lock-test.sh - one load at a time (2.5): bench.lock across SRS processes and the greyed Run buttons.
 #  CLI: no lock -> runs and leaves no lock; a stale lock (dead PID) is ignored; a live other holder -> refused without a
 #  terminal, warned and run with --yes, and that holder's lock is put back afterwards.

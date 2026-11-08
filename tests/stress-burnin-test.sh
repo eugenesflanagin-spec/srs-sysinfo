@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/stress-burnin-test.sh - the Stress & Burnin window (2.3.1): the built-in GPU Burnin child (srs-gui --gpu-burn-child)
 # and a GPU-only and a CPU + GPU run of the window, WITHOUT the real GPU.
 #

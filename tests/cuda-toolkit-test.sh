@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/cuda-toolkit-test.sh - the optional NVIDIA CUDA toolkit question (cuda_toolkit.c, the cuda-toolkit command and the
 # GUI's ask dialog / Options entry), WITHOUT a GPU and WITHOUT running any package manager.
 #

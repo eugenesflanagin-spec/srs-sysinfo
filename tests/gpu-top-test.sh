@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/gpu-top-test.sh - GPU Top (gpu_top*.c, CLI gpu-top): device list, Device Info, gpu_metrics decode (v1.3,
 # v2.2, v3.0), GRBM sampling, per-process fdinfo percentages, NVIDIA through NVML, pp_table, JSON shapes and the
 # command-line checks, all on made-up data.

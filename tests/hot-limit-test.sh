@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+. "$(dirname "$0")/private-bus.sh"   # 2.6.0: a private D-Bus session bus, never the desktop's (tray, notifications)
 # tests/hot-limit-test.sh - stop limits over 100 °C (2.4): the CPU and GPU limits go up to 110, a value over 100 is asked
 # about once (Yes / No), No puts it back to 100, Yes is kept in SRSDEF.ini ("Accepted High Temperature Limits") and not asked
 # again; a limit over 100 in SRSDEF.ini without the yes loads as 100. The question is answered by SRS_TEST_HOT_ANSWER,
