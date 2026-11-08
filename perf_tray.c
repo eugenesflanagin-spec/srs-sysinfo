@@ -22,7 +22,7 @@ static int tlog(void) { const char *e = getenv("SRS_TEST_TRAY_LOG"); return e &&
  * settings
  * ====================================================================== */
 #define GROUP "Task Manager"
-static perf_prefs g_p = { PT_SPEED_NORMAL, PT_PAGE_SUMMARY, 0, 0, "cpu,mem,gpu0", "", 0, 1000, 0 };
+static perf_prefs g_p = { PT_SPEED_NORMAL, PT_PAGE_SUMMARY, 0, 0, "cpu,mem,gpu0", "", 0, 1000, 0, 0 };
 static int g_p_loaded;
 typedef struct { perf_prefs_cb cb; void *user; } listener;
 static GArray *g_listen;
@@ -58,6 +58,12 @@ static void prefs_load(void)
             if (!e) g_p.gpu_top_ms = perf_speed_choice_ms(perf_speed_choice_of_ms(v));   /* one of the choices */
             g_clear_error(&e);
         }
+        {
+            GError *e = NULL;
+            int v = g_key_file_get_integer(kf, GROUP, "Tray Meter ms", &e);
+            if (!e && v > 0) g_p.tray_ms = perf_speed_choice_ms(perf_speed_choice_of_ms(v));
+            g_clear_error(&e);
+        }
     }
     g_key_file_free(kf);
     g_free(f);
@@ -79,6 +85,7 @@ static void prefs_save(void)
     g_key_file_set_integer(kf, GROUP, "Summon Shortcut", g_p.shortcut_bound);
     g_key_file_set_integer(kf, GROUP, "Tray Position", g_p.tray_first);
     g_key_file_set_integer(kf, "GPU Top", "Update ms", g_p.gpu_top_ms);
+    if (g_p.tray_ms > 0) g_key_file_set_integer(kf, GROUP, "Tray Meter ms", g_p.tray_ms);
     g_key_file_save_to_file(kf, f, NULL);
     g_key_file_free(kf);
     g_free(dir);
@@ -211,7 +218,7 @@ static int fs_pick(const char *want, fs_use *out)
 /* ======================================================================
  * the shared sampler
  * ====================================================================== */
-typedef struct { guint id; perf_hub_cb cb; void *user; int procs; } hub_sub;
+typedef struct { guint id; perf_hub_cb cb; void *user; int procs; int tray; gint64 last; } hub_sub;   /* tray: runs at the Tray Meter rate */
 typedef struct { int stop; } hub_ctx;
 static struct {
     GMutex mu;
@@ -242,7 +249,15 @@ static void hub_dispatch_cur(void)
         hub_sub *s = &g_array_index(c, hub_sub, i);
         int still = 0;
         for (guint k = 0; k < H.subs->len; k++) if (g_array_index(H.subs, hub_sub, k).id == s->id) still = 1;
-        if (still) s->cb(H.cur, s->user);
+        if (!still) continue;
+        if (s->tray) {   /* 2.6.0: the tray meters only every Tray Meter interval, however fast the hub samples */
+            gint64 now = g_get_monotonic_time(), want = (gint64)perf_prefs_tray_ms() * 1000;
+            hub_sub *real = NULL;
+            for (guint k = 0; k < H.subs->len; k++) if (g_array_index(H.subs, hub_sub, k).id == s->id) real = &g_array_index(H.subs, hub_sub, k);
+            if (real && real->last && now - real->last < want - (gint64)H.interval * 500) continue;   /* half a hub tick of slack */
+            if (real) real->last = now;
+        }
+        s->cb(H.cur, s->user);
     }
     g_array_unref(c);
 }
@@ -369,13 +384,25 @@ static gboolean hub_test_tick(gpointer d)
     return G_SOURCE_CONTINUE;
 }
 
+/* the hub samples as often as its fastest subscriber needs: the Update Speed for the Performance tab, the
+   Tray Meter interval for the tray meters (2.6.0); with no subscriber the Update Speed */
+static int hub_want_ms(void)
+{
+    int ms = 0;
+    for (guint i = 0; H.subs && i < H.subs->len; i++) {
+        int m = g_array_index(H.subs, hub_sub, i).tray ? perf_prefs_tray_ms() : perf_prefs_interval_ms();
+        if (!ms || m < ms) ms = m;
+    }
+    return ms ? ms : perf_prefs_interval_ms();
+}
+
 static void hub_start(void)
 {
     if (!H.pub) {
         H.pub = g_new0(pd_snap, 1);
         H.cur = g_new0(pd_snap, 1);
     }
-    H.interval = perf_prefs_interval_ms();
+    H.interval = hub_want_ms();
     snprintf(H.want_mnt, sizeof H.want_mnt, "%s", perf_prefs_get()->disk_mount);
     if (test_feed()) {
         if (!H.test_timer) H.test_timer = g_timeout_add(H.interval, hub_test_tick, NULL);
@@ -405,24 +432,33 @@ static void hub_procs_update(void)
 
 static void hub_interval_changed(void)
 {
+    int ms = hub_want_ms();
     g_mutex_lock(&H.mu);
-    H.interval = perf_prefs_interval_ms();
+    H.interval = ms;
     snprintf(H.want_mnt, sizeof H.want_mnt, "%s", perf_prefs_get()->disk_mount);
     g_cond_broadcast(&H.cv);
     g_mutex_unlock(&H.mu);
     if (H.test_timer) { g_source_remove(H.test_timer); H.test_timer = g_timeout_add(H.interval, hub_test_tick, NULL); }
 }
 
-guint perf_hub_subscribe(perf_hub_cb cb, void *user, int need_procs)
+static guint hub_subscribe(perf_hub_cb cb, void *user, int need_procs, int tray)
 {
-    hub_sub s = { ++H.next_id, cb, user, need_procs };
+    hub_sub s = { ++H.next_id, cb, user, need_procs, tray, 0 };
     if (!H.subs) H.subs = g_array_new(FALSE, FALSE, sizeof(hub_sub));
     g_array_append_val(H.subs, s);
     hub_procs_update();
     if (H.subs->len == 1) hub_start();
-    else if (H.have && H.cur) cb(H.cur, user);   /* a late subscriber gets the last sample at once */
+    else {
+        hub_interval_changed();   /* a faster subscriber speeds the hub up */
+        if (H.have && H.cur) {    /* a late subscriber gets the last sample at once */
+            g_array_index(H.subs, hub_sub, H.subs->len - 1).last = g_get_monotonic_time();
+            cb(H.cur, user);
+        }
+    }
     return s.id;
 }
+
+guint perf_hub_subscribe(perf_hub_cb cb, void *user, int need_procs) { return hub_subscribe(cb, user, need_procs, 0); }
 
 void perf_hub_unsubscribe(guint id)
 {
@@ -431,6 +467,7 @@ void perf_hub_unsubscribe(guint id)
             g_array_remove_index(H.subs, i);
             hub_procs_update();
             if (!H.subs->len) hub_stop();
+            else hub_interval_changed();   /* back to the slower rate when the Performance tab goes */
             return;
         }
 }
@@ -1106,7 +1143,7 @@ static void rebuild_icons(void)
         if (b) g_object_unref(b);
     }
     build_menus();
-    if (now->len && !T.sub) T.sub = perf_hub_subscribe(on_snap, NULL, 0);
+    if (now->len && !T.sub) T.sub = hub_subscribe(on_snap, NULL, 0, 1);   /* at the Tray Meter interval */
     else if (!now->len && T.sub) { perf_hub_unsubscribe(T.sub); T.sub = 0; }
     else if (now->len && perf_hub_last()) on_snap(perf_hub_last(), NULL);   /* new icons get a picture now */
     if (tlog()) fprintf(stderr, "SRS-TEST: tray meters %u (%s)\n", now->len, perf_prefs_get()->icons_on ? perf_prefs_get()->meters : "off");
@@ -1366,6 +1403,7 @@ int perf_speed_choice_of_ms(int ms)
     return best;
 }
 int perf_prefs_gpu_top_ms(void) { return perf_prefs_get()->gpu_top_ms; }
+int perf_prefs_tray_ms(void) { const perf_prefs *p = perf_prefs_get(); return p->tray_ms > 0 ? p->tray_ms : perf_prefs_interval_ms(); }
 
 /* Plasma 6 (plasma-workspace applets/systemtray/sortedsystemtraymodel.cpp, SortedSystemTrayModel::lessThanSystemTray):
    Notifications first, then by Category in the order UnknownCategory, ApplicationStatus, Communications, SystemServices,
@@ -1388,6 +1426,20 @@ void perf_prefs_set_gpu_top_ms(int ms)
     if (ms == g_p.gpu_top_ms) return;
     g_p.gpu_top_ms = ms;
     prefs_changed();
+}
+void perf_prefs_set_tray_ms(int ms)
+{
+    perf_prefs_get();
+    ms = perf_speed_choice_ms(perf_speed_choice_of_ms(ms));
+    if (ms == g_p.tray_ms) return;
+    g_p.tray_ms = ms;
+    prefs_changed();
+}
+static void on_tray_speed(GtkComboBox *c, gpointer d)
+{
+    int i = gtk_combo_box_get_active(c);
+    (void)d;
+    if (i >= 0 && i < PT_SPEED_CHOICES) perf_prefs_set_tray_ms(perf_speed_choice_ms(i));
 }
 static void on_gt_speed(GtkComboBox *c, gpointer d)
 {
@@ -1482,10 +1534,10 @@ GtkWidget *perf_tray_settings_widget(void)
     w = gtk_combo_box_text_new();
     for (int i = 0; i < PT_SPEED_CHOICES; i++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w), perf_speed_choice_label(i));
     gtk_combo_box_set_active(GTK_COMBO_BOX(w), perf_speed_choice_of_ms(perf_prefs_interval_ms()));
-    gtk_widget_set_tooltip_text(w, "How often the Performance tab and the tray meters read the PC. The Big Top's card tabs (GPU, SMI) "
-                                   "have their own Update setting in their top row, with the same choices.");
+    gtk_widget_set_tooltip_text(w, "How often the Performance tab reads the PC. The tray meters have their own Tray Meter Speed "
+                                   "(under Notification Area) and The Big Top's card tabs (GPU, SMI) their own Update setting, with the same choices.");
     g_signal_connect(w, "changed", G_CALLBACK(on_speed), NULL);
-    gtk_grid_attach(GTK_GRID(g), row_label("Performance and Tray _Update Speed", w), 0, r, 1, 1);
+    gtk_grid_attach(GTK_GRID(g), row_label("Performance _Update Speed", w), 0, r, 1, 1);
     gtk_grid_attach(GTK_GRID(g), w, 1, r++, 1, 1);
     w = gtk_combo_box_text_new();   /* GPU Top's own rate, here too so every live-update rate is on one page */
     for (int i = 0; i < PT_SPEED_CHOICES; i++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w), perf_speed_choice_label(i));
@@ -1513,6 +1565,15 @@ GtkWidget *perf_tray_settings_widget(void)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), g_p.icons_on);
     g_signal_connect(w, "toggled", G_CALLBACK(on_icons), NULL);
     gtk_grid_attach(GTK_GRID(g), w, 0, r++, 2, 1);
+    w = gtk_combo_box_text_new();   /* 2.6.0: the tray meters' own rate, apart from the Performance tab's */
+    for (int i = 0; i < PT_SPEED_CHOICES; i++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w), perf_speed_choice_label(i));
+    gtk_combo_box_set_active(GTK_COMBO_BOX(w), perf_speed_choice_of_ms(perf_prefs_tray_ms()));
+    gtk_widget_set_tooltip_text(w, "How often the tray meters update their icons and tooltips, apart from the Performance tab. "
+                                   "Slower is lighter on the desktop's tray, most of all with many meters: every meter sends a new "
+                                   "icon and tooltip each time.");
+    g_signal_connect(w, "changed", G_CALLBACK(on_tray_speed), NULL);
+    gtk_grid_attach(GTK_GRID(g), row_label("Tray Meter Spee_d", w), 0, r, 1, 1);
+    gtk_grid_attach(GTK_GRID(g), w, 1, r++, 1, 1);
     W.meters_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
     flow = gtk_grid_new();
     gtk_grid_set_column_spacing(GTK_GRID(flow), 16);

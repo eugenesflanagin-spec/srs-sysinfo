@@ -1189,7 +1189,7 @@ follows your desktop's light or dark theme; the meters and graphs are dark instr
 green, kernel time red, memory magenta, CPU power yellow, temperatures orange, disks green, network
 and GPU cyan).
 
-It reads the PC at the **Performance and Tray Update Speed** (every second by default;
+It reads the PC at the **Performance Update Speed** (every second by default;
 [11.1](#111-live-tray-meters-and-the-task-manager-settings)) and only while the tab is shown and the
 window is not minimised. Graphs cover the last 60 samples. A stretch while the tab was hidden shows
 as a shaded gap with a dashed line (or is filled in, when the tray meters were reading meanwhile).
@@ -2896,11 +2896,12 @@ model; a card's busy %, memory, temperatures, power and clocks; each disk; each 
 
 | Setting | What it does | Default |
 |---|---|---|
-| **Performance and Tray Update Speed** | How often the Performance tab and the tray meters read the PC: Every 0.25 s, Every 0.5 s, Every 1 s (Normal), Every 2 s, Every 5 s. | Every 1 s |
+| **Performance Update Speed** | How often the Performance tab reads the PC: Every 0.25 s, Every 0.5 s, Every 1 s (Normal), Every 2 s, Every 5 s. Before 2.6.0 the tray meters used it too. | Every 1 s |
 | **Big Top Update Speed** | How often The Big Top reads the graphics cards for its GPU and SMI tabs (the same as its **Update:** list). | Every 1 s |
 | **Default Start Page** | The page the Performance tab opens on: Summary, Performance, Processes, Startup Apps, Users or Services. | Summary |
 | **Per-Core CPU Units (100 % = One Logical CPU)** | On: one fully busy logical CPU is 100 %, so all of them together reach the number of CPUs x 100 %. Off: the whole CPU is 100 %. | off |
 | **Live Telemetry Icons** | The meters in the tray (the boxes below it are greyed while it is off). | **off** |
+| **Tray Meter Speed** (2.6.0) | How often the tray meters update their icons and tooltips, apart from the Performance tab: the same choices. Slower is lighter on the desktop's tray, most of all with many meters (each one sends a new icon and tooltip every time). While the Performance tab is open SRS reads the PC at the faster of the two speeds; the meters still change only at theirs. | the Performance Update Speed until it is set |
 | The meter boxes, **Disk Space Mount** | Which meters, and which file system Disk Space shows. | CPU Meter, Memory Used, GPU Meter |
 | **Tray Position** | Where the SRS icons go in the tray: **Normal (With the Hardware Icons)** keeps them with the volume, network and battery icons; **First** puts them in the group the tray sorts first (on Plasma only Notifications stays ahead). The desktop decides the final order: another app in the same group can still sort next to or before SRS. | Normal |
 | **Keep Running in the Tray When the Window Is Closed** | The same as Options -> Close button hides to tray. Off: closing the window quits SRS. On: closing hides it; the tray icon's menu has Quit SRS. | off |
@@ -3110,7 +3111,8 @@ Section `[Task Manager]` (2.5) holds the Task Manager settings ([11.1](#111-live
 
 | Key | Values | Meaning |
 |---|---|---|
-| `Update Speed` | `0` every 2 s, `1` every 1 s (default), `2` every 0.5 s, `3` every 0.25 s, `4` every 5 s | Performance and Tray Update Speed |
+| `Update Speed` | `0` every 2 s, `1` every 1 s (default), `2` every 0.5 s, `3` every 0.25 s, `4` every 5 s | Performance Update Speed |
+| `Tray Meter ms` (2.6.0) | `250`, `500`, `1000`, `2000` or `5000`; missing = the Update Speed | Tray Meter Speed |
 | `Start Page` | `0` Summary (default), `1` Performance, `2` Processes, `3` Startup Apps, `4` Users, `5` Services | Default Start Page |
 | `Per Core Units` | `0` / `1` | Per-Core CPU Units (default `0`: the whole CPU is 100 %) |
 | `Telemetry Icons` | `0` / `1` | Live Telemetry Icons (default `0` = off) |

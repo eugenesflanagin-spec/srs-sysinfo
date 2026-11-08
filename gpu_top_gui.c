@@ -1730,7 +1730,7 @@ void gpu_top_window_open(GtkWindow *parent)
         gtk_label_set_mnemonic_widget(GTK_LABEL(G->updlbl), G->upd);
         gtk_widget_set_tooltip_text(G->upd, "How often The Big Top reads the cards for the GPU and SMI tabs; the graphs always show the last 30 s. "
                                             "1 s is amdgpu_top's default. Faster costs a little more CPU time. The Performance tab and the "
-                                            "tray meters have their own Update Speed (Performance > Summary > Settings), with the same choices.");
+                                            "tray meters each have their own speed (Performance > Summary > Settings), with the same choices.");
         g_signal_connect(G->upd, "changed", G_CALLBACK(on_update), NULL);
         gtk_box_pack_start(GTK_BOX(bar), G->updlbl, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(bar), G->upd, FALSE, FALSE, 0);

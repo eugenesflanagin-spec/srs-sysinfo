@@ -119,6 +119,14 @@ c=$(J "$R/watcher.json" 'print([len(i["newicon"]) for i in d["items"] if i["id"]
 J "$R/watcher.json" 'print("\n".join("%s|%s" % (i["id"], i.get("tooltip")) for i in d["items"]))' > "$R/tips"
 has "$R/tips" "of 1600 % (User" "Per Core Units: 16 logical CPUs = 1600 %"
 
+echo "== Tray Meter Speed apart from the Update Speed (2.6.0): Update Speed High, Tray Meter every 2 s"
+run trayms 9 'Update Speed=2\nTray Meter ms=2000\nTelemetry Icons=1\nTelemetry Meters=cpu,cpuhist\n'
+R=$TMP/trayms
+c=$(J "$R/watcher.json" 'print([len(i["newicon"]) for i in d["items"] if i["id"]=="srs-meter-cpuhist"][0])')
+[ "$c" -ge 2 ] && [ "$c" -le 6 ] && ok "CPU History: $c NewIcon in about 7 s at a 2 s Tray Meter Speed (High would be 9 or more)" \
+    || bad "Tray Meter Speed NewIcon count $c (wanted 2..6)"
+has "$R/cfg/srs/SRSDEF.ini" "Tray Meter ms=2000" "Tray Meter ms kept in the settings file"
+
 echo "== Tray Position: First from the start, and Normal -> First while running"
 run pos1 12 'Tray Position=1\nTelemetry Icons=1\nTelemetry Meters=cpu,mem,net\n'
 R=$TMP/pos1

@@ -50,6 +50,7 @@ typedef struct {
     int shortcut_bound;
     int gpu_top_ms;                /* [GPU Top] Update ms: how often the GPU Top window reads the cards (250..5000, 1000) */
     int tray_first;                /* Tray Position: 1 = First */
+    int tray_ms;                   /* 2.6.0 [Task Manager] Tray Meter ms: the tray meters' own rate; 0 = not set (Update Speed) */
 } perf_prefs;
 
 /* the current settings (loaded on first use); never NULL */
@@ -58,6 +59,9 @@ int perf_prefs_interval_ms(void);          /* 250 / 500 / 1000 / 2000 / 5000 */
 /* GPU Top's own update interval (its GPU and SMI tabs), kept here so one settings page shows every live-update rate */
 int perf_prefs_gpu_top_ms(void);
 void perf_prefs_set_gpu_top_ms(int ms);    /* saves and tells the listeners */
+/* the tray meters' own update interval (2.6.0): 250 / 500 / 1000 / 2000 / 5000; Update Speed until it is set */
+int perf_prefs_tray_ms(void);
+void perf_prefs_set_tray_ms(int ms);       /* saves and tells the listeners */
 const char *perf_page_name(int page);      /* "Summary", ... */
 /* where SRS's tray icons go (Plasma sorts its tray by Category, then by Title): the SNI Category ("Hardware" or "Other")
    and the Title prefix ("SRS" or " SRS") for the current Tray Position. SRS's own tray icon uses the same, so all SRS icons

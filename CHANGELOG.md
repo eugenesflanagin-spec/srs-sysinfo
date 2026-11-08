@@ -12,6 +12,12 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   Manager)** right under Show SRS / Hide to Tray, and every tray meter's menu has it at the top; it opens The Big Top's
   Performance tab without the main window (a meter's left click already did). Closing or minimising the main window
   to the tray now leaves The Big Top open; the tray's Hide to Tray still hides every window.
+- **Tray Meter Speed**, apart from the Performance tab's (Task Manager Settings > Notification Area; `[Task Manager]
+  Tray Meter ms`): the tray meters update their icons and tooltips at their own rate (0.25 s to 5 s), and
+  "Performance and Tray Update Speed" is now **Performance Update Speed**. While the Performance tab is open SRS reads
+  the PC at the faster of the two, the meters still change only at theirs; with only the meters it reads at their
+  rate. Until it is set it follows the Update Speed, so nothing changes on upgrade. Slower meters are lighter on the
+  desktop's tray (a Plasma tray crash while tooltips were being rebuilt is being looked into).
 
 ### Fixed
 
