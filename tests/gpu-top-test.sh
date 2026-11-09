@@ -193,7 +193,7 @@ if [ -n "${2:-}" ] && [ -x "${2:-}" ] && command -v Xvfb >/dev/null; then   # Th
     Xvfb "$d" -screen 0 1400x1000x24 -nolisten tcp >/dev/null 2>&1 & XPID=$!
     sleep 1
     mkdir -p "$XDG_CONFIG_HOME/srs"
-    env -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_GPU_ROOT=$R SRS_TEST_BIGTOP_LOG=1 \
+    env -u WAYLAND_DISPLAY GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_GPU_ROOT=$R SRS_TEST_BIGTOP_LOG=1 \
         SRS_OPEN=gputop "$2" > "$TMP/gui.log" 2>&1 & GP=$!
     sleep 7; kill $GP 2>/dev/null; wait $GP 2>/dev/null; kill $XPID 2>/dev/null
     grep -q "SRS-TEST: bigtop open #1 " "$TMP/gui.log" && ! grep -q "SRS-TEST: bigtop open #0 " "$TMP/gui.log" \

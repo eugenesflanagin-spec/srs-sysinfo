@@ -65,7 +65,7 @@ if [ -n "$GUI" ] && [ -x "$GUI" ] && command -v Xvfb >/dev/null; then
     Xvfb "$d" -screen 0 1400x1000x24 -nolisten tcp >/dev/null 2>&1 & XPID=$!
     sleep 1
     printf '[SRSDEF]\nTheme=Light\n[Tabs]\nLineup=Expert\nLayout=side\n' >"$XDG_CONFIG_HOME/srs/SRSDEF.ini"
-    gui() { env -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_TERMS_ANSWER=agree "$@" "$GUI" >"$TMP/log" 2>&1 & G=$!; }
+    gui() { env -u WAYLAND_DISPLAY GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_TERMS_ANSWER=agree "$@" "$GUI" >"$TMP/log" 2>&1 & G=$!; }
     echo "== GUI: a live other holder, answer No"
     gui SRS_TEST_LOCK_ANSWER=no SRS_TEST_BENCH_AUTO="crypto,0.1,1,0" SRS_OPEN=crypto
     for i in $(seq 1 30); do grep -q "lock ask" "$TMP/log" && break; sleep 0.5; done

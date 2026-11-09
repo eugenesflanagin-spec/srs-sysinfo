@@ -52,6 +52,12 @@ def w(path, data):
         f.write(data)
 
 
+def drm_nodes(dev, card, render):
+    """DRM nodes with their dev file: git does not store empty folders (2.6.0)."""
+    w(os.path.join(dev, "drm/card%d/dev" % card), "226:%d\n" % card)
+    w(os.path.join(dev, "drm/renderD%d/dev" % render), "226:%d\n" % render)
+
+
 def amd_device(pci, port, did, rid, info, metrics, extra):
     dev = os.path.join(OUT, "sys/devices/pci0000:00", port, pci)
     for k, v in {"vendor": "0x1002", "device": "0x%04x" % did, "revision": "0x%02x" % rid, "class": "0x030000",
@@ -164,7 +170,7 @@ def main():
     ip_disc(dev, 1, (11, 0, 7))
     ip_disc(dev, 11, (10, 3, 0))
     hwmon(dev, 61, 231, 255)
-    os.makedirs(os.path.join(dev, "drm/card2")); os.makedirs(os.path.join(dev, "drm/renderD130"))
+    drm_nodes(dev, 2, 130)
     w(os.path.join(dev, "srs-grbm.txt"), "".join("%08x %08x\n" % ((1 << 31) | (1 << 14) if i % 2 else 0, 1 << 30 if i < 25 else 0)
                                                 for i in range(100)))
 
@@ -179,7 +185,7 @@ def main():
                      info_text(146, 0x01, 0x1681, 0xc1, 12, 1, 2, 4, 2400000, 3200000, 12, 128, 4, True, 2 << 30, 16 << 30, 0x450000),
                      m, {"pp_dpm_sclk": "0: 200Mhz \n1: 1800Mhz *\n2: 2400Mhz \n"})
     hwmon(dev, 52, 28, 0)
-    os.makedirs(os.path.join(dev, "drm/card3")); os.makedirs(os.path.join(dev, "drm/renderD131"))
+    drm_nodes(dev, 3, 131)
 
     # Strix Point APU: gpu_metrics v3.0 (mW, NPU fields)
     m = metrics_blob(3, 0, {"temperature_gfx": 4800, "temperature_soc": 5000, "temperature_core": [5500] * 16,
@@ -195,7 +201,7 @@ def main():
     dev = amd_device("0000:0e:00.0", "0000:00:08.2", 0x150e, 0xc1,
                      info_text(150, 0x01, 0x150e, 0xc1, 16, 1, 2, 4, 2900000, 3750000, 12, 128, 4, True, 1 << 30, 16 << 30, 0x5d4500),
                      m, {})
-    os.makedirs(os.path.join(dev, "drm/card4")); os.makedirs(os.path.join(dev, "drm/renderD132"))
+    drm_nodes(dev, 4, 132)
 
     # NVIDIA (data from the NVML stub)
     nv = os.path.join(OUT, "sys/devices/pci0000:00/0000:00:01.2/0000:01:00.0")
@@ -203,7 +209,7 @@ def main():
                  "subsystem_vendor": "0x10de", "subsystem_device": "0x167c", "power/runtime_status": "active",
                  "srs-driver": "nvidia"}.items():
         w(os.path.join(nv, k), v + "\n")
-    os.makedirs(os.path.join(nv, "drm/card1")); os.makedirs(os.path.join(nv, "drm/renderD129"))
+    drm_nodes(nv, 1, 129)
     os.symlink("../../../../sys/devices/pci0000:00/0000:00:01.2/0000:01:00.0", os.path.join(OUT, "sys/bus/pci/devices/0000:01:00.0"))
 
     # a process that uses the Navi 21 (render node renderD130), with a second fdinfo sample: 30 % GFX, 10 % compute

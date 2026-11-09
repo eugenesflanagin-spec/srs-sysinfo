@@ -26,7 +26,7 @@ sleep 1
 # page (as the result name), the tool to open, seconds, threads, stop after ms
 while read -r page tool secs thr stopms; do
     echo "== $page: Run, then Stop after $stopms ms"
-    env -u WAYLAND_DISPLAY -u DBUS_SESSION_BUS_ADDRESS GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_TERMS_ANSWER=agree \
+    env -u WAYLAND_DISPLAY GDK_BACKEND=x11 DISPLAY=$d SRS_TEST_TERMS_ANSWER=agree \
         SRS_TEST_BENCH_AUTO="$page,$secs,$thr,$stopms" SRS_OPEN=$tool "$GUI" >"$TMP/log" 2>&1 & G=$!
     for i in $(seq 1 60); do grep -q "SRS-TEST: bench .* done" "$TMP/log" && break; sleep 0.5; done
     kill $G 2>/dev/null; wait $G 2>/dev/null; G=

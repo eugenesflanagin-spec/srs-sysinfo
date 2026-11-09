@@ -25,7 +25,13 @@ for h in "$real"/hwmon/hwmon*; do
     files=$(cd "$h" && ls | grep -E '^(name|temp[0-9]+_(input|label|crit|emergency)|power[0-9]_(average|input|cap|cap_min|cap_max|cap_default|label)|fan[0-9]_(input|max|min)|pwm[0-9](_max|_min)?|in[0-9]+_(input|label)|freq[0-9]+_(input|label))$' || true)
     cp_files "$h" "$dev/hwmon/$(basename "$h")" $files
 done
-for n in "$real"/drm/card* "$real"/drm/renderD*; do [ -d "$n" ] && mkdir -p "$dev/drm/$(basename "$n")"; done
+# each node keeps its dev file (major:minor): git does not store empty folders, and without the nodes the card
+# looks unbound (no driver, no render node) and the AMD back end never loads srs-amdgpu-info.txt (2.6.0)
+for n in "$real"/drm/card* "$real"/drm/renderD*; do
+    [ -d "$n" ] || continue
+    mkdir -p "$dev/drm/$(basename "$n")"
+    cat "$n/dev" > "$dev/drm/$(basename "$n")/dev" 2>/dev/null || echo "226:0" > "$dev/drm/$(basename "$n")/dev"
+done
 if [ -d "$real/ip_discovery/die" ]; then
     for die in "$real"/ip_discovery/die/*; do
         for ip in "$die"/[0-9]*; do

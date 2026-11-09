@@ -35,7 +35,11 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   other table version or core count says "not known" instead of guessing. Positions as listed by QTuxTimings /
   TuxTimings (facts only), checked on a 7800X3D against the board's Vcore sense, k10temp and cpufreq. Untested:
   16-core Ryzen 7000 and every other table version (shown as not known).
-- **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's.
+- **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's. Three tests
+  (bench-stop, bench-lock, gpu-top) also cleared the bus address when they started srs-gui, which made GLib fall back to
+  the desktop's own bus; they no longer do, and the guard's no-dbus-run-session fallback points at a bus that does not
+  exist instead of clearing it. The fake-GPU fixtures now carry a `dev` file in each DRM node: git does not keep empty
+  folders, so a fresh checkout's fake RX 9070 XT looked unbound and its VRAM read -1 (perf-view "GPU sampled" failed).
 
 ### Fixed
 
