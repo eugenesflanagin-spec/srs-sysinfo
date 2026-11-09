@@ -1574,12 +1574,12 @@ per bank or mixed) and **Nitro mode (Rx / Tx / Ctrl)**.
 | RttNomWr / RttNomRd, RttWr, RttPark / RttParkDqs | The memory chips' own termination settings (Off, or RZQ/n with its ohms) |
 | DIMM VDD / VDDQ / VPP (set) | The module voltages the BIOS set |
 | CPU VDDIO (memory) | The CPU's memory I/O voltage |
-| Source | "the BIOS's AOD table; its timings match the live ones above" |
+| Source | "the BIOS's AOD table; its timings match the live ones above" (or "... read through the aod_voltages kernel module (QTuxTimings) ..." when it came from there) |
 
 When the table cannot be read, **Status** says why: "not readable on this kernel: the table sits in
 memory that the kernel keeps from programs" (kernels built with IO_STRICT_DEVMEM, which is most,
 block it unless booted with `iomem=relaxed`, which weakens that protection; SRS does not ask you to
-change it, and the timings do not need it), "not read yet (Menu > Run as root), or this BIOS has no
+change it, and the timings do not need it; **Other way** names QTuxTimings' `aod_voltages` kernel module, which shows the table to every user once loaded with `sudo modprobe aod_voltages` - SRS then reads `/sys/kernel/aod_voltages/full_raw` and never loads the module itself), "not read yet (Menu > Run as root), or this BIOS has no
 AOD table", or "its layout is not known for this processor / BIOS yet (please report it)". The values
 are shown only when the table's own timings match the live ones, so a layout that does not fit a
 BIOS is never shown.

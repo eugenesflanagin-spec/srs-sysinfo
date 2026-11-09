@@ -366,7 +366,9 @@ voltages it set) sit in a part of memory that most Linux kernels keep from every
 included (kernels built with IO_STRICT_DEVMEM). srs-root reads the table only when the kernel allows
 it - that is, when the PC was booted with the kernel option `iomem=relaxed`, which weakens that
 protection. **SRS never asks you to change this.** Without it, Memory Timings says why that part is
-missing, and everything else on the page works.
+missing, and everything else on the page works. Since 2.6.0 there is another way: QTuxTimings' `aod_voltages` kernel module,
+once loaded with `sudo modprobe aod_voltages`, shows the same table to every user, and SRS then
+reads it from `/sys/kernel/aod_voltages/full_raw` (the page's Source line says so). SRS never loads that module itself.
 
 **The two opt-ins** (Menu > Options, both off by default, both ask first; they apply from the next
 Run as root):
@@ -1029,6 +1031,7 @@ What the parts of the page mean:
   strengths), the memory chips' own termination (the RTT values), and the DIMM and CPU memory
   voltages the BIOS set. These are what overclockers tune for stability. They come from a table the
   BIOS leaves in memory, which most kernels only let programs read when booted with `iomem=relaxed`
+  or through QTuxTimings' `aod_voltages` module if you have loaded it
   ([5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins)); SRS never asks you to change that. They
   are shown only when the table's own timings match the live ones, so values from a layout that does
   not fit your BIOS are never shown.
@@ -3212,7 +3215,8 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
   the kernel's `spd5118` driver) and shows each module's JEDEC / EXPO / XMP profiles there
   ([6.12](#612-memory-timings)).
 - **Memory Timings:** live timings on AMD Ryzen 7000 / 9000 desktop only (Intel experimental); the BIOS
-  settings from the AOD table need `iomem=relaxed` on most kernels, which SRS never asks you to set.
+  settings from the AOD table need `iomem=relaxed` on most kernels, which SRS never asks you to set, or
+  QTuxTimings' `aod_voltages` module, loaded by you (SRS never loads it).
 - The optional **Windows images** (`SRS64X.exe`, `SRS32X.exe`, source build only) have only the
   ID lookup and report search features.
 - **The Big Top and amdgpu_top** (2.5): the GPU view follows amdgpu_top 0.11.5's data and rules, with

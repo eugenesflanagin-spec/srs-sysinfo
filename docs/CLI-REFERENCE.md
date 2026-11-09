@@ -1110,7 +1110,7 @@ Since 2.4 it also collects (each only where it applies; files in `~/.cache/srs/r
 |---|---|
 | `umc.txt` | AMD Ryzen 7000 / 9000 desktop: memory controller (UMC) registers, read through the ryzen_smu driver's `smn` file (an address written there only selects what is read: 4 bytes, never the 8-byte form that writes; each value read twice under `/run/lock/srs-smn.lock`). Without the driver: a "not read" line |
 | `intel-imc.txt` | Intel Core 6th gen to Core Ultra (experimental): the memory controller's timing registers, read by `sysreport-search intel-imc-dump` (MCHBAR mapped read-only from `/dev/mem`, aligned 32-bit reads; the window is never switched on) |
-| `aod.bin`, `aod.txt` | AMD: the BIOS's AOD table (memory settings), named by an SSDT; read from `/dev/mem` only when the kernel allows it (`iomem=relaxed` on kernels with IO_STRICT_DEVMEM), else `aod.txt` says why |
+| `aod.bin`, `aod.txt` | AMD: the BIOS's AOD table (memory settings), named by an SSDT; read from `/dev/mem` only when the kernel allows it (`iomem=relaxed` on kernels with IO_STRICT_DEVMEM), else `aod.txt` says why; without it, the page reads `/sys/kernel/aod_voltages/full_raw` when QTuxTimings' `aod_voltages` module is loaded (never loaded by SRS; `SRS_AOD_SYSFS` overrides the path for tests) |
 | `rapl.txt` | AMD: the package and per-core energy counters, read twice one second apart |
 | `ebda.txt`, `ebda.bin` | The BIOS Data Area's EBDA pointer (0x40E) and, when there is one, the EBDA (below 0xA0000, at most 64 KiB) |
 | `vbios-<pci>.bin` | Each AMD GPU's VBIOS, copied from the driver's memory (debugfs `amdgpu_vbios`); the GPU's ROM is not touched |

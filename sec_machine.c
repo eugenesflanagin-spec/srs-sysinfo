@@ -3194,10 +3194,18 @@ static void s_mem_tweak(srs_out *o)
             unsigned char *ad = NULL;
             int an = 0;
             mt_aod a;
+            int via_mod = 0;
             if (af) { snprintf(afp, sizeof afp, "%s", af); an = rd_all(afp, (char **)&ad); }
             {
                 const char *tf = so_root_file("aod.txt");
                 if (tf) rd_str(tf, why, sizeof why);
+            }
+            if (an <= 0) {   /* 2.6.0: the aod_voltages kernel module (QTuxTimings), when it is loaded, shows the same table to
+                                every user; SRS never loads it (sudo modprobe aod_voltages) */
+                const char *mp = getenv("SRS_AOD_SYSFS");
+                free(ad); ad = NULL;
+                an = rd_all(mp && *mp ? mp : "/sys/kernel/aod_voltages/full_raw", (char **)&ad);
+                if (an > 0) via_mod = 1; else an = 0;
             }
             so_par(o);
             so_head(o, "BIOS memory settings (AMD AOD table)");
@@ -3214,13 +3222,17 @@ static void s_mem_tweak(srs_out *o)
                 so_kvf(o, "RttPark / RttParkDqs", C_VALUE, "%s / %s", t1, t2);
                 if (a.vdd > 500 && a.vdd < 3000) so_kvf(o, "DIMM VDD / VDDQ / VPP (set)", C_VALUE, "%.3f / %.3f / %.3f V", a.vdd / 1000.0, a.vddq / 1000.0, a.vpp / 1000.0);
                 if (a.vddio > 500 && a.vddio < 3000) so_kvf(o, "CPU VDDIO (memory)", C_VALUE, "%.3f V", a.vddio / 1000.0);
-                so_kv(o, "Source", C_GRAY, "the BIOS's AOD table; its timings match the live ones above, so the layout fits this BIOS");
+                so_kv(o, "Source", C_GRAY, via_mod
+                    ? "the BIOS's AOD table, read through the aod_voltages kernel module (QTuxTimings); its timings match the live ones above"
+                    : "the BIOS's AOD table; its timings match the live ones above, so the layout fits this BIOS");
             } else if (an > 0) {
                 so_kv(o, "Status", C_GRAY, "the AOD table was read, but its layout is not known for this processor / BIOS yet (please report it)");
             } else if (*why && !strncmp(why, "not readable", 12)) {
                 so_kv(o, "Status", C_GRAY, "not readable on this kernel: the table sits in memory that the kernel keeps from programs");
                 so_kv(o, "Why", C_GRAY, "Linux kernels built with IO_STRICT_DEVMEM (most) block it unless booted with iomem=relaxed, which weakens");
                 so_kv(o, "", C_GRAY, "that protection. SRS does not ask you to change it; the timings above do not need it.");
+                so_kv(o, "Other way", C_GRAY, "QTuxTimings' aod_voltages kernel module, once loaded (sudo modprobe aod_voltages), shows the");
+                so_kv(o, "", C_GRAY, "table without that; SRS then reads it from there. SRS never loads the module itself.");
             } else {
                 so_kv(o, "Status", C_GRAY, "not read yet (Menu > Run as root), or this BIOS has no AOD table");
             }

@@ -35,6 +35,10 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   other table version or core count says "not known" instead of guessing. Positions as listed by QTuxTimings /
   TuxTimings (facts only), checked on a 7800X3D against the board's Vcore sense, k10temp and cpufreq. Untested:
   16-core Ryzen 7000 and every other table version (shown as not known).
+- **Memory Timings: the AOD table through QTuxTimings' `aod_voltages` module.** When srs-root could not read the BIOS's
+  AOD table (kernels with IO_STRICT_DEVMEM keep it from /dev/mem), the page reads it from
+  `/sys/kernel/aod_voltages/full_raw` if that module is loaded, and the Source line says so; srs-root's own copy still
+  wins when both exist. SRS never loads the module itself; the "not readable" status now names it as the other way.
 - **Tests**: every GUI test runs on a private D-Bus session bus (tests/private-bus.sh), never the desktop's. Three tests
   (bench-stop, bench-lock, gpu-top) also cleared the bus address when they started srs-gui, which made GLib fall back to
   the desktop's own bus; they no longer do, and the guard's no-dbus-run-session fallback points at a bus that does not

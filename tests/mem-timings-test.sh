@@ -49,7 +49,7 @@ done
   echo "10: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00    ................"
   echo "20: 00 dc 00 00 00 dc 00 78 00 00 00 00 00 00 00 00    .?...?.x........"
   echo "30: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00    ................"; } > "$ROOT/pmic-0051.txt"
-page() { SRS_RSMU_DIR=${RSMU:-$TMP/rsmu} SRS_SPD_DIR=$TMP/spd timeout 60 "$BIN" '-save=[mem-tweak]=STDOUT' 2>&1; }
+page() { SRS_RSMU_DIR=${RSMU:-$TMP/rsmu} SRS_SPD_DIR=$TMP/spd SRS_AOD_SYSFS=${AODMOD:-$TMP/no-aod-module} timeout 60 "$BIN" '-save=[mem-tweak]=STDOUT' 2>&1; }
 has() { grep -qE "$1" <<<"$OUT"; }
 OUT=$(page)
 has '^Memory speed +6000 MT/s \(MEMCLK 3000 MHz\)' && ok "Memory speed 6000 MT/s (MEMCLK 3000 MHz)" || bad "Memory speed line: $(grep 'Memory speed' <<<"$OUT")"
@@ -108,6 +108,12 @@ has '^Status +the AOD table was read, but its layout is not known' && ! has '^Pr
 rm -f "$ROOT/aod.bin"; echo "not readable: /dev/mem (IO_STRICT_DEVMEM)" > "$ROOT/aod.txt"
 OUT=$(page)
 has '^Status +not readable on this kernel' && ok "aod.txt 'not readable': explained (iomem=relaxed)" || bad "aod.txt not readable: $(grep -A1 'AOD table' <<<"$OUT" | tail -1)"
+has '^Other way +QTuxTimings. aod_voltages kernel module' && ok "not readable: names the aod_voltages module as the other way (never loaded by SRS)" || bad "no aod_voltages hint"
+AODMOD=$TMP/gen/aod.bin; OUT=$(page); unset AODMOD   # 2.6.0: the module's /sys/kernel/aod_voltages/full_raw, faked
+has '^ProcODT +48.0 Ω' && has '^Source +the BIOS.s AOD table, read through the aod_voltages kernel module' \
+    && ok "/dev/mem blocked, aod_voltages loaded: the table is read from the module and the source says so" || bad "module fallback: $(grep -A2 'AOD table' <<<"$OUT" | tail -2)"
+cp "$TMP/gen/aod.bin" "$ROOT/aod.bin"; AODMOD=$TMP/gen/aod.bin; OUT=$(page); unset AODMOD; rm -f "$ROOT/aod.bin"
+has '^Source +the BIOS.s AOD table; its timings match' && ok "srs-root's own copy wins over the module when both exist" || bad "root copy vs module: $(grep '^Source' <<<"$OUT")"
 rm -f "$ROOT/aod.txt"
 OUT=$(page)
 has '^Status +not read yet \(Menu > Run as root\)' && ok "no AOD file at all: 'not read yet'" || bad "no AOD: $(grep -A1 'AOD table' <<<"$OUT" | tail -1)"
