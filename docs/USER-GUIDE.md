@@ -2580,6 +2580,13 @@ by its PCI address), a tick box per back end (only installed ones can be ticked;
 greyed one says what to install), **Seconds per test** (up to 60, default 1), **Run** (asks first),
 **Run All** (2.5: ticks every installed back end, then runs), **Stop**.
 
+**If a GPU runtime crashes (2.6.0).** The comparison runs in a separate SRS process, so a crash inside a
+GPU driver or runtime no longer closes SRS. The status line says the test process crashed and names the
+step it was on. If a back end crashes while it is *starting* - on an RX 9070 XT, ROCm 10.1's HIP crashes
+as soon as ZLUDA's CUDA starts - SRS runs the comparison once more without it and says which one was left
+out, so the other back ends still get compared. Nothing is wrong with SRS when this happens; the fix is
+an update (or a rollback) of that runtime.
+
 **Reading the table.** Each row is a test, each column a back end:
 
 - **Own kernel** rows: SRS's own plain matrix multiplication - the same work on every back end,

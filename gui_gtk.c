@@ -42,6 +42,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/utsname.h>
+#include <spawn.h>
+#include <errno.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -3089,6 +3092,7 @@ static gboolean bench_done(gpointer data)
             snprintf(b, sizeof b, "%s%s", j->rc == 0 ? "Finished" : j->rc == 1 ? "Stopped - the rows not measured stay empty" :
                                           j->rc == 2 ? "Finished - a result was WRONG (see the table)" :
                                           j->rc == -1 ? "Not started: " : "The GPU failed during the run: ", j->rc < 0 ? j->why : "");
+            if (j->rc >= 0 && j->why[0]) { size_t l = strlen(b); snprintf(b + l, sizeof b - l, " - note: %s", j->why); }   /* 2.6.0: a back end left out */
             gtk_label_set_text(GTK_LABEL(w->bm_status), b);
         } else if (j->sub == BK_STORAGE || j->sub == BK_NET) {
             char b[400];
@@ -3136,6 +3140,218 @@ static gboolean bench_done(gpointer data)
     g_free(j->dir);
     g_free(j);
     return G_SOURCE_REMOVE;
+}
+
+/* 2.6.0: the GPU Compute comparison runs in a child process (this same program with --gpu-compare-child), like GPU
+   Burnin. A crash inside a GPU runtime - ROCm 10.1's HIP did, in hipMemcpyHtoD on an RX 9070 XT - then ends only the
+   child; the window stays open and the status line names the step that was running. The child writes its current
+   step to a small file that the status line reads, and its "why" text to another; Stop sends it SIGTERM. */
+#define GCC_EXIT_BASE 100
+extern char **environ;
+static char g_cmp_stage[200];
+static GMutex g_cmp_stage_mu;
+static int g_cmp_child_running;
+static const char *cmp_stage_text(void)
+{
+    static char b[200];
+    if (!__atomic_load_n(&g_cmp_child_running, __ATOMIC_SEQ_CST)) return gpucmp_stage();
+    g_mutex_lock(&g_cmp_stage_mu);
+    snprintf(b, sizeof b, "%s", g_cmp_stage);
+    g_mutex_unlock(&g_cmp_stage_mu);
+    return b;
+}
+static void cmp_read_small(const char *path, char *buf, size_t n)
+{
+    FILE *f = fopen(path, "r");
+    size_t k = 0;
+    if (n) buf[0] = 0;
+    if (!f) return;
+    if (n) k = fread(buf, 1, n - 1, f);
+    fclose(f);
+    if (n) buf[k] = 0;
+    while (k && (buf[k - 1] == '\n' || buf[k - 1] == '\r')) buf[--k] = 0;
+}
+static int gpucmp_run_child_once(benchjob *j, const gpucmp_cfg *c, char *why, size_t wn, char *crashed_stage, size_t csn)
+{
+    char *exe = g_file_read_link("/proc/self/exe", NULL), *dir;
+    char stage[600], whyf[600], a_back[32], a_dev[32], a_sec[48], stagebuf[200] = "";
+    const char *who = NULL;
+    char *argv[16];
+    pid_t pid;
+    int st = 0, sent = 0, rc, n = 0;
+    if (why && wn) why[0] = 0;
+    if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return -1; }
+    if (burn_active() || burn_gpu_pid_set()) { g_free(exe); snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU comparison when it has finished"); return -1; }
+    if (!gpu_claim("GPU Compute comparison", &who)) { g_free(exe); gpu_claim_text(who, why, wn); return -1; }
+    dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);
+    g_mkdir_with_parents(dir, 0755);
+    snprintf(stage, sizeof stage, "%s/gpucmp-stage-%d.txt", dir, (int)getpid());
+    snprintf(whyf, sizeof whyf, "%s/gpucmp-why-%d.txt", dir, (int)getpid());
+    g_free(dir);
+    g_unlink(stage);
+    g_unlink(whyf);
+    snprintf(a_back, sizeof a_back, "%u", c->backends);
+    snprintf(a_dev, sizeof a_dev, "%d", c->device);
+    snprintf(a_sec, sizeof a_sec, "%.3f", c->seconds);
+    argv[n++] = exe; argv[n++] = (char *)"--gpu-compare-child";
+    argv[n++] = (char *)"--backends"; argv[n++] = a_back;
+    argv[n++] = (char *)"--device"; argv[n++] = a_dev;
+    argv[n++] = (char *)"--seconds"; argv[n++] = a_sec;
+    argv[n++] = (char *)"--stage"; argv[n++] = stage;
+    argv[n++] = (char *)"--why"; argv[n++] = whyf;
+    if (c->software_only) argv[n++] = (char *)"--software-only";
+    argv[n] = NULL;
+    g_mutex_lock(&g_cmp_stage_mu);
+    snprintf(g_cmp_stage, sizeof g_cmp_stage, "starting");
+    g_mutex_unlock(&g_cmp_stage_mu);
+    if (posix_spawn(&pid, exe, NULL, NULL, argv, environ) != 0) {
+        snprintf(why, wn, "SRS could not start its GPU test process (%s)", g_strerror(errno));
+        gpu_release();
+        g_free(exe);
+        return -1;
+    }
+    __atomic_store_n(&g_cmp_child_running, 1, __ATOMIC_SEQ_CST);
+    if (getenv("SRS_TEST_BENCH_AUTO")) fprintf(stderr, "SRS-TEST: gpucompare child %d\n", (int)pid);
+    for (;;) {
+        pid_t r = waitpid(pid, &st, WNOHANG);
+        if (r == pid) break;
+        if (r < 0 && errno != EINTR) { st = 0; break; }
+        if (j->cancel && !sent) { kill(pid, SIGTERM); sent = 1; }
+        cmp_read_small(stage, stagebuf, sizeof stagebuf);
+        if (stagebuf[0]) {
+            g_mutex_lock(&g_cmp_stage_mu);
+            snprintf(g_cmp_stage, sizeof g_cmp_stage, "%s", stagebuf);
+            g_mutex_unlock(&g_cmp_stage_mu);
+        }
+        g_usleep(100000);
+    }
+    cmp_read_small(stage, stagebuf, sizeof stagebuf);
+    __atomic_store_n(&g_cmp_child_running, 0, __ATOMIC_SEQ_CST);
+    gpu_release();
+    if (WIFSIGNALED(st)) {
+        int sig = WTERMSIG(st);
+        snprintf(why, wn, "the GPU test process crashed (%s) during \"%s\". The crash is inside the GPU driver or runtime that "
+                 "step uses, not in SRS, and SRS kept running. A HIP or CUDA (ZLUDA) step points at a ROCm or ZLUDA update; untick "
+                 "that back end to compare the others.", strsignal(sig), stagebuf[0] ? stagebuf : "start-up");
+        if (getenv("SRS_TEST_BENCH_AUTO")) fprintf(stderr, "SRS-TEST: gpucompare child crashed signal %d stage '%s'\n", sig, stagebuf);
+        if (crashed_stage && csn) snprintf(crashed_stage, csn, "%s", stagebuf);
+        rc = -5;
+    } else if (WIFEXITED(st) && WEXITSTATUS(st) >= GCC_EXIT_BASE - 50 && WEXITSTATUS(st) <= GCC_EXIT_BASE + 50) {
+        rc = WEXITSTATUS(st) - GCC_EXIT_BASE;
+        cmp_read_small(whyf, why, wn);
+    } else {
+        rc = -5;
+        snprintf(why, wn, "the GPU test process ended unexpectedly (exit code %d)", WIFEXITED(st) ? WEXITSTATUS(st) : -1);
+    }
+    g_unlink(stage);
+    g_unlink(whyf);
+    g_free(exe);
+    return rc;
+}
+
+/* a crash while a back end was STARTING ("Starting the CUDA back end") is retried once per back end without it, so the
+   others can still be compared; the status line then says which one was left out and why */
+static int gpucmp_run_child(benchjob *j, const gpucmp_cfg *c0, char *why, size_t wn)
+{
+    gpucmp_cfg c = *c0;
+    char left[160] = "", st[200];
+    int rc, tries;
+    for (tries = 0; tries < GB_N; tries++) {
+        int b, hit = -1;
+        st[0] = 0;
+        rc = gpucmp_run_child_once(j, &c, why, wn, st, sizeof st);
+        if (rc != -5 || j->cancel || strncmp(st, "Starting the ", 13)) break;
+        for (b = 0; b < GB_N; b++) if (strstr(st + 13, gb_name[b]) == st + 13) hit = b;
+        if (hit < 0 || hit == GB_VULKAN) break;
+        if (!c.backends) c.backends = (1u << GB_N) - 1;
+        if (!(c.backends & (1u << hit))) break;
+        c.backends &= ~(1u << hit);
+        if (!c.backends) break;
+        snprintf(left + strlen(left), sizeof left - strlen(left), "%s%s", left[0] ? ", " : "", gb_name[hit]);
+        if (getenv("SRS_TEST_BENCH_AUTO")) fprintf(stderr, "SRS-TEST: gpucompare retry without %s\n", gb_name[hit]);
+    }
+    if (left[0] && rc >= 0)
+        snprintf(why, wn, "%s crashed while starting (inside its runtime, not in SRS) and was left out", left);
+    return rc;
+}
+
+/* the child: one GPU Compute comparison, its result page saved as usual (bench-gpucompare.txt + history). Tests:
+   SRS_TEST_GPUCMP_CRASH=1 makes it crash on purpose (SIGSEGV) once it has started, to check the window survives. */
+static volatile int g_gcc_cancel;
+static const char *g_gcc_stagefile;
+static void gcc_sig(int s) { (void)s; g_gcc_cancel = 1; }
+static void gcc_write_stage(const char *t)
+{
+    char tmp[700];
+    FILE *f;
+    if (!g_gcc_stagefile) return;
+    snprintf(tmp, sizeof tmp, "%s.tmp", g_gcc_stagefile);
+    if (!(f = fopen(tmp, "w"))) return;
+    fputs(t, f);
+    fclose(f);
+    rename(tmp, g_gcc_stagefile);
+}
+static void *gcc_stage_thread(void *p)
+{
+    char last[200] = "";
+    (void)p;
+    for (;;) {
+        const char *s = gpucmp_stage();
+        if (s && strcmp(s, last)) { snprintf(last, sizeof last, "%s", s); gcc_write_stage(last); }
+        usleep(150000);
+    }
+    return NULL;
+}
+static int gpu_compare_child_main(int argc, char **argv)
+{
+    gpucmp_cfg c;
+    struct sigaction sa;
+    char why[300] = "";
+    const char *whyfile = NULL, *t;
+    pthread_t th;
+    int i, rc;
+    gpucmp_cfg_default(&c);
+    for (i = 2; i < argc; i++) {
+        const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : "";
+        if (!strcmp(a, "--software-only")) { c.software_only = 1; continue; }
+        if (!strcmp(a, "--backends")) c.backends = (unsigned)strtoul(v, NULL, 10);
+        else if (!strcmp(a, "--device")) c.device = atoi(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--stage")) g_gcc_stagefile = v;
+        else if (!strcmp(a, "--why")) whyfile = v;
+        else continue;
+        i++;
+    }
+    if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    memset(&sa, 0, sizeof sa);
+    sa.sa_handler = gcc_sig;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT, &sa, NULL);
+    gpu_quiet_layers();
+    if (pthread_create(&th, NULL, gcc_stage_thread, NULL) == 0) pthread_detach(th);
+    if ((t = getenv("SRS_TEST_GPUCMP_CRASH")) && !strcmp(t, "1")) {
+        gcc_write_stage("HIP (test: a crash on purpose)");
+        usleep(300000);
+        raise(SIGSEGV);
+    }
+    if (t && !strcmp(t, "cuda") && (!c.backends || (c.backends & (1u << GB_CUDA)))) {   /* tests: CUDA's runtime crashes while starting */
+        char st[80];
+        snprintf(st, sizeof st, "Starting the %s back end", gb_name[GB_CUDA]);
+        gcc_write_stage(st);
+        usleep(300000);
+        raise(SIGSEGV);
+    }
+    rc = bench_gpucompare(&c, NULL, NULL, &g_gcc_cancel, why, sizeof why);
+    if (whyfile && why[0]) {
+        FILE *f = fopen(whyfile, "w");
+        if (f) { fputs(why, f); fclose(f); }
+    }
+    fflush(stdout);
+    fflush(stderr);
+    if (rc < -50) rc = -50;
+    if (rc > 50) rc = 50;
+    /* _exit: a driver thread left behind must not keep the process alive in exit handlers */
+    _exit(GCC_EXIT_BASE + rc);
 }
 
 static gpointer bench_worker(gpointer data)
@@ -3220,7 +3436,7 @@ static gpointer bench_worker(gpointer data)
         c.device = j->device;
         c.seconds = j->secs;
         c.software_only = g_gpu_software_only;
-        j->rc = bench_gpucompare(&c, NULL, NULL, &j->cancel, j->why, sizeof j->why);
+        j->rc = gpucmp_run_child(j, &c, j->why, sizeof j->why);   /* 2.6.0: in a child process (see above) */
     }
     else if (bench_run((bench_mode)j->mode, j->secs, NULL) == 1) j->stopped = 1;
     bench_set_cancel(NULL);
@@ -3280,7 +3496,7 @@ static gboolean bench_tick(gpointer data)
     else if (w->sub == BK_COMPUTE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cp_stage());
     else if (w->sub == BK_WORK) snprintf(b, sizeof b, "Running %.0f s: %s", el, wk_stage());
     else if (w->sub == BK_GPU) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpu_stage());
-    else if (w->sub == BK_GPUCOMPARE) snprintf(b, sizeof b, "Running %.0f s: %s", el, gpucmp_stage());
+    else if (w->sub == BK_GPUCOMPARE) snprintf(b, sizeof b, "Running %.0f s: %s", el, cmp_stage_text());
     else if (w->sub == BK_NET) {
         double mb = net_live_mbps();
         if (mb > 0) snprintf(b, sizeof b, "Running %.0f s: %s - %.0f Mbit/s", el, net_stage(), mb);
@@ -7886,6 +8102,7 @@ int main(int argc, char **argv)
     g_free(base);
     if (argc > 1 && !strcmp(argv[1], "--power-recorder")) return power_recorder_main(argc, argv);   /* Power & Cost, no window */
     if (argc > 1 && !strcmp(argv[1], "--gpu-burn-child")) return gpu_burn_child_main(argc, argv);   /* Stress & Burnin's GPU part */
+    if (argc > 1 && !strcmp(argv[1], "--gpu-compare-child")) return gpu_compare_child_main(argc, argv);   /* 2.6.0: GPU Compute comparison */
     if (argc > 1 && !strcmp(argv[1], "--tray")) { static char gt[] = "--gui-tray"; argv[1] = gt; }   /* srs-gui --tray = --gui-tray */
     if (argc > 1 && strncmp(argv[1], "--g", 3)) return srs_cli_main(argc, argv);   /* CLI mode, like SIV64X -save */
     if (argc > 1 && !strcmp(argv[1], "--gui-scan-empty")) return scan_empty_main();   /* child of the main window */

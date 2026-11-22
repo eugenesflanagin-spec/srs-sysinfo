@@ -47,6 +47,12 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ### Fixed
 
+- **GPU Compute comparison closed SRS when a GPU runtime crashed.** With ROCm 10.1, opening a GPU test made SRS vanish:
+  CUDA's start-up (ZLUDA's cuInit) crashed inside AMD's HIP library (hipStreamCreateWithFlags / hipMemcpyHtoD). The
+  comparison now runs in a child process (`srs-gui --gpu-compare-child`, like GPU Burnin): a crash ends only the child,
+  the status line names the step, Stop still works, and a back end that crashes while starting is left out and the
+  run retried once without it. Software-renderer-only runs no longer probe the HIP / CUDA runtimes.
+  New test: tests/gpucompare-child-test.sh (crash, normal run, Stop, start-up crash + retry).
 - **CPU speeds on a PC with a base clock other than 100 MHz** (BCLK, or eCLK on AM5): the kernel works out the
   cpufreq limits at a 100 MHz base, so Base Speed, Maximum Speed, the CPU Speeds table's Minimum / Maximum / HW Min /
   HW Max and the CPU Power States frequencies were too low by the base-clock factor (with eCLK 104: Maximum Speed

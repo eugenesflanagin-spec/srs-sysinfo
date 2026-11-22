@@ -191,6 +191,10 @@ static int build_columns(cx *x, char *why, size_t wn)
     for (b = GB_HIP; b < GB_N; b++) {
         int n, k, hit = 0;
         if (!(mask & (1u << b))) continue;
+        /* 2.6.0: no software renderer exists for HIP / CUDA, and probing their runtimes can crash (ROCm 10.1's HIP does,
+           under ZLUDA's cuInit too); the GUI's child process reads this step to name - and leave out - a back end that crashed */
+        if (x->c.software_only) { add_missing(x, b, "left out: software renderers only"); continue; }
+        set_stage_text("Starting the %s back end", gb_name[b]);
         if (!gb_table[b]->available(w, sizeof w)) { add_missing(x, b, w); continue; }
         n = gb_table[b]->list(oth, GB_LISTMAX, w, sizeof w);
         if (n <= 0) { add_missing(x, b, w[0] ? w : "no device found"); continue; }
