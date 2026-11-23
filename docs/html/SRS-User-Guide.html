@@ -3052,12 +3052,13 @@ RX 9070 XT (2026-10-29), every CUDA row from the built-in kernels (PTX,
 new in 2.3) without NVRTC; only the cuBLAS FP64 row says "not available"
 (ZLUDA's cuBLAS has none). GPU Burnin's 2.4 matrix multiply ran on the
 author's RX 9070 XT with all four back ends, FP32, 0 errors: CUDA via
-ZLUDA about 17.2 TFLOPS, Vulkan 16.2, OpenCL 13.4, ROCm / HIP 13.0.
-Untested: every other real GPU use (AMD, NVIDIA, Intel) and the
-temperature, power, clock and fan read-outs for NVIDIA and Intel. The
-built-in CUDA kernels were never run on NVIDIA hardware. The NVIDIA CUDA
-toolkit install (Options) was tested with fake package managers
-only.</li>
+ZLUDA about 17.2 TFLOPS, Vulkan 16.2, OpenCL 13.4, ROCm / HIP 13.0. The
+2.6 GPU Compute comparison ran every back end on that card (2026-11-23,
+10 s per test), every result checked. Untested: every other real GPU use
+(AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs
+for NVIDIA and Intel. The built-in CUDA kernels were never run on NVIDIA
+hardware. The NVIDIA CUDA toolkit install (Options) was tested with fake
+package managers only.</li>
 <li>Memory Timings (<a href="#user-guide--612-memory-timings">6.12</a>): checked on
 one Ryzen 7 7800X3D with DDR5-6000 EXPO. The Ryzen 9000 PM table layout
 (clocks and SoC voltages) is not checked. <strong>Intel memory timings
@@ -3111,10 +3112,10 @@ dongle.</li>
 href="#user-guide--918-gpu-burnin">9.18</a>): built and tested on made-up system
 files, a stand-in for Tux Burner's service, a software renderer, a fake
 GPU runtime and made-up kernel log lines. On a real card (Radeon RX 9070
-XT) <code>gpu-tune status</code> was read once and
-<code>gpu-burn --json --watch-kernel</code> passed one run; the watch
-has never seen a real GPU reset, and a real Tux Burner service was not
-asked. NVIDIA, Intel, older AMD cards and laptops with two cards are
+XT) <code>gpu-tune status</code> was read and matched what LACT shows,
+and <code>gpu-burn --json --watch-kernel</code> passed one run; the
+watch has never seen a real GPU reset, and a real Tux Burner service was
+not asked. NVIDIA, Intel, older AMD cards and laptops with two cards are
 untested.</li>
 </ul>
 <p><strong>Things to know about the GPU tests:</strong></p>
@@ -4524,7 +4525,17 @@ what was refused. <code>SRS_GPU_WAVE=32</code>,
 switch the three off, to compare with older SRS versions. If a column
 built for 64-wide waves ever shows WRONG RESULT, run it once more with
 <code>SRS_GPU_WAVE=32</code> before suspecting the card. GPU Burnin does
-none of this: it runs exactly as in 2.5.</li>
+none of this: it runs exactly as in 2.5. What it brought, measured on my
+Radeon RX 9070 XT (10 s per test, the build before and the build after
+in one session, Vulkan = 100%): the FP32 multiply-add chain on ROCm /
+HIP went from 38% to 78% and on OpenCL (ROCm) from 38% to 75%; the
+launch round trip from 105 to 17 millionths of a second on ROCm / HIP
+and ZLUDA, 106 to 21 on OpenCL (ROCm) and 310 to 40 on Rusticl;
+Rusticl's upload from 25.9 to 53.0 GB/s and its download from 5.25 to
+52.6 GB/s. It did not help everywhere: the own-kernel FP32 matrix
+multiply on ROCm / HIP and OpenCL (ROCm) stayed near 60%, and the
+multiply-add chain on ZLUDA near 40%. Other graphics cards were not
+measured.</li>
 <li><strong>Kernel launch round trip</strong> needs a quiet PC: it
 measures a few tens of millionths of a second, and other programs using
 the CPU make it look slower.</li>
@@ -4992,12 +5003,13 @@ line tool.</li>
 <li>A value it cannot know is left empty ("not available", "kept by Tux
 Burner"), not guessed.</li>
 </ul>
-<p><strong>Not tested on real hardware yet.</strong> I built and tested
+<p><strong>Tested on one real card only.</strong> I built and tested
 this page with made-up system files and a stand-in for Tux Burner's
-service, not on a real card, a real Tux Burner service or a real LACT.
-Other AMD generations, NVIDIA, Intel and laptops with two graphics cards
-may show something odd; if you see it, please open an issue with what
-the page showed.</p>
+service. On my own card (Radeon RX 9070 XT, with LACT)
+<code>gpu-tune status</code> was read and showed the same settings as
+LACT; a real Tux Burner service was not asked. Other AMD generations,
+NVIDIA, Intel and laptops with two graphics cards may show something
+odd; if you see it, please open an issue with what the page showed.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -16934,11 +16946,12 @@ with size, name and mount points. They nest up to six levels.</li>
 <p>Unlike <a href="#sections-storage--disk-drives">Disk drives</a>, this tree also lists
 zram, loop-backed and device-mapper disks.
 <code>drive-tree:&lt;disk&gt;</code> shows one disk only.</p>
-<p><strong>Healthy / typical values.</strong> On the author's PC the
-Samsung NVMe holds <code>nvme0n1p1 2.05GB vfat EFI /boot/efi</code> and
-<code>nvme0n1p2 929.46GB btrfs LINUX / /srv /root /home /var/cache /var/log /var/tmp</code>.
+<p><strong>Healthy / typical values.</strong> An example (invented names
+and sizes): an NVMe drive holds
+<code>nvme0n1p1 1.00GB vfat ESP /boot/efi</code> and
+<code>nvme0n1p2 500.00GB btrfs ROOT / /srv /root /home /var/cache /var/log /var/tmp</code>.
 That one partition has seven mount points because it is btrfs with
-several subvolumes. A dual-boot disk shows an <code>ntfs WIN11</code>
+several subvolumes. A dual-boot disk shows an <code>ntfs WINDOWS</code>
 partition with no mount point, which is normal when Windows is not in
 use.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
@@ -18664,10 +18677,10 @@ version, e.g. FAT32, FAT16, FAT12, exFAT 1.0, swap 1, "Joliet Extension"
 for ISO images), <strong>Label</strong>, <strong>UUID</strong>,
 <strong>Size</strong>, <strong>Mount points</strong> (all of them, or
 <code>[SWAP]</code>). zram and other virtual disks are included.</p>
-<p><strong>Healthy / typical values.</strong> On the author's PC:
-<code>nvme0n1p1 vfat FAT32 EFI 2.05GB /boot/efi</code>,
-<code>nvme1n1p4 swap 1 SWAP 32.81GB [SWAP]</code>,
-<code>zram0 swap 1 zram0 15.23GB [SWAP]</code>. A small Ventoy EFI
+<p><strong>Healthy / typical values.</strong> An example (invented names
+and sizes): <code>nvme0n1p1 vfat FAT32 ESP 1.00GB /boot/efi</code>,
+<code>nvme0n1p3 swap 1 SWAP 16.00GB [SWAP]</code>,
+<code>zram0 swap 1 zram0 8.00GB [SWAP]</code>. A small Ventoy EFI
 partition is FAT16 and a 4MB live-USB EFI partition is FAT12, both
 normal for their size. NTFS partitions show a 16-hex-digit UUID.</p>
 <p><strong>Unusual values and what they suggest.</strong> A whole disk
@@ -18763,10 +18776,10 @@ fragment size, Inodes (total and free, <code>n/a</code> for filesystems
 such as btrfs that do not have a fixed count), Max name length, Access
 (read/write or read-only), followed by the filesystem statistics
 described under <a href="#sections-storage--ntfs-statistics">NTFS statistics</a>.</p>
-<p><strong>Healthy / typical values.</strong> On the author's PC the
-btrfs root shows 146.84GB free of 929.46GB (83% used) on seven mount
-points; the totals line "Fixed 14 (5)" means 14 mount points but only 5
-different filesystems. The read-only NTFS bind mount shows
+<p><strong>Healthy / typical values.</strong> An example (invented
+sizes): a btrfs root shows 100.00GB free of 500.00GB (80% used) on seven
+mount points; the totals line "Fixed 14 (5)" means 14 mount points but
+only 5 different filesystems. The read-only NTFS bind mount shows
 <code>ntfs3 (R)</code>. An ISO live stick shows 100% used with 0 free,
 which is normal for a read-only ISO 9660 filesystem.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
@@ -22213,12 +22226,12 @@ partition names and IDs.</li>
 <li><code>/dev/disk/by-path</code> - names based on the physical port or
 bus position.</li>
 </ul>
-<p><strong>Healthy / typical values.</strong> Author's PC by-label:
-<code>LINUX -&gt; /dev/nvme0n1p2</code>,
-<code>EFI -&gt; /dev/nvme1n1p2</code>,
-<code>SWAP -&gt; /dev/nvme1n1p4</code>,
-<code>WIN11 -&gt; /dev/nvme1n1p1</code>,
-<code>Ventoy -&gt; /dev/sdd1</code>,
+<p><strong>Healthy / typical values.</strong> An example by-label list
+(invented names): <code>ROOT -&gt; /dev/nvme0n1p2</code>,
+<code>ESP -&gt; /dev/nvme0n1p1</code>,
+<code>SWAP -&gt; /dev/nvme0n1p3</code>,
+<code>WINDOWS -&gt; /dev/sda2</code>,
+<code>USBSTICK -&gt; /dev/sdb1</code>,
 <code>zram0 -&gt; /dev/zram0</code>.</p>
 <p><strong>Unusual values and what they suggest.</strong> Two partitions
 with the same UUID (common after cloning a disk): the system may mount
@@ -33011,8 +33024,10 @@ search for the limits of a card step by step, behind safety limits of
 its own. Tux Burner's root service is the only part that writes to the
 card. SRS shows the result here and brings its own <a
 href="#sections-tools--gpu-burnin">GPU Burnin</a> as the test that judges a setting.</p>
-<p>Not tested on real hardware yet: this page was built and tested with
-made-up system files and a fake Tux Burner service. Other AMD
+<p>Tested on one real card only: this page was built and tested with
+made-up system files and a fake Tux Burner service; on the author's
+Radeon RX 9070 XT (with LACT) its status was read and showed the same
+settings as LACT, and a real Tux Burner service was not asked. Other AMD
 generations, NVIDIA, Intel and laptops with two graphics cards may show
 something odd; please report it.</p>
 <hr />
@@ -33162,22 +33177,31 @@ the run: no later back end touches that GPU again, and the tests that
 did not run say <strong>not run</strong> (the line under the table says
 why). Stop works. SRS never changes clocks, voltages or fans.</p>
 <p><strong>Healthy / typical values.</strong> Measured by the author on
-real hardware once, for CUDA through ZLUDA only: a Radeon RX 9070 XT
+one real card only. First for CUDA through ZLUDA: a Radeon RX 9070 XT
 with ZLUDA (preview build, no NVRTC), 2026-10-29 - own-kernel FP32
 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046,
-own-kernel FP64 860; cuBLAS FP64 "not available". The other back ends
-were measured only on the software renderer. In general the vendor
-libraries are much faster than a plain kernel for matrix multiply, and
-the own-kernel rows show how well each driver compiles the same simple
-code; a healthy result has every row filled in and no errors.</p>
+own-kernel FP64 860; cuBLAS FP64 "not available". Then all back ends,
+2026-11-23, same card, SRS 2.6.0, 10 s per test (Vulkan = 100%):
+own-kernel FP32 matrix multiply Vulkan 5888 GFLOPS, CUDA (ZLUDA) 91%,
+OpenCL (Rusticl) 69%, ROCm / HIP 61%, OpenCL (ROCm) 58%; FP32
+multiply-add chain Vulkan 52375, ROCm / HIP 78%, OpenCL (ROCm) 75%,
+Rusticl 65%, ZLUDA 40%; upload about 53 to 56 GB/s and download about 52
+GB/s on every back end; launch round trip 17 to 40 µs. Other GPUs were
+not measured. In general the vendor libraries are much faster than a
+plain kernel for matrix multiply, and the own-kernel rows show how well
+each driver compiles the same simple code; a healthy result has every
+row filled in and no errors.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>One back end far behind the others on the same card: an old or debug
 runtime, or a driver that does not support that card well. Since 2.6
-SRS's own code should no longer be the reason; if a <strong>how it
-ran</strong> line says the compiler refused the 64-wide waves, that
-column's FP32 own-kernel and multiply-add rows run at about half of what
-the card can do on RDNA 3 / 4.</li>
+SRS's own code is less often the reason (measured on one Radeon RX 9070
+XT: the FP32 multiply-add chain on ROCm / HIP rose from 38% to 78% of
+Vulkan; the own-kernel FP32 matrix multiply stayed near 60% there); if a
+<strong>how it ran</strong> line says the compiler refused the 64-wide
+waves, that column's FP32 multiply-add row runs at about half of what it
+can reach on RDNA 3 / 4 (on the one card measured the own-kernel matrix
+multiply row hardly changed with the wave width).</li>
 <li><strong>WRONG RESULT</strong> in a column whose <strong>how it
 ran</strong> line says 64-wide waves: run again with
 <code>SRS_GPU_WAVE=32</code> before suspecting the card. Wrong both
@@ -36973,8 +36997,10 @@ thing missing. This version has no command that changes anything</td>
 <pre><code>$ sysreport-search gpu-tune status
 $ sysreport-search gpu-tune status --all
 $ sysreport-search gpu-tune status --pci 0000:03:00.0 --json</code></pre>
-<p>Not tried on a real card, a real Tux Burner service or a real LACT
-yet (tests use made-up files and a fake service); other AMD generations,
+<p>Built and tested with made-up files and a fake service. On the
+author's real card (Radeon RX 9070 XT, with LACT)
+<code>gpu-tune status</code> was read and showed the same settings as
+LACT. Not tried with a real Tux Burner service; other AMD generations,
 NVIDIA, Intel and laptops with two cards may show something odd.</p>
 <h3 id="cli-reference--ir---ir-blaster-learn-and-send-infrared-codes"><code>ir</code> -
 IR Blaster: learn and send infrared codes</h3>
@@ -38555,7 +38581,7 @@ srs-root: done -&gt; /home/you/.cache/srs/root</code></pre>
 read through the ryzen_smu driver's <code>smn</code> file (an address
 written there only selects what is read: 4 bytes, never the 8-byte form
 that writes; each value read twice under
-<code>/run/lock/srs-smn.lock</code>). Without the driver: a "not read"
+<code>/run/srs-smn.lock</code>). Without the driver: a "not read"
 line</td>
 </tr>
 <tr>
