@@ -2,7 +2,7 @@
 
 [Back to the section index](README.md) - [Glossary](../GLOSSARY.md)
 
-**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root, the Classic view, (2.4) Update hardware lists and ACPI method evaluation (User Guide 9.21 and 9.22), and (2.5) **The Big Top**, the live window for the whole PC and each graphics card (also Ctrl+G; it is a window, not a report item: see [User Guide 6.13](../USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity) and [6.14](../USER-GUIDE.md#614-the-performance-tab-a-task-manager)); its **All N items** lists the other items of this group. Since 2.5 the pages with a **Threads** setting (SRS Pi, Prime Sieve, CPU Compute, Everyday Work, Cache & Memory, Crypto) and Stress & Burnin have an **All Cores (Max)** toggle (Alt+X): every logical CPU for this run, without changing a saved setting ([User Guide 9.0](../USER-GUIDE.md#90-use-at-your-own-risk)). In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
+**Where to find these items (SRS 2.2).** In the main window they are on two pages. **Benchmarks & Stress** (Alt+=) has (2.3.1) one tab per tool - Stress & Burnin (CPU and GPU), (2.6) the read-only GPU Tuning tab, CPU Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency - with its controls and live results, compact sections at the top that jump to them, and the benchmark history tab. **Tools** (Alt+Backspace) has buttons for Device ID Lookup, Find in a system report, Save Report, Run as root, the Classic view, (2.4) Update hardware lists and ACPI method evaluation (User Guide 9.21 and 9.22), and (2.5) **The Big Top**, the live window for the whole PC and each graphics card (also Ctrl+G; it is a window, not a report item: see [User Guide 6.13](../USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity) and [6.14](../USER-GUIDE.md#614-the-performance-tab-a-task-manager)); its **All N items** lists the other items of this group. Since 2.5 the pages with a **Threads** setting (SRS Pi, Prime Sieve, CPU Compute, Everyday Work, Cache & Memory, Crypto) and Stress & Burnin have an **All Cores (Max)** toggle (Alt+X): every logical CPU for this run, without changing a saved setting ([User Guide 9.0](../USER-GUIDE.md#90-use-at-your-own-risk)). In the main window **Ctrl+F** is the search box and **Ctrl+Shift+F** opens Find. You can also type an item's name or id into the search box (Ctrl+F). The rest of this introduction describes the classic view (Menu -> Classic View), with its Menu and panel buttons.
 
 This group holds the things you *do* with SRS rather than the things it simply reads: CPU benchmarks,
 the Stress & Burnin load test (CPU and GPU), a core-to-core delay test, a memory latency test, and the
@@ -48,6 +48,7 @@ memory it needs). Saving a report (`-save`) only shows the last stored result.
 - [Network Benchmark](#network-benchmark) `net-bench`
 - [GPU Benchmark](#gpu-benchmark) `gpu-bench`
 - [GPU Burnin](#gpu-burnin) `gpu-burnin`
+- [GPU Tuning](#gpu-tuning) `gpu-tuning`
 - [GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL](#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl) `gpu-compare`
 - [SRS Pi](#srs-pi) `srs-pi`
 - [Crypto Benchmark](#crypto-benchmark) `crypto-bench`
@@ -1071,6 +1072,111 @@ the built-in PTX kernels) and OpenCL
 the card's hwmon folder in `/sys/bus/pci/devices/<address>/hwmon` (amdgpu: all of them; i915, xe
 and nouveau: what they offer). Stored in `~/.cache/srs/bench-gpuburn.txt`; each run is added to
 the [Benchmark History](#benchmark-history).
+
+---
+## GPU Tuning  
+`gpu-tuning` - Linux data
+
+**In plain words.** This page shows what your graphics card is **set to right now**: how much voltage is
+taken off (the *undervolt*), how much speed is added (the *overclock*), the top memory speed and the most
+watts the card may draw. It also shows the limits, and whether the two programs that can change these
+settings - **Tux Burner** and **LACT** - are there. **It only shows.** Nothing on this page changes the
+card, and SRS itself never writes to a graphics card. (New in 2.6. It is the first part of GPU tuning in
+SRS; the controls for trying and searching settings come in a later version.)
+
+Open it: **Benchmarks & Stress -> GPU Tuning** (the tab right after Stress & Burnin), Menu -> Benchmarks &
+Stress -> **GPU Tuning (Read-Only)...**, `srs-gui --gui-open=gputune`, or on the command line
+`sysreport-search gpu-tune status`. With **Live** on, the page reads again every few seconds.
+
+**What you see.** One block per graphics card, headed by the card's name.
+
+| Line | Meaning |
+|---|---|
+| **Card** | The kernel's name for the card (`card0`), its PCI address and its driver |
+| **Tux Burner** | Not installed / installed but its service is not running / version and "running" with what it is doing (idle, a profile is active, a search is running) / the service does not serve this user / a version this SRS cannot use |
+| **LACT** | Running or not; when it runs and a profile is selected, the profile's name |
+| **Settings Back End** | Which part of Tux Burner serves this card: *Tux Burner AMD (OverDrive)* or *Tux Burner NVIDIA*. The line is missing when Tux Burner's service does not know the card |
+
+**Now On The Card**
+
+| Line | Meaning |
+|---|---|
+| **Voltage Offset** | Millivolts taken off the GPU's core voltage at every speed. `-110 mV` = 0.110 V less than the factory set. `0 mV` = factory voltage |
+| **Core Clock Offset** | MHz added to (or taken off) the GPU's top speed. `+300 MHz` = an overclock of 300 MHz |
+| **Memory Clock (Highest)** | The top speed of the video memory in MHz (AMD). NVIDIA cards show a **Memory Clock Offset** instead |
+| **Power Limit** | The most watts the card is allowed to draw |
+| **Set By** | Shown when LACT runs: either "LACT profile "name" (the card is at LACT's saved values)", or in orange that the card is **not** at LACT's saved values right now |
+
+**Live Readings** - edge and hotspot temperature, power draw, core clock, core voltage and fan speed at this
+moment (from the card's sensors; missing lines mean the card does not report them).
+
+**Limits**
+
+| Line | Meaning |
+|---|---|
+| **Lowest Allowed Voltage Offset** | Tux Burner's *floor*: the deepest undervolt its service will write (-150 mV unless you changed it in Tux Burner). Without Tux Burner's service this line says "kept by Tux Burner (not known without its service)" - SRS does not guess it |
+| **Driver Range, Voltage Offset / Core Clock Offset / Memory Clock / Power Limit** | The lowest and highest value the card's driver itself accepts, and for the power limit the factory setting. **This is what the driver accepts, not what is safe**: a card can hang far inside this range |
+
+**LACT's Saved Values** - shown when LACT's settings file has values for this card: the voltage offset, core
+clock offset, highest memory clock and power limit of LACT's **active profile** (or of its base settings when
+no profile is selected). A value the card is not at is orange, and a line says "The card is not at these
+values right now". When LACT runs, an orange line reminds you that **LACT owns this card's settings** and that
+SRS will not change what LACT has saved.
+
+**Changing Settings** - what would be needed to change something, in plain words:
+
+| What the page says | What it means, and what to do |
+|---|---|
+| "Changing GPU settings needs Tux Burner, a separate free program that holds the safety limits. Reading works without it." | Tux Burner is not installed. On Arch Linux install the package `tux-burner` from the AUR; elsewhere see its page (the link is on the tab) |
+| "Tux Burner's service is not running." | Tux Burner is installed, its root service is not. Install the service from Tux Burner's window (one password prompt) or run `sudo tux-burner-cli --install-systemd-service`. SRS does not install it for you |
+| "Tux Burner's service answered: "daemon client uid is not allowed"." | The service serves only the user it was installed for. Install it again while logged in as the user who runs SRS |
+| "This Tux Burner cannot be used by this SRS" | The service speaks another protocol version. Install versions of SRS and Tux Burner that belong together |
+| "Searches from SRS need a newer Tux Burner for: ..." | The service is fine for reading, but lacks safety features the coming search functions will require |
+| "This card has no OverDrive controls SRS can use here." | An AMD card whose driver shows no tuning table: OverDrive is switched on with the kernel option `amdgpu.ppfeaturemask` |
+| "This card uses the older OverDrive table ..." | An older AMD card (before RDNA 3) that lists clock and voltage points instead of offsets. Not supported yet |
+| "NVIDIA cards have no settings SRS can read by itself." | With Tux Burner's service running, its NVIDIA back end reports them here |
+| "This card is asleep ..." | A second graphics card that the kernel powered down to save energy. SRS does not wake it just to read it |
+
+**Healthy / typical values.** On a card nobody has tuned: voltage offset `0 mV`, core clock offset `0 MHz`,
+power limit = the factory setting. An example of a tuned card, the one SRS's tests are modelled on (a Radeon
+RX 9070 XT set up with LACT): `-110 mV`, `+300 MHz`, highest memory clock `1375 MHz`, power limit `374 W`;
+driver ranges `-200 .. 0 mV`, `-500 .. +1000 MHz`, `212 .. 374 W` (factory setting 304 W).
+
+**Unusual values and what they suggest.**
+
+- **The card is not at LACT's saved values** while LACT runs: another program changed the card after LACT
+  applied its profile (for example a test in Tux Burner), or LACT has not applied yet. Switching the profile in
+  LACT, or a reboot, puts LACT's values back.
+- **A voltage offset below Tux Burner's floor**, or a clock offset near the top of the driver range: far past
+  what is usually stable. Expect screen freezes and program crashes under load.
+- **Every setting "not available"** on an AMD card: the driver shows no OverDrive table (see the table above).
+
+**Where Linux gets it.**
+
+| What | From |
+|---|---|
+| Voltage offset, clock offset, memory clock, driver ranges | `/sys/class/drm/cardN/device/pp_od_clk_voltage` (amdgpu's OverDrive table) |
+| Power limit and its range, live readings | the card's hwmon folder: `power1_cap`, `power1_cap_min` / `_max` / `_default`, `temp*_input`, `power1_average`, `freq1_input`, `in0_input`, `fan1_input` |
+| The card's name | `/usr/share/libdrm/amdgpu.ids`, else `pci.ids` |
+| Tux Burner | `tburn-cli` on PATH; its service socket `/run/tux-burnerd.sock`, asked two read questions: `status` and `gpu_capabilities` |
+| LACT | running = the file `/run/lactd.sock` exists and a `lact` process is alive; saved values from `/etc/lact/config.yaml` |
+
+Nothing is written anywhere. SRS has no code that sends Tux Burner's service a request that changes
+something, it never contacts LACT's service, and it never edits LACT's settings file.
+
+**Background.** A graphics chip is shipped with more voltage than most samples need, so that every chip of
+the series works. Taking some of it away (*undervolting*) makes the card cooler, quieter and thriftier at
+the same speed - until it is too little, and the chip starts to compute wrongly or stops answering.
+*Overclocking* raises the top speed and fails the same way. The safe amount differs from card to card,
+which is why it has to be tested, not copied. On Linux the amdgpu driver exposes these settings as one text
+file (the OverDrive table); **LACT** is the usual program for setting them every day, and **Tux Burner** can
+search for the limits of a card step by step, behind safety limits of its own. Tux Burner's root service is
+the only part that writes to the card. SRS shows the result here and brings its own
+[GPU Burnin](#gpu-burnin) as the test that judges a setting.
+
+Not tested on real hardware yet: this page was built and tested with made-up system files and a fake
+Tux Burner service. Other AMD generations, NVIDIA, Intel and laptops with two graphics cards may show
+something odd; please report it.
 
 ---
 ## GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL  

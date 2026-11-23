@@ -569,6 +569,12 @@ static void page_fill(int cat)
             if (g_toolitems[k].on && !g_hash_table_contains(seen, g_toolitems[k].id)) {
                 g_hash_table_add(seen, (gpointer)g_toolitems[k].id);
                 g_ptr_array_add(want, g_strdup(g_toolitems[k].id));
+                /* 2.6.0: GPU Tuning (a read-only item page, not a tool) sits right after Stress & Burnin */
+                if (!strcmp(g_toolitems[k].id, "burnin") && srs_section_find("gpu-tuning") && !g_hash_table_contains(seen, "gpu-tuning") &&
+                    (g_opt_showhidden || !item_hidden("gpu-tuning"))) {
+                    g_hash_table_add(seen, (gpointer)"gpu-tuning");
+                    g_ptr_array_add(want, g_strdup("gpu-tuning"));
+                }
             }
     }
     for (i = 0; ps->tabs && i < ps->tabs->len; i++) {

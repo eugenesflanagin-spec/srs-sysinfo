@@ -5,6 +5,9 @@
 # Never just unset DBUS_SESSION_BUS_ADDRESS (here or in a test's env -u): GLib then falls back to
 # $XDG_RUNTIME_DIR/bus, which is the REAL desktop bus.
 #   . "$(dirname "$0")/private-bus.sh"
+# 2.6.0: the same for Tux Burner's service socket (the GPU Tuning tab reads it): a test that does not name its own fake
+# service gets a path that does not exist. (SRS also refuses the real socket whenever SRS_TEST_PRIVATE_BUS is set.)
+export SRS_TUX_BURNER_SOCKET=${SRS_TUX_BURNER_SOCKET:-/nonexistent/srs-test-no-tux-burner.sock}
 if [ -z "${SRS_TEST_PRIVATE_BUS:-}" ]; then
     export SRS_TEST_PRIVATE_BUS=1
     if command -v dbus-run-session >/dev/null; then

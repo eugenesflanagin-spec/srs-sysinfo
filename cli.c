@@ -19,7 +19,7 @@
 #endif
 
 static const char *USAGE =
-    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,gpu-top,big-top,ir,update-lists} ...\n";
+    "usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,gpu-tune,cuda-toolkit,gpu-top,big-top,ir,update-lists} ...\n";
 
 static const char *HELP =
     "SIV-style search for the native system report (srs-sysreport).\n"
@@ -110,6 +110,11 @@ static const char *HELP =
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
     "        on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once\n"
+    "  gpu-tune status [--json] [--pci ADDR | --all] [--wake]\n"
+    "        GPU Tuning, read-only: what the graphics card is set to right now (voltage offset, clock offset,\n"
+    "        memory clock, power limit), the driver's ranges, Tux Burner's limits and state, LACT's state and saved\n"
+    "        values. It only reads (the kernel's files, two read requests to Tux Burner's service); it never\n"
+    "        changes a setting. Changing GPU settings needs Tux Burner, a separate program\n"
     "  cuda-toolkit [--check|--install|--ask-again|--never-ask]\n"
     "        the optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): whether it is installed, what it\n"
     "        is for, the install command for this distribution; --install runs that command after you type\n"
@@ -133,7 +138,7 @@ static const char *HELP =
     "        asks first, --yes starts at once\n"
 #endif
     "\n"
-    "srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]\n"
+    "srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|gputune|cudatoolkit|loadterms|sensors|idlookup|find]\n"
     "        open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray\n"
     "        --gui-classic start in the classic SIV-style main window, --gui-new in the new one\n"
     "        --gui-open=power-cost the Power & Cost page; --power-recorder record its history with no window\n"
@@ -1412,6 +1417,60 @@ static int cmd_gpu_burn(int argc, char **argv)
     return rc == 0 ? (kev ? 1 : 0) : rc == -1 ? 2 : 1;
 }
 
+#include "gpu_tune.h"
+
+/* gpu-tune status [--json] [--pci ADDR | --all] [--wake]: what a graphics card is set to, the limits, Tux Burner, LACT.
+   Read-only. The commands that change a setting (through Tux Burner) are not in this version. */
+static int cmd_gpu_tune(int argc, char **argv)
+{
+    static const char usage[] =
+        "usage: sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]\n"
+        "  status        what the graphics card is set to right now (voltage offset, clock offset, memory clock,\n"
+        "                power limit), the limits, and whether Tux Burner and LACT are there\n"
+        "  --json        the same as one JSON object (with --all: a list of them)\n"
+        "  --pci ADDR    the card at this PCI address (as in 0000:03:00.0); default: the first card with tuning controls\n"
+        "  --all         every graphics card\n"
+        "  --wake        also read a card that is asleep (powered down to save energy); reading wakes it\n"
+        "gpu-tune status only reads: the kernel's files under /sys, two read requests to Tux Burner's service\n"
+        "(status and gpu_capabilities) and LACT's settings file. It never changes a clock, a voltage, a power limit\n"
+        "or a fan, and it never changes LACT's settings. Changing GPU settings needs Tux Burner, a separate program.\n"
+        "Exit codes: 0 shown, 1 no graphics card found, 2 a wrong option.";
+    static const char *const later[] = { "plan", "apply", "auto-uv", "auto-oc", "efficiency", "profiles", "profile", "restore", "export-lact", NULL };
+    gtune_status *st;
+    srs_out o;
+    char pci[16] = "";
+    int i, json = 0, all = 0, wake = 0, idx;
+    if (argc < 3 || !strcmp(argv[2], "--help") || !strcmp(argv[2], "-h")) { puts(usage); return argc < 3 ? 2 : 0; }
+    for (i = 0; later[i]; i++)
+        if (!strcmp(argv[2], later[i])) {
+            fprintf(stderr, "gpu-tune: '%s' is not in this version of SRS. Only 'gpu-tune status' is, and it changes nothing.\n"
+                            "          To change GPU settings use Tux Burner itself.\n", argv[2]);
+            return 2;
+        }
+    if (strcmp(argv[2], "status")) { fprintf(stderr, "gpu-tune: unknown command '%s'\n%s\n", argv[2], usage); return 2; }
+    for (i = 3; i < argc; i++) {
+        const char *a = argv[i];
+        if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); return 0; }
+        else if (!strcmp(a, "--json") || !strcmp(a, "-J")) json = 1;
+        else if (!strcmp(a, "--all")) all = 1;
+        else if (!strcmp(a, "--wake")) wake = 1;
+        else if (!strcmp(a, "--pci")) {
+            if (i + 1 >= argc) { fprintf(stderr, "gpu-tune: --pci needs a value\n"); return 2; }
+            if (!pci_addr_ok(argv[++i], pci, sizeof pci)) { fprintf(stderr, "gpu-tune: --pci needs a PCI address such as 0000:03:00.0 (got '%s')\n", argv[i]); return 2; }
+        } else { fprintf(stderr, "gpu-tune: unknown option '%s'\n", a); return 2; }
+    }
+    if (all && pci[0]) return usage_error("gpu-tune: --all and --pci do not go together");
+    if (!(st = calloc(1, sizeof *st))) return 2;
+    gtune_read(st, wake);
+    if (!st->ngpu) { fprintf(stderr, "gpu-tune: no graphics card found (nothing under /sys/class/drm with a PCI device)\n"); free(st); return 1; }
+    idx = all ? -1 : pci[0] ? gtune_find_pci(st, pci) : gtune_pick(st);
+    if (pci[0] && idx < 0) { fprintf(stderr, "gpu-tune: no graphics card at PCI %s (see gpu-tune status --all)\n", pci); free(st); return 2; }
+    if (json) gtune_json(stdout, st, idx);
+    else { so_text_init(&o, stdout); gtune_render(&o, st, idx); }
+    free(st);
+    return 0;
+}
+
 #include "bench_gpucompare.h"
 
 /* gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes] */
@@ -2445,6 +2504,7 @@ int srs_cli_main(int argc, char **argv)
     if (!strcmp(cmd, "gpu")) return cmd_gpu(argc, argv);
     if (!strcmp(cmd, "gpu-burn")) return cmd_gpu_burn(argc, argv);
     if (!strcmp(cmd, "gpu-compare")) return cmd_gpu_compare(argc, argv);
+    if (!strcmp(cmd, "gpu-tune")) return cmd_gpu_tune(argc, argv);
     if (!strcmp(cmd, "cuda-toolkit")) return cmd_cuda_toolkit(argc, argv);
     if (!strcmp(cmd, "gpu-top") || !strcmp(cmd, "big-top")) return cmd_gpu_top(argc, argv);   /* big-top: the window's name since 2.5 */
     if (!strcmp(cmd, "ir")) return cmd_ir(argc, argv);

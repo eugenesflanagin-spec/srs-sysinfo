@@ -1277,6 +1277,7 @@ static void on_menu_tool(GtkMenuItem *mi, gpointer data)
     else if (!strcmp(t, "acpieval")) acpi_eval_dialog();
     else if (!strcmp(t, "lists")) lists_update_dialog();
     else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
+    else if (!strcmp(t, "gputune")) open_item("gpu-tuning");   /* 2.6.0: GPU Tuning (read-only) */
     else if (!strcmp(t, "traysettings")) perf_tray_settings_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL);
     else if (!strcmp(t, "home")) home_open(0);
     else if (!strcmp(t, "classic")) open_main(0);
@@ -1302,7 +1303,7 @@ static void build_menu(GtkWidget *menu)
         { "_Cache & Memory...", "cachemem" }, { "St_orage Benchmark...", "storagebench" }, { "OS La_tency...", "oslatency" },
         { "CPU Co_mpute...", "compute" }, { "_Everyday Work...", "work" },
         { "Net_work Benchmark...", "netbench" }, { "_GPU Benchmark...", "gpubench" },
-        { "GPU Comp_arison (Vulkan, HIP, CUDA, OpenCL)...", "gpucompare" }, { NULL, NULL } };
+        { "GPU Comp_arison (Vulkan, HIP, CUDA, OpenCL)...", "gpucompare" }, { "GPU Tu_ning (Read-Only)...", "gputune" }, { NULL, NULL } };
     /* MNEMONIC-END */
     /* MNEMONIC-MENU: classic-menu */
     static const struct { const char *group, *label; } groups[] = {
@@ -4688,6 +4689,7 @@ static void on_tray_open(GtkMenuItem *mi, gpointer d)
     else if (!strcmp(t, "stressburn")) open_tool(W_BURN, 3);
     else if (!strcmp(t, "bench")) open_tool(W_BENCH, BK_BENCH);
     else if (!strcmp(t, "find")) open_tool(W_FIND, 0);
+    else if (!strcmp(t, "gputune")) open_item("gpu-tuning");
     else open_item(t);
 }
 static void on_tray_exit(GtkMenuItem *mi, gpointer d) { (void)mi; (void)d; if (g_main && srs_quit_ok()) gtk_widget_destroy(g_main->win); }
@@ -5685,7 +5687,7 @@ static const catdef g_cats[CAT_N] = {
     { "bench", "Benchmarks & Stress", "power-profile-performance-symbolic|utilities-system-monitor-symbolic",
       "Measure the processor and memory, or load the CPU to test cooling and stability. "
       "Nothing runs until you press Run or Start in the tool's window.",
-      { "benchmark", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "gpu-compare", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
+      { "benchmark", "gpu-tuning", "cache-memory", "storage-bench", "os-latency", "cpu-compute", "everyday-work", "net-bench", "gpu-bench", "gpu-burnin", "gpu-compare", "srs-pi", "crypto-bench", "prime-sieve", "ipi-delay", "latency", "bench-history", NULL } },
     { "tools", "Tools", "applications-utilities-symbolic|preferences-other-symbolic",
       "Look up device IDs, search a full system report, save a report, and SRS's own items.",
       { "about", "help", NULL } },
@@ -7036,6 +7038,7 @@ static void on_launch(GtkButton *b, gpointer d)
     else if (!strcmp(t, "guide")) open_guide(NULL);
     else if (!strcmp(t, "classic")) open_main(0);
     else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
+    else if (!strcmp(t, "gputune")) open_item("gpu-tuning");
 }
 
 /* ---- summary tiles ---- */
@@ -7422,6 +7425,10 @@ static GtkWidget *build_cat_page(int cat)
                 "CLBlast), the fastest marked and each as a percentage of Vulkan.",
                 "Full GPU load for about 20 seconds per back end. Asks first. Back ends that are not installed say so.",
                 "GPU Com_parison...", "gpucompare", "Open the GPU Compute comparison window. Nothing runs until you press Run and confirm."));
+            grid_add3(fb, launcher("GPU Tuning", "Shows what the graphics card is set to right now: voltage offset, clock offset, memory clock "
+                "and power limit, the driver's ranges, and whether Tux Burner and LACT are there.",
+                "Only reads; changes nothing on the card. Changing GPU settings needs Tux Burner, a separate program.",
+                "GPU Tun_ing...", "gputune", "Open the GPU Tuning tab. It only shows; nothing is changed."));
             grid_add3(fb, launcher("SRS Pi", "Works out pi to 128 thousand up to 32 million digits and checks every digit. "
                 "A classic single-thread test; a wrong digit points to an unstable overclock.",
                 "One thread by default. 1 million digits takes a few seconds.", "S_RS Pi...", "pi", "Open the SRS Pi window. Nothing runs until you press Run and confirm."));
@@ -8000,6 +8007,54 @@ static void align_dump_one(FILE *f, const char *id)
     gtk_widget_destroy(w->win);
     while (gtk_events_pending()) gtk_main_iteration();
 }
+/* tests (SRS_TEST_TAB_DUMP=file): the tab that is open on the current page - its page, its name, the tab before it, the
+   targets of every button on it and its text - then SRS ends (SRS_TEST_TAB_HOLD: it stays, for a screenshot). Read-only,
+   like the tab itself. */
+static void tab_dump_buttons(GtkWidget *w, gpointer d)
+{
+    GString *g = d;
+    const char *t = GTK_IS_BUTTON(w) ? g_object_get_data(G_OBJECT(w), "target") : NULL;
+    if (t) g_string_append_printf(g, "%s%s", g->len ? "," : "", t);
+    else if (GTK_IS_BUTTON(w) && !GTK_IS_SWITCH(w)) g_string_append_printf(g, "%s?", g->len ? "," : "");   /* a button the test does not know */
+    if (GTK_IS_CONTAINER(w)) gtk_container_forall(GTK_CONTAINER(w), tab_dump_buttons, d);
+}
+static gboolean tab_dump(gpointer d)
+{
+    FILE *f;
+    GtkNotebook *nb;
+    GtkWidget *pg, *prev;
+    swin *t, *pt;
+    int cat, at;
+    char title[200] = "", before[200] = "";
+    (void)d;
+    if (!g_home) exit(3);
+    cat = g_home->cur;
+    nb = GTK_NOTEBOOK(g_home->nb[cat]);
+    at = gtk_notebook_get_current_page(nb);
+    pg = at >= 0 ? gtk_notebook_get_nth_page(nb, at) : NULL;
+    t = pg ? g_object_get_data(G_OBJECT(pg), "swin") : NULL;
+    if (!t || !t->buf) exit(3);
+    if (!(f = fopen(getenv("SRS_TEST_TAB_DUMP"), "w"))) exit(3);
+    item_title(t->id, title, sizeof title);
+    prev = at > 0 ? gtk_notebook_get_nth_page(nb, at - 1) : NULL;
+    pt = prev ? g_object_get_data(G_OBJECT(prev), "swin") : NULL;
+    if (pt) item_title(pt->id, before, sizeof before);
+    {
+        GString *b = g_string_new(NULL);
+        GtkTextIter a, e;
+        char *txt;
+        tab_dump_buttons(pg, b);
+        gtk_text_buffer_get_bounds(t->buf, &a, &e);
+        txt = gtk_text_buffer_get_text(t->buf, &a, &e, FALSE);
+        fprintf(f, "page=%s\ntab=%s\nafter=%s\nitem=%s\nbuttons=%s\n%s\n", g_cats[cat].title, title, before, t->id, b->str, txt);
+        g_free(txt);
+        g_string_free(b, TRUE);
+    }
+    fclose(f);
+    if (getenv("SRS_TEST_TAB_HOLD")) return G_SOURCE_REMOVE;   /* the test takes a screenshot, then ends SRS itself */
+    exit(0);
+    return G_SOURCE_REMOVE;
+}
 static gboolean align_dump(gpointer d)
 {
     FILE *f = fopen(getenv("SRS_TEST_ALIGN_DUMP"), "w");
@@ -8141,6 +8196,7 @@ int main(int argc, char **argv)
         if (start_hidden) srs_hide_all();   /* only hides when a tray icon really exists */
     }
     if (getenv("SRS_TEST_ALIGN_DUMP")) g_timeout_add(1500, align_dump, NULL);   /* tests: column alignment */
+    if (getenv("SRS_TEST_TAB_DUMP")) g_timeout_add(2500, tab_dump, NULL);       /* tests: the tab opened with --gui-open */
     autop = getenv("SRS_OPEN");   /* comma-separated items or tool names to open at start */
     {
         int i;
@@ -8172,6 +8228,7 @@ int main(int argc, char **argv)
             else if (!strcmp(t, "loadterms")) g_idle_add(terms_open_idle, NULL);                  /* Options > Load test terms */
             else if (!strcmp(t, "power-cost") && g_home) home_go(CAT_POWER);
             else if (!strcmp(t, "gputop")) gpu_top_window_open(g_main ? GTK_WINDOW(g_main->win) : NULL);
+            else if (!strcmp(t, "gputune")) open_item("gpu-tuning");   /* --gui-open=gputune: the GPU Tuning tab */
             else if (!strcmp(t, "traysettings")) perf_tray_settings_dialog(g_main ? GTK_WINDOW(g_main->win) : NULL);
             else open_item(t);
         }

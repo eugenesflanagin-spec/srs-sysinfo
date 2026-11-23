@@ -214,6 +214,7 @@
 { "gpu-sli", "sections-graphics--gpu-sli-topology" },
 { "gpu-temp", "sections-graphics--gpu-temperatures" },
 { "gpu-tree", "sections-graphics--gpu-tree" },
+{ "gpu-tuning", "sections-tools--gpu-tuning" },
 { "graphics", "sections-graphics--graphics" },
 { "group", "sections-processors--cpu-groups" },
 { "groups", "sections-linux-os--groups" },

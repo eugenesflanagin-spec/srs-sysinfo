@@ -8,6 +8,7 @@
 #include "srs.h"
 #include "bench.h"
 #include "burner.h"
+#include "gpu_tune.h"
 
 #include <dirent.h>
 #include <stdio.h>
@@ -508,6 +509,7 @@ const srs_item sec_tools[] = {
     { "net-bench", "tools", "Network Benchmark", B_LINUX, 0, "built-in (loopback TCP / UDP; optional internet test with libcurl, asks first)", s_net, 0, "tools" },
     { "gpu-bench", "tools", "GPU Benchmark", B_LINUX, 0, "built-in, Vulkan loaded at run time (multiply-add FP32 / FP16 / FP64 / INT32, video memory, upload / download, dispatch latency; checked results, asks first)", s_gpu, 0, "tools" },
     { "gpu-burnin", "tools", "GPU Burnin", B_LINUX, 0, "built-in, Vulkan / ROCm-HIP / CUDA / OpenCL loaded at run time (repeated matrix multiplications, compute errors counted, temperature limit; asks first)", s_gpuburn, 0, "tools" },
+    { "gpu-tuning", "tools", "GPU Tuning", B_LINUX, 0, "/sys/class/drm/card*/device (pp_od_clk_voltage, hwmon); Tux Burner's service socket (two read requests); /etc/lact/config.yaml (read only)", gtune_section, 3000, "tools" },
     { "gpu-compare", "tools", "GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL", B_LINUX, 0, "built-in, every installed back end loaded at run time (own kernel and vendor library side by side on the same GPU; checked results, asks first)", s_gpucompare, 0, "tools" },
     { "srs-pi", "tools", "SRS Pi", B_LINUX, 0, "built-in (Chudnovsky / Gauss-Legendre, checked digits)", s_pi, 0, "tools" },
     { "crypto-bench", "tools", "Crypto Benchmark", B_LINUX, 0, "built-in AES-128 / SHA-256 (AES-NI, SHA-NI)", s_crypto, 0, "tools" },

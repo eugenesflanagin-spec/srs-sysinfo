@@ -3,7 +3,7 @@
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe, RH Software (rh-software.com).
 ## How to use this reference
 
-This reference explains **every item SRS can show** - all 559 of them - one by one. For each item it
+This reference explains **every item SRS can show** - all 560 of them - one by one. For each item it
 says, in this order:
 
 1. **In plain words** - what it is, in one to three short sentences.
@@ -58,7 +58,7 @@ The groups are in the same order as SRS's Menu.
 | Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & Audio |
 | Buses / Devices (part 1) | 65 | [buses-1.md](buses-1.md) | USB & PCI devices |
 | Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
-| Tools | 34 | [tools.md](tools.md) | Benchmarks & Stress; Tools |
+| Tools | 35 | [tools.md](tools.md) | Benchmarks & Stress; Tools |
 | SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
 
 ## Every item
@@ -598,6 +598,7 @@ The groups are in the same order as SRS's Menu.
 | [Network Benchmark](tools.md#network-benchmark) | `net-bench` | Linux data |
 | [GPU Benchmark](tools.md#gpu-benchmark) | `gpu-bench` | Linux data |
 | [GPU Burnin](tools.md#gpu-burnin) | `gpu-burnin` | Linux data |
+| [GPU Tuning](tools.md#gpu-tuning) | `gpu-tuning` | Linux data |
 | [GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL](tools.md#gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl) | `gpu-compare` | Linux data |
 | [SRS Pi](tools.md#srs-pi) | `srs-pi` | Linux data |
 | [Crypto Benchmark](tools.md#crypto-benchmark) | `crypto-bench` | Linux data |
