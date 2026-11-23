@@ -41,6 +41,19 @@ any other task manager).
 | xdg-desktop-portal GlobalShortcuts (<https://flatpak.github.io/xdg-desktop-portal/>) | the optional summon shortcut | public specification |
 | XDG Autostart and Desktop Entry specifications (freedesktop.org) | Startup Apps (and the Startup manager) | public specifications |
 
+## GPU Tuning and GPU Burnin for programs (2.6)
+
+The GPU Tuning tab, `sysreport-search gpu-tune status` and `gpu-burn --json` / `--watch-kernel` are SRS's own C code
+(`gpu_tune.c`, `kmsg_watch.c`). GPU Tuning only reads: SRS ships none of the programs below, copies no code from them,
+and never writes to a graphics card.
+
+| What | Used for | Licence / terms |
+|---|---|---|
+| Tux Burner by Eugene Flanagin (<https://github.com/eugenesflanagin-spec/tux-burner>), a fork of PenguinBurner by jpietek (<https://github.com/jpietek/PenguinBurner>) | GPU Tuning asks Tux Burner's root service two read requests (`status`, `gpu_capabilities`) over its Unix socket (`/run/tux-burnerd.sock`, one JSON object per line) and shows its answers: whether it is installed and running, its protocol version, its NVIDIA back end's values and its voltage floor. Written from the description of that protocol; a separate program, not shipped with SRS | GPL-3.0-or-later (Tux Burner and PenguinBurner); no code copied |
+| LACT - Linux GPU Configuration Tool by Ilya Zlobintsev (<https://github.com/ilya-zlobintsev/LACT>) | GPU Tuning checks whether LACT's service runs (`/run/lactd.sock` and its process name) and reads LACT's settings file (`/etc/lact/config.yaml`) for the card's saved values and the active profile. It never contacts LACT's service and never changes that file; not shipped with SRS | MIT, "Copyright (c) 2023 Ilya Zlobintsev" (checked in LACT's `LICENSE` file, 2026-11-23); no code copied |
+| The Linux kernel's amdgpu driver (its OverDrive and power files are documented at <https://docs.kernel.org/gpu/amdgpu/thermal.html>) | the files GPU Tuning reads - the OverDrive table `pp_od_clk_voltage` (its sections and ranges), the power limit and hwmon - and the wording of the driver's ring timeout, GPU reset, MODE1 / MODE2 reset, VRAM lost and parser error messages that `--watch-kernel` looks for (also, best effort, i915 / xe) | GPL-2.0 (kernel); facts only (file formats, message wording), no code copied |
+| NVIDIA's `NVRM: Xid` kernel log lines (Xid errors are documented at <https://docs.nvidia.com/deploy/xid-errors/index.html>) | the lines `--watch-kernel` counts as a GPU fault for the tested card | facts only (message wording) |
+
 ## Memory Timings, hardware lists and ACPI (2.4)
 
 SRS's code for these is its own. The register layouts below are facts taken from the projects named;
