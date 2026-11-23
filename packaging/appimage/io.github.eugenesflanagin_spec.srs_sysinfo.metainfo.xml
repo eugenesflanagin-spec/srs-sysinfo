@@ -35,6 +35,8 @@
     <ul>
       <li>Stress tests and benchmarks are used at your own risk: SRS is provided without warranty and asks you to agree once before the first one</li>
       <li>CPU and GPU burn-in and stress tests in one Stress &amp; Burnin window; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
+      <li>The Big Top: a live task manager for the whole PC (processes, startup apps, users, services) and a read-only view of each graphics card</li>
+      <li>GPU Tuning (read-only): what each graphics card is set to right now (voltage offset, clock offset, power limit), its limits, and the state of Tux Burner and LACT</li>
       <li>Memory Timings: the live DDR5 timings, memory clocks and SoC voltages of AMD Ryzen 7000 / 9000 desktop processors (read only), and the JEDEC / EXPO / XMP profiles of each module</li>
       <li>Power &amp; Cost: an estimate of the whole PC's power use and its cost, with recorded history (estimates, not a meter reading)</li>
       <li>Tabs you can arrange and save as lineups, sortable tables and a startup manager</li>
@@ -79,6 +81,34 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.6.0" date="2026-11-23">
+      <description>
+        <p>GPU Tuning (read-only): a new tab and the command gpu-tune status show what each graphics
+        card is set to right now (voltage offset, core clock offset, highest memory clock, power limit),
+        the driver's ranges, live readings, and whether Tux Burner and LACT are installed and running.
+        This version only shows; SRS never writes to a graphics card.</p>
+        <p>GPU Burnin for other programs: a JSON result with exit codes, a card chosen by its PCI
+        address, and a kernel log watch that fails a run when the GPU was reset. The GPU Compute
+        comparison runs in its own process, so a crashing GPU runtime no longer closes SRS, and ROCm /
+        HIP, CUDA and OpenCL no longer lose speed to SRS's own code. Also: CPU voltages, temperatures and
+        clocks from the SMU PM table, five more DDR5 timings, the AGESA version, CPU speeds at the
+        measured base clock, and The Big Top from the tray.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): GPU Tuning was tried on made-up
+        data only, and NVIDIA, Intel, older AMD cards and laptops are untested - please report what
+        you see.</p>
+      </description>
+    </release>
+    <release version="2.5.0" date="2026-10-31">
+      <description>
+        <p>The Big Top: a live window for the whole PC and each graphics card - a task manager with
+        process actions, startup apps, users and services, and a read-only GPU view modelled on
+        amdgpu_top - plus live tray meters (off by default), an IR Blaster tab for USB infrared dongles,
+        an All Cores toggle on the CPU benchmarks, benchmark times up to 60 s and a Cache &amp; Memory
+        fix for kernel page merging.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): NVIDIA and Intel GPUs, other desktops'
+        trays and other IR dongle models are untested - please report them.</p>
+      </description>
+    </release>
     <release version="2.4.0" date="2026-10-30">
       <description>
         <p>Memory Timings: on AMD Ryzen 7000 / 9000 desktop processors the live DDR5 timings, memory and

@@ -4,7 +4,15 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## 2.6.0 - unreleased
+## 2.6.0 - 2026-11-23
+
+**GPU Tuning (read-only)**: a new tab and `gpu-tune status` that show what each graphics card is set to right now
+(voltage offset, clock offset, memory clock, power limit), the driver's ranges, and the state of Tux Burner and LACT -
+it only shows, changing settings comes in a later version through Tux Burner. Also: GPU Burnin for other programs
+(`gpu-burn --json`, exit codes, `--pci`, and `--watch-kernel`, which fails a run on a GPU reset in the kernel log), a
+fairer and faster GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime
+crashes, CPU telemetry from the SMU PM table, five more DDR5 timings and the AGESA version, CPU speeds at the measured
+base clock (BCLK / eCLK), and The Big Top from the tray with its own Tray Meter Speed.
 
 ### Changed
 
@@ -161,6 +169,28 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   were already measured and are unchanged. The Big Top's Performance tab also shows **Base Clock** on such a PC, and
   its Base Speed falls back to ACPI CPPC nominal_freq (it said "Not reported" on amd-pstate kernels without
   amd_pstate_nominal_freq).
+
+### Tested, and what was not
+
+Tested on one PC: Ryzen 7 7800X3D, Radeon RX 9070 XT, ASUS X870 board, KDE Plasma 6 on Wayland. The CPU telemetry
+from the PM table was checked there against the board's Vcore sense, k10temp and cpufreq. The base-clock error
+(eCLK 104) and the ROCm 10.1 crash that the GPU Compute comparison's child process is for were found on that PC; the
+child process itself was tested with a crash made on purpose (`tests/gpucompare-child-test.sh`). **Not tried on
+real hardware**, so please expect a bug or two:
+
+- **GPU Tuning** on any real card, with a real Tux Burner service or a real LACT: only made-up `/sys` trees and a
+  stand-in for Tux Burner's service were used. RDNA 3 (RX 7000) and NVIDIA (through Tux Burner) are untested, older
+  AMD cards are only recognised, and Intel GPUs only get a note.
+- **`gpu-burn --json` / `--watch-kernel`**: run on lavapipe, a fake GPU runtime and made-up kernel log lines; never
+  with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from the drivers' wording.
+- **The GPU Compute comparison speed-ups**: checked on the compiler's output and against the fake runtime; the new
+  numbers on a real card, real NVIDIA CUDA, and RDNA 3 or older AMD cards are still to be measured.
+- The PM table telemetry on 16-core Ryzen 7000 and every other table version (shown as "not known"), Intel and
+  NVIDIA GPUs in general, laptops and PCs with two graphics cards, ARM and 32-bit builds (built, not run on such
+  hardware), and real installs on other distributions (the release packages are install-tested in containers).
+
+If something looks wrong on your PC, please open an issue on
+[GitHub](https://github.com/eugenesflanagin-spec/srs-sysinfo/issues) with your hardware and the report SRS made.
 
 ## 2.5.0 - 2026-10-31
 
