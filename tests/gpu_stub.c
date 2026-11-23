@@ -471,11 +471,12 @@ EXPORT int clEnqueueReadBuffer(void *q, void *m, unsigned bl, size_t off, size_t
     n_cl_rw++;
     memcpy(p, (char *)((cl_buf *)m)->p + off, n); new_ev(ev); return 0;
 }
-/* STUB_CL_COPY_BAD: the copy delivers one wrong byte (the transfer check must see it) */
+/* STUB_CL_COPY_BAD: the copy delivers one wrong byte (the transfer check must see it); STUB_CL_COPY_FAIL: it is refused */
 EXPORT int clEnqueueCopyBuffer(void *q, void *s, void *d, size_t so, size_t dof, size_t n, unsigned ne, void *const *wl, void **ev)
 {
     (void)q; (void)ne; (void)wl;
     if (!is_buf(s) || !is_buf(d) || so + n > ((cl_buf *)s)->n || dof + n > ((cl_buf *)d)->n) return -30;
+    if (getenv("STUB_CL_COPY_FAIL")) return -5;   /* the driver refuses the copy: SRS must fall back to read / write */
     n_cl_copy++;
     memcpy((char *)((cl_buf *)d)->p + dof, (char *)((cl_buf *)s)->p + so, n);
     if (getenv("STUB_CL_COPY_BAD") && n) ((char *)((cl_buf *)d)->p)[dof + n / 2] ^= 1;

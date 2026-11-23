@@ -244,15 +244,17 @@ static int cl_list(gb_info *out, int max, char *why, size_t wn)
 struct gb_ctx {
     cl_api *a;
     cl_h plat, dev, ctx, q, prog[2];
-    cl_h qfast;                 /* a second queue WITHOUT profiling (NULL: use q): launch round trip, Rusticl */
+    int compare;                /* opened by the GPU Compute comparison (gb_ops.compare); 0 = everything below is off (GPU Burnin) */
+    cl_h qfast;                 /* comparison: a second queue WITHOUT profiling (NULL: use q): launch round trip, Rusticl */
     cl_h tq;                    /* the queue the timed kernels go to: q (timed by the driver's event times), or qfast when host_timed */
     int host_timed;             /* Rusticl: kernels timed on the host, from the first one queued to the last one finished */
     double t0;                  /* host_timed: when the first kernel of this run was queued */
     cl_h bh;                    /* Rusticl transfers: the host-memory side (CL_MEM_ALLOC_HOST_PTR), NULL = plain read / write */
     int is_amd, is_rusticl;     /* AMD's ROCm OpenCL / Mesa's Rusticl (from the column label) */
-    int tune[2];                /* how program [fp64] was built: TUNE_* */
+    int tune[2];                /* how program [fp64] was built for the comparison on AMD's compiler: GKT_* bits (gpu_kernels.h) */
     int xfer_pinned;            /* an upload / download ran through bh in this column (for the note) */
-    char note[200];
+    int xfer_refused;           /* the driver refused the copy through bh; read / write was used (for the note) */
+    char refused[160], note[480];   /* refused: what the driver said the first time it refused a tuned build */
     cl_h k_gemm, k_fma, k_copy, k_cmp, k_tick;
     cl_h k_gemmb;               /* GPU Burnin's register-blocked gemm_b (gpu_kernels.h); NULL when the driver did not give it */
     cl_h ba, bb, bc, bref, bcnt;
@@ -264,8 +266,6 @@ struct gb_ctx {
     int verified;
     char err[240];
 };
-
-enum { TUNE_NONE, TUNE_HINTS, TUNE_WAVE64, TUNE_PLAIN };
 
 static void seterr(gb_ctx *c, int e, const char *what) { snprintf(c->err, sizeof c->err, "%s failed (OpenCL error %d)", what, e); }
 
@@ -292,24 +292,9 @@ static int cl_open(gb_ctx **cp, const gb_info *d, int so, char *why, size_t wn)
     if (!c->ctx || e) { snprintf(why, wn, "could not open the OpenCL device (error %d)", e); free(c); return -1; }
     c->q = a->CreateQueue(c->ctx, c->dev, 2, &e);   /* profiling on */
     if (!c->q || e) { snprintf(why, wn, "could not create an OpenCL queue (error %d)", e); a->ReleaseContext(c->ctx); free(c); return -1; }
-    /* what is timed on the host uses a queue without profiling: a profiling queue makes the driver take GPU timestamps
-       around every command */
-    e = 0;
-    c->qfast = a->CreateQueue(c->ctx, c->dev, 0, &e);
-    if (e && c->qfast) { a->ReleaseQueue(c->qfast); c->qfast = NULL; }
-    if (e) c->qfast = NULL;
     c->is_rusticl = strstr(d->label, "Rusticl") != NULL;
     c->is_amd = strstr(d->label, "(ROCm)") != NULL;
-    /* Rusticl reads two GPU timestamp queries back for every command of a profiling queue and waits for each, so a
-       run of many short kernels (matrix multiply + its check, over and over) spent about as long waiting between
-       kernels as computing. There the kernels go to the plain queue and the run is timed on the host, which can only
-       make a speed look lower, never higher. Other drivers keep the driver's event times (SRS_CL_TIMING=host / events
-       forces one or the other, for comparing). */
-    {
-        const char *tm = getenv("SRS_CL_TIMING");
-        c->host_timed = c->qfast && (tm && !strcmp(tm, "host") ? 1 : tm && !strcmp(tm, "events") ? 0 : c->is_rusticl);
-    }
-    c->tq = c->host_timed ? c->qfast : c->q;
+    c->tq = c->q;
     *cp = c;
     return 0;
 }
@@ -345,6 +330,27 @@ static void cl_close(gb_ctx *c)
 
 static const char *cl_error(gb_ctx *c) { return c->err; }
 
+/* gb_ops.compare: the caller is the GPU Compute comparison (called once, right after open) */
+static void cl_compare(gb_ctx *c)
+{
+    cl_api *a = c->a;
+    const char *tm = getenv("SRS_CL_TIMING");
+    int e = 0;
+    c->compare = 1;
+    /* what is timed on the host uses a queue without profiling: a profiling queue makes the driver take GPU timestamps
+       around every command */
+    c->qfast = a->CreateQueue(c->ctx, c->dev, 0, &e);
+    if (e && c->qfast) a->ReleaseQueue(c->qfast);
+    if (e) c->qfast = NULL;
+    /* Rusticl reads two GPU timestamp queries back for every command of a profiling queue and waits for each, so a
+       run of many short kernels (matrix multiply + its check, over and over) spent about as long waiting between
+       kernels as computing. There the kernels go to the plain queue and the run is timed on the host, which can only
+       make a speed look lower, never higher. Other drivers keep the driver's event times (SRS_CL_TIMING=host / events
+       forces one or the other, for comparing). */
+    c->host_timed = c->qfast && (tm && !strcmp(tm, "host") ? 1 : tm && !strcmp(tm, "events") ? 0 : c->is_rusticl);
+    c->tq = c->host_timed ? c->qfast : c->q;
+}
+
 static int build(gb_ctx *c, int fp64)
 {
     cl_api *a = c->a;
@@ -358,20 +364,22 @@ static int build(gb_ctx *c, int fp64)
     for (i = 0; i < 6; i++) if (*k[i]) { a->ReleaseKernel(*k[i]); *k[i] = NULL; }
     c->built_fp64 = 0;   /* no kernel is loaded now: a failure below must not look like a finished build */
     if (!c->prog[fp64]) {
-        /* AMD's ROCm OpenCL: the comparison's FP32 kernels are built for 64-wide waves, as the Vulkan driver builds its
-           compute shaders (gpu_kernels.h, GK_WAVE64_OPT; -Wf, hands an option to ROCm's compiler front end). Not FP64 and
-           not a program GPU Burnin builds for its register-blocked kernel. Three tries, so a hint can never cost a column:
-           0 = hinted text + the option, 1 = hinted text, 2 = the plain text. Every other driver: try 1 only (the hints
-           are empty there). */
-        int w64 = c->is_amd && !fp64 && c->variant != GV_FAST && gk_want_wave64(), at;
-        for (at = w64 ? 0 : 1; at < 3 && !c->prog[fp64]; at++) {
+        /* AMD's ROCm OpenCL, for the GPU Compute comparison: the FP32 kernels are built for 64-wide waves, as the Vulkan
+           driver builds its compute shaders (gpu_kernels.h, GK_WAVE64_OPT; -Wf, hands an option to ROCm's compiler front
+           end), and from the hinted text. Not FP64. The option and the hinted text are tried independently (gk_try), down
+           to the plain text without the option, so a hint can never cost a column; the first refusal is kept for the "how
+           it ran" line. Every other driver in the comparison: one try (no hint in the text is for it). Every other caller
+           (GPU Burnin): the plain text, no option, one try - exactly the build before 2.6. */
+        int tuned = c->compare && c->is_amd;
+        int w64 = tuned && !fp64 && c->variant != GV_FAST && gk_want_wave64(), t, opt = 0, plain = !c->compare, fails = 0;
+        for (t = 0; !c->prog[fp64] && (tuned ? gk_try(t, w64, &opt, &plain) : t == 0); t++) {
             free(src);
-            if (!(src = gk_source(GKD_OPENCL, fp64, at == 2))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
+            if (!(src = gk_source(GKD_OPENCL, fp64, plain))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
             sp = src;
             e = 0;
             c->prog[fp64] = a->CreateProgram(c->ctx, 1, &sp, NULL, &e);
             if (!c->prog[fp64] || e) { seterr(c, e, "creating the program"); c->prog[fp64] = NULL; goto out; }
-            if ((e = a->BuildProgram(c->prog[fp64], 1, &c->dev, at == 0 ? "-Wf," GK_WAVE64_OPT : "", NULL, NULL))) {
+            if ((e = a->BuildProgram(c->prog[fp64], 1, &c->dev, opt ? "-Wf," GK_WAVE64_OPT : "", NULL, NULL))) {
                 char log[400] = "";
                 size_t ll;
                 if (a->GetBuildInfo(c->prog[fp64], c->dev, 0x1183, sizeof log - 1, log, NULL)) log[0] = 0;
@@ -381,13 +389,13 @@ static int build(gb_ctx *c, int fp64)
                 else snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d; the driver gave no build log)", e);
                 a->ReleaseProgram(c->prog[fp64]);
                 c->prog[fp64] = NULL;
-                if (!c->is_amd) break;   /* nothing else to try */
-                continue;
+                fails++;
+                if (tuned && !c->refused[0]) snprintf(c->refused, sizeof c->refused, "%.150s", c->err);
             }
-            c->tune[fp64] = at == 0 ? TUNE_WAVE64 : at == 2 ? TUNE_PLAIN : c->is_amd ? TUNE_HINTS : TUNE_NONE;
         }
         if (!c->prog[fp64]) goto out;
-        c->err[0] = 0;
+        if (tuned) c->tune[fp64] = gk_tune_bits(w64, opt, plain);
+        if (fails) c->err[0] = 0;   /* what an earlier try said is not this context's last error */
     }
     for (i = 0; i < 5; i++) {
         *k[i] = a->CreateKernel(c->prog[fp64], kn[i], &e);
@@ -474,15 +482,13 @@ static int wait_ev(gb_ctx *c, cl_h ev) { return wait_ev_q(c, c->tq, ev, c->host_
 static const char *cl_note(gb_ctx *c)
 {
     size_t l;
-    c->note[0] = 0;
-    if (c->tune[0] == TUNE_WAVE64) snprintf(c->note, sizeof c->note, "FP32 own kernels built for 64-wide waves, as the Vulkan driver builds its shaders (SRS_GPU_WAVE=32: the compiler's default)");
-    else if (c->tune[0] == TUNE_PLAIN || c->tune[1] == TUNE_PLAIN) snprintf(c->note, sizeof c->note, "the compiler refused the tuned kernel text; the plain text was built instead");
-    else if (c->tune[0] == TUNE_HINTS && gk_want_wave64()) snprintf(c->note, sizeof c->note, "the compiler refused the option for 64-wide waves; FP32 own kernels use its default wave width");
-    else if (c->tune[0] == TUNE_HINTS) snprintf(c->note, sizeof c->note, "FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)");
+    gk_tune_note(c->note, sizeof c->note, c->tune[0], c->tune[1], c->refused);
     l = strlen(c->note);
     if (c->host_timed) snprintf(c->note + l, sizeof c->note - l, "%stimed on the host, on a queue without profiling", l ? "; " : "");
     l = strlen(c->note);
     if (c->xfer_pinned) snprintf(c->note + l, sizeof c->note - l, "%supload / download are GPU copies from / to a system-memory buffer, as in the Vulkan test", l ? "; " : "");
+    l = strlen(c->note);
+    if (c->xfer_refused) snprintf(c->note + l, sizeof c->note - l, "%sthe driver refused the GPU copy from / to a system-memory buffer; upload / download used plain read / write", l ? "; " : "");
     return c->note;
 }
 
@@ -660,7 +666,7 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
            So on Rusticl the transfer is that same GPU copy: a host-memory buffer (CL_MEM_ALLOC_HOST_PTR: Rusticl keeps it in
            system memory) and clEnqueueCopyBuffer. Only there: on a driver that put such a buffer in video memory this would
            time a copy inside the card. SRS_CL_XFER=plain keeps read / write. */
-        if (c->is_rusticl && c->a->CopyBuffer && !((xe = getenv("SRS_CL_XFER")) && !strcmp(xe, "plain"))) {
+        if (c->compare && c->is_rusticl && c->a->CopyBuffer && !((xe = getenv("SRS_CL_XFER")) && !strcmp(xe, "plain"))) {
             int e = 0;
             c->bh = c->a->CreateBuffer(c->ctx, 1 | (1 << 4), bytes, NULL, &e);   /* read-write | CL_MEM_ALLOC_HOST_PTR */
             if (!c->bh || e) { if (c->bh) c->a->ReleaseMem(c->bh); c->bh = NULL; }
@@ -775,6 +781,13 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
             if (!reps) return GBP_OK;
             t0 = now_s();
             for (i = 0; i < reps && !e; i++) e = a->CopyBuffer(q, src, dst, 0, 0, c->bytes, 0, NULL, i + 1 == reps ? &ev : NULL);
+            if (e && i == 1 && !c->verified) {
+                /* the driver refused the very first copy of this workload (nothing is queued, nothing was timed): the
+                   plain read / write below instead, so the row is not lost. Both buffers still hold what prep put there */
+                a->ReleaseMem(c->bh); c->bh = NULL;
+                c->xfer_refused = 1;
+                goto plain_xfer;
+            }
             if (e || !ev) { rel_ev(c, ev); seterr(c, e, "copying"); return GBP_ERROR; }
             rc = wait_ev_q(c, q, ev, 1);
             *secs = now_s() - t0;
@@ -788,6 +801,7 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
             }
             return GBP_OK;
         }
+plain_xfer:
         t0 = now_s();
         for (i = 0; i < reps; i++) if ((rc = c->kind == GK_UPLOAD ? wr(c, c->ba, c->host, c->bytes) : rd(c, c->ha, c->ba, c->bytes))) return rc;
         *secs = now_s() - t0;
@@ -826,11 +840,11 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     return GBP_ERROR;
 }
 
-const gb_ops gb_opencl = { GB_OPENCL, cl_available, cl_list, cl_open, cl_close, cl_prep, cl_run, cl_release, cl_error, cl_note };
+const gb_ops gb_opencl = { GB_OPENCL, cl_available, cl_list, cl_open, cl_close, cl_prep, cl_run, cl_release, cl_error, cl_note, cl_compare };
 
 #else   /* not 64-bit Linux */
 int gb_cl_bind_check(char *d, size_t n) { snprintf(d, n, "64-bit Linux only"); return -1; }
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "64-bit Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "64-bit Linux only"); return -1; }
-const gb_ops gb_opencl = { GB_OPENCL, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_opencl = { GB_OPENCL, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif

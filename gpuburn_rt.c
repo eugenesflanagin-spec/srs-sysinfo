@@ -376,10 +376,10 @@ struct gb_ctx {
     long prep_wrong, ticks;
     unsigned seed;
     int verified, ready, gx;
-    int tune[2];                /* how module [fp64] was built (HIP): 0 not built / nothing special, TUNE_* below */
-    char err[240], note[200];
+    int compare;                /* opened by the GPU Compute comparison (gb_ops.compare): the tuned builds, the launch wait without sleep */
+    int tune[2];                /* how module [fp64] was built for the comparison (HIP): GKT_* bits (gpu_kernels.h), 0 otherwise */
+    char err[240], refused[160], note[480];   /* refused: what the compiler said the first time it refused a tuned build */
 };
-enum { TUNE_NONE, TUNE_HINTS, TUNE_WAVE64, TUNE_PLAIN };
 
 static void seterr(gb_ctx *c, int e, const char *what)
 {
@@ -488,7 +488,7 @@ static int build_module(gb_ctx *c, int fp64)
     rt_api *r = c->r;
     char ptxerr[180] = "";
     void *mod = NULL, *f[5] = { NULL, NULL, NULL, NULL, NULL };
-    int e, rc = GBP_ERROR, tune = TUNE_NONE;
+    int e, rc = GBP_ERROR, tune = 0;
     if (c->mod[fp64]) return GBP_OK;
     if (r->cuda) {   /* CUDA: the built-in PTX first; NVRTC only when the driver refuses it */
         char eb[160];
@@ -500,18 +500,22 @@ static int build_module(gb_ctx *c, int fp64)
                      "see Options > NVIDIA CUDA toolkit", ptxerr);
             return GBP_UNSUPPORTED;
         }
-        if (rtc_build(c, fp64, 0, 0, &mod, ptxerr)) goto out;
+        if (rtc_build(c, fp64, 0, 0, &mod, ptxerr)) goto out;   /* no hint in the text is for NVRTC (no __AMDGCN__), no option */
     } else {
-        /* HIP: the comparison's FP32 kernels are built for 64-wide waves, as the Vulkan driver builds its compute shaders
-           (gpu_kernels.h, GK_WAVE64_OPT). Not FP64 (limited by the hardware's FP64 rate either way) and not a module that GPU
-           Burnin builds for its register-blocked kernel. If the compiler or the driver refuses that, the plain text (no
-           hints, no option) is built instead, so a hint can never cost a column. */
-        int w64 = !fp64 && c->variant != GV_FAST && gk_want_wave64();
+        /* HIP, for the GPU Compute comparison: the FP32 kernels are built for 64-wide waves, as the Vulkan driver builds
+           its compute shaders (gpu_kernels.h, GK_WAVE64_OPT), and from the hinted text. Not FP64 (limited by the hardware's
+           FP64 rate either way). The option and the hinted text are tried independently (gk_try), down to the plain text
+           without the option, so a hint can never cost a column; the first refusal is kept for the "how it ran" line.
+           Every other caller (GPU Burnin): the plain text, no option, one try - exactly the build before 2.6. */
+        int w64 = c->compare && !fp64 && c->variant != GV_FAST && gk_want_wave64(), t, opt = 0, plain = 1;
         if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (libhiprtc) is not installed, so the own kernels cannot be built"); return GBP_UNSUPPORTED; }
-        tune = w64 ? TUNE_WAVE64 : TUNE_HINTS;
-        if (rtc_build(c, fp64, 0, w64, &mod, ptxerr)) {
-            tune = TUNE_PLAIN;
-            if (rtc_build(c, fp64, 1, 0, &mod, ptxerr)) goto out;
+        if (!c->compare) { if (rtc_build(c, fp64, 1, 0, &mod, ptxerr)) goto out; }
+        else {
+            for (t = 0; !mod && gk_try(t, w64, &opt, &plain); t++)
+                if (rtc_build(c, fp64, plain, opt, &mod, ptxerr) && !c->refused[0]) snprintf(c->refused, sizeof c->refused, "%.150s", c->err);
+            if (!mod) goto out;
+            tune = gk_tune_bits(w64, opt, plain);
+            c->err[0] = 0;   /* what an earlier try said is not this context's last error */
         }
     }
 loaded:
@@ -538,12 +542,11 @@ out:
 /* what the comparison shows under the column (gb_ops.note) */
 static const char *rt_note(gb_ctx *c)
 {
-    c->note[0] = 0;
-    if (c->tune[0] == TUNE_WAVE64) snprintf(c->note, sizeof c->note, "FP32 own kernels built for 64-wide waves, as the Vulkan driver builds its shaders (SRS_GPU_WAVE=32: the compiler's default)");
-    else if (c->tune[0] == TUNE_PLAIN || c->tune[1] == TUNE_PLAIN) snprintf(c->note, sizeof c->note, "the compiler refused the tuned kernel text (64-wide waves); the plain text was built instead");
-    else if (c->tune[0] == TUNE_HINTS && !gk_want_wave64()) snprintf(c->note, sizeof c->note, "FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)");
+    gk_tune_note(c->note, sizeof c->note, c->tune[0], c->tune[1], c->refused);
     return c->note;
 }
+
+static void rt_compare(gb_ctx *c) { c->compare = 1; }
 
 static int launch(gb_ctx *c, void *fn, unsigned gx, unsigned gy, unsigned bx, unsigned by, void **args)
 {
@@ -884,14 +887,14 @@ static int rt_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     return GBP_ERROR;
 }
 
-const gb_ops gb_hip = { GB_HIP, hip_available, hip_list, hip_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note };
-const gb_ops gb_cuda = { GB_CUDA, cuda_available, cuda_list, cuda_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note };
+const gb_ops gb_hip = { GB_HIP, hip_available, hip_list, hip_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note, rt_compare };
+const gb_ops gb_cuda = { GB_CUDA, cuda_available, cuda_list, cuda_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note, rt_compare };
 
 #else   /* not 64-bit Linux */
 int gb_rt_bind_check(int cuda, char *d, size_t n) { (void)cuda; snprintf(d, n, "64-bit Linux only"); return -1; }
 int gb_cuda_probe(gb_cuda_state *st, int recheck) { (void)recheck; memset(st, 0, sizeof *st); return 0; }
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "64-bit Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "64-bit Linux only"); return -1; }
-const gb_ops gb_hip = { GB_HIP, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
-const gb_ops gb_cuda = { GB_CUDA, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_hip = { GB_HIP, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_cuda = { GB_CUDA, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif

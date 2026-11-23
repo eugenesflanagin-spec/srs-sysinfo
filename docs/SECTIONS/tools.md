@@ -1104,16 +1104,19 @@ ran** line when a back end's kernels were built or its transfers made in a speci
 below), the sizes and the **Build** line.
 
 **The same work, compiled and timed fairly (2.6).** The work, its size and every check are the same
-on every back end. Three things differ between the runtimes, and SRS evens them out:
+on every back end. Four things differ between the runtimes, and SRS evens them out for this
+comparison only (GPU Burnin builds, times and queues exactly as in 2.5):
 
 - *Wave width.* A GPU runs threads in groups called waves. The Vulkan driver (RADV) builds compute
   shaders for 64 threads per wave; AMD's own compiler (ROCm / HIP, ROCm's OpenCL) builds for 32
   unless asked. On RDNA 3 and 4 a 64-wide instruction uses the whole vector unit and a 32-wide one
   half of it, so SRS asks AMD's compiler for 64-wide waves for its FP32 kernels. The column's **how
-  it ran** line says "FP32 own kernels built for 64-wide waves"; if the compiler refuses, the
-  kernels are built the plain way and the line says that instead. `SRS_GPU_WAVE=32` keeps the
-  compiler's default (for comparing). FP64 kernels and GPU Burnin are not changed. CUDA through
-  ZLUDA stays 32 wide: ZLUDA has no such switch.
+  it ran** line says "FP32 own kernels built for 64-wide waves". The option and SRS's tuned kernel
+  text (a loop compiled four passes per branch, a lighter barrier on HIP) are tried independently:
+  if the compiler refuses one, the other is kept, and if it refuses both the kernels are built as
+  in 2.5. The line then says what was refused and what the compiler said. `SRS_GPU_WAVE=32` keeps
+  the compiler's default (for comparing). FP64 kernels are not changed. CUDA through ZLUDA stays
+  32 wide: ZLUDA has no such switch.
 - *Waiting.* For the **launch round trip** SRS starts one empty kernel and waits until the host
   knows it has finished. Vulkan waits inside the driver. HIP, CUDA and OpenCL have no wait with a
   time limit, so SRS asks "finished?" in a loop; for the first 2 ms it asks without sleeping, so the
@@ -1123,7 +1126,8 @@ on every back end. Three things differ between the runtimes, and SRS evens them 
   Rusticl the plain OpenCL read and write calls copy on the CPU through mapped video memory, which
   is slow to read; there SRS uses a buffer in system memory and lets the GPU copy
   (`clEnqueueCopyBuffer`), as the Vulkan test does. The **how it ran** line says so.
-  `SRS_CL_XFER=plain` keeps the plain calls.
+  `SRS_CL_XFER=plain` keeps the plain calls; if the driver refuses the copy, SRS uses the plain
+  calls and the line says that.
 - *Timing.* Vulkan, HIP and CUDA report how long the GPU worked; OpenCL does too, but only on a
   queue with profiling switched on. Rusticl waits for two timestamp read-backs per command on such a
   queue, which slows a run of many short kernels to about half. On Rusticl SRS therefore uses a
@@ -1155,6 +1159,12 @@ healthy result has every row filled in and no errors.
   does not support that card well. Since 2.6 SRS's own code should no longer be the reason; if
   a **how it ran** line says the compiler refused the 64-wide waves, that column's FP32 own-kernel
   and multiply-add rows run at about half of what the card can do on RDNA 3 / 4.
+- **WRONG RESULT** in a column whose **how it ran** line says 64-wide waves: run again with
+  `SRS_GPU_WAVE=32` before suspecting the card. Wrong both ways: the card or its driver. Wrong only
+  64 wide: the runtime's 64-wide mode (please report it), not the card.
+- Upload / download on OpenCL (Rusticl) far above every other column (hundreds of GB/s): the
+  driver kept the "system-memory" buffer in video memory, so the copy never left the card. Use
+  `SRS_CL_XFER=plain` and please report it.
 - FP32 multiply-add chain on CUDA (ZLUDA) at about half of Vulkan: expected. ZLUDA builds for
   32-wide waves, and a chain of plain multiply-adds cannot use the other half of the vector unit.
 - A launch round trip that is much higher than in another run: something else was using the

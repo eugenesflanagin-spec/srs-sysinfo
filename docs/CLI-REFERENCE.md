@@ -943,11 +943,13 @@ tests that did not run say "not run".
 
 Since 2.6 a column can have a **how it ran** line under the table. ROCm / HIP and OpenCL (ROCm): the
 FP32 own kernels are built for 64-wide waves, as the Vulkan driver builds its shaders
-(`SRS_GPU_WAVE=32` keeps AMD's default of 32; if the compiler refuses, the line says the plain text
-was built). OpenCL (Rusticl): the kernels are timed on the host on a queue without profiling
+(`SRS_GPU_WAVE=32` keeps AMD's default of 32; if the compiler refuses the option or SRS's tuned
+kernel text, the other is kept, and the line says what was refused and what the compiler said). OpenCL (Rusticl): the kernels are timed on the host on a queue without profiling
 (`SRS_CL_TIMING=events` keeps the driver's event times), and upload and download are GPU copies
 between a system-memory buffer and video memory (`SRS_CL_XFER=plain` keeps
-`clEnqueueWriteBuffer` / `ReadBuffer`). The launch round
+`clEnqueueWriteBuffer` / `ReadBuffer`, and so does a driver that refuses the copy). All of this is
+for `gpu-compare` only: `gpu-burn` builds, times and queues as in 2.5. A WRONG RESULT in a 64-wide
+column: run again with `SRS_GPU_WAVE=32` before suspecting the card. The launch round
 trip is timed on the host from the launch call until the host knows the kernel has finished, with
 no sleep in SRS's wait loop for the first 2 ms; run it on a quiet PC.
 
@@ -1189,7 +1191,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older tiled matrix multiply instead of the 2.4 register-blocked one (for comparing) |
 | `SRS_GPU_WAVE=32` | GPU Compute comparison, ROCm / HIP and OpenCL (ROCm): build the FP32 own kernels for AMD's default of 32 threads per wave instead of 64 (for comparing with 2.5 and older) |
 | `SRS_CL_XFER=plain` | GPU Compute comparison, OpenCL (Rusticl): upload and download with `clEnqueueWriteBuffer` / `ReadBuffer` as before 2.6, instead of a GPU copy from a system-memory buffer (for comparing) |
-| `SRS_CL_TIMING=events` / `host` | GPU Compute comparison and GPU Burnin, OpenCL: time the kernels with the driver's event times on a profiling queue (`events`: every driver, as before 2.6) or on the host on a plain queue (`host`). Default: host on Rusticl, events elsewhere |
+| `SRS_CL_TIMING=events` / `host` | GPU Compute comparison, OpenCL: time the kernels with the driver's event times on a profiling queue (`events`: every driver, as before 2.6) or on the host on a plain queue (`host`). Default: host on Rusticl, events elsewhere |
 | `SRS_SPD_DIR` | Memory Timings: read the modules' SPD from `<dir>/<device>/eeprom` instead of `/sys/bus/i2c/drivers/spd5118` (for tests) |
 | `XDG_DATA_HOME` | Update hardware lists keeps its copies in `$XDG_DATA_HOME/srs/lists` (default `~/.local/share/srs/lists`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU Benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |

@@ -23,7 +23,8 @@ static const char gk_pre_cuda[] =
        which on RDNA 4 costs a cache invalidate (global_inv) after every barrier; the local-memory barrier (HIP's own
        __barrier, still with the wait for the shared-memory writes) is what OpenCL's barrier(CLK_LOCAL_MEM_FENCE), the
        Vulkan shader and the CUDA PTX under ZLUDA run. hipRTC only: NVRTC has no __AMDGCN__ */
-    "#if defined(__AMDGCN__) && !defined(GK_PLAIN)\n#define LBARRIER() __barrier(__CLK_LOCAL_MEM_FENCE)\n#else\n#define LBARRIER() __syncthreads()\n#endif\n";
+    "#if defined(__AMDGCN__) && !defined(GK_PLAIN)\n#ifndef __CLK_LOCAL_MEM_FENCE\n#define __CLK_LOCAL_MEM_FENCE 0x01\n#endif\n"
+    "#define LBARRIER() __barrier(__CLK_LOCAL_MEM_FENCE)\n#else\n#define LBARRIER() __syncthreads()\n#endif\n";
 
 static const char gk_pre_cl[] =
     "#define KERNEL __kernel\n#define GLOBAL __global\n#define LOCAL __local\n"
@@ -55,8 +56,8 @@ static const char gk_pre_ptx[] =
               step, a wait for it, a compare and a branch (4 instructions next to the 16 multiply-adds). For AMD's compiler
               (hipRTC, ROCm OpenCL: __AMDGCN__) and the built-in CUDA PTX (made by clang at build time: GK_PTX).
    (The other hint is not in the text: gpuburn_rt.c and gpuburn_cl.c ask AMD's compiler for 64-wide waves, GK_WAVE64_OPT.)
-   GK_PLAIN (gk_source, plain = 1) switches every hint off: the text a back end falls back to when its compiler refuses
-   the hinted one. */
+   GK_PLAIN (gk_source, plain = 1) switches every hint off: the text every caller but the comparison gets (GPU Burnin is
+   built exactly as before 2.6), and the text a back end falls back to when its compiler refuses the hinted one. */
 static const char gk_tune[] =
     "#if defined(GK_FP32) && !defined(GK_PLAIN) && (defined(__AMDGCN__) || defined(GK_PTX))\n#define FMA_UNROLL _Pragma(\"unroll 4\")\n#else\n#define FMA_UNROLL\n#endif\n";
 
@@ -70,6 +71,51 @@ static inline int gk_want_wave64(void)
 {
     const char *e = getenv("SRS_GPU_WAVE");
     return !(e && !strcmp(e, "32"));
+}
+
+/* How a back end built the comparison's own kernels for one precision (0 = not built, or not for the comparison). The 64-wide
+   option and the hinted text are tried independently, so losing one never costs the other: hinted text + option, plain text
+   + option, hinted text, plain text. */
+enum {
+    GKT_BUILT = 1,       /* built for the comparison */
+    GKT_W64 = 2,         /* with the option for 64-wide waves */
+    GKT_HINTS = 4,       /* from the hinted text */
+    GKT_NO_W64 = 8,      /* the option was asked for and refused */
+    GKT_NO_HINTS = 16    /* the hinted text was refused */
+};
+
+/* try number t (0 ..) of a build that wants the hints, and the option when w64 is set: *opt = with the option, *plain = the
+   plain text. Returns 0 when there is no such try */
+static inline int gk_try(int t, int w64, int *opt, int *plain)
+{
+    if (t < 0 || t >= (w64 ? 4 : 2)) return 0;
+    *opt = w64 && t < 2;
+    *plain = t & 1;
+    return 1;
+}
+
+static inline int gk_tune_bits(int w64, int opt, int plain)
+{
+    return GKT_BUILT | (opt ? GKT_W64 : w64 ? GKT_NO_W64 : 0) | (plain ? GKT_NO_HINTS : GKT_HINTS);
+}
+
+/* the "how it ran" words for the FP32 (t32) and FP64 (t64) builds; why = what the compiler said at the first refusal */
+static inline void gk_tune_note(char *b, size_t n, int t32, int t64, const char *why)
+{
+    size_t l;
+    b[0] = 0;
+    if (t32 & GKT_W64) snprintf(b, n, "FP32 own kernels built for 64-wide waves, as the Vulkan driver builds its shaders (SRS_GPU_WAVE=32: the compiler's default)");
+    else if (t32 & GKT_NO_W64) snprintf(b, n, "the compiler refused the option for 64-wide waves; FP32 own kernels use its default wave width");
+    else if (t32 && !gk_want_wave64()) snprintf(b, n, "FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)");
+    if ((t32 | t64) & GKT_NO_HINTS) {
+        l = strlen(b);
+        snprintf(b + l, n - l, "%sthe compiler refused the tuned kernel text%s; the plain text was built instead", l ? "; " : "",
+                 (t32 & GKT_NO_HINTS) && (t64 & GKT_NO_HINTS) ? "" : (t32 & GKT_NO_HINTS) ? " (FP32)" : " (FP64)");
+    }
+    if (((t32 | t64) & (GKT_NO_W64 | GKT_NO_HINTS)) && why && why[0]) {
+        l = strlen(b);
+        snprintf(b + l, n - l, " [the first refusal: %.110s]", why);
+    }
 }
 
 /* REAL / FMAR are set per build: float + FMA32, or double + FMA64 */

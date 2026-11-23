@@ -18,9 +18,10 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
     builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit, a 32-wide
     one half of it, and the instructions these two tests are made of cannot pair up to fill the other half. SRS
     now asks AMD's compiler for 64-wide waves for these FP32 kernels (`-mwavefrontsize64`, the option the ROCm
-    runtime itself uses in its 64-wide mode). If the compiler refuses, the kernels are built as before. The
-    column's new **how it ran** line says which happened; `SRS_GPU_WAVE=32` keeps the compiler's default. FP64 and
-    GPU Burnin are built as before.
+    runtime itself uses in its 64-wide mode). The option and the tuned kernel text (the next two points) are
+    tried independently, down to the kernels as they were before, so a refusal of one never costs the other or
+    a column. The column's new **how it ran** line says which happened and, after a refusal, what the compiler
+    said; `SRS_GPU_WAVE=32` keeps the compiler's default. FP64 is built 32 wide as before.
   - **FP32 multiply-add chain on ROCm / HIP, OpenCL (ROCm) and CUDA** (ZLUDA 35%): the loop is now compiled four
     passes per branch. AMD's compiler ended every pass of 16 multiply-adds with 4 more instructions (count, wait,
     compare, branch); now there are 64 multiply-adds between them. The built-in CUDA kernels (PTX) were rebuilt
@@ -41,7 +42,8 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
     memory and video memory. On Rusticl SRS now does the same: a buffer in system memory
     (`CL_MEM_ALLOC_HOST_PTR`) and `clEnqueueCopyBuffer`, timed to the end of the last copy and checked through a
     separate read. Only on Rusticl, where Mesa's source says such a buffer is kept in system memory;
-    `SRS_CL_XFER=plain` keeps the old way. Every other OpenCL driver is measured as before.
+    `SRS_CL_XFER=plain` keeps the old way, and so does a driver that refuses the copy (the line says so).
+    Every other OpenCL driver is measured as before.
   - **Every kernel row on OpenCL (Rusticl)** (FP32 matrix multiply 50%): SRS timed OpenCL kernels with the
     driver's event times, which need a queue with profiling. On such a queue Rusticl reads two GPU timestamp
     queries back for every command and waits for each, so a run of many short kernels (a matrix multiply and its
@@ -49,13 +51,24 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
     to a queue without profiling and the run is timed on the host, from the first kernel queued to the last one
     finished; that can only make a speed look lower, never higher. Other OpenCL drivers keep the event times.
     `SRS_CL_TIMING=events` / `host` forces one or the other (for comparing).
+  - **GPU Burnin is not changed at all.** Everything above applies only when the GPU Compute comparison opens
+    a back end. GPU Burnin (with its register-blocked kernel, its simple kernel or the vendor library) builds
+    the kernel text of 2.5 with no extra option - AMD's compiler makes the same instructions from it as before
+    - and on Rusticl keeps the profiling queue and the driver's event times.
+  - **If a 64-wide column shows WRONG RESULT**: run it again with `SRS_GPU_WAVE=32`. Wrong there too points
+    at the card or the driver; wrong only 64 wide points at the runtime's 64-wide mode, not at the card -
+    please report it.
   - **Not changed, and why**: CUDA through ZLUDA stays 32 wide (ZLUDA compiles SRS's PTX itself and offers no
     switch), so its multiply-add chain can gain only from the loop change. Rusticl's multiply-add chain (65%) is
-    one long kernel, so the timing change does not touch it: it is compiled by Mesa from the same OpenCL text ROCm
-    gets, and nothing in SRS's text explains it. FP64 rows were already within 2% everywhere.
-  - Tests: `tests/gpu-stub-test.sh` covers the 64-wide option and both fall-backs (HIP, OpenCL), that GPU Burnin
-    and NVRTC never get it, a GPU that is still busy when asked, Rusticl's host timing (no kernel on the profiling
-    queue), and the Rusticl copy path including a copy that delivers one wrong byte (shown as WRONG RESULT).
+    one long kernel, so the timing change does not touch it. Mesa's source says Rusticl already builds these
+    kernels 64 wide on RDNA 3 / 4, so the wave width does not explain it either; what Mesa's compiler makes of
+    the loop can only be seen by running it on the card (`AMD_DEBUG=cs,asm` prints it), which was not done for
+    this change, and the kernel text was not altered on a guess. FP64 rows were already within 2% everywhere.
+  - Tests: `tests/gpu-stub-test.sh` covers the 64-wide option and the tuned text refused singly and together
+    (HIP, OpenCL) with the refusal shown, that GPU Burnin (register-blocked and simple kernel, also on Rusticl)
+    and NVRTC get the plain build, a GPU that is still busy when asked, Rusticl's host timing (no kernel on the
+    profiling queue), and the Rusticl copy path including a copy that delivers one wrong byte (shown as WRONG
+    RESULT) and a copy the driver refuses (falls back to read / write).
 
 - **The Big Top from the tray, like a task manager**: the SRS tray icon's right-click menu has **The Big Top (Task
   Manager)** right under Show SRS / Hide to Tray, and every tray meter's menu has it at the top; it opens The Big Top's

@@ -356,6 +356,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
             for (row = 0; row < GC_N; row++) col->state[row] = CS_FAILED;
             continue;
         }
+        if (ops->compare) ops->compare(ctx);   /* the comparison's way of building, timing and copying (gpu_backend.h) */
         mem = col->info.mem_bytes;
         if (mem > 0 && x->mem_bytes * 4 > mem && !x->c.tiny) x->mem_bytes = mem / 4;
         for (row = 0; row < GC_N; row++) {
@@ -370,7 +371,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
                 break;
             }
         }
-        if (ops->note) snprintf(col->tune, sizeof col->tune, "%.190s", ops->note(ctx));
+        if (ops->note) snprintf(col->tune, sizeof col->tune, "%s", ops->note(ctx));
         ops->close(ctx);
     }
     if (x->failed)   /* every test that did not run after the failure says so, in this column and the ones after it */

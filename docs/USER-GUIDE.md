@@ -2605,9 +2605,12 @@ an update (or a rollback) of that runtime.
   line says that the run is timed on the host (Rusticl's own timing makes it wait after every
   command, which halved some rows) and that upload and download are copied by the GPU from a buffer
   in system memory, as in the Vulkan test, because Rusticl's plain read and write calls copy on the
-  CPU and are slow. The work and the checks are the same either way. `SRS_GPU_WAVE=32`,
-  `SRS_CL_TIMING=events` and `SRS_CL_XFER=plain` switch the three off, to compare with older SRS
-  versions.
+  CPU and are slow. The work and the checks are the same either way. If a compiler or driver
+  refuses one of these, SRS falls back to the plain way and the line says what was refused.
+  `SRS_GPU_WAVE=32`, `SRS_CL_TIMING=events` and `SRS_CL_XFER=plain` switch the three off, to
+  compare with older SRS versions. If a column built for 64-wide waves ever shows WRONG RESULT, run
+  it once more with `SRS_GPU_WAVE=32` before suspecting the card. GPU Burnin does none of this: it
+  runs exactly as in 2.5.
 - **Kernel launch round trip** needs a quiet PC: it measures a few tens of millionths of a second,
   and other programs using the CPU make it look slower.
 - `*` marks the fastest in each row. **(85%)** after a number means that column reached 85% of
@@ -3165,7 +3168,7 @@ Environment variables:
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older, simpler matrix multiply instead of the 2.4 one (for comparing) ([9.18](#918-gpu-burnin)). |
 | `SRS_GPU_WAVE=32` | GPU Compute comparison: ROCm / HIP and OpenCL (ROCm) build SRS's FP32 kernels for 32 threads per wave (AMD's default) instead of 64 (for comparing with older versions). |
 | `SRS_CL_XFER=plain` | GPU Compute comparison: OpenCL (Rusticl) uploads and downloads with the plain read / write calls, as before 2.6 (for comparing). |
-| `SRS_CL_TIMING=events` | GPU Compute comparison and GPU Burnin: OpenCL (Rusticl) is timed by the driver's event times, as before 2.6 (for comparing); `host` times any OpenCL driver on the host. |
+| `SRS_CL_TIMING=events` | GPU Compute comparison: OpenCL (Rusticl) is timed by the driver's event times, as before 2.6 (for comparing); `host` times any OpenCL driver on the host. |
 | `SRS_RSMU_DIR=folder` | Read the ryzen_smu files (`pm_table`, `codename`, `pm_table_version`) from this folder instead of `/sys/kernel/ryzen_smu_drv` (tests). |
 
 ## 15. Reading results and comparing runs

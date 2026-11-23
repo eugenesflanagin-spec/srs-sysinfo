@@ -61,6 +61,10 @@ typedef struct {
     /* optional (may be NULL): how this back end's own kernels were built and its transfers made, when that differs from the
        plain way ("" = nothing to say). Valid until close; shown under the column in the GPU Compute comparison */
     const char *(*note)(gb_ctx *c);
+    /* optional (may be NULL): the caller is the GPU Compute comparison. Called once, right after open. Only then does a back
+       end build its own kernels the tuned way (64-wide waves, the hinted text), time on the host or make its transfers as GPU
+       copies. Without the call (GPU Burnin) everything is built, timed and queued exactly as before 2.6 */
+    void (*compare)(gb_ctx *c);
 } gb_ops;
 
 /* Waiting for a kernel launch (HIP, CUDA, OpenCL): these have no wait with a time limit, so SRS asks "finished?" in a

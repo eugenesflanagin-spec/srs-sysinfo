@@ -459,10 +459,10 @@ static int vk_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     return GBP_ERROR;
 }
 
-const gb_ops gb_vulkan = { GB_VULKAN, vk_available, vk_list, vk_open, vk_close, vk_prep, vk_run, vk_release, vk_error, NULL };
+const gb_ops gb_vulkan = { GB_VULKAN, vk_available, vk_list, vk_open, vk_close, vk_prep, vk_run, vk_release, vk_error, NULL, NULL };
 
 #else
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "Linux only"); return -1; }
-const gb_ops gb_vulkan = { GB_VULKAN, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_vulkan = { GB_VULKAN, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif
