@@ -18,6 +18,10 @@
  *                         STUB_CL_FP64=1    the fake OpenCL device has FP64 (default: it has none, like Rusticl often)
  *                         STUB_CL_BUILD_FAIL=1  clBuildProgram fails (error -11) and gives an EMPTY build log
  *                         STUB_MS=n         fake milliseconds per timed piece
+ *                         STUB_CMP_WRONG_AFTER=n   from the n-th result check (cmp_u32) on, every check counts one wrong
+ *                                           result, as a GPU that computes wrongly (GPU Burnin must say FAIL)
+ *                         STUB_LAUNCH_ERR_AFTER=n  from the n-th kernel launch on, the launch is refused (error 719), as a
+ *                                           GPU runtime that breaks in the middle of a run
  *                         STUB_LOG=file     write the launch counts here at exit
  * Built by the test as a shared object; nothing here is part of SRS itself. Written for SRS. */
 #define _GNU_SOURCE
@@ -261,7 +265,10 @@ static void stub_exec(const stub_fn *f, void **a)
         memcpy(*(void **)a[1], *(void **)a[0], (size_t)*(unsigned *)a[2] * 16);
     } else if (!strcmp(f->name, "tick")) {
         (*(unsigned **)a[0])[0] += 1;
-    }   /* cmp_u32: the data is equal, the error counter stays 0 */
+    } else if (!strcmp(f->name, "cmp_u32")) {   /* the data is equal, the error counter stays 0 - unless a test asks */
+        const char *w = getenv("STUB_CMP_WRONG_AFTER");
+        if (w && *w && n_launch[3] >= atol(w)) (*(unsigned **)a[2])[0] += 1;
+    }
 }
 
 static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
@@ -272,6 +279,11 @@ static int stub_launch(void *fn, unsigned gx, unsigned gy, void **a)
         fprintf(stderr, "gpu_stub: LAUNCH WITH A NULL FUNCTION HANDLE (grid %ux%u) - a real driver crashes here\n", gx, gy);
         fflush(stderr);
         abort();
+    }
+    {
+        static long total;
+        const char *e = getenv("STUB_LAUNCH_ERR_AFTER");
+        if (e && *e && ++total >= atol(e)) return 719;   /* hipErrorLaunchFailure / CUDA_ERROR_LAUNCH_FAILED */
     }
     stub_exec(f, a);
     return 0;

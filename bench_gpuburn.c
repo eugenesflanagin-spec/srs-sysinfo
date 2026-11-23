@@ -100,13 +100,16 @@ gpu_hw *gpu_hw_open(const char *pci)
     gpu_hw *h;
     long v;
     int i;
+    const char *root = getenv("SRS_TEST_SYSFS_ROOT");   /* tests: a made-up card, never the real one */
+    if (!root || root[0] != '/' || strlen(root) > 150) root = "";
     if (pci && pci[0] && strlen(pci) < 16) {
-        snprintf(pat, sizeof pat, "/sys/bus/pci/devices/%s/hwmon/hwmon*", pci);
+        snprintf(pat, sizeof pat, "%s/sys/bus/pci/devices/%s/hwmon/hwmon*", root, pci);
         if (!glob(pat, 0, NULL, &g) && g.gl_pathc) snprintf(dir, sizeof dir, "%s", g.gl_pathv[0]);
         globfree(&g);
     } else {   /* no PCI address from the back end: use the only GPU hwmon there is */
         int found = 0;
-        if (!glob("/sys/class/drm/card?/device/hwmon/hwmon*", 0, NULL, &g)) {
+        snprintf(pat, sizeof pat, "%s/sys/class/drm/card?/device/hwmon/hwmon*", root);
+        if (!glob(pat, 0, NULL, &g)) {
             size_t k;
             for (k = 0; k < g.gl_pathc; k++) {
                 hw_str(g.gl_pathv[k], "name", nm, sizeof nm);
@@ -192,15 +195,16 @@ typedef struct run {
     _Atomic int stop;                 /* anything: user Stop, a safety rule, a failed GPU */
     _Atomic int user;                 /* stop was the user's */
     char abort_msg[240];              /* first safety message */
+    int end;                          /* GBE_* of that first message */
     pthread_mutex_t mu;
     double t0, deadline;
     gpuburn_cfg c;                    /* the settings the workers read; on the heap, so a worker left behind never reads freed stack */
 } run_t;
 
-static void abort_run(run_t *r, const char *msg)
+static void abort_run(run_t *r, int end, const char *msg)
 {
     pthread_mutex_lock(&r->mu);
-    if (!r->abort_msg[0]) snprintf(r->abort_msg, sizeof r->abort_msg, "%s", msg);
+    if (!r->abort_msg[0]) { snprintf(r->abort_msg, sizeof r->abort_msg, "%s", msg); r->end = end; }
     pthread_mutex_unlock(&r->mu);
     atomic_store(&r->stop, 1);
 }
@@ -212,6 +216,8 @@ static void w_note(worker *w, int state, const char *fmt, const char *a)
     if (fmt) snprintf(w->d.note, sizeof w->d.note, fmt, a ? a : "");
     pthread_mutex_unlock(&w->mu);
 }
+
+static int rc_end(int rc) { return rc == GBP_HUNG ? GBE_HUNG : rc == GBP_LOST ? GBE_LOST : GBE_RUNTIME; }
 
 static const char *rc_text(int rc)
 {
@@ -232,7 +238,7 @@ static void *worker_main(void *arg)
     if (n > c->n_max) n = c->n_max;
     if (w->ops->open(&ctx, &w->info, c->software_only, why, sizeof why)) {
         w_note(w, GBS_ABORTED, "could not open the GPU: %s", why);
-        if (!w->many) abort_run(r, why);   /* with All GPUs the others go on */
+        if (!w->many) abort_run(r, GBE_NOTSTARTED, why);   /* with All GPUs the others go on */
         else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
@@ -248,7 +254,7 @@ static void *worker_main(void *arg)
     if (rc) {
         snprintf(why, sizeof why, "%s", rc == GBP_UNSUPPORTED && !w->ops->error(ctx)[0] ? "this GPU cannot run that precision here" : w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
-        if (!w->many || rc == GBP_HUNG || rc == GBP_LOST) abort_run(r, why);
+        if (!w->many || rc == GBP_HUNG || rc == GBP_LOST) abort_run(r, rc == GBP_HUNG || rc == GBP_LOST ? rc_end(rc) : GBE_NOTSTARTED, why);
         else { pthread_mutex_lock(&w->mu); w->d.not_started = 1; pthread_mutex_unlock(&w->mu); }
         goto out;
     }
@@ -290,7 +296,7 @@ static void *worker_main(void *arg)
             char m[160];
             snprintf(m, sizeof m, "one piece of GPU work took %.1f s (expected about %.0f ms); ended to keep the desktop and the GPU safe", secs, PIECE_S * 1000);
             w_note(w, GBS_ABORTED, "%s", m);
-            abort_run(r, m);
+            abort_run(r, GBE_HUNG, m);
             break;
         }
         gf = secs > 0 ? work * reps / secs / 1e9 : 0;
@@ -307,7 +313,7 @@ static void *worker_main(void *arg)
     if (rc) {
         snprintf(why, sizeof why, "%s: %s", rc_text(rc), w->ops->error(ctx));
         w_note(w, GBS_ABORTED, "%s", why);
-        abort_run(r, why);
+        abort_run(r, rc_end(rc), why);
     }
 out:
     pthread_mutex_lock(&w->mu);
@@ -405,7 +411,26 @@ static int pick_backend(int want, int software_only, char *why, size_t wn)
     return -1;
 }
 
+static int gpuburn_run(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char *why, size_t wn);
+
 int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char *why, size_t wn)
+{
+    char own[300] = "";
+    int rc;
+    if (!why || !wn) { why = own; wn = sizeof own; }
+    if (cfg->res) { memset(cfg->res, 0, sizeof *cfg->res); cfg->res->backend = -1; }
+    rc = gpuburn_run(cfg, o, cancel, why, wn);
+    if (cfg->res) {
+        cfg->res->rc = rc;
+        if (rc == -1) {   /* nothing ran: no device, back end missing, another test owns the GPU */
+            cfg->res->end = GBE_NOTSTARTED;
+            snprintf(cfg->res->reason, sizeof cfg->res->reason, "%s", why);
+        }
+    }
+    return rc;
+}
+
+static int gpuburn_run(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char *why, size_t wn)
 {
     const char *who = NULL;
     gb_info list[GPUBURN_MAXDEV];
@@ -485,7 +510,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
         if (pthread_create(&k->t, NULL, worker_main, k)) {   /* never join a thread that did not start */
             k->d.state = GBS_ABORTED;
             snprintf(k->d.note, sizeof k->d.note, "could not start a worker thread");
-            if (!k->many) abort_run(run, k->d.note);
+            if (!k->many) abort_run(run, GBE_NOTSTARTED, k->d.note);
             else k->d.not_started = 1;
             atomic_store(&k->done, 1);
         } else k->started = 1;
@@ -522,7 +547,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
                 char m[200];
                 snprintf(m, sizeof m, "the GPU reached %.0f °C (limit %.0f °C); ended to protect it", hot, c.limit_c);
                 w_note(k, GBS_ABORTED, "%s", m);
-                abort_run(run, m);
+                abort_run(run, GBE_TEMP, m);
             }
             if (!atomic_load(&k->done)) alldone = 0;
         }
@@ -540,7 +565,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
                 k->d.state = GBS_ABORTED;
                 snprintf(k->d.note, sizeof k->d.note, "the GPU driver did not come back (no answer %.0f s after the end); the GPU was left alone - restart SRS (or the PC) before the next GPU test", HANG_WAIT_S);
                 pthread_mutex_unlock(&k->mu);
-                abort_run(run, k->d.note);
+                abort_run(run, GBE_HUNG, k->d.note);
             }
             break;
         }
@@ -581,7 +606,7 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
         }
         if (nostart == nw) {   /* none of them could start: that is a failed start, with the first reason */
             rc = -2;
-            if (!x->abort_msg[0]) snprintf(x->abort_msg, sizeof x->abort_msg, "no GPU could start (%.200s)", x->s.dev[0].note);
+            if (!x->abort_msg[0]) { snprintf(x->abort_msg, sizeof x->abort_msg, "no GPU could start (%.200s)", x->s.dev[0].note); run->end = GBE_NOTSTARTED; }
         } else if (nostart) {
             snprintf(nostartmsg, sizeof nostartmsg, "%d of %d GPUs could not start (marked in the table); the verdict is from the other%s",
                      nostart, nw, nw - nostart == 1 ? "" : "s");
@@ -601,6 +626,13 @@ int bench_gpuburn(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel, char
                  errs, its, gf, x->abort_msg[0] ? "; " : "", x->abort_msg);
         if (nostartmsg[0]) { size_t k = strlen(res); snprintf(res + k, sizeof res - k, "; %.150s", nostartmsg); }
         bench_history_add("gpuburn", params, res);
+    }
+    if (c.res) {
+        c.res->backend = backend;
+        c.res->end = rc == 0 ? GBE_NONE : rc == 1 ? GBE_USER : rc == 2 ? GBE_ERRORS : run->end ? run->end : GBE_RUNTIME;
+        snprintf(c.res->pci, sizeof c.res->pci, "%s", w[0].info.pci);
+        snprintf(c.res->reason, sizeof c.res->reason, "%s", x->abort_msg);
+        c.res->snap = x->s;
     }
     if (rc == -2 && why) snprintf(why, wn, "%s", x->abort_msg[0] ? x->abort_msg : "the run ended early");
     else if (rc >= 0 && nostartmsg[0] && why) snprintf(why, wn, "%s", nostartmsg);   /* the GUI and CLI show it next to the verdict */

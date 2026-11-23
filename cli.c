@@ -97,12 +97,14 @@ static const char *HELP =
     "        GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory\n"
     "        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;\n"
     "        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once\n"
-    "  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]\n"
-    "           [--limit C] [--accept-high-limit] [--list] [--yes]\n"
+    "  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64]\n"
+    "           [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live]\n"
     "        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted\n"
     "        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default\n"
     "        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages\n"
-    "        or fans (default 60 s); asks first, --yes starts at once\n"
+    "        or fans (default 60 s); asks first, --yes starts at once. --json / --json-live: the result\n"
+    "        as JSON for programs, with exit codes 0 PASS, 10 stopped, 11 FAIL, 12 could not start, 13 ended\n"
+    "        early, 15 temperature limit\n"
     "  gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]\n"
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
@@ -1061,15 +1063,150 @@ static void gpuburn_live(const gpuburn_snap *s, void *ud)
     fflush(stderr);
 }
 
-/* gpu-burn [--seconds N] [--backend ...] [--device N|all] [--fp32|--fp64] [--limit C] [--list] [--yes] */
+/* ---- gpu-burn --json / --json-live (2.6.0): one JSON object on stdout when the run is over (and one line every half
+   second while it runs), and exit codes a program can act on. Without --json the command behaves as before. ---- */
+enum { GBX_PASS = 0, GBX_STOPPED = 10, GBX_FAIL = 11, GBX_NOTSTARTED = 12, GBX_EARLY = 13, GBX_KERNEL = 14, GBX_TEMP = 15 };
+
+static void gbj_str(FILE *f, const char *s)
+{
+    const unsigned char *p = (const unsigned char *)(s ? s : "");
+    fputc('"', f);
+    for (; *p; p++) {
+        if (*p == '"' || *p == '\\') { fputc('\\', f); fputc(*p, f); }
+        else if (*p < 0x20) fprintf(f, "\\u%04x", *p);
+        else fputc(*p, f);   /* UTF-8 passes through (device names, the degree sign in a reason) */
+    }
+    fputc('"', f);
+}
+/* "key":value, or null for a sensor the card does not have (-1) */
+static void gbj_num(FILE *f, const char *key, double v, int prec)
+{
+    if (v < 0) fprintf(f, "\"%s\":null", key);
+    else fprintf(f, "\"%s\":%.*f", key, prec, v);
+}
+static void gbj_max(FILE *f, const gpu_sensors *m)
+{
+    fputc('{', f);
+    gbj_num(f, "edge_c", m->edge_c, 0); fputc(',', f);
+    gbj_num(f, "junction_c", m->junction_c, 0); fputc(',', f);
+    gbj_num(f, "power_w", m->power_w, 0); fputc(',', f);
+    gbj_num(f, "clock_mhz", m->clock_mhz, 0);
+    fputc('}', f);
+}
+/* the hottest / highest reading of every device of the run */
+static void gbj_fold(gpu_sensors *m, const gpu_sensors *s)
+{
+    if (s->edge_c > m->edge_c) m->edge_c = s->edge_c;
+    if (s->junction_c > m->junction_c) m->junction_c = s->junction_c;
+    if (s->power_w > m->power_w) m->power_w = s->power_w;
+    if (s->clock_mhz > m->clock_mhz) m->clock_mhz = s->clock_mhz;
+}
+
+typedef struct { int tty, live; double last; } gbj_ctx;
+
+/* the run's callback, about four times a second: the terminal line, and with --json-live one JSON line every 0.5 s */
+static void gpuburn_cb_cli(const gpuburn_snap *s, void *ud)
+{
+    gbj_ctx *x = ud;
+    if (x->tty) gpuburn_live(s, NULL);
+    if (x->live && s->ndev && s->elapsed - x->last >= 0.5) {
+        gpu_sensors m = { -1, -1, -1, -1, -1, -1 };
+        long err = 0, it = 0;
+        double gf = 0;
+        int i;
+        x->last = s->elapsed;
+        for (i = 0; i < s->ndev; i++) { err += s->dev[i].errors; it += s->dev[i].iterations; gf += s->dev[i].gflops; gbj_fold(&m, &s->dev[i].now); }
+        printf("{\"event\":\"sample\",\"t_s\":%.1f,\"planned_seconds\":%.0f,\"iterations\":%ld,\"errors\":%ld,\"gflops\":%.1f,", s->elapsed, s->total, it, err, gf);
+        gbj_num(stdout, "edge_c", m.edge_c, 0); putchar(',');
+        gbj_num(stdout, "junction_c", m.junction_c, 0); putchar(',');
+        gbj_num(stdout, "power_w", m.power_w, 0); putchar(',');
+        gbj_num(stdout, "clock_mhz", m.clock_mhz, 0);
+        puts("}");
+        fflush(stdout);
+    }
+}
+
+/* the exit code of a --json run, from what the engine said */
+static int gbj_exit(const gpuburn_result *r)
+{
+    switch (r->rc) {
+    case 0: return GBX_PASS;
+    case 1: return GBX_STOPPED;
+    case 2: return GBX_FAIL;
+    case -1: return GBX_NOTSTARTED;
+    default: return r->end == GBE_TEMP ? GBX_TEMP : r->end == GBE_NOTSTARTED ? GBX_NOTSTARTED : GBX_EARLY;
+    }
+}
+
+static void gbj_result(const gpuburn_cfg *c, const gpuburn_result *r, int code, const char *reason)
+{
+    static const char *const endw[] = { "completed", "stopped", "compute-errors", "not-started", "temperature-limit", "no-answer", "device-lost", "runtime-error" };
+    static const char *const statew[] = { "running", "done", "stopped", "ended-early", "failed" };
+    const char *res = code == GBX_PASS ? "pass" : code == GBX_STOPPED ? "stopped" : code == GBX_NOTSTARTED ? "not-started" :
+                      code == GBX_EARLY || code == GBX_TEMP ? "ended-early" : "fail";
+    gpu_sensors m = { -1, -1, -1, -1, -1, -1 };
+    long err = 0, it = 0;
+    double gf = 0;
+    int i, be = r->backend >= 0 ? r->backend : c->backend;
+    FILE *f = stdout;
+    for (i = 0; i < r->snap.ndev; i++) { err += r->snap.dev[i].errors; it += r->snap.dev[i].iterations; gf += r->snap.dev[i].gflops_avg; gbj_fold(&m, &r->snap.dev[i].max); }
+    fprintf(f, "{\"tool\":\"srs gpu-burn\",\"version\":\"%s\",\"result\":\"%s\",\"exit\":%d,\"reason\":", SRS_VERSION, res, code);
+    gbj_str(f, reason);
+    fprintf(f, ",\"end\":\"%s\",\"backend\":", endw[r->end >= 0 && r->end <= GBE_RUNTIME ? r->end : GBE_RUNTIME]);
+    if (be >= 0 && be < GB_N) gbj_str(f, gb_id[be]); else fputs("null", f);
+    fputs(",\"device\":", f);
+    if (r->snap.ndev) gbj_str(f, r->snap.dev[0].device); else fputs("null", f);
+    fputs(",\"pci\":", f);
+    if (r->pci[0]) gbj_str(f, r->pci); else if (c->device_pci[0]) gbj_str(f, c->device_pci); else fputs("null", f);
+    fprintf(f, ",\"seconds\":%.1f,\"planned_seconds\":%.0f,\"precision\":\"%s\",\"limit_c\":%.0f,\"iterations\":%ld,\"errors\":%ld,\"gflops_avg\":%.1f,\"max\":",
+            r->snap.elapsed, c->seconds, c->prec == GP_FP64 ? "fp64" : "fp32", c->limit_c, it, err, gf);
+    gbj_max(f, &m);
+    fputs(",\"devices\":[", f);
+    for (i = 0; i < r->snap.ndev; i++) {
+        const gpuburn_dev *d = &r->snap.dev[i];
+        fputs(i ? ",{\"device\":" : "{\"device\":", f);
+        gbj_str(f, d->device);
+        fprintf(f, ",\"state\":\"%s\",\"iterations\":%ld,\"errors\":%ld,\"gflops_avg\":%.1f,\"matrix\":%d,\"temperature_limit_active\":%s,\"max\":",
+                d->not_started ? "not-started" : statew[d->state >= 0 && d->state <= GBS_FAILED ? d->state : GBS_ABORTED], d->iterations, d->errors,
+                d->gflops_avg, d->n, d->no_temp ? "false" : "true");
+        gbj_max(f, &d->max);
+        fputs(",\"note\":", f);
+        gbj_str(f, d->note);
+        fputc('}', f);
+    }
+    fputs("]}\n", f);
+    fflush(f);
+}
+
+/* a PCI address as the kernel writes it (0000:03:00.0), lower case in out: 1 ok */
+static int pci_addr_ok(const char *v, char *out, size_t n)
+{
+    static const char shape[] = "hhhh:hh:hh.d";
+    size_t i;
+    if (strlen(v) != sizeof shape - 1 || n < sizeof shape) return 0;
+    for (i = 0; shape[i]; i++) {
+        char ch = v[i];
+        if (shape[i] == 'h') { if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F'))) return 0; }
+        else if (shape[i] == 'd') { if (ch < '0' || ch > '7') return 0; }
+        else if (ch != shape[i]) return 0;
+        out[i] = ch >= 'A' && ch <= 'F' ? (char)(ch + 32) : ch;
+    }
+    out[i] = 0;
+    return 1;
+}
+
+/* gpu-burn [--seconds N] [--backend ...] [--device N|all] [--pci ADDR] [--fp32|--fp64] [--limit C] [--list] [--yes]
+            [--json] [--json-live] */
 static int cmd_gpu_burn(int argc, char **argv)
 {
     static const char usage[] =
-        "usage: sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]\n"
+        "usage: sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR]\n"
         "                                 [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]\n"
+        "                                 [--json] [--json-live]\n"
         "  --seconds N   how long, 1..86400 (default 60)\n"
         "  --backend B   vulkan, hip (ROCm), cuda, opencl or auto (default: Vulkan when it has a GPU)\n"
         "  --device N    the device number of that back end (see --list), or all (default: the first)\n"
+        "  --pci ADDR    the GPU at this PCI address (as in 0000:03:00.0) instead of a device number\n"
         "  --fp32/--fp64 the precision of the matrix multiplications (default fp32)\n"
         "  --limit C     stop when the GPU reaches this temperature in C, 50..100 (default 100;\n"
         "                hotspot / junction when the card reports it, else edge); up to 110 with\n"
@@ -1077,17 +1214,27 @@ static int cmd_gpu_burn(int argc, char **argv)
         "  --list        list the devices of each installed back end and exit (starts each runtime;\n"
         "                runs no work on a GPU)\n"
         "  --yes         start without asking\n"
-        "GPU Burnin never changes clocks, voltages or fans. Ctrl+C stops it.";
+        "  --json        for programs: print one JSON object on standard output when the run is over\n"
+        "                (nothing else goes there) and use the exit codes below; needs --yes\n"
+        "  --json-live   --json, plus one JSON line every half second while it runs\n"
+        "GPU Burnin never changes clocks, voltages or fans. Ctrl+C stops it.\n"
+        "Exit codes: 0 PASS, 1 stopped / compute errors / ended early, 2 not started or a wrong option.\n"
+        "With --json: 0 PASS, 10 stopped, 11 FAIL (compute errors), 12 could not start, 13 ended early (the GPU\n"
+        "did not answer, device lost, runtime error), 15 ended early at the temperature limit; 2 a wrong option.";
     srs_out o;
     gpuburn_cfg c;
+    gpuburn_result res;
+    gbj_ctx jx = { 0, 0, 0 };
     char why[300], what[1200], dev[300], bk[80];
-    int i, yes = 0, list = 0, rc, hot = 0;
+    int i, yes = 0, list = 0, rc, hot = 0, json = 0, dev_set = 0;
     gpuburn_cfg_default(&c);
+    memset(&res, 0, sizeof res);
+    res.backend = -1;
     so_text_init(&o, stdout);
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         int need = !strcmp(a, "--seconds") || !strcmp(a, "--backend") || !strcmp(a, "--device") || !strcmp(a, "--limit") ||
-                   !strcmp(a, "--limit-c");
+                   !strcmp(a, "--limit-c") || !strcmp(a, "--pci");
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) { puts(usage); help_risk(); return 0; }
         if (need && !v) { fprintf(stderr, "gpu-burn: %s needs a value\n", a); return 2; }
         if (need) i++;
@@ -1098,7 +1245,12 @@ static int cmd_gpu_burn(int argc, char **argv)
         else if (!strcmp(a, "--list")) list = 1;
         else if (!strcmp(a, "--yes") || !strcmp(a, "-y")) yes = 1;
         else if (!strcmp(a, "--accept-high-limit")) hot = 1;
-        else if (!strcmp(a, "--device")) {
+        else if (!strcmp(a, "--json")) json = 1;
+        else if (!strcmp(a, "--json-live")) json = jx.live = 1;
+        else if (!strcmp(a, "--pci")) {
+            if (!pci_addr_ok(v, c.device_pci, sizeof c.device_pci)) { fprintf(stderr, "gpu-burn: --pci needs a PCI address such as 0000:03:00.0 (got '%s')\n", v); return 2; }
+        } else if (!strcmp(a, "--device")) {
+            dev_set = 1;
             if (!strcmp(v, "all")) c.device = GPUBURN_ALL;
             else if (!gpu_parse_device("gpu-burn", v, &c.device)) return 2;
         } else if (!strcmp(a, "--backend")) {
@@ -1113,8 +1265,12 @@ static int cmd_gpu_burn(int argc, char **argv)
     }
     if (c.seconds < 1 || c.seconds > 86400) return usage_error("gpu-burn: --seconds must be 1..86400");
     if (!limit_ok("gpu-burn", c.limit_c, hot)) return 2;
+    if (c.device_pci[0] && dev_set) return usage_error("gpu-burn: --pci and --device do not go together (both name the GPU)");
+    if (json && list) return usage_error("gpu-burn: --json and --list do not go together");
+    if (json && !yes) return usage_error("gpu-burn: --json runs with no question, so it needs --yes (that counts as agreeing)");
     gpu_quiet_layers();
     if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    if (getenv("SRS_TEST_GB_NMAX")) c.n_max = atoi(getenv("SRS_TEST_GB_NMAX"));   /* tests: small matrices on lavapipe */
     if (list) {
         for (i = 0; i < GB_N; i++) {
             gb_info l[GB_LISTMAX];
@@ -1135,21 +1291,26 @@ static int cmd_gpu_burn(int argc, char **argv)
     snprintf(bk, sizeof bk, "%s", c.backend == GPUBURN_AUTO ? "Vulkan (or the first back end that has a GPU)" : gb_name[c.backend]);
     if (c.device == GPUBURN_ALL) snprintf(dev, sizeof dev, "every GPU of that back end");
     else if (c.device >= 0) snprintf(dev, sizeof dev, "device %d", c.device);
+    else if (c.device_pci[0]) snprintf(dev, sizeof dev, "the GPU at PCI %s", c.device_pci);
     else snprintf(dev, sizeof dev, "the first GPU");
     if (c.backend == GB_VULKAN || c.backend == GPUBURN_AUTO) {
         gpu_dev d[GPU_MAXDEV];
         int n = gpu_list(d, GPU_MAXDEV, why, sizeof why);
         int k, gpu = -1;
+        char nostart[400] = "";
         for (k = 0; k < n; k++) if (d[k].dtype != GPU_CPU) { gpu = k; break; }   /* the default skips software renderers */
         if (n > 0 && c.device >= 0 && c.device < n) snprintf(dev, sizeof dev, "%.250s", d[c.device].name);
-        else if (n > 0 && c.device == -1 && (gpu >= 0 || c.software_only)) snprintf(dev, sizeof dev, "%.250s", d[gpu >= 0 ? gpu : 0].name);
-        if (n > 0 && gpu < 0 && !c.software_only && c.backend == GB_VULKAN) {
-            fprintf(stderr, "gpu-burn: not started - Vulkan lists no GPU, only %s (a software renderer, which GPU Burnin does not burn)\n", d[0].name);
-            return 2;
-        }
-        if (n <= 0 && c.backend == GB_VULKAN) {
-            fprintf(stderr, "gpu-burn: not started - no Vulkan device: %s\n", why[0] ? why : "none found");
-            return 2;
+        else if (n > 0 && c.device == -1 && !c.device_pci[0] && (gpu >= 0 || c.software_only)) snprintf(dev, sizeof dev, "%.250s", d[gpu >= 0 ? gpu : 0].name);
+        if (n > 0 && gpu < 0 && !c.software_only && c.backend == GB_VULKAN)
+            snprintf(nostart, sizeof nostart, "Vulkan lists no GPU, only %.200s (a software renderer, which GPU Burnin does not burn)", d[0].name);
+        else if (n <= 0 && c.backend == GB_VULKAN) snprintf(nostart, sizeof nostart, "no Vulkan device: %.200s", why[0] ? why : "none found");
+        if (nostart[0]) {
+            fprintf(stderr, "gpu-burn: not started - %s\n", nostart);
+            if (!json) return 2;
+            res.rc = -1;
+            res.end = GBE_NOTSTARTED;
+            gbj_result(&c, &res, GBX_NOTSTARTED, nostart);
+            return GBX_NOTSTARTED;
         }
     }
     snprintf(what, sizeof what,
@@ -1160,15 +1321,24 @@ static int cmd_gpu_burn(int argc, char **argv)
              "and a weak power supply or poor cooling can make it shut down.",
              dev, bk, c.seconds, c.prec == GP_FP64 ? "FP64" : "FP32", c.limit_c);
     if (!yes && !ask_start("gpu-burn", what)) return 2;
-    if (isatty(2)) c.cb = gpuburn_live;
+    jx.tty = isatty(2);
+    if (jx.tty || jx.live) { c.cb = gpuburn_cb_cli; c.ud = &jx; }
+    c.res = &res;
     signal(SIGINT, on_int_gpu);
+    if (json) signal(SIGTERM, on_int_gpu);   /* a program that ends the run gets its JSON and exit 10, not a dead child */
     why[0] = 0;
-    rc = bench_gpuburn(&c, &o, &g_gpu_cancel, why, sizeof why);
+    rc = bench_gpuburn(&c, json ? NULL : &o, &g_gpu_cancel, why, sizeof why);   /* --json: standard output is the JSON alone */
     signal(SIGINT, SIG_DFL);
-    if (c.cb) fputc('\n', stderr);
+    if (json) signal(SIGTERM, SIG_DFL);
+    if (jx.tty) fputc('\n', stderr);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);
     else if (rc >= 0 && why[0]) fprintf(stderr, "gpu-burn: note - %s\n", why);   /* All GPUs: a card that could not start */
     if (c.backend == GB_CUDA) cuda_toolkit_hint();
+    if (json) {
+        int code = gbj_exit(&res);
+        gbj_result(&c, &res, code, rc < 0 ? why : res.reason);
+        return code;
+    }
     return rc == 0 ? 0 : rc == -1 ? 2 : 1;
 }
 

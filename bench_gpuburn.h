@@ -48,6 +48,25 @@ typedef struct {
     int running;
 } gpuburn_snap;
 
+/* why a run ended (2.6.0, for gpu-burn --json): the engine's own reason, so callers need not read the message text */
+enum { GBE_NONE,          /* ran to the end */
+       GBE_USER,          /* stopped by the user */
+       GBE_ERRORS,        /* compute errors found */
+       GBE_NOTSTARTED,    /* no device, back end missing, the GPU could not be opened or prepared */
+       GBE_TEMP,          /* the temperature limit */
+       GBE_HUNG,          /* the GPU did not answer in time */
+       GBE_LOST,          /* device lost */
+       GBE_RUNTIME };     /* the GPU runtime reported an error */
+
+typedef struct {
+    int rc;                          /* what bench_gpuburn returned */
+    int end;                         /* GBE_* */
+    int backend;                     /* the GB_* back end that ran, -1 = none */
+    char pci[16];                    /* the first device's PCI address, "" when the back end does not tell */
+    char reason[300];                /* why it ended early or could not start ("" = ran to the end) */
+    gpuburn_snap snap;               /* the final numbers of every device */
+} gpuburn_result;
+
 typedef void (*gpuburn_cb)(const gpuburn_snap *s, void *ud);   /* ~2 times a second, from the thread that called bench_gpuburn */
 
 typedef struct {
@@ -63,6 +82,7 @@ typedef struct {
     int n_max;                       /* largest matrix side (default 4096; tests use 64) */
     gpuburn_cb cb;
     void *ud;
+    gpuburn_result *res;             /* optional: filled when the run is over (also when it could not start) */
 } gpuburn_cfg;
 
 void gpuburn_cfg_default(gpuburn_cfg *c);
@@ -79,7 +99,8 @@ int  bench_gpuburn(const gpuburn_cfg *c, srs_out *o, volatile int *cancel, char 
 
 /* sensors, also usable on their own */
 typedef struct gpu_hw gpu_hw;
-gpu_hw *gpu_hw_open(const char *pci);                   /* NULL when the card has no hwmon */
+gpu_hw *gpu_hw_open(const char *pci);                   /* NULL when the card has no hwmon; tests: SRS_TEST_SYSFS_ROOT
+                                                           is put in front of /sys (a made-up card) */
 void gpu_hw_read(gpu_hw *h, gpu_sensors *s);
 void gpu_hw_close(gpu_hw *h);
 
