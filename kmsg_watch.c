@@ -37,11 +37,14 @@ static double kw_now(void)
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-/* strstr without regard to case (the drivers write "MODE1 reset" and "GPU mode1 reset") */
+/* strstr without regard to case (the drivers write "MODE1 reset" and "GPU mode1 reset"). A needle that starts with a
+   letter must start a word: "ring " is not found in "during " */
 static const char *has(const char *s, const char *needle)
 {
     size_t n = strlen(needle);
-    for (; *s; s++) if (!strncasecmp(s, needle, n)) return s;
+    const char *p;
+    for (p = s; *p; p++)
+        if (!strncasecmp(p, needle, n) && (p == s || !isalpha((unsigned char)needle[0]) || !isalpha((unsigned char)p[-1]))) return p;
     return NULL;
 }
 
