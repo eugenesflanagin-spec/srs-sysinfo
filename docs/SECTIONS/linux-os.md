@@ -728,7 +728,7 @@ This group holds the items that SIV64X (System Information Viewer, by Ray Hinchl
 - `/dev/disk/by-id` - model and serial-based names.
 - `/dev/disk/by-path` - names based on the physical port or bus position.
 
-**Healthy / typical values.** Author's PC by-label: `LINUX -> /dev/nvme0n1p2`, `EFI -> /dev/nvme1n1p2`, `SWAP -> /dev/nvme1n1p4`, `WIN11 -> /dev/nvme1n1p1`, `Ventoy -> /dev/sdd1`, `zram0 -> /dev/zram0`.
+**Healthy / typical values.** An example by-label list (invented names): `ROOT -> /dev/nvme0n1p2`, `ESP -> /dev/nvme0n1p1`, `SWAP -> /dev/nvme0n1p3`, `WINDOWS -> /dev/sda2`, `USBSTICK -> /dev/sdb1`, `zram0 -> /dev/zram0`.
 
 **Unusual values and what they suggest.** Two partitions with the same UUID (common after cloning a disk): the system may mount the wrong one at boot. Change one with `tune2fs -U` or your filesystem's tool. A disk missing from `by-id` but present in `/dev`: it is behind a USB bridge or RAID controller that hides the serial.
 

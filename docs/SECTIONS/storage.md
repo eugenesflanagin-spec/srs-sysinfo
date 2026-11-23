@@ -127,10 +127,10 @@ they sit on.
 Unlike [Disk drives](#disk-drives), this tree also lists zram, loop-backed and device-mapper disks.
 `drive-tree:<disk>` shows one disk only.
 
-**Healthy / typical values.** On the author's PC the Samsung NVMe holds `nvme0n1p1 2.05GB vfat EFI
-/boot/efi` and `nvme0n1p2 929.46GB btrfs LINUX / /srv /root /home /var/cache /var/log /var/tmp`.
-That one partition has seven mount points because it is btrfs with several subvolumes. A dual-boot
-disk shows an `ntfs WIN11` partition with no mount point, which is normal when Windows is not in use.
+**Healthy / typical values.** An example (invented names and sizes): an NVMe drive holds `nvme0n1p1
+1.00GB vfat ESP /boot/efi` and `nvme0n1p2 500.00GB btrfs ROOT / /srv /root /home /var/cache /var/log
+/var/tmp`. That one partition has seven mount points because it is btrfs with several subvolumes. A dual-boot
+disk shows an `ntfs WINDOWS` partition with no mount point, which is normal when Windows is not in use.
 
 **Unusual values and what they suggest.**
 - A partition with `-` as the filesystem: empty, a filesystem udev does not recognise, or a damaged
@@ -1062,8 +1062,8 @@ btrfs, ext4, swap, iso9660...), **Version** (filesystem version, e.g. FAT32, FAT
 1.0, swap 1, "Joliet Extension" for ISO images), **Label**, **UUID**, **Size**, **Mount points**
 (all of them, or `[SWAP]`). zram and other virtual disks are included.
 
-**Healthy / typical values.** On the author's PC: `nvme0n1p1 vfat FAT32 EFI 2.05GB /boot/efi`,
-`nvme1n1p4 swap 1 SWAP 32.81GB [SWAP]`, `zram0 swap 1 zram0 15.23GB [SWAP]`. A small Ventoy EFI
+**Healthy / typical values.** An example (invented names and sizes): `nvme0n1p1 vfat FAT32 ESP 1.00GB
+/boot/efi`, `nvme0n1p3 swap 1 SWAP 16.00GB [SWAP]`, `zram0 swap 1 zram0 8.00GB [SWAP]`. A small Ventoy EFI
 partition is FAT16 and a 4MB live-USB EFI partition is FAT12, both normal for their size. NTFS
 partitions show a 16-hex-digit UUID.
 
@@ -1112,7 +1112,7 @@ Subvolume / bind root (for btrfs subvolumes and bind mounts, e.g. `/@`), Mount o
 for filesystems such as btrfs that do not have a fixed count), Max name length, Access (read/write or
 read-only), followed by the filesystem statistics described under [NTFS statistics](#ntfs-statistics).
 
-**Healthy / typical values.** On the author's PC the btrfs root shows 146.84GB free of 929.46GB (83%
+**Healthy / typical values.** An example (invented sizes): a btrfs root shows 100.00GB free of 500.00GB (80%
 used) on seven mount points; the totals line "Fixed 14 (5)" means 14 mount points but only 5 different
 filesystems. The read-only NTFS bind mount shows `ntfs3 (R)`. An ISO live stick shows 100% used with
 0 free, which is normal for a read-only ISO 9660 filesystem.
