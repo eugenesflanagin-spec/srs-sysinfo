@@ -10,18 +10,19 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 (voltage offset, clock offset, memory clock, power limit), the driver's ranges, and the state of Tux Burner and LACT -
 it only shows, changing settings comes in a later version through Tux Burner. Also: GPU Burnin for other programs
 (`gpu-burn --json`, exit codes, `--pci`, and `--watch-kernel`, which fails a run on a GPU reset in the kernel log), a
-fairer GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime crashes
-(it should also be faster on those three: not yet measured on a real card), CPU telemetry from the SMU PM table, five more DDR5 timings and the AGESA version, CPU speeds at the measured
-base clock (BCLK / eCLK), and The Big Top from the tray with its own Tray Meter Speed.
+fairer GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime crashes (it
+should also be faster on those three: not yet measured on a real card), CPU telemetry from the SMU PM table, five more
+DDR5 timings and the AGESA version, CPU speeds at the measured base clock (BCLK / eCLK), and The Big Top from the tray
+with its own Tray Meter Speed.
 
 ### Changed
 
 - **GPU Compute comparison: HIP, CUDA and OpenCL should no longer lose speed to SRS's own code (not yet measured on
   a real card).** The work, its size and every result check are unchanged on every back end; what changed is how SRS
   has it compiled, how it waits, and how it copies. Vulkan is untouched. The numbers in brackets are the gaps
-  **before** these changes: the author's own GPU Compute comparison runs with the 2.5 kernels on a Radeon RX 9070 XT
-  (Vulkan = 100%; they differ somewhat from run to run, see EVIDENCE.md). There are no "after" numbers yet: the
-  changes were checked on the compiler's output and with the fake GPU runtime only, so please report anything odd.
+  **before** these changes, from the author's GPU Compute comparison run of 2026-11-23 on a Radeon RX 9070 XT
+  (Vulkan = 100%; the run is recorded in EVIDENCE.md). The changes themselves were checked on the compiler's
+  output and with the fake GPU runtime only, so please report anything odd.
   - **FP32 multiply-add chain and FP32 matrix multiply, own kernel, on ROCm / HIP and OpenCL (ROCm)** (35% and
     54%): AMD's compiler builds a kernel for 32 GPU threads per *wave* unless told otherwise; the Vulkan driver
     builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit, a 32-wide
@@ -210,13 +211,13 @@ from the PM table was checked there against the board's Vcore sense, k10temp and
 child process itself was tested with a crash made on purpose (`tests/gpucompare-child-test.sh`). **Not tried on
 real hardware**, so please expect a bug or two:
 
-- **GPU Tuning** on any real card, with a real Tux Burner service or a real LACT: only made-up `/sys` trees and a
-  stand-in for Tux Burner's service were used. RDNA 3 (RX 7000) and NVIDIA (through Tux Burner) are untested, older
-  AMD cards are only recognised, and Intel GPUs only get a note.
-- **`gpu-burn --json` / `--watch-kernel`**: run on lavapipe, a fake GPU runtime and made-up kernel log lines; never
-  with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from the drivers' wording. When the
-  kernel log cannot be read the exit code stays 0 with `"kernel_watch":"unreadable"`: callers must treat that as
-  "not watched".
+- **GPU Tuning** with a real Tux Burner service: it was built and tested on made-up `/sys` trees and a stand-in for
+  Tux Burner's service; on the real card (with LACT's settings file) `gpu-tune status` was read once. RDNA 3 (RX 7000)
+  and NVIDIA (through Tux Burner) are untested, older AMD cards are only recognised, and Intel GPUs only get a note.
+- **`gpu-burn --json` / `--watch-kernel`**: run on lavapipe, a fake GPU runtime and made-up kernel log lines, plus one
+  passing run on the real card; never with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from
+  the drivers' wording. When the kernel log cannot be read the exit code stays 0 with `"kernel_watch":"unreadable"`:
+  callers must treat that as "not watched".
 - **The new `srs-root`** (collect in `/run`, hand over as the user, the lock): its checks and its install step are
   tested as a normal user on throw-away folders; the part that runs as root - through pkexec, sudo and the boot
   unit - could not be run by the tests.

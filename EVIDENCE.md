@@ -244,10 +244,13 @@ or result files were used or looked at for them. Public sources are credited in 
   OpenCL), and that the tuned text changes only `gemm_r` and `fma_r`. None of the 2.6.0 changes
   was run on a real GPU before the commit: compiler output and the fake runtime
   (`tests/gpu-stub-test.sh`) only.
-  The gaps quoted in brackets in the 2.6.0 changelog (FP32 multiply-add chain 35%, FP32 matrix multiply 54% and
-  50%, launch round trip 155 to 436 µs against Vulkan's 48, Rusticl upload / download 17 and 4.9 GB/s against
-  about 55 / 52) are **before** numbers: the author's own GPU Compute comparison runs with the 2.5 kernels on a
-  Radeon RX 9070 XT (RADV, ROCm / HIP, ZLUDA, ROCm's OpenCL and Rusticl), which is what pointed at each cause.
-  They differ from run to run and with the seconds per test (the launch round trip most of all), so read them as
-  the size of each gap, not as exact values. No "after" numbers exist yet; the speed-ups are **not yet measured
-  on a real card**.
+  The gaps quoted in brackets in the 2.6.0 changelog are **before** numbers, from the author's GPU Compute
+  comparison run of 2026-11-23 04:58 on a Radeon RX 9070 XT (60 s per test, 1024 x 1024 matrices; RADV on
+  Mesa 27.0-devel, HIP 7.16, ZLUDA, ROCm's OpenCL, Rusticl), as kept in SRS's Benchmark History: FP32 matrix
+  multiply, own kernel, Vulkan 6089 GFLOPS, ROCm / HIP 3298 (54%), Rusticl 3036 (50%); FP32 multiply-add chain
+  Vulkan 51495, ROCm / HIP 18246 and ZLUDA 18040 (35%); launch round trip Vulkan 47.6 µs, ROCm / HIP 155.2,
+  ZLUDA 212.9, OpenCL (ROCm) 225.4, Rusticl 436.1. The 155 µs launch round trip of ROCm / HIP is the value of
+  every run kept since 2026-10-27, so this run had the waits as they were in 2.5. The Rusticl upload / download
+  figures (17 and 4.9 GB/s against about 55 / 52) are not in the history line (it keeps four numbers per back
+  end), so the run they are from is not recorded here. The speed-ups themselves are
+  **not yet measured on a real card**.
