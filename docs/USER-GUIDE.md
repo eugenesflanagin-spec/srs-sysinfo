@@ -1680,7 +1680,8 @@ what was tried; in short, not tried on real hardware so far:
   row from the built-in kernels (PTX, new in 2.3) without NVRTC; only the cuBLAS FP64 row says "not
   available" (ZLUDA's cuBLAS has none). GPU Burnin's 2.4 matrix multiply ran on the author's RX 9070 XT
   with all four back ends, FP32, 0 errors: CUDA via ZLUDA about 17.2 TFLOPS, Vulkan 16.2, OpenCL 13.4,
-  ROCm / HIP 13.0. Untested:
+  ROCm / HIP 13.0. The 2.6 GPU Compute comparison ran every back end on that card (2026-11-23, 10 s per
+  test), every result checked. Untested:
   every other real GPU use (AMD, NVIDIA, Intel) and the temperature, power, clock and fan read-outs
   for NVIDIA and Intel. The built-in CUDA kernels were never run on NVIDIA hardware. The NVIDIA CUDA
   toolkit install (Options) was tested with fake package managers only.
@@ -1719,8 +1720,8 @@ what was tried; in short, not tried on real hardware so far:
 - GPU Tuning (2.6, [9.23](#923-gpu-tuning-read-only)) and `gpu-burn --json` / `--watch-kernel`
   ([9.18](#918-gpu-burnin)): built and tested on made-up system files, a stand-in for Tux Burner's
   service, a software renderer, a fake GPU runtime and made-up kernel log lines. On a real card
-  (Radeon RX 9070 XT) `gpu-tune status` was read once and `gpu-burn --json --watch-kernel` passed one
-  run; the watch has never seen a real GPU reset, and a real Tux Burner service was not asked. NVIDIA,
+  (Radeon RX 9070 XT) `gpu-tune status` was read and matched what LACT shows, and `gpu-burn --json
+  --watch-kernel` passed one run; the watch has never seen a real GPU reset, and a real Tux Burner service was not asked. NVIDIA,
   Intel, older AMD cards and laptops with two cards are untested.
 
 **Things to know about the GPU tests:**
@@ -2646,7 +2647,13 @@ an update (or a rollback) of that runtime.
   `SRS_GPU_WAVE=32`, `SRS_CL_TIMING=events` and `SRS_CL_XFER=plain` switch the three off, to
   compare with older SRS versions. If a column built for 64-wide waves ever shows WRONG RESULT, run
   it once more with `SRS_GPU_WAVE=32` before suspecting the card. GPU Burnin does none of this: it
-  runs exactly as in 2.5.
+  runs exactly as in 2.5. What it brought, measured on my Radeon RX 9070 XT (10 s per test, the build
+  before and the build after in one session, Vulkan = 100%): the FP32 multiply-add chain on ROCm / HIP
+  went from 38% to 78% and on OpenCL (ROCm) from 38% to 75%; the launch round trip from 105 to 17
+  millionths of a second on ROCm / HIP and ZLUDA, 106 to 21 on OpenCL (ROCm) and 310 to 40 on Rusticl;
+  Rusticl's upload from 25.9 to 53.0 GB/s and its download from 5.25 to 52.6 GB/s. It did not help
+  everywhere: the own-kernel FP32 matrix multiply on ROCm / HIP and OpenCL (ROCm) stayed near 60%, and
+  the multiply-add chain on ZLUDA near 40%. Other graphics cards were not measured.
 - **Kernel launch round trip** needs a quiet PC: it measures a few tens of millionths of a second,
   and other programs using the CPU make it look slower.
 - `*` marks the fastest in each row. **(85%)** after a number means that column reached 85% of
@@ -2918,8 +2925,9 @@ after LACT applied its profile; switching the profile in LACT, or a reboot, puts
   contacts LACT's service, never edits LACT's file, and never runs Tux Burner's command line tool.
 - A value it cannot know is left empty ("not available", "kept by Tux Burner"), not guessed.
 
-**Not tested on real hardware yet.** I built and tested this page with made-up system files and a stand-in
-for Tux Burner's service, not on a real card, a real Tux Burner service or a real LACT. Other AMD
+**Tested on one real card only.** I built and tested this page with made-up system files and a stand-in
+for Tux Burner's service. On my own card (Radeon RX 9070 XT, with LACT) `gpu-tune status` was read and showed
+the same settings as LACT; a real Tux Burner service was not asked. Other AMD
 generations, NVIDIA, Intel and laptops with two graphics cards may show something odd; if you see it, please
 open an issue with what the page showed.
 

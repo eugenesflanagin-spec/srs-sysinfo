@@ -10,19 +10,45 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 (voltage offset, clock offset, memory clock, power limit), the driver's ranges, and the state of Tux Burner and LACT -
 it only shows, changing settings comes in a later version through Tux Burner. Also: GPU Burnin for other programs
 (`gpu-burn --json`, exit codes, `--pci`, and `--watch-kernel`, which fails a run on a GPU reset in the kernel log), a
-fairer GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime crashes (it
-should also be faster on those three: not yet measured on a real card), CPU telemetry from the SMU PM table, five more
+fairer GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime crashes
+(measured on one Radeon RX 9070 XT: the FP32 multiply-add chain on ROCm / HIP and OpenCL (ROCm) about twice as fast, the
+launch round trip 5 to 8 times shorter, Rusticl's upload and download level with the others; other GPUs not
+measured), CPU telemetry from the SMU PM table, five more
 DDR5 timings and the AGESA version, CPU speeds at the measured base clock (BCLK / eCLK), and The Big Top from the tray
 with its own Tray Meter Speed.
 
 ### Changed
 
-- **GPU Compute comparison: HIP, CUDA and OpenCL should no longer lose speed to SRS's own code (not yet measured on
-  a real card).** The work, its size and every result check are unchanged on every back end; what changed is how SRS
-  has it compiled, how it waits, and how it copies. Vulkan is untouched. The numbers in brackets are the gaps
-  **before** these changes, from the author's GPU Compute comparison run of 2026-11-23 on a Radeon RX 9070 XT
-  (Vulkan = 100%; the run is recorded in EVIDENCE.md). The changes themselves were checked on the compiler's
-  output and with the fake GPU runtime only, so please report anything odd.
+- **GPU Compute comparison: HIP, CUDA and OpenCL lose less speed to SRS's own code (measured on one Radeon RX 9070
+  XT; other GPUs not measured).** The work, its size and every result check are unchanged on every back end; what
+  changed is how SRS has it compiled, how it waits, and how it copies. Vulkan is untouched. The numbers in brackets
+  in the points below are the gaps **before** these changes, from the author's 60 s GPU Compute comparison run of
+  2026-11-23 04:58 on that card (Vulkan = 100%; recorded in EVIDENCE.md). The changes were written on the compiler's
+  output and the fake GPU runtime, and then measured on the card:
+  - **Measured (one Radeon RX 9070 XT, RDNA 4; Mesa 27.0-devel RADV and Rusticl, HIP 7.16, ZLUDA CUDA 13.0, ROCm
+    OpenCL).** `sysreport-search gpu-compare --seconds 10`, once with the build from before these changes and once
+    with this one, one after the other in the same session with the same GPU settings; every result checked in
+    both, no GPU reset in the kernel log. Vulkan = 100% in each run. One run of 10 s per test each, so a few
+    percent either way is noise.
+    - FP32 multiply-add chain: ROCm / HIP 19715 -> 40680 GFLOPS (38% -> 78% of Vulkan), OpenCL (ROCm) 19918 ->
+      39156 (38% -> 75%). CUDA (ZLUDA) 19913 -> 20801 (38% -> 40%) and OpenCL (Rusticl) 35572 -> 34094 (68% ->
+      65%) did not really move.
+    - Kernel launch round trip: ROCm / HIP 105 -> 17.1 µs, CUDA (ZLUDA) 105 -> 17.4, OpenCL (ROCm) 106 -> 21.0,
+      OpenCL (Rusticl) 310 -> 40.4 (Vulkan 24.4 and 23.7).
+    - OpenCL (Rusticl): upload 25.91 -> 53.00 GB/s, download 5.25 -> 52.58 GB/s (Vulkan 55.8 and 52.6); FP32
+      matrix multiply, own kernel, 3526 -> 4083 GFLOPS (58% -> 69%); through CLBlast FP32 5278 -> 9073 and FP16
+      5689 -> 13738.
+    - FP32 matrix multiply, own kernel, stayed about where it was on ROCm / HIP (3443 -> 3582, 57% -> 61%),
+      OpenCL (ROCm) (3569 -> 3409, 59% -> 58%) and CUDA (ZLUDA) (5389 -> 5378, 89% -> 91%): **the 64-wide waves
+      and the lighter barrier did not close that gap on this card.**
+    - Lower in the second run, and not explained: OpenCL (ROCm) FP64 (own kernel 889 -> 827 GFLOPS, CLBlast 882
+      -> 817, multiply-add chain 937 -> 870) and CLBlast FP32 (12786 -> 11521); hipBLAS FP16 (13003 -> 12173).
+      FP64 was within 1% on every other back end.
+    - To be fair to both runs: the desktop shell (plasmashell) began to crash and restart over and over, for
+      reasons that have nothing to do with SRS, about a minute before the second run ended - while its last
+      column (Rusticl) was most likely running. That can only have lowered the second run's numbers. The first
+      run was the installed 2.6 pre-release package of 2026-11-07 (an AVX-512 build), the second this source as a
+      baseline x86-64 build; the GPU kernels are the same either way. The full table is in EVIDENCE.md.
   - **FP32 multiply-add chain and FP32 matrix multiply, own kernel, on ROCm / HIP and OpenCL (ROCm)** (35% and
     54%): AMD's compiler builds a kernel for 32 GPU threads per *wave* unless told otherwise; the Vulkan driver
     builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit, a 32-wide
@@ -75,6 +101,7 @@ with its own Tray Meter Speed.
     which this one does not), so the wave width should not be the reason; what Mesa's compiler really makes
     of the loop can only be seen by running it on the card (`AMD_DEBUG=cs,asm` prints it, `AMD_DEBUG=w64cs`
     forces 64 wide), which was not done for this change, and the kernel text was not altered on a guess. FP64 rows were already within 2% everywhere.
+    The measurement agrees: ZLUDA's chain went from 38% to 40% and Rusticl's stayed at 65 to 68%.
   - Tests: `tests/gpu-stub-test.sh` covers the 64-wide option and the tuned text refused singly and together
     (HIP, OpenCL) with the refusal shown, that GPU Burnin (register-blocked and simple kernel, also on Rusticl)
     and NVRTC get the plain build, a GPU that is still busy when asked, Rusticl's host timing (no kernel on the
@@ -116,8 +143,9 @@ with its own Tray Meter Speed.
     `gpu_capabilities`) and nothing else; it reads LACT's settings file and never contacts LACT's service.
     Values Tux Burner does not report yet (the suggested voltage floor, a clock ceiling) are left empty, not guessed.
   - Command line: **`sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]`**.
-  - Tested with made-up `/sys` trees and a fake service only (`tests/gpu-tune-test.sh`). **Not tried on a real card
-    yet**, on a real Tux Burner service or with a real LACT, so it may have bugs there; please report what you see.
+  - Tested with made-up `/sys` trees and a fake service (`tests/gpu-tune-test.sh`). On the author's real card (Radeon
+    RX 9070 XT, with LACT) `gpu-tune status` was read and showed the same settings as LACT. **Not tried with a real
+    Tux Burner service** or on any other card, so it may have bugs there; please report what you see.
 - **GPU Burnin for programs: `gpu-burn --json`, `--json-live`, `--pci ADDR`, `--watch-kernel`.** With `--json` the
   command prints one JSON object when the run is over (`--json-live`: also one line every half second) and exits
   with a code a program can act on: 0 PASS, 10 stopped, 11 FAIL (compute errors), 12 could not start, 13 ended early
@@ -174,8 +202,9 @@ with its own Tray Meter Speed.
   be written by everyone on some systems), and the two options srs-root looks up in the user's settings file are
   now read by a process running as the user, with a time limit. New exit codes 4 (another
   srs-root is still running) and 5 (collected, but the cache could not be replaced). The part that runs as root was
-  checked by reading and by tests of its pieces as a normal user (`tests/srs-root-args-test.sh`: the checks, a dry
-  run, and the install step on throw-away folders); see "Tested" below.
+  checked by reading, by tests of its pieces as a normal user (`tests/srs-root-args-test.sh`: the checks, a dry
+  run, and the install step on throw-away folders) and by one run through sudo on the author's PC; see "Tested"
+  below.
 - **GPU Tuning crashed on a PC with Tux Burner's service running and no AMD card** (found in the pre-release review,
   never released): `gpu-tune status`, the GPU Tuning tab and a full report read the service's answer after freeing
   it. It did not show with an AMD card, because an earlier, larger read happened to keep the memory alive. Fixed;
@@ -215,17 +244,21 @@ child process itself was tested with a crash made on purpose (`tests/gpucompare-
 real hardware**, so please expect a bug or two:
 
 - **GPU Tuning** with a real Tux Burner service: it was built and tested on made-up `/sys` trees and a stand-in for
-  Tux Burner's service; on the real card (with LACT's settings file) `gpu-tune status` was read once. RDNA 3 (RX 7000)
+  Tux Burner's service; on the real card (with LACT's settings file) `gpu-tune status` was read and matched what LACT
+  shows. RDNA 3 (RX 7000)
   and NVIDIA (through Tux Burner) are untested, older AMD cards are only recognised, and Intel GPUs only get a note.
 - **`gpu-burn --json` / `--watch-kernel`**: run on lavapipe, a fake GPU runtime and made-up kernel log lines, plus one
   passing run on the real card; never with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from
   the drivers' wording. When the kernel log cannot be read the exit code stays 0 with `"kernel_watch":"unreadable"`:
   callers must treat that as "not watched".
 - **The new `srs-root`** (collect in `/run`, hand over as the user, the lock): its checks and its install step are
-  tested as a normal user on throw-away folders; the part that runs as root - through pkexec, sudo and the boot
-  unit - could not be run by the tests.
-- **The GPU Compute comparison speed-ups**: checked on the compiler's output and against the fake runtime; the new
-  numbers on a real card, real NVIDIA CUDA, and RDNA 3 or older AMD cards are still to be measured.
+  tested as a normal user on throw-away folders. The tests never run it as root; it was run as root once by hand
+  on the author's PC, through sudo: exit 0, the cache folder owned by the user with mode 700, every file there.
+  That run was before the last small change (the memory controller lock's new place and the options read as the
+  user), which was tested as a normal user only. Through pkexec and the boot unit the new script has not been
+  run yet.
+- **The GPU Compute comparison speed-ups**: measured on the one Radeon RX 9070 XT (see "Changed" above), one run
+  before and one after; on real NVIDIA CUDA, Intel, and RDNA 3 or older AMD cards they are not measured.
 - The PM table telemetry on 16-core Ryzen 7000 and every other table version (shown as "not known"), Intel and
   NVIDIA GPUs in general, laptops and PCs with two graphics cards, ARM and 32-bit builds (built, not run on such
   hardware), and real installs on other distributions (the release packages are install-tested in containers).

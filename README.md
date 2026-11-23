@@ -197,9 +197,14 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     installed back end on the same GPU, side by side, fastest marked, % of Vulkan; "CUDA (ZLUDA)"
     and one column per OpenCL driver. CUDA's kernels are built in (pre-compiled PTX), so CUDA and
     ZLUDA need no NVIDIA runtime compiler; OpenCL drivers without FP64 say so. 2.6: it runs in its own
-    process, so a crashing GPU runtime no longer closes SRS. ROCm / HIP, CUDA and OpenCL should no longer lose
-    speed to SRS's own code (not yet measured on a real card): 64-wide waves for AMD's compiler, no sleeping in
-    the launch wait, GPU copies and host timing on Rusticl; a **how it ran** line says what applied. GPU Burnin
+    process, so a crashing GPU runtime no longer closes SRS. ROCm / HIP, CUDA and OpenCL lose less speed to
+    SRS's own code: 64-wide waves for AMD's compiler, no sleeping in the launch wait, GPU copies and host timing
+    on Rusticl; a **how it ran** line says what applied. Measured on one Radeon RX 9070 XT (10 s per test,
+    before and after in one session, Vulkan = 100%): FP32 multiply-add chain on ROCm / HIP 38% -> 78% and on
+    OpenCL (ROCm) 38% -> 75%; launch round trip 105 -> 17 µs (HIP, ZLUDA), 106 -> 21 (OpenCL ROCm), 310 -> 40
+    (Rusticl); Rusticl upload 25.9 -> 53.0 GB/s and download 5.25 -> 52.6 GB/s. The own-kernel FP32 matrix
+    multiply on HIP and OpenCL (ROCm) stayed near 60%, and ZLUDA's multiply-add near 40%. Other GPUs not
+    measured. GPU Burnin
     is unchanged.
   - **GPU Tuning (read-only)** (2.6, Benchmarks & Stress page; `sysreport-search gpu-tune status`) - what each
     graphics card is set to right now (voltage offset, core clock offset, highest memory clock, power limit),
@@ -236,9 +241,9 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     GPU Tuning and `gpu-burn --json` / `--watch-kernel` (2.6) were built and tested on made-up `/sys` files, a
     stand-in for Tux Burner's service, lavapipe, a fake GPU runtime and made-up kernel log lines; on the real
     card, `gpu-tune status` was read once and `gpu-burn --json --watch-kernel` passed one run on the RX 9070 XT,
-    but the watch has never seen a real GPU reset. The 2.6 GPU Compute
-    comparison speed-ups were checked on the compiler's output and the fake runtime: their numbers on a real
-    card are still to be measured. GPU Burnin ends by itself on a
+    but the watch has never seen a real GPU reset; the status matched what LACT shows, and a real Tux Burner
+    service was not asked. The 2.6 GPU Compute comparison speed-ups were measured on that one RX 9070 XT (one
+    10 s run before and one after, numbers above and in EVIDENCE.md); other GPUs were not measured. GPU Burnin ends by itself on a
     driver error, a GPU that stops answering, a piece of work that takes far too long, or a
     temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)

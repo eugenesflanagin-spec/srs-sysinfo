@@ -90,11 +90,13 @@
         <p>GPU Burnin for other programs: a JSON result with exit codes, a card chosen by its PCI
         address, and a kernel log watch that fails a run when the GPU was reset. The GPU Compute
         comparison runs in its own process, so a crashing GPU runtime no longer closes SRS. ROCm / HIP,
-        CUDA and OpenCL should no longer lose speed to SRS's own code (not yet measured on a real card). Also: CPU voltages, temperatures and
+        CUDA and OpenCL lose less speed to SRS's own code: measured on one Radeon RX 9070 XT, the FP32
+        multiply-add chain on ROCm / HIP went from 38% to 78% of Vulkan and the launch round trip from
+        105 to 17 microseconds; other GPUs not measured. Also: CPU voltages, temperatures and
         clocks from the SMU PM table, five more DDR5 timings, the AGESA version, CPU speeds at the
         measured base clock, and The Big Top from the tray.</p>
-        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): GPU Tuning was tried on made-up
-        data only, and NVIDIA, Intel, older AMD cards and laptops are untested - please report what
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): GPU Tuning was built on made-up
+        data and read once on that card, and NVIDIA, Intel, older AMD cards and laptops are untested - please report what
         you see.</p>
       </description>
     </release>

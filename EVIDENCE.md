@@ -239,18 +239,67 @@ or result files were used or looked at for them. Public sources are credited in 
   radeonsi (the driver under Rusticl) builds a compute shader 64 wide on RDNA 3 / 4 unless its fixed
   work-group size is not a multiple of 64 (an OpenCL kernel has no fixed size) or it has a loop whose
   length differs between threads (the multiply-add loop's does not) - so Rusticl's multiply-add chain
-  should not be behind for the wave width; this was read, not measured. The same offline compile shows that the plain
+  should not be behind for the wave width; this was read, not measured (the later run on the card, below, has it
+  at 65 to 68% of Vulkan before and after, so something else holds it back there: not found). The same offline compile shows that the plain
   kernel text GPU Burnin gets gives exactly the instructions of the 2.5 text (FP32 and FP64, HIP and
   OpenCL), and that the tuned text changes only `gemm_r` and `fma_r`. None of the 2.6.0 changes
   was run on a real GPU before the commit: compiler output and the fake runtime
-  (`tests/gpu-stub-test.sh`) only.
+  (`tests/gpu-stub-test.sh`) only. They were measured on the card afterwards (the table below).
   The gaps quoted in brackets in the 2.6.0 changelog are **before** numbers, from the author's GPU Compute
   comparison run of 2026-11-23 04:58 on a Radeon RX 9070 XT (60 s per test, 1024 x 1024 matrices; RADV on
   Mesa 27.0-devel, HIP 7.16, ZLUDA, ROCm's OpenCL, Rusticl), as kept in SRS's Benchmark History: FP32 matrix
   multiply, own kernel, Vulkan 6089 GFLOPS, ROCm / HIP 3298 (54%), Rusticl 3036 (50%); FP32 multiply-add chain
   Vulkan 51495, ROCm / HIP 18246 and ZLUDA 18040 (35%); launch round trip Vulkan 47.6 µs, ROCm / HIP 155.2,
   ZLUDA 212.9, OpenCL (ROCm) 225.4, Rusticl 436.1. The 155 µs launch round trip of ROCm / HIP is the value of
-  every run kept since 2026-10-27, so this run had the waits as they were in 2.5. The Rusticl upload / download
+  every run kept from 2026-10-27 to 2026-11-23 04:58, so that run had the waits as they were in 2.5. Later the
+  same day the same PC, with a build from before the changes, measured 105 µs (the "before" column below; the
+  untouched Vulkan row also differs, 47.6 µs then and 24.4 now, in a 60 s and a 10 s run; why was not looked
+  into), which is why
+  the launch row is compared with 105 and not with 155. The Rusticl upload / download
   figures (17 and 4.9 GB/s against about 55 / 52) are not in the history line (it keeps four numbers per back
-  end), so the run they are from is not recorded here. The speed-ups themselves are
-  **not yet measured on a real card**.
+  end), so the run they are from is not recorded here.
+
+  **2.6.0, the changes measured on the card (2026-11-23, 15:54 to 16:09).** One Radeon RX 9070 XT (RDNA 4,
+  `gfx1201`); Vulkan 1.4.368 by RADV and OpenCL 3.1 by Rusticl, both Mesa 27.0.0-devel; HIP 7.16.0; CUDA 13.0
+  through ZLUDA (built-in PTX kernels, no NVRTC); ROCm's OpenCL 2.1 (driver 3684.0); CLBlast for both OpenCL
+  drivers. Method: `sysreport-search gpu-compare --seconds 10 --yes` twice, one run straight after the other
+  from one script, same session, same GPU settings: **before** = the installed 2.6.0 pre-release package of
+  2026-11-07, which has none of the changes (no "how it ran" lines; a gcc 16.2 x86-64-v4 build), **after** =
+  this source at commit `111a27c` (a gcc 16.2 baseline x86-64 build; the GPU kernels do not depend on that).
+  1024 x 1024 matrices, 256 MiB memory tests, 10.0 s of GPU time per test. Both runs ended with exit code 0 and
+  every result checked (no error cell), and the kernel log of that time has no ring timeout, GPU reset or lost
+  video memory. The after run's "how it ran" lines say: ROCm / HIP and OpenCL (ROCm) "FP32 own kernels built
+  for 64-wide waves", Rusticl "timed on the host, on a queue without profiling; upload / download are GPU
+  copies from / to a system-memory buffer". Each cell is before -> after; the percentage is of the Vulkan value
+  of the same run. GFLOPS unless a unit is given.
+
+  | Test | Vulkan | ROCm / HIP | CUDA (ZLUDA) | OpenCL (ROCm) | OpenCL (Rusticl) |
+  |---|---|---|---|---|---|
+  | FP32 matrix multiply, own kernel | 6082 -> 5888 | 3443 (57%) -> 3582 (61%) | 5389 (89%) -> 5378 (91%) | 3569 (59%) -> 3409 (58%) | 3526 (58%) -> 4083 (69%) |
+  | FP32 matrix multiply, vendor library | - | 13683 -> 13318 | 13571 -> 13564 | 12786 -> 11521 | 5278 -> 9073 |
+  | FP16 matrix multiply, own kernel | 7319 -> 7294 | - | - | - | - |
+  | FP16 matrix multiply, vendor library | - | 13003 -> 12173 | 12988 -> 12960 | 15787 -> 15449 | 5689 -> 13738 |
+  | FP64 matrix multiply, own kernel | 891 -> 895 | 890 (100%) -> 890 (99%) | 888 (100%) -> 887 (99%) | 889 (100%) -> 827 (92%) | no FP64 |
+  | FP64 matrix multiply, vendor library | - | 889 -> 889 | not available | 882 -> 817 | no FP64 |
+  | FP32 multiply-add chain (peak) | 52124 -> 52375 | 19715 (38%) -> 40680 (78%) | 19913 (38%) -> 20801 (40%) | 19918 (38%) -> 39156 (75%) | 35572 (68%) -> 34094 (65%) |
+  | FP64 multiply-add chain (peak) | 913 -> 917 | 937 (103%) -> 937 (102%) | 937 (103%) -> 934 (102%) | 937 (103%) -> 870 (95%) | no FP64 |
+  | Video memory copy, GB/s | 580 -> 579 | 605 -> 604 | 607 -> 602 | 605 -> 591 | 586 -> 611 |
+  | Upload, GB/s | 55.80 -> 55.82 | 55.33 -> 55.33 | 55.33 -> 55.30 | 54.96 -> 54.91 | 25.91 (46%) -> 53.00 (95%) |
+  | Download, GB/s | 52.63 -> 52.64 | 52.24 -> 52.25 | 52.24 -> 52.02 | 51.93 -> 51.89 | 5.25 (10%) -> 52.58 (100%) |
+  | Kernel launch round trip, µs (lower is better) | 24.4 -> 23.7 | 105 -> 17.1 | 105 -> 17.4 | 106 -> 21.0 | 310 -> 40.4 |
+
+  What the table shows, and what it does not:
+  - Clear gains, each many times larger than the change of the untouched Vulkan column (under 4% in every
+    row): the FP32 multiply-add chain on ROCm / HIP (2.06 times) and OpenCL (ROCm) (1.97 times); the launch round
+    trip on all four (6.1, 6.0, 5.0 and 7.7 times shorter); Rusticl's upload (2.05 times), download (10 times),
+    own-kernel FP32 matrix multiply (+16%) and its CLBlast rows (1.7 and 2.4 times, from the host timing).
+  - No real change: the own-kernel FP32 matrix multiply on ROCm / HIP (+4%), OpenCL (ROCm) (-4%) and ZLUDA
+    (0%), so the 64-wide waves and the lighter HIP barrier did not close that gap on this card; the FP32
+    multiply-add chain on ZLUDA (+4%, it stays 32 wide) and on Rusticl (-4%).
+  - Lower after, not explained: OpenCL (ROCm) FP64 own kernel, CLBlast FP64 and FP64 multiply-add chain (each
+    about 7% down) and CLBlast FP32 (10% down); hipBLAS FP16 (6% down). The FP64 kernels are built 32 wide as
+    before and CLBlast is not SRS's code, but one run cannot say whether this is the run or the change.
+  - Limits: one run of each, 10 s per test, one card. From 16:08:45 the desktop shell (plasmashell) crashed and
+    restarted again and again (16:08:45, 16:09:22, 16:09:39 ...) for reasons unrelated to SRS; the after run ended at about 16:09:50, so its last
+    minute (columns run left to right, so most likely Rusticl) overlapped that. It can only have lowered the
+    after numbers. No other GPU, no real NVIDIA CUDA and no Intel GPU was measured.

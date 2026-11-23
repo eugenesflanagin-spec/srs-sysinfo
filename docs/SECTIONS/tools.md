@@ -1177,8 +1177,9 @@ search for the limits of a card step by step, behind safety limits of its own. T
 the only part that writes to the card. SRS shows the result here and brings its own
 [GPU Burnin](#gpu-burnin) as the test that judges a setting.
 
-Not tested on real hardware yet: this page was built and tested with made-up system files and a fake
-Tux Burner service. Other AMD generations, NVIDIA, Intel and laptops with two graphics cards may show
+Tested on one real card only: this page was built and tested with made-up system files and a fake
+Tux Burner service; on the author's Radeon RX 9070 XT (with LACT) its status was read and showed the same
+settings as LACT, and a real Tux Burner service was not asked. Other AMD generations, NVIDIA, Intel and laptops with two graphics cards may show
 something odd; please report it.
 
 ---
@@ -1257,17 +1258,24 @@ into short pieces, each with a watchdog. A GPU that hangs or stops answering end
 back end touches that GPU again, and the tests that did not run say **not run** (the line under the
 table says why). Stop works. SRS never changes clocks, voltages or fans.
 
-**Healthy / typical values.** Measured by the author on real hardware once, for CUDA through ZLUDA
-only: a Radeon RX 9070 XT with ZLUDA (preview build, no NVRTC), 2026-10-29 - own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860; cuBLAS FP64
-"not available". The other back ends were measured only on the software renderer. In general the vendor libraries are much faster than a plain kernel for matrix
+**Healthy / typical values.** Measured by the author on one real card only. First for CUDA through
+ZLUDA: a Radeon RX 9070 XT with ZLUDA (preview build, no NVRTC), 2026-10-29 - own-kernel FP32 matrix multiply 5377 GFLOPS, cuBLAS FP32 16392, cuBLAS FP16 77046, own-kernel FP64 860; cuBLAS FP64
+"not available". Then all back ends, 2026-11-23, same card, SRS 2.6.0, 10 s per test (Vulkan = 100%): own-kernel FP32
+matrix multiply Vulkan 5888 GFLOPS, CUDA (ZLUDA) 91%, OpenCL (Rusticl) 69%, ROCm / HIP 61%, OpenCL (ROCm) 58%;
+FP32 multiply-add chain Vulkan 52375, ROCm / HIP 78%, OpenCL (ROCm) 75%, Rusticl 65%, ZLUDA 40%; upload about
+53 to 56 GB/s and download about 52 GB/s on every back end; launch round trip 17 to 40 µs. Other GPUs were not
+measured. In general the vendor libraries are much faster than a plain kernel for matrix
 multiply, and the own-kernel rows show how well each driver compiles the same simple code; a
 healthy result has every row filled in and no errors.
 
 **Unusual values and what they suggest.**
 - One back end far behind the others on the same card: an old or debug runtime, or a driver that
-  does not support that card well. Since 2.6 SRS's own code should no longer be the reason; if
-  a **how it ran** line says the compiler refused the 64-wide waves, that column's FP32 own-kernel
-  and multiply-add rows run at about half of what the card can do on RDNA 3 / 4.
+  does not support that card well. Since 2.6 SRS's own code is less often the reason (measured on one
+  Radeon RX 9070 XT: the FP32 multiply-add chain on ROCm / HIP rose from 38% to 78% of Vulkan; the own-kernel
+  FP32 matrix multiply stayed near 60% there); if
+  a **how it ran** line says the compiler refused the 64-wide waves, that column's FP32
+  multiply-add row runs at about half of what it can reach on RDNA 3 / 4 (on the one card measured the
+  own-kernel matrix multiply row hardly changed with the wave width).
 - **WRONG RESULT** in a column whose **how it ran** line says 64-wide waves: run again with
   `SRS_GPU_WAVE=32` before suspecting the card. Wrong both ways: the card or its driver. Wrong only
   64 wide: the runtime's 64-wide mode (please report it), not the card.

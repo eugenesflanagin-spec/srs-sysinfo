@@ -525,8 +525,9 @@ $ sysreport-search gpu-tune status --all
 $ sysreport-search gpu-tune status --pci 0000:03:00.0 --json
 ```
 
-Not tried on a real card, a real Tux Burner service or a real LACT yet (tests use made-up files and a fake
-service); other AMD generations, NVIDIA, Intel and laptops with two cards may show something odd.
+Built and tested with made-up files and a fake service. On the author's real card (Radeon RX 9070 XT, with LACT)
+`gpu-tune status` was read and showed the same settings as LACT. Not tried with a real Tux Burner service;
+other AMD generations, NVIDIA, Intel and laptops with two cards may show something odd.
 
 ### `ir` - IR Blaster: learn and send infrared codes
 
