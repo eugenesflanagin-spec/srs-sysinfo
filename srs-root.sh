@@ -244,6 +244,8 @@ if [ "$vend" = AuthenticAMD ] && { { [ "${fam:-0}" = 25 ] && [ "${mod:-0}" -ge 9
       dd if="$tmp" of="$SMN" bs=4 count=1 status=none 2>/dev/null || return 1
       od -An -tx4 -N4 "$SMN" | tr -d ' '
     }
+    # the lock file is in /run, opened without truncating (as the srs-root lock above: not in /run/lock, which
+    # everyone may write to on some systems)
     (
       flock -w 10 9 || exit 1   # one SMN user at a time (the driver keeps a single result)
       echo "# AMD UMC registers, family $fam model $mod, $(date -Is)"
@@ -254,7 +256,7 @@ if [ "$vend" = AuthenticAMD ] && { { [ "${fam:-0}" = 25 ] && [ "${mod:-0}" -ge 9
           [ "$v1" = "$v2" ] && printf 'ch%d 0x%05X %s\n' "$ch" "$off" "$v1"   # a value that changed between reads is left out
         done
       done
-    ) 9>/run/lock/srs-smn.lock > umc.txt
+    ) 9>>/run/srs-smn.lock > umc.txt
     rm -f "$tmp"
     log umc
   else
@@ -306,14 +308,20 @@ rm -f pmic-*.txt
 # 2.4, opt-in (Options > Read the embedded controller): the EC's 256 registers through ec_sys, loaded read-only
 # (write_support stays 0); unloaded again if this run loaded it
 rm -f ec.bin
-if grep -qs '^Read EC=1' "$home/.config/srs/SRSDEF.ini"; then
+# The user's options file is read by a process running as the user, never by root (a link there cannot make root read
+# another file), and with a time limit where there is one (a named pipe planted there cannot hold the lock for ever).
+opt_on() {
+  if command -v timeout >/dev/null; then as_user timeout 5 grep -qs "^$1=1" "$home/.config/srs/SRSDEF.ini"
+  else as_user grep -qs "^$1=1" "$home/.config/srs/SRSDEF.ini"; fi
+}
+if opt_on 'Read EC'; then
   had=0; [ -d /sys/module/ec_sys ] && had=1
   modprobe ec_sys write_support=0 2>/dev/null
   [ -r /sys/kernel/debug/ec/ec0/io ] && dd if=/sys/kernel/debug/ec/ec0/io of=ec.bin bs=256 count=1 status=none 2>/dev/null
   [ "$had" = 0 ] && modprobe -r ec_sys 2>/dev/null
   log ec
 fi
-if grep -qs '^Read DIMM PMIC=1' "$home/.config/srs/SRSDEF.ini" && command -v i2cdump >/dev/null; then
+if opt_on 'Read DIMM PMIC' && command -v i2cdump >/dev/null; then
   modprobe i2c-dev 2>/dev/null
   for d in /sys/bus/i2c/drivers/spd5118/*-00[5][0-7]; do
     [ -e "$d/eeprom" ] || continue

@@ -169,7 +169,10 @@ with its own Tray Meter Speed.
   that user (`runuser` / `setpriv`). A failed or interrupted run leaves the earlier data as it was, `acpi-calls.txt`
   is carried over, and a link planted in the cache folder can no longer make root overwrite the file it points to
   (with the boot unit enabled that needed no password; the issue is as old as the helper). One srs-root runs at a
-  time (a lock in `/run`), so the boot unit and Run as root cannot mix their files. New exit codes 4 (another
+  time (a lock in `/run`), so the boot unit and Run as root cannot mix their files. The older lock for the memory
+  controller read moved from `/run/lock/srs-smn.lock` to `/run/srs-smn.lock` for the same reason (`/run/lock` can
+  be written by everyone on some systems), and the two options srs-root looks up in the user's settings file are
+  now read by a process running as the user, with a time limit. New exit codes 4 (another
   srs-root is still running) and 5 (collected, but the cache could not be replaced). The part that runs as root was
   checked by reading and by tests of its pieces as a normal user (`tests/srs-root-args-test.sh`: the checks, a dry
   run, and the install step on throw-away folders); see "Tested" below.
