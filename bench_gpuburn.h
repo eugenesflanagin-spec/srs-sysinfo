@@ -83,6 +83,12 @@ typedef struct {
     gpuburn_cb cb;
     void *ud;
     gpuburn_result *res;             /* optional: filled when the run is over (also when it could not start) */
+    /* optional (2.6.0, gpu-burn --watch-kernel): asked once, when the load has ended and BEFORE the report file and the
+       history line are written (ud as for cb; rc is what bench_gpuburn is about to return, pci the first device's
+       address). A return of 1 with a sentence in msg means something outside the test's own numbers (a GPU reset in
+       the kernel log) makes the run a failure: the saved report and the history line then say FAIL with that
+       sentence, never PASS. bench_gpuburn's return value and *res are not changed by it. Not asked when nothing ran. */
+    int (*verdict)(void *ud, int rc, const char *pci, char *msg, size_t n);
 } gpuburn_cfg;
 
 void gpuburn_cfg_default(gpuburn_cfg *c);
@@ -90,7 +96,8 @@ void gpuburn_cfg_default(gpuburn_cfg *c);
    (why says why / what to install), -1 = back end missing */
 int  gpuburn_list(int backend, gb_info *out, int max, char *why, size_t wn);
 const char *gpuburn_stage(void);       /* "GPU Burnin: 12 s of 60 s, 0 errors" while running, "" when idle */
-/* run, render into o (may be NULL) and ~/.cache/srs/bench-gpuburn.txt, add a history line.
+/* run, render into o (may be NULL) and ~/.cache/srs/bench-gpuburn.txt, add a history line (both say FAIL when
+   c->verdict says so, whatever the test's own numbers were).
    0 PASS, 1 stopped by the user (no errors so far), 2 FAIL (compute errors found), -1 not started (why says why),
    -2 ended early by a safety rule (why says which; results so far are shown). When a GPU driver call does not
    come back at all, the run ends after a bounded wait, that worker thread is left behind and the GPU stays

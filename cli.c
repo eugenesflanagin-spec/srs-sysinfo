@@ -1101,7 +1101,12 @@ static void gbj_fold(gpu_sensors *m, const gpu_sensors *s)
     if (s->clock_mhz > m->clock_mhz) m->clock_mhz = s->clock_mhz;
 }
 
-typedef struct { int tty, live; double last; kw *k; } gbj_ctx;
+typedef struct {
+    int tty, live; double last; kw *k;
+    int nl;             /* the terminal's live line has been ended */
+    int judged, kev;    /* --watch-kernel: the verdict was asked for; the kernel events of this run's card */
+    char ksum[300];
+} gbj_ctx;
 
 /* the run's callback, about four times a second: the terminal line, and with --json-live one JSON line every 0.5 s */
 static void gpuburn_cb_cli(const gpuburn_snap *s, void *ud)
@@ -1124,6 +1129,36 @@ static void gpuburn_cb_cli(const gpuburn_snap *s, void *ud)
         puts("}");
         fflush(stdout);
     }
+}
+
+static int kw_count_for(const kw *k, const char *pci);
+/* --watch-kernel: the engine asks this when the load has ended and before it saves the report and the history line.
+   The seconds after the load ends are a known moment for hangs (the clocks change), so the log is watched a little
+   longer; then: 1 and the summary when the kernel reported trouble with this run's card (the run is a failure). */
+static int gpuburn_kernel_verdict(void *ud, int rc, const char *pci, char *msg, size_t n)
+{
+    gbj_ctx *x = ud;
+    const char *t = getenv("SRS_TEST_KWATCH_TAIL_S");   /* tests: a shorter wait */
+    double tail = t && *t ? atof(t) : 5.0;
+    int ticks = rc == -1 ? 0 : (int)(tail * 10);        /* nothing ran: nothing to wait for */
+    if (!x->k) return 0;
+    if (x->tty && !x->nl) { fputc('\n', stderr); x->nl = 1; }
+    g_gpu_cancel = 0;                                   /* Ctrl+C now ends the wait */
+    if (ticks > 0 && x->tty) fprintf(stderr, "gpu-burn: watching the kernel log for %.0f more seconds (Ctrl+C skips it)\n", tail);
+    while (ticks-- > 0 && !g_gpu_cancel) { struct timespec ts = { 0, 100000000L }; nanosleep(&ts, NULL); kw_poll(x->k); }
+    kw_poll(x->k);
+    x->judged = 1;
+    x->kev = kw_count_for(x->k, pci);
+    kw_summary(x->k, pci, x->ksum, sizeof x->ksum);
+    if (x->kev) {
+        const kw_event *ev;
+        int i, ne = kw_events(x->k, &ev);
+        fprintf(stderr, "gpu-burn: FAIL - %s\n", x->ksum);
+        for (i = 0; i < ne; i++) if (kw_event_for(&ev[i], pci)) fprintf(stderr, "  %5.1f s  %s\n", ev[i].t_s, ev[i].text);
+        snprintf(msg, n, "%s", x->ksum);
+        return 1;
+    }
+    return 0;
 }
 
 /* the exit code of a --json run, from what the engine said */
@@ -1261,7 +1296,7 @@ static int cmd_gpu_burn(int argc, char **argv)
     srs_out o;
     gpuburn_cfg c;
     gpuburn_result res;
-    gbj_ctx jx = { 0, 0, 0, NULL };
+    gbj_ctx jx = { 0 };
     char why[300], what[1200], dev[300], bk[80], kwhy[300] = "", ksum[300] = "";
     int i, yes = 0, list = 0, rc, hot = 0, json = 0, dev_set = 0, watch = 0, kev = 0;
     gpuburn_cfg_default(&c);
@@ -1369,26 +1404,17 @@ static int cmd_gpu_burn(int argc, char **argv)
     signal(SIGINT, on_int_gpu);
     if (json) signal(SIGTERM, on_int_gpu);   /* a program that ends the run gets its JSON and exit 10, not a dead child */
     why[0] = 0;
+    if (jx.k) c.verdict = gpuburn_kernel_verdict;   /* asked before the report file and the history line are written */
     rc = bench_gpuburn(&c, json ? NULL : &o, &g_gpu_cancel, why, sizeof why);   /* --json: standard output is the JSON alone */
-    if (jx.tty) fputc('\n', stderr);
-    if (jx.k) {
-        /* the seconds after the load ends are a known moment for hangs (the clocks change): keep watching */
-        const char *t = getenv("SRS_TEST_KWATCH_TAIL_S");   /* tests: a shorter wait */
-        double tail = t && *t ? atof(t) : 5.0;
-        int ticks = rc == -1 ? 0 : (int)(tail * 10);        /* nothing ran: nothing to wait for */
-        g_gpu_cancel = 0;                                   /* Ctrl+C now ends the wait */
-        if (ticks > 0 && jx.tty) fprintf(stderr, "gpu-burn: watching the kernel log for %.0f more seconds (Ctrl+C skips it)\n", tail);
-        while (ticks-- > 0 && !g_gpu_cancel) { struct timespec ts = { 0, 100000000L }; nanosleep(&ts, NULL); kw_poll(jx.k); }
+    if (jx.tty && !jx.nl) fputc('\n', stderr);
+    if (jx.k && !jx.judged) {   /* nothing ran (not started): no wait, but what the log said so far still counts */
         kw_poll(jx.k);
-        kev = kw_count_for(jx.k, res.pci);
-        kw_summary(jx.k, res.pci, ksum, sizeof ksum);
-        if (kev) {
-            const kw_event *ev;
-            int n = kw_events(jx.k, &ev);
-            fprintf(stderr, "gpu-burn: FAIL - %s\n", ksum);
-            for (i = 0; i < n; i++) if (kw_event_for(&ev[i], res.pci)) fprintf(stderr, "  %5.1f s  %s\n", ev[i].t_s, ev[i].text);
-        }
+        jx.kev = kw_count_for(jx.k, res.pci);
+        kw_summary(jx.k, res.pci, jx.ksum, sizeof jx.ksum);
+        if (jx.kev) fprintf(stderr, "gpu-burn: FAIL - %s\n", jx.ksum);
     }
+    kev = jx.kev;
+    snprintf(ksum, sizeof ksum, "%s", jx.ksum);
     signal(SIGINT, SIG_DFL);
     if (json) signal(SIGTERM, SIG_DFL);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);

@@ -284,6 +284,8 @@ void kw_summary(const kw *k, const char *pci, char *out, size_t n)
         int vram = 0;
         for (j = 0; j < k->nev; j++)
             if (!strcmp(k->ev[j].kind, w[i].kind) && kw_event_for(&k->ev[j], pci)) { if (!hit) hit = &k->ev[j]; vram |= k->ev[j].vram_lost; }
+            /* "VRAM is lost" that came after "reset succeeded" was marked on the reset-done event: it belongs to the reset */
+            else if (!strcmp(w[i].kind, "gpu-reset") && !strcmp(k->ev[j].kind, "gpu-reset-done") && kw_event_for(&k->ev[j], pci)) vram |= k->ev[j].vram_lost;
         if (!hit) continue;
         if (!strcmp(w[i].kind, "gpu-reset")) reset = 1;
         if (!strcmp(w[i].kind, "gpu-reset-done") && reset) continue;   /* said already */

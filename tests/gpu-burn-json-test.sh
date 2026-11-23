@@ -137,8 +137,17 @@ assert "event" not in L[-1]' "$OUT" 2>"$TMP/py.err" && ok "one sample line about
     js 'd["kernel_events"][1]["vram_lost"] is True and d["kernel_events"][1]["detail"] == "MODE1" and d["kernel_events"][2]["vram_lost"] is False' && ok "the reset: MODE1, video memory lost" || bad "reset details: $OUT"
     js '"ring timeout (gfx_0.0.0, in kwin_wayland)" in d["reason"] and "GPU reset (MODE1, video memory wiped)" in d["reason"]' && ok "the reason is in plain words" || bad "reason: $OUT"
     grep -q "FAIL - kernel log:" "$ERR" && ok "and it is said on standard error" || bad "nothing on standard error"
+    # 2.6.0 saved the report and the history line before it looked at the kernel log: both said PASS for this run
+    REP=$XDG_CACHE_HOME/srs/bench-gpuburn.txt; HIS=$XDG_CACHE_HOME/srs/bench-history.tsv
+    if grep -q "FAIL - kernel log:" "$REP" 2>/dev/null && grep -q "FAIL (kernel log)" "$REP" && ! grep -v "^How it works" "$REP" | grep -qw "PASS"; then ok "the saved report says FAIL with the kernel-log reason, and PASS nowhere (but in the note on how it works)"
+    else bad "the saved report of a run that failed on the kernel log:"; grep -n "PASS\|FAIL" "$REP" 2>/dev/null | head -5; fi
+    if tail -1 "$HIS" 2>/dev/null | grep -q "FAIL 0 errors.*kernel log: " && ! tail -1 "$HIS" | grep -qw "PASS"; then ok "the history line says FAIL with the reason, not PASS"
+    else bad "the history line of a run that failed on the kernel log: $(tail -1 "$HIS" 2>/dev/null)"; fi
     run kring-plain "${KW[@]}" SRS_TEST_KMSG=$FIX/amdgpu-ring-timeout.txt -- --backend vulkan --seconds 1 --yes --watch-kernel
     [ "$RC" = 1 ] && grep -q "FAIL - kernel log:" "$ERR" && ok "the same without --json: exit 1" || bad "plain kernel-watch run: exit $RC"
+    grep -q "Result of the run.*FAIL - kernel log:" <<<"$OUT" && ! grep -v "^How it works" <<<"$OUT" | grep -qw "PASS" && tail -1 "$HIS" | grep -q "^.*FAIL 0 errors" && ok "and the text report and its history line say FAIL too" || bad "plain kernel-watch run: the report still reads as a pass"
+    run kclean2 "${KW[@]}" SRS_TEST_KMSG=$FIX/clean.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    grep -v "^How it works" "$REP" | grep -qw "PASS" && ! grep -q "kernel log" "$REP" && tail -1 "$HIS" | grep -q "PASS 0 errors" && ok "a clean watched run is still saved as PASS" || bad "a clean watched run: $(tail -1 "$HIS")"
 
     echo "== kernel watch: the older amdgpu wording, NVIDIA Xid, an unknown driver error"
     run kold "${KW[@]}" SRS_TEST_KMSG=$FIX/old-format.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel

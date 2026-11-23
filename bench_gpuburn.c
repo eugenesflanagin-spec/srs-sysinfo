@@ -330,6 +330,7 @@ typedef struct {
     gpuburn_snap s;
     gpuburn_cfg c;
     char when[32], abort_msg[240];
+    char outside[300];                /* c.verdict's sentence: a failure the test's own numbers do not show ("" = none) */
     int rc;
 } bx;
 
@@ -348,7 +349,8 @@ static void gburn_render(srs_out *o, void *ctx)
         const gpuburn_dev *d = &x->s.dev[i];
         char res[48], er[24], it[24], sp[32], nm[64];
         int col = d->state == GBS_FAILED ? C_RED : d->state == GBS_ABORTED ? C_ORANGE : d->state == GBS_STOPPED ? C_ORANGE : C_GREEN;
-        snprintf(res, sizeof res, "%s", d->state == GBS_FAILED ? "FAIL" : d->not_started ? "COULD NOT START" : d->state == GBS_ABORTED ? "ENDED EARLY" : d->state == GBS_STOPPED ? (d->errors ? "FAIL (stopped)" : "stopped, 0 errors") : "PASS");
+        snprintf(res, sizeof res, "%s", d->state == GBS_FAILED ? "FAIL" : d->not_started ? "COULD NOT START" : d->state == GBS_ABORTED ? "ENDED EARLY" : d->state == GBS_STOPPED ? (d->errors ? "FAIL (stopped)" : "stopped, 0 errors") : x->outside[0] ? "FAIL (kernel log)" : "PASS");
+        if (x->outside[0] && col == C_GREEN) col = C_RED;   /* its own numbers were right; the kernel log says otherwise */
         snprintf(er, sizeof er, "%ld", d->errors);
         snprintf(it, sizeof it, "%ld", d->iterations);
         snprintf(sp, sizeof sp, "%.0f GFLOPS", d->gflops_avg);
@@ -357,6 +359,10 @@ static void gburn_render(srs_out *o, void *ctx)
     }
     so_par(o);
     so_tabs(o, tabs2, 1);
+    if (x->outside[0]) {   /* said before the details, in red: a saved report must never read as a pass */
+        so_kvf(o, "Result of the run", C_RED, "FAIL - %s", x->outside);
+        so_par(o);
+    }
     for (i = 0; i < x->s.ndev; i++) {
         const gpuburn_dev *d = &x->s.dev[i];
         char a[32], b[32], m[32], pw[32] = "not available", ck[32] = "not available", fn[32] = "not available";
@@ -614,6 +620,9 @@ static int gpuburn_run(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel,
     }
     if (!rc && atomic_load(&run->user)) rc = 1;
     x->rc = rc;
+    /* the caller's last word before anything is saved (gpu-burn --watch-kernel: the kernel log, watched a few seconds
+       longer). 2.6.0 saved the report and the history line first, so a run that failed on a GPU reset was kept as PASS */
+    if (c.verdict && !c.verdict(c.ud, rc, w[0].info.pci, x->outside, sizeof x->outside)) x->outside[0] = 0;
     bench_save_render("gpuburn", gburn_render, x, o);
     {
         char params[400], res[500];
@@ -622,8 +631,9 @@ static int gpuburn_run(const gpuburn_cfg *cfg, srs_out *o, volatile int *cancel,
         for (i = 0; i < nw; i++) { errs += x->s.dev[i].errors; its += x->s.dev[i].iterations; gf += x->s.dev[i].gflops_avg; }
         snprintf(params, sizeof params, "backend=%s device=%s%s precision=%s seconds=%.0f limit=%.0fC n=%d", gb_name[backend], x->s.dev[0].device,
                  nw > 1 ? " (+more)" : "", c.prec == GP_FP64 ? "FP64" : "FP32", c.seconds, c.limit_c, x->s.dev[0].n);
-        snprintf(res, sizeof res, "%s %ld errors, %ld multiplications, %.0f GFLOPS%s%.200s", rc == 0 ? "PASS" : rc == 1 ? "STOPPED" : rc == 2 ? "FAIL" : "ENDED EARLY",
+        snprintf(res, sizeof res, "%s %ld errors, %ld multiplications, %.0f GFLOPS%s%.200s", rc == 2 || x->outside[0] ? "FAIL" : rc == 0 ? "PASS" : rc == 1 ? "STOPPED" : "ENDED EARLY",
                  errs, its, gf, x->abort_msg[0] ? "; " : "", x->abort_msg);
+        if (x->outside[0]) { size_t k = strlen(res); snprintf(res + k, sizeof res - k, "; %.200s", x->outside); }
         if (nostartmsg[0]) { size_t k = strlen(res); snprintf(res + k, sizeof res - k, "; %.150s", nostartmsg); }
         bench_history_add("gpuburn", params, res);
     }
