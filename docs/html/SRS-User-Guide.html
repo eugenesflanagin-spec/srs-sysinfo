@@ -33,7 +33,7 @@ community. (SRS is an independent project, not affiliated with SIV or its author
 <section class="doc" id="user-guide">
 <h1 id="user-guide--srs-system-information---user-guide">SRS System Information -
 User Guide</h1>
-<p>Version 2.5.0. Package <code>srs-sysinfo</code>. Programs:
+<p>Version 2.6.0. Package <code>srs-sysinfo</code>. Programs:
 <code>srs-gui</code>, <code>sysreport-search</code>,
 <code>srs-root</code>, <code>srs-sysreport</code>.</p>
 <p>I wanted a Linux version of SIV (System Information Viewer) for
@@ -63,7 +63,7 @@ Software's product, used here only to say what SRS is modelled on.</p>
 <p>Other pages:</p>
 <ul>
 <li><a href="#sections-readme">SECTIONS/README.md</a> -
-<strong>Section Reference</strong>: every one of the 559 items, field by
+<strong>Section Reference</strong>: every one of the 560 items, field by
 field, what each value means, what is normal and what is not. Start here
 to <em>learn</em>.</li>
 <li><a href="#cli-reference">CLI-REFERENCE.md</a> - every command-line
@@ -129,13 +129,18 @@ with a USB infrared dongle.</li>
 <li><strong>The Big Top</strong> (2.5) - a live window for the whole PC
 (a task manager: processes, startup apps, users, services) and for each
 graphics card (a GPU view modelled on amdgpu_top).</li>
+<li><strong>GPU Tuning</strong> (2.6, read-only) - what your graphics
+card is set to right now (undervolt, overclock, power limit), its
+limits, and whether Tux Burner and LACT are installed. It only shows;
+changing settings comes in a later version (<a
+href="#user-guide--923-gpu-tuning-read-only">9.23</a>).</li>
 </ul>
 <p>Its main window puts everything in one place: an
 <strong>Overview</strong> that answers "Is my PC OK?", and one page per
 topic (processor, memory, sensors ...). For SIV users, the
 <strong>classic view</strong> looks and behaves like SIV, the
 long-running Windows tool, so they feel at home. It has all 538 of SIV
-5.87's report items (559 in total with SRS's own extras):</p>
+5.87's report items (560 in total with SRS's own extras):</p>
 <ul>
 <li><strong>364</strong> show real Linux data.</li>
 <li><strong>136</strong> are hardware most PCs do not have (Itanium,
@@ -161,7 +166,9 @@ pausing or re-prioritising a program, turning startup apps off and on
 (never deleting anything for good), starting and stopping services, and
 disconnecting a session - each only when you click, and each asks first
 before it ends, stops or turns off anything. The Big Top's GPU tabs only
-read.</p>
+read, and so does the GPU Tuning tab (2.6, <a
+href="#user-guide--923-gpu-tuning-read-only">9.23</a>): it never writes to a
+graphics card.</p>
 <h2 id="user-guide--2-who-it-is-for">2. Who it is for</h2>
 <ul>
 <li><strong>Beginners</strong> who want to know what hardware they have
@@ -190,7 +197,7 @@ cd srs-sysinfo
 makepkg -si</code></pre>
 <h3 id="user-guide--32-arch-linux---prebuilt-package-from-the-release">3.2 Arch
 Linux - prebuilt package from the release</h3>
-<pre><code>sudo pacman -U srs-sysinfo-2.5.0-1-x86_64.pkg.tar.zst</code></pre>
+<pre><code>sudo pacman -U srs-sysinfo-2.6.0-1-x86_64.pkg.tar.zst</code></pre>
 <h3 id="user-guide--33-optional-extras-recommended">3.3 Optional extras
 (recommended)</h3>
 <p>SRS works on its own. These packages let it show more (Arch names;
@@ -297,8 +304,8 @@ distribution - generic tarball</h3>
 <code>srs-sysinfo-&lt;version&gt;-linux-x86_64.tar.gz</code>, built on
 an older distribution (Ubuntu 24.04) so it runs on most current ones
 (glibc 2.38 or newer, GTK 3).</p>
-<pre><code>tar xzf srs-sysinfo-2.5.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.5.0-linux-x86_64
+<pre><code>tar xzf srs-sysinfo-2.6.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.6.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users</code></pre>
 <p>The optional boot-time unit (see <a
@@ -317,14 +324,14 @@ program in one file, with GTK and everything else it needs inside.
 Nothing is installed; you just run the file. It is built on Ubuntu
 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or
 newer).</p>
-<pre><code>chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
-./srs-sysinfo-2.5.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.5.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.5.0-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
+<pre><code>chmod +x srs-sysinfo-2.6.0-x86_64.AppImage
+./srs-sysinfo-2.6.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.6.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.6.0-x86_64.AppImage srs-sysreport     # the full system report</code></pre>
 <ul>
 <li><strong>Command line:</strong> every <code>sysreport-search</code>
 command works with the AppImage, for example
-<code>./srs-sysinfo-2.5.0-x86_64.AppImage find smart</code>. A link
+<code>./srs-sysinfo-2.6.0-x86_64.AppImage find smart</code>. A link
 named <code>sysreport-search</code> that points to the AppImage behaves
 like the real <code>sysreport-search</code>.</li>
 <li><strong>Updates:</strong> the AppImage knows where its updates are.
@@ -350,7 +357,7 @@ and the rest) come from Ubuntu 22.04 packages. Their licence files are
 inside it in <code>usr/share/doc/&lt;package&gt;/copyright</code>, and
 <code>usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt</code> lists which
 library came from which package (see them with
-<code>./srs-sysinfo-2.5.0-x86_64.AppImage --appimage-extract</code>).</li>
+<code>./srs-sysinfo-2.6.0-x86_64.AppImage --appimage-extract</code>).</li>
 </ul>
 <h3 id="user-guide--36-build-from-source">3.6 Build from source</h3>
 <p>You need <code>gcc</code>, <code>make</code>, <code>pkg-config</code>
@@ -635,7 +642,12 @@ reads the table only when the kernel allows it - that is, when the PC
 was booted with the kernel option <code>iomem=relaxed</code>, which
 weakens that protection. <strong>SRS never asks you to change
 this.</strong> Without it, Memory Timings says why that part is missing,
-and everything else on the page works.</p>
+and everything else on the page works. Since 2.6.0 there is another way:
+QTuxTimings' <code>aod_voltages</code> kernel module, once loaded with
+<code>sudo modprobe aod_voltages</code>, shows the same table to every
+user, and SRS then reads it from
+<code>/sys/kernel/aod_voltages/full_raw</code> (the page's Source line
+says so). SRS never loads that module itself.</p>
 <p><strong>The two opt-ins</strong> (Menu &gt; Options, both off by
 default, both ask first; they apply from the next Run as root):</p>
 <ul>
@@ -717,7 +729,7 @@ href="#user-guide--10-options">10</a>).</p>
 on them</h3>
 <p>Every page groups the items of one topic. "Item" is SRS's word for
 one table of information, such as <strong>Sensor status</strong> or
-<strong>SMART drives</strong>; there are 559 of them.</p>
+<strong>SMART drives</strong>; there are 560 of them.</p>
 <table>
 <thead>
 <tr>
@@ -1046,9 +1058,11 @@ sort it (<a href="#user-guide--68-sortable-tables">6.8</a>); right-click a tab f
 Keep, Replace with..., Move and Close (<a
 href="#user-guide--67-arranging-the-tabs-and-lineups">6.7</a>).</p>
 <p>The <strong>Benchmarks &amp; Stress</strong> page has one tab per
-tool (2.3.1): Stress &amp; Burnin (CPU and GPU), CPU Benchmarks, Cache
-&amp; Memory, Storage, OS latency, CPU compute, Everyday work, Network,
-GPU Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and
+tool (2.3.1): Stress &amp; Burnin (CPU and GPU), (2.6) the read-only
+<strong>GPU Tuning</strong> tab (<a
+href="#user-guide--923-gpu-tuning-read-only">9.23</a>), CPU Benchmarks, Cache &amp;
+Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU
+Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and
 Memory latency, each with its controls and live results, and compact
 sections at the top that jump to them (<a href="#user-guide--9-tools">9</a>);
 nothing runs until you press <strong>Run</strong> or
@@ -1864,7 +1878,7 @@ come from</h4>
 <tr>
 <th>Data</th>
 <th>Source</th>
-<th>Date in SRS 2.5.0</th>
+<th>Date in SRS 2.6.0</th>
 <th>Licence / terms</th>
 </tr>
 </thead>
@@ -2060,7 +2074,8 @@ electrical settings the BIOS chose: the processor's on-die termination
 and the DIMM and CPU memory voltages the BIOS set. These are what
 overclockers tune for stability. They come from a table the BIOS leaves
 in memory, which most kernels only let programs read when booted with
-<code>iomem=relaxed</code> (<a
+<code>iomem=relaxed</code> or through QTuxTimings'
+<code>aod_voltages</code> module if you have loaded it (<a
 href="#user-guide--54-what-srs-root-reads-since-24-and-the-opt-ins">5.4</a>); SRS
 never asks you to change that. They are shown only when the table's own
 timings match the live ones, so values from a layout that does not fit
@@ -2361,8 +2376,8 @@ it, the way a task manager does. A list on the left picks the page:
 your desktop's light or dark theme; the meters and graphs are dark
 instrument panels (CPU green, kernel time red, memory magenta, CPU power
 yellow, temperatures orange, disks green, network and GPU cyan).</p>
-<p>It reads the PC at the <strong>Performance and Tray Update
-Speed</strong> (every second by default; <a
+<p>It reads the PC at the <strong>Performance Update Speed</strong>
+(every second by default; <a
 href="#user-guide--111-live-tray-meters-and-the-task-manager-settings">11.1</a>) and
 only while the tab is shown and the window is not minimised. Graphs
 cover the last 60 samples. A stretch while the tab was hidden shows as a
@@ -2405,7 +2420,9 @@ graphics card. Pick one for its big meter, graphs and figures.</p>
 kernel time red), Utilization, Speed, Processes, Threads, Up Time, Base
 and Maximum Speed, Sockets, Cores, Logical Processors, Virtualization,
 Governor, Frequency Driver, Temperature, Package Power, Kernel Time,
-Load Average.</li>
+Load Average. Base and Maximum Speed are shown at the measured base
+clock; on a PC with a raised BCLK or eCLK a <strong>Base Clock</strong>
+line (for example 104.0 MHz) says so (2.6.0).</li>
 <li><strong>Memory:</strong> In Use, Available, Committed, Cached, Swap,
 Free, Buffers, Shared, Kernel Slab, Dirty, Memory Stalls, and a swap
 graph.</li>
@@ -3075,6 +3092,13 @@ protocol), and one TV: status, Test, Send, Repeat and Learn worked. The
 <code>045c:0134</code> models and the compressed (Huffman) protocol were
 checked against elksmart-comm's packets only, never on a real
 dongle.</li>
+<li>GPU Tuning (2.6, <a href="#user-guide--923-gpu-tuning-read-only">9.23</a>) and
+<code>gpu-burn --json</code> / <code>--watch-kernel</code> (<a
+href="#user-guide--918-gpu-burnin">9.18</a>): made-up system files, a stand-in for
+Tux Burner's service, a software renderer, a fake GPU runtime and
+made-up kernel log lines only. Not tried on a real graphics card, a real
+Tux Burner service, a real LACT or with a real GPU reset; NVIDIA, Intel,
+older AMD cards and laptops with two cards are untested.</li>
 </ul>
 <p><strong>Things to know about the GPU tests:</strong></p>
 <ul>
@@ -4397,6 +4421,28 @@ comparing every result with the first one comes from gpu-burn by Ville
 Timonen; the code is SRS's own. Tested on the author's real card with
 all four back ends (CUDA through ZLUDA; NVIDIA's own driver was not
 tried) - see the note at the start of this chapter.</p>
+<p><strong>For other programs (2.6).</strong> A program that wants to
+use GPU Burnin as its test - for example a tool that searches for the
+lowest stable voltage one step at a time - can run
+<code>sysreport-search gpu-burn --yes --json</code>: the result then
+comes as one line of JSON (a plain-text format programs can read), and
+the exit code says exactly what happened (0 PASS, 10 stopped, 11 wrong
+results, 12 could not start, 13 ended early, 14 a GPU reset, 15 the
+temperature limit). Add <strong><code>--watch-kernel</code></strong> and
+SRS also watches the kernel log (the system's own diary) while the test
+runs and for 5 seconds after it. That matters because a GPU that is
+pushed too far often does not fail <em>inside</em> the test: the driver
+notices that the GPU stopped answering, restarts it (a <em>GPU
+reset</em>), and the program that crashes is the desktop, while the
+test's own numbers look fine. With the watch on, such a reset fails the
+run. If the kernel log cannot be read on your system, SRS says so
+instead of pretending that nothing happened.
+<code>--pci 0000:03:00.0</code> picks the card by its PCI address.
+Without <code>--json</code> the command behaves exactly as before.
+Details and the JSON fields: <a
+href="#cli-reference--gpu-burn---gpu-burnin">CLI reference</a>. This
+part was tested on a software renderer, a fake GPU runtime and made-up
+kernel log lines, not with a real GPU reset.</p>
 <h3 id="user-guide--919-gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">9.19 GPU
 Compute: Vulkan vs HIP vs CUDA vs OpenCL</h3>
 <p><strong>In plain words:</strong> the same GPU work, run through every
@@ -4415,6 +4461,15 @@ one says what to install), <strong>Seconds per test</strong> (up to 60,
 default 1), <strong>Run</strong> (asks first), <strong>Run All</strong>
 (2.5: ticks every installed back end, then runs),
 <strong>Stop</strong>.</p>
+<p><strong>If a GPU runtime crashes (2.6.0).</strong> The comparison
+runs in a separate SRS process, so a crash inside a GPU driver or
+runtime no longer closes SRS. The status line says the test process
+crashed and names the step it was on. If a back end crashes while it is
+<em>starting</em> - on an RX 9070 XT, ROCm 10.1's HIP crashes as soon as
+ZLUDA's CUDA starts - SRS runs the comparison once more without it and
+says which one was left out, so the other back ends still get compared.
+Nothing is wrong with SRS when this happens; the fix is an update (or a
+rollback) of that runtime.</p>
 <p><strong>Reading the table.</strong> Each row is a test, each column a
 back end:</p>
 <ul>
@@ -4429,6 +4484,30 @@ the libraries can get.</li>
 copy</strong>, <strong>upload / download</strong> and <strong>kernel
 launch round trip</strong> (lower is better) work as in the <a
 href="#user-guide--917-gpu-benchmark">GPU Benchmark</a>.</li>
+<li><strong>how it ran</strong> (a line under the table, new in 2.6):
+shown when a back end's kernels were built, or its copies made, in a
+special way so that the comparison is fair. A graphics card runs its
+threads in groups called <em>waves</em>. The Vulkan driver builds its
+programs for 64 threads per wave, AMD's own compiler (ROCm / HIP and
+ROCm's OpenCL) for 32 unless it is asked, and on Radeon RX 7000 and 9000
+cards 32 uses only half of the card's arithmetic unit in these tests. So
+SRS asks for 64 there too, and the line says "FP32 own kernels built for
+64-wide waves". On OpenCL (Rusticl) the line says that the run is timed
+on the host (Rusticl's own timing makes it wait after every command,
+which halved some rows) and that upload and download are copied by the
+GPU from a buffer in system memory, as in the Vulkan test, because
+Rusticl's plain read and write calls copy on the CPU and are slow. The
+work and the checks are the same either way. If a compiler or driver
+refuses one of these, SRS falls back to the plain way and the line says
+what was refused. <code>SRS_GPU_WAVE=32</code>,
+<code>SRS_CL_TIMING=events</code> and <code>SRS_CL_XFER=plain</code>
+switch the three off, to compare with older SRS versions. If a column
+built for 64-wide waves ever shows WRONG RESULT, run it once more with
+<code>SRS_GPU_WAVE=32</code> before suspecting the card. GPU Burnin does
+none of this: it runs exactly as in 2.5.</li>
+<li><strong>Kernel launch round trip</strong> needs a quiet PC: it
+measures a few tens of millionths of a second, and other programs using
+the CPU make it look slower.</li>
 <li><code>*</code> marks the fastest in each row. <strong>(85%)</strong>
 after a number means that column reached 85% of Vulkan's speed in that
 row (above 100% = faster than Vulkan).</li>
@@ -4732,6 +4811,173 @@ loaded and the last 30 calls.</li>
 <p>A safe first try is a status method such as a device's
 <code>_STA</code> (it only reports whether the device is present and
 on). If you are not sure what a method does, do not run it.</p>
+<h3 id="user-guide--923-gpu-tuning-read-only">9.23 GPU Tuning (read-only)</h3>
+<p><strong>In plain words:</strong> a page that shows what your graphics
+card is <strong>set to right now</strong> - how much voltage is taken
+off, how much speed is added, the top memory speed and the most watts it
+may draw - together with the limits and with the two programs that can
+change those settings, <strong>Tux Burner</strong> and
+<strong>LACT</strong>. New in 2.6. <strong>It only shows. Nothing on
+this page changes the card, and SRS itself never writes to a graphics
+card.</strong> It is the first part of GPU tuning in SRS: the controls
+for trying a setting and for searching for a safe undervolt or overclock
+come in a later version.</p>
+<p>Open: <strong>Benchmarks &amp; Stress -&gt; GPU Tuning</strong> (the
+tab right after Stress &amp; Burnin), Menu -&gt; Benchmarks &amp; Stress
+-&gt; <strong>GPU Tuning (Read-Only)...</strong>, or
+<code>srs-gui --gui-open=gputune</code>. Command line:
+<code>sysreport-search gpu-tune status</code> (<a
+href="#cli-reference--gpu-tune---gpu-tuning-read-only-26">CLI
+reference</a>).</p>
+<p><strong>The words first.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Word</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Undervolt</strong></td>
+<td>Giving the GPU a little less voltage than the factory set. Less
+heat, less power, less fan noise; too much makes it unstable</td>
+</tr>
+<tr>
+<td><strong>Voltage offset</strong></td>
+<td>How many millivolts are taken off, at every speed at once.
+<code>-110 mV</code> = 0.110 V less</td>
+</tr>
+<tr>
+<td><strong>Overclock</strong></td>
+<td>Letting the GPU run faster than the factory setting</td>
+</tr>
+<tr>
+<td><strong>Core clock offset</strong></td>
+<td>How many MHz are added to the GPU's top speed</td>
+</tr>
+<tr>
+<td><strong>Power limit</strong></td>
+<td>The most watts the card may draw</td>
+</tr>
+<tr>
+<td><strong>OverDrive</strong></td>
+<td>The AMD driver's switch-board for these settings (one text file in
+<code>/sys</code>)</td>
+</tr>
+<tr>
+<td><strong>Tux Burner</strong></td>
+<td>A separate free program for GPU tuning. Its small root service is
+the only thing that writes to the card, and it holds the safety
+limits</td>
+</tr>
+<tr>
+<td><strong>LACT</strong></td>
+<td>The usual Linux program for everyday GPU settings and fan
+curves</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What the page shows,</strong> for every graphics card in the
+PC:</p>
+<ol type="1">
+<li><strong>The card</strong>, and one line each for <strong>Tux
+Burner</strong> (installed? its service running? which version?) and
+<strong>LACT</strong> (running? which profile is active?).</li>
+<li><strong>Now On The Card</strong> - voltage offset, core clock
+offset, highest memory clock and power limit as they are at this moment,
+and, when LACT runs, whether these are LACT's saved values.</li>
+<li><strong>Readings Right Now</strong> - temperature, power draw,
+clock, voltage, fan, as they were when the page was read (press
+<strong>Refresh</strong> or F5 to read again; the page does not refresh
+by itself).</li>
+<li><strong>Limits</strong> - the deepest undervolt Tux Burner's service
+will write (its <em>floor</em>), and the ranges the card's driver
+accepts. The driver's range is <strong>not</strong> a safe range: a card
+can freeze far inside it.</li>
+<li><strong>LACT's Saved Values</strong> for this card, with anything
+the card is not at marked in orange.</li>
+<li><strong>Changing Settings</strong> - what is missing before a
+setting could be changed, in plain words.</li>
+</ol>
+<p>The <a href="#sections-tools--gpu-tuning">Section Reference</a>
+explains every line.</p>
+<p><strong>What works with which card.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Card</th>
+<th>What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AMD, RDNA 4 (RX 9000) with OverDrive switched on</td>
+<td>Everything, read straight from the kernel's files - no other program
+needed</td>
+</tr>
+<tr>
+<td>AMD, RDNA 3 (RX 7000) with OverDrive switched on</td>
+<td>The same, except that these cards have no core clock offset: the
+page shows their highest core clock instead</td>
+</tr>
+<tr>
+<td>AMD, older generations</td>
+<td>The card is named and marked "not supported yet" (these cards use a
+different table)</td>
+</tr>
+<tr>
+<td>AMD with OverDrive switched off</td>
+<td>"No OverDrive controls": the driver shows a tuning table only with
+the kernel option <code>amdgpu.ppfeaturemask</code></td>
+</tr>
+<tr>
+<td>NVIDIA</td>
+<td>The values Tux Burner's NVIDIA back end reports, when Tux Burner's
+service runs; otherwise a note</td>
+</tr>
+<tr>
+<td>Intel and others</td>
+<td>A read-only "not supported yet" note</td>
+</tr>
+<tr>
+<td>A second card that is asleep</td>
+<td>Named, not read: SRS does not wake a card just to look at it. While
+it sleeps, Tux Burner's service is not asked about any card either (the
+question could wake it)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Without Tux Burner</strong> the page still works: reading
+needs no other program. It then says "Changing GPU settings needs Tux
+Burner, a separate free program that holds the safety limits. Reading
+works without it." and how to get it (Arch Linux: the package
+<code>tux-burner</code> from the AUR). If Tux Burner is installed but
+its service is not, the page gives the one command that installs the
+service; SRS does not install it for you.</p>
+<p><strong>With LACT running</strong> an orange line says so: LACT owns
+the card's settings, and SRS will never change what LACT has saved. If
+the page says the card is <em>not</em> at LACT's saved values, something
+else changed the card after LACT applied its profile; switching the
+profile in LACT, or a reboot, puts LACT's values back.</p>
+<p><strong>What SRS does and does not do here.</strong></p>
+<ul>
+<li>It <strong>reads</strong> the kernel's files, asks Tux Burner's
+service two read questions ("what is your status?" and "what can this
+card do?") and reads LACT's settings file.</li>
+<li>It <strong>never</strong> writes to the card, never sends Tux
+Burner's service a request that changes something, never contacts LACT's
+service, never edits LACT's file, and never runs Tux Burner's command
+line tool.</li>
+<li>A value it cannot know is left empty ("not available", "kept by Tux
+Burner"), not guessed.</li>
+</ul>
+<p><strong>Not tested on real hardware yet.</strong> I built and tested
+this page with made-up system files and a stand-in for Tux Burner's
+service, not on a real card, a real Tux Burner service or a real LACT.
+Other AMD generations, NVIDIA, Intel and laptops with two graphics cards
+may show something odd; if you see it, please open an issue with what
+the page showed.</p>
 <h2 id="user-guide--10-options">10. Options</h2>
 <p><strong>Menu -&gt; Options</strong> (in the main window's menu, the
 classic Menu and the tray's SRS Menu). All are saved in
@@ -5073,9 +5319,10 @@ SRS</strong>.</li>
 </thead>
 <tbody>
 <tr>
-<td><strong>Performance and Tray Update Speed</strong></td>
-<td>How often the Performance tab and the tray meters read the PC: Every
-0.25 s, Every 0.5 s, Every 1 s (Normal), Every 2 s, Every 5 s.</td>
+<td><strong>Performance Update Speed</strong></td>
+<td>How often the Performance tab reads the PC: Every 0.25 s, Every 0.5
+s, Every 1 s (Normal), Every 2 s, Every 5 s. Before 2.6.0 the tray
+meters used it too.</td>
 <td>Every 1 s</td>
 </tr>
 <tr>
@@ -5101,6 +5348,19 @@ reach the number of CPUs x 100 %. Off: the whole CPU is 100 %.</td>
 <td>The meters in the tray (the boxes below it are greyed while it is
 off).</td>
 <td><strong>off</strong></td>
+</tr>
+<tr>
+<td><strong>Tray Meter Speed</strong> (2.6.0)</td>
+<td>How often the tray meters update their icons and tooltips, apart
+from the Performance tab: the same choices. Slower is lighter on the
+desktop's tray, most of all with many meters (each one sends a new icon
+and tooltip every time). While the Performance tab is open SRS reads the
+PC at the faster of the two speeds; the meters still change only at
+theirs. The meters also take turns (one after another across the
+interval), an icon is sent only when its picture changes, and a tooltip
+change is announced at most every 3 s (or the Tray Meter Speed, if
+slower); hovering always shows the latest text.</td>
+<td>the Performance Update Speed until it is set</td>
 </tr>
 <tr>
 <td>The meter boxes, <strong>Disk Space Mount</strong></td>
@@ -5384,7 +5644,7 @@ Default file name: <code>srs-&lt;hostname&gt;.txt</code>
 (<code>srs-report.txt</code> when <strong>Options -&gt; Redact
 identifiers in saved reports</strong> is on).</li>
 <li><strong>Menu -&gt; Save All Items...</strong> saves every one of the
-559 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
+560 items. Default name: <code>srs-&lt;hostname&gt;-all.txt</code>. On
 the author's PC this is about 52,000 lines and takes about 12
 seconds.</li>
 </ul>
@@ -5398,7 +5658,7 @@ sysreport-search &#39;-save=[all]=share.txt&#39; --redact   # every item, identi
 <p>File layout: a header line with program, version, host, date and the
 item list, then each item starting with a line
 <code>[id]  [category]</code>:</p>
-<pre><code>srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+<pre><code>srs-gui - System Report Search V2.6.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 
@@ -5786,7 +6046,13 @@ href="#user-guide--111-live-tray-meters-and-the-task-manager-settings">11.1</a>)
 <td><code>0</code> every 2 s, <code>1</code> every 1 s (default),
 <code>2</code> every 0.5 s, <code>3</code> every 0.25 s, <code>4</code>
 every 5 s</td>
-<td>Performance and Tray Update Speed</td>
+<td>Performance Update Speed</td>
+</tr>
+<tr>
+<td><code>Tray Meter ms</code> (2.6.0)</td>
+<td><code>250</code>, <code>500</code>, <code>1000</code>,
+<code>2000</code> or <code>5000</code>; missing = the Update Speed</td>
+<td>Tray Meter Speed</td>
 </tr>
 <tr>
 <td><code>Start Page</code></td>
@@ -5885,6 +6151,29 @@ look.</td>
 2.4 one (for comparing) (<a href="#user-guide--918-gpu-burnin">9.18</a>).</td>
 </tr>
 <tr>
+<td><code>SRS_TUX_BURNER_SOCKET=path</code></td>
+<td>GPU Tuning asks Tux Burner's service at this socket instead of
+<code>/run/tux-burnerd.sock</code> (tests) (<a
+href="#user-guide--923-gpu-tuning-read-only">9.23</a>).</td>
+</tr>
+<tr>
+<td><code>SRS_GPU_WAVE=32</code></td>
+<td>GPU Compute comparison: ROCm / HIP and OpenCL (ROCm) build SRS's
+FP32 kernels for 32 threads per wave (AMD's default) instead of 64 (for
+comparing with older versions).</td>
+</tr>
+<tr>
+<td><code>SRS_CL_XFER=plain</code></td>
+<td>GPU Compute comparison: OpenCL (Rusticl) uploads and downloads with
+the plain read / write calls, as before 2.6 (for comparing).</td>
+</tr>
+<tr>
+<td><code>SRS_CL_TIMING=events</code></td>
+<td>GPU Compute comparison: OpenCL (Rusticl) is timed by the driver's
+event times, as before 2.6 (for comparing); <code>host</code> times any
+OpenCL driver on the host.</td>
+</tr>
+<tr>
 <td><code>SRS_RSMU_DIR=folder</code></td>
 <td>Read the ryzen_smu files (<code>pm_table</code>,
 <code>codename</code>, <code>pm_table_version</code>) from this folder
@@ -5935,7 +6224,7 @@ href="#sections-readme">SECTIONS/README.md</a>.</p>
 differences from SIV</h2>
 <ul>
 <li><strong>Two views, same data.</strong> The main window and the
-classic view show the same 559 items with the same text. The classic
+classic view show the same 560 items with the same text. The classic
 panels' extra buttons (for example Features, ARP, PnP Dev) are items in
 their own right: in the main window find them under <strong>All N
 items</strong> on the page, or with the search box. <strong>Open in
@@ -6002,7 +6291,8 @@ href="#user-guide--612-memory-timings">6.12</a>).</li>
 <li><strong>Memory Timings:</strong> live timings on AMD Ryzen 7000 /
 9000 desktop only (Intel experimental); the BIOS settings from the AOD
 table need <code>iomem=relaxed</code> on most kernels, which SRS never
-asks you to set.</li>
+asks you to set, or QTuxTimings' <code>aod_voltages</code> module,
+loaded by you (SRS never loads it).</li>
 <li>The optional <strong>Windows images</strong>
 (<code>SRS64X.exe</code>, <code>SRS32X.exe</code>, source build only)
 have only the ID lookup and report search features.</li>
@@ -6352,7 +6642,7 @@ affiliated with SIV or its author.) SIV is the work of Ray Hinchliffe,
 RH Software (rh-software.com).</p>
 <h2 id="sections-readme--how-to-use-this-reference">How to use this reference</h2>
 <p>This reference explains <strong>every item SRS can show</strong> -
-all 559 of them - one by one. For each item it says, in this order:</p>
+all 560 of them - one by one. For each item it says, in this order:</p>
 <ol type="1">
 <li><strong>In plain words</strong> - what it is, in one to three short
 sentences.</li>
@@ -6474,7 +6764,7 @@ href="#user-guide--111-live-tray-meters-and-the-task-manager-settings">11.1</a>.
 </tr>
 <tr>
 <td>Tools</td>
-<td>34</td>
+<td>35</td>
 <td><a href="#sections-tools">tools.md</a></td>
 <td>Benchmarks &amp; Stress; Tools</td>
 </tr>
@@ -9128,6 +9418,11 @@ Benchmark</a></td>
 <td>Linux data</td>
 </tr>
 <tr>
+<td><a href="#sections-tools--gpu-tuning">GPU Tuning</a></td>
+<td><code>gpu-tuning</code></td>
+<td>Linux data</td>
+</tr>
+<tr>
 <td><a href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU
 Compute: Vulkan vs HIP vs CUDA vs OpenCL</a></td>
 <td><code>gpu-compare</code></td>
@@ -9853,8 +10148,8 @@ never sends.</p>
 </tr>
 <tr>
 <td>Codename</td>
-<td>The driver's number for your CPU generation
-(<code>codename</code>)</td>
+<td>The driver's number for your CPU generation (<code>codename</code>),
+since 2.6.0 with its name, e.g. 20 (Raphael: Ryzen 7000, Zen 4)</td>
 <td>Tells the driver which table layout to use.</td>
 </tr>
 <tr>
@@ -9887,9 +10182,9 @@ slot means.</td>
 <p>A closing note says SRS is read-only and never sends SMU
 commands.</p>
 <p><strong>Healthy / typical values.</strong> On the author's 7800X3D:
-drv_version 0.1.7, codename 20, mp1_if_version 2, pm_table_version
-0x00540104 (5505284), pm_table_size 1704. A field shows <code>-</code>
-when the driver does not provide it.</p>
+drv_version 0.1.7, codename 20 (Raphael), mp1_if_version 2,
+pm_table_version 0x00540104 (5505284), pm_table_size 1704. A field shows
+<code>-</code> when the driver does not provide it.</p>
 <p><strong>Unusual values and what they suggest.</strong> "ryzen_smu
 driver not loaded": install and load the <code>ryzen_smu</code> module
 (it is not part of the normal kernel).</p>
@@ -9963,7 +10258,10 @@ die that holds the cores.</li>
 <li>Other labels the driver adds are shown as-is; unlabelled ones as
 <code>temp1</code>, <code>temp2</code> ...</li>
 </ul>
-<p>A note at the end explains Tctl and TccdN.</p>
+<p>A note at the end explains Tctl and TccdN. Since 2.6.0 a block
+<strong>From the SMU PM table</strong> adds the <strong>Hotspot</strong>
+(the hottest point the SMU sees) and one temperature per core (Zen 4
+desktop, PM table 0x540104, up to 8 cores; otherwise "not known").</p>
 <p><strong>Healthy / typical values.</strong> On the author's 7800X3D
 (one CCD): Tctl 53.6°C, Tccd1 48.1°C. Idle on a desktop is usually
 35-55°C. Under full load an X3D chip normally stays below about 89°C,
@@ -9979,7 +10277,8 @@ also hide it behind another driver.</li>
 </ul>
 <p><strong>Where Linux gets it.</strong> <code>k10temp</code> hwmon:
 <code>/sys/class/hwmon/hwmonN/temp*_input</code> and
-<code>temp*_label</code>.</p>
+<code>temp*_label</code>; the SMU block from the ryzen_smu PM table (11
+hotspot, 309-316 core temperatures).</p>
 <hr />
 <h2 id="sections-processors--amd-thm-registers--second-die">AMD THM registers @ second
 die</h2>
@@ -10528,24 +10827,24 @@ kernel)</td>
 <td>Range the hardware supports</td>
 <td>The absolute floor and ceiling.</td>
 </tr>
-<tr>
-<td>Governor</td>
-<td>Speed policy</td>
-<td><code>performance</code> = always aim high; <code>powersave</code>
-under amd-pstate-epp still boosts but follows EPP.</td>
-</tr>
-<tr>
-<td>EPP</td>
-<td>Energy Performance Preference</td>
-<td>Speed vs power hint.</td>
-</tr>
 </tbody>
 </table>
+<p>Since 2.6.0 Minimum, Maximum, HW Min and HW Max are shown at the
+<strong>measured base clock</strong>: the kernel works these limits out
+at a 100 MHz base clock, so on a PC with a raised BCLK or eCLK they
+would read too low next to Current. A note under the table gives the
+factor (for example x 1.040 for a 104 MHz eCLK). Current and Average are
+measured (APERF/MPERF x the TSC rate), so they already include the base
+clock and are not scaled. | Governor | Speed policy |
+<code>performance</code> = always aim high; <code>powersave</code> under
+amd-pstate-epp still boosts but follows EPP. | | EPP | Energy
+Performance Preference | Speed vs power hint. |</p>
 <p><strong>Healthy / typical values.</strong> On the author's 7800X3D:
-driver amd-pstate-epp, boost on; Current 4.2-5.1GHz under light load; HW
-Min 426MHz, HW Max 5.05GHz. Current can read a little above Maximum
-(5.11GHz vs 5.05GHz) because of rounding and a raised reference
-clock.</p>
+driver amd-pstate-epp, boost on; Current 4.2-5.1GHz under light load.
+With the author's 104 MHz eCLK: HW Min 443MHz and HW Max 5.25GHz (the
+kernel's own figures are 426MHz and 5.05GHz, at 100 MHz). Before 2.6.0
+Current could read above Maximum (5.12GHz vs 5.05GHz) for that
+reason.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>Every core stuck at a low Current under load: a thermal or power
@@ -10555,6 +10854,11 @@ EPP.</li>
 <li>All columns <code>-</code>: no cpufreq driver (virtual machine, or
 the driver failed to load).</li>
 </ul>
+<p>Since 2.6.0 an <strong>Effective clock per core (SMU PM
+table)</strong> block comes first (Zen 4 desktop, PM table 0x540104, up
+to 8 cores): the clock each core actually averaged over the SMU's last
+interval, so a resting core reads lower than its cpufreq request and one
+that slept the whole interval shows "resting (0)".</p>
 <p>Since 2.2 the same <strong>Stock and in effect now</strong> table as
 <a href="#sections-processors--cpu-clocks">CPU Clocks</a> follows the per-CPU table (both
 items share one page).</p>
@@ -10665,13 +10969,21 @@ supported motherboard sensor chip (Nuvoton <code>nct*</code>, ITE
 <code>it87*</code>, ASUS <code>asus*</code>, or <code>zenpower</code>):
 chip name, input label, and volts with three decimals. <code>in0</code>
 is shown as "Vcore sense" when it has no label; <code>in1</code> is
-shown too; other unlabelled inputs are skipped. A note says per-core
-voltage (VID) is not available from Linux drivers, so the board reading
-is shown.</p>
+shown too; other unlabelled inputs are skipped.</p>
+<p>Since 2.6.0 a block <strong>From the SMU PM table</strong> follows
+(Zen 4 desktop, PM table version 0x540104, up to 8 cores, through the
+ryzen_smu driver, read-only): <strong>VCORE</strong> (what the SMU
+measures), <strong>VID</strong> (what it asks the voltage regulator
+for), <strong>Package power (PPT)</strong> with its limit, and one
+voltage per core, labelled with its logical CPUs ("Core 3 (CPU 3, 11)").
+For any other table version, or more than 8 cores, it says "not known"
+instead of guessing; a table whose values make no sense is refused.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-nct6799 in0 (Vcore sense) 1.096 V, in1 1.000 V. Ryzen 7000 Vcore usually
-sits between about 0.9 and 1.35 V and moves constantly with load and
-boost.</p>
+nct6799 in0 (Vcore sense) 1.096 V, in1 1.000 V; SMU VCORE 1.160 V, VID
+1.109 V, PPT 50.9 W of 140 W at light desktop load, core voltages
+0.89-1.06 V (each core runs at its own voltage, so they differ). Ryzen
+7000 Vcore usually sits between about 0.9 and 1.35 V and moves
+constantly with load and boost.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>Nothing listed: no matching sensor driver is loaded (for many boards
@@ -10683,7 +10995,11 @@ wired to Vcore on your board.</li>
 </ul>
 <p><strong>Where Linux gets it.</strong> Super-I/O hwmon drivers,
 <code>/sys/class/hwmon/hwmonN/in*_input</code> and
-<code>in*_label</code>.</p>
+<code>in*_label</code>; the SMU block from
+<code>/sys/kernel/ryzen_smu_drv/pm_table</code> (32-bit floats: 2 PPT
+limit, 3 PPT, 271 VCORE, 275 VID, 301-308 core voltages; positions as
+listed by QTuxTimings / TuxTimings and checked on a 7800X3D against the
+board's Vcore sense).</p>
 <p><strong>Background.</strong> Vcore is the main supply voltage of the
 CPU cores. The CPU asks the board's voltage regulator for a voltage
 (VID); the board's sensor measures what actually arrives.</p>
@@ -11071,6 +11387,9 @@ drop off.</li>
 frequency</strong> - the clocks for nominal and lowest levels.</li>
 <li><strong>Maximum (boost) frequency</strong> - top clock from
 cpufreq.</li>
+<li>Since 2.6.0 the three frequencies are shown at the measured base
+clock (the kernel works them out at 100 MHz); on a PC with a raised BCLK
+or eCLK a note under them gives the factor.</li>
 <li><strong>Transition latency</strong> - time to change speed, in ns (0
 = the hardware does it itself).</li>
 </ul>
@@ -11090,9 +11409,10 @@ RAM), <code>disk</code> (hibernate).</li>
 </ul>
 <p><strong>Healthy / typical values.</strong> On the author's 7800X3D:
 Highest perf 166, Nominal 138, Lowest non-linear 98, Lowest 14, nominal
-4.20GHz, lowest 545MHz, boost 5.05GHz, transition 0 ns. Idle states
-POLL, C1, C2 (18 us), C3 (350 us). Sleep: freeze mem disk, suspend type
-<code>[deep]</code>, hibernate <code>[platform]</code>.</p>
+4.37GHz, lowest 567MHz, boost 5.25GHz (104 MHz eCLK; 4.20GHz / 545MHz /
+5.05GHz at 100 MHz), transition 0 ns. Idle states POLL, C1, C2 (18 us),
+C3 (350 us). Sleep: freeze mem disk, suspend type <code>[deep]</code>,
+hibernate <code>[platform]</code>.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>Suspend type only <code>s2idle</code>: the firmware offers no S3.
@@ -13144,6 +13464,13 @@ H2O</td>
 <td>Major.minor release number from SMBIOS</td>
 </tr>
 <tr>
+<td>AGESA</td>
+<td>(2.6.0) AMD's firmware base the BIOS is built on, e.g. ComboAm5PI
+1.3.0.1d, from the SMBIOS Additional Information string; needs Run as
+root once (dmidecode). Board makers' download pages list it next to each
+BIOS</td>
+</tr>
+<tr>
 <td>Board Maker / Board</td>
 <td>Motherboard maker and model</td>
 </tr>
@@ -14247,7 +14574,9 @@ ohms)</td>
 </tr>
 <tr>
 <td>Source</td>
-<td>"the BIOS's AOD table; its timings match the live ones above"</td>
+<td>"the BIOS's AOD table; its timings match the live ones above" (or
+"... read through the aod_voltages kernel module (QTuxTimings) ..." when
+it came from there)</td>
 </tr>
 </tbody>
 </table>
@@ -14256,8 +14585,12 @@ readable on this kernel: the table sits in memory that the kernel keeps
 from programs" (kernels built with IO_STRICT_DEVMEM, which is most,
 block it unless booted with <code>iomem=relaxed</code>, which weakens
 that protection; SRS does not ask you to change it, and the timings do
-not need it), "not read yet (Menu &gt; Run as root), or this BIOS has no
-AOD table", or "its layout is not known for this processor / BIOS yet
+not need it; <strong>Other way</strong> names QTuxTimings'
+<code>aod_voltages</code> kernel module, which shows the table to every
+user once loaded with <code>sudo modprobe aod_voltages</code> - SRS then
+reads <code>/sys/kernel/aod_voltages/full_raw</code> and never loads the
+module itself), "not read yet (Menu &gt; Run as root), or this BIOS has
+no AOD table", or "its layout is not known for this processor / BIOS yet
 (please report it)". The values are shown only when the table's own
 timings match the live ones, so a layout that does not fit a BIOS is
 never shown.</p>
@@ -14270,9 +14603,13 @@ between refreshes, in microseconds), tRFC / tRFC2 / tRFCsb (refresh
 cycle times), the read-to-read and write-to-write turnarounds (tRDRDSCL,
 tRDRDSC, tRDRDSD, tRDRDDD, tWRWRSCL, tWRWRSC, tWRWRSD, tWRWRDD), tRDWR,
 tWRRD, tCKE, tXP, tCPDED, tPD, tCSH, tMOD, tMRD, tPPD, tSTAG, tSTAGsb
-and the PHY delays tPHYWRD, tPHYWRL, tPHYRDL. A channel that differs
-from the others is a normal result of memory training for the PHY and
-turnaround values.</p>
+and the PHY delays tPHYWRD, tPHYWRL, tPHYRDL. Since 2.6.0 also tMODPDA /
+tMRDPDA (the mode register times in per-DRAM addressability mode),
+tTRCPAGE (a row activation limit used against row hammer; 0 = not used)
+and the write / read preamble settings tWRPRE / tRDPRE. A channel that
+differs from the others is a normal result of memory training for the
+PHY, turnaround and preamble values (the author's PC: tWRPRE / tRDPRE 3
+/ 3 on channel A, 2 / 4 on channel B).</p>
 <p><em>Modules (SPD)</em> - per DDR5 module, no root:
 <strong>Slot</strong>, <strong>Module</strong> (maker and part number),
 <strong>Size</strong> (size, ranks, chip size and width), <strong>DRAM
@@ -30510,16 +30847,17 @@ href="#glossary">Glossary</a></p>
 <p><strong>Where to find these items (SRS 2.2).</strong> In the main
 window they are on two pages. <strong>Benchmarks &amp; Stress</strong>
 (Alt+=) has (2.3.1) one tab per tool - Stress &amp; Burnin (CPU and
-GPU), CPU Benchmarks, Cache &amp; Memory, Storage, OS latency, CPU
-compute, Everyday work, Network, GPU Benchmark, GPU Compare, SRS Pi,
-Crypto, Prime Sieve, IPI delay and Memory latency - with its controls
-and live results, compact sections at the top that jump to them, and the
-benchmark history tab. <strong>Tools</strong> (Alt+Backspace) has
-buttons for Device ID Lookup, Find in a system report, Save Report, Run
-as root, the Classic view, (2.4) Update hardware lists and ACPI method
-evaluation (User Guide 9.21 and 9.22), and (2.5) <strong>The Big
-Top</strong>, the live window for the whole PC and each graphics card
-(also Ctrl+G; it is a window, not a report item: see <a
+GPU), (2.6) the read-only GPU Tuning tab, CPU Benchmarks, Cache &amp;
+Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU
+Benchmark, GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and
+Memory latency - with its controls and live results, compact sections at
+the top that jump to them, and the benchmark history tab.
+<strong>Tools</strong> (Alt+Backspace) has buttons for Device ID Lookup,
+Find in a system report, Save Report, Run as root, the Classic view,
+(2.4) Update hardware lists and ACPI method evaluation (User Guide 9.21
+and 9.22), and (2.5) <strong>The Big Top</strong>, the live window for
+the whole PC and each graphics card (also Ctrl+G; it is a window, not a
+report item: see <a
 href="#user-guide--613-the-big-top-live-pc-and-gpu-activity">User
 Guide 6.13</a> and <a
 href="#user-guide--614-the-performance-tab-a-task-manager">6.14</a>);
@@ -30607,6 +30945,7 @@ physical cores one at a time</a> <code>benchmark-pp</code></li>
 <li><a href="#sections-tools--gpu-benchmark">GPU Benchmark</a>
 <code>gpu-bench</code></li>
 <li><a href="#sections-tools--gpu-burnin">GPU Burnin</a> <code>gpu-burnin</code></li>
+<li><a href="#sections-tools--gpu-tuning">GPU Tuning</a> <code>gpu-tuning</code></li>
 <li><a href="#sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute:
 Vulkan vs HIP vs CUDA vs OpenCL</a> <code>gpu-compare</code></li>
 <li><a href="#sections-tools--srs-pi">SRS Pi</a> <code>srs-pi</code></li>
@@ -32367,6 +32706,296 @@ them; i915, xe and nouveau: what they offer). Stored in
 <code>~/.cache/srs/bench-gpuburn.txt</code>; each run is added to the <a
 href="#sections-tools--benchmark-history">Benchmark History</a>.</p>
 <hr />
+<h2 id="sections-tools--gpu-tuning">GPU Tuning</h2>
+<p><code>gpu-tuning</code> - Linux data</p>
+<p><strong>In plain words.</strong> This page shows what your graphics
+card is <strong>set to right now</strong>: how much voltage is taken off
+(the <em>undervolt</em>), how much speed is added (the
+<em>overclock</em>), the top memory speed and the most watts the card
+may draw. It also shows the limits, and whether the two programs that
+can change these settings - <strong>Tux Burner</strong> and
+<strong>LACT</strong> - are there. <strong>It only shows.</strong>
+Nothing on this page changes the card, and SRS itself never writes to a
+graphics card. (New in 2.6. It is the first part of GPU tuning in SRS;
+the controls for trying and searching settings come in a later
+version.)</p>
+<p>Open it: <strong>Benchmarks &amp; Stress -&gt; GPU Tuning</strong>
+(the tab right after Stress &amp; Burnin), Menu -&gt; Benchmarks &amp;
+Stress -&gt; <strong>GPU Tuning (Read-Only)...</strong>,
+<code>srs-gui --gui-open=gputune</code>, or on the command line
+<code>sysreport-search gpu-tune status</code>. The page is read once
+when it opens; press <strong>Refresh</strong> (F5) to read it again. It
+does not refresh by itself, so that it never keeps a graphics card
+awake.</p>
+<p><strong>What you see.</strong> One block per graphics card, headed by
+the card's name.</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Card</strong></td>
+<td>The kernel's name for the card (<code>card0</code>), its PCI address
+and its driver</td>
+</tr>
+<tr>
+<td><strong>Tux Burner</strong></td>
+<td>Not installed / installed but its service is not running / version
+and "running" with what it is doing (idle, a profile is active, a search
+is running) / the service does not serve this user / a version this SRS
+cannot use</td>
+</tr>
+<tr>
+<td><strong>LACT</strong></td>
+<td>Running or not; when it runs and a profile is selected, the
+profile's name</td>
+</tr>
+<tr>
+<td><strong>Settings Back End</strong></td>
+<td>Which part of Tux Burner serves this card: <em>Tux Burner AMD
+(OverDrive)</em> or <em>Tux Burner NVIDIA</em>. The line is missing when
+Tux Burner's service does not know the card</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Now On The Card</strong></p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Voltage Offset</strong></td>
+<td>Millivolts taken off the GPU's core voltage at every speed.
+<code>-110 mV</code> = 0.110 V less than the factory set.
+<code>0 mV</code> = factory voltage</td>
+</tr>
+<tr>
+<td><strong>Core Clock Offset</strong></td>
+<td>MHz added to (or taken off) the GPU's top speed.
+<code>+300 MHz</code> = an overclock of 300 MHz (RDNA 4 cards)</td>
+</tr>
+<tr>
+<td><strong>Core Clock (Highest)</strong></td>
+<td>RDNA 3 cards have no offset: their table gives the highest core
+clock in MHz instead</td>
+</tr>
+<tr>
+<td><strong>Memory Clock (Highest)</strong></td>
+<td>The top speed of the video memory in MHz (AMD). NVIDIA cards show a
+<strong>Memory Clock Offset</strong> instead</td>
+</tr>
+<tr>
+<td><strong>Power Limit</strong></td>
+<td>The most watts the card is allowed to draw</td>
+</tr>
+<tr>
+<td><strong>Set By</strong></td>
+<td>Shown when LACT runs: either "LACT profile "name" (the card is at
+LACT's saved values)", or in orange that the card is
+<strong>not</strong> at LACT's saved values right now</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Readings Right Now</strong> - edge and hotspot temperature,
+power draw, core clock, core voltage and fan speed at the moment the
+page was read (from the card's sensors; missing lines mean the card does
+not report them).</p>
+<p><strong>Limits</strong></p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lowest Allowed Voltage Offset</strong></td>
+<td>Tux Burner's <em>floor</em>: the deepest undervolt its service will
+write (-150 mV unless you changed it in Tux Burner). Without Tux
+Burner's service this line says "kept by Tux Burner (not known without
+its service)" - SRS does not guess it</td>
+</tr>
+<tr>
+<td><strong>Driver Range, Voltage Offset / Core Clock Offset / Memory
+Clock / Power Limit</strong></td>
+<td>The lowest and highest value the card's driver itself accepts, and
+for the power limit the factory setting. <strong>This is what the driver
+accepts, not what is safe</strong>: a card can hang far inside this
+range</td>
+</tr>
+</tbody>
+</table>
+<p><strong>LACT's Saved Values</strong> - shown when LACT's settings
+file has values for this card: the voltage offset, core clock offset,
+highest memory clock and power limit of LACT's <strong>active
+profile</strong> (or of its base settings when no profile is selected).
+A value the card is not at is orange, and a line says "The card is not
+at these values right now". When LACT runs, an orange line reminds you
+that <strong>LACT owns this card's settings</strong> and that SRS will
+not change what LACT has saved.</p>
+<p><strong>Changing Settings</strong> - what would be needed to change
+something, in plain words:</p>
+<table>
+<thead>
+<tr>
+<th>What the page says</th>
+<th>What it means, and what to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Changing GPU settings needs Tux Burner, a separate free program
+that holds the safety limits. Reading works without it."</td>
+<td>Tux Burner is not installed. On Arch Linux install the package
+<code>tux-burner</code> from the AUR; elsewhere see its page (the link
+is on the tab)</td>
+</tr>
+<tr>
+<td>"Tux Burner's service is not running."</td>
+<td>Tux Burner is installed, its root service is not. Install the
+service from Tux Burner's window (one password prompt) or run
+<code>sudo tux-burner-cli --install-systemd-service</code>. SRS does not
+install it for you</td>
+</tr>
+<tr>
+<td>"Tux Burner's service answered: "daemon client uid is not
+allowed"."</td>
+<td>The service serves only the user it was installed for. Install it
+again while logged in as the user who runs SRS</td>
+</tr>
+<tr>
+<td>"This Tux Burner cannot be used by this SRS"</td>
+<td>The service speaks another protocol version. Install versions of SRS
+and Tux Burner that belong together</td>
+</tr>
+<tr>
+<td>"Searches from SRS need a newer Tux Burner for: ..."</td>
+<td>The service is fine for reading, but lacks safety features the
+coming search functions will require</td>
+</tr>
+<tr>
+<td>"This card has no OverDrive controls SRS can use here."</td>
+<td>An AMD card whose driver shows no tuning table: OverDrive is
+switched on with the kernel option
+<code>amdgpu.ppfeaturemask</code></td>
+</tr>
+<tr>
+<td>"This card uses the older OverDrive table ..."</td>
+<td>An older AMD card (before RDNA 3) that lists clock and voltage
+points instead of offsets. Not supported yet</td>
+</tr>
+<tr>
+<td>"NVIDIA cards have no settings SRS can read by itself."</td>
+<td>With Tux Burner's service running, its NVIDIA back end reports them
+here</td>
+</tr>
+<tr>
+<td>"This card is asleep ..."</td>
+<td>A second graphics card that the kernel powered down to save energy.
+SRS does not wake it just to read it</td>
+</tr>
+<tr>
+<td>"A graphics card in this PC is asleep, so Tux Burner's service was
+not asked about the cards"</td>
+<td>The service numbers the cards its own way, so asking about any card
+could wake the sleeping one.
+<code>sysreport-search gpu-tune status --wake</code> asks anyway</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Healthy / typical values.</strong> On a card nobody has
+tuned: voltage offset <code>0 mV</code>, core clock offset
+<code>0 MHz</code>, power limit = the factory setting. An example of a
+tuned card, the one SRS's tests are modelled on (a Radeon RX 9070 XT set
+up with LACT): <code>-110 mV</code>, <code>+300 MHz</code>, highest
+memory clock <code>1375 MHz</code>, power limit <code>374 W</code>;
+driver ranges <code>-200 .. 0 mV</code>, <code>-500 .. +1000 MHz</code>,
+<code>212 .. 374 W</code> (factory setting 304 W).</p>
+<p><strong>Unusual values and what they suggest.</strong></p>
+<ul>
+<li><strong>The card is not at LACT's saved values</strong> while LACT
+runs: another program changed the card after LACT applied its profile
+(for example a test in Tux Burner), or LACT has not applied yet.
+Switching the profile in LACT, or a reboot, puts LACT's values
+back.</li>
+<li><strong>A voltage offset below Tux Burner's floor</strong>, or a
+clock offset near the top of the driver range: far past what is usually
+stable. Expect screen freezes and program crashes under load.</li>
+<li><strong>Every setting "not available"</strong> on an AMD card: the
+driver shows no OverDrive table (see the table above).</li>
+</ul>
+<p><strong>Where Linux gets it.</strong></p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Voltage offset, clock offset, memory clock, driver ranges</td>
+<td><code>/sys/class/drm/cardN/device/pp_od_clk_voltage</code> (amdgpu's
+OverDrive table)</td>
+</tr>
+<tr>
+<td>Power limit and its range, live readings</td>
+<td>the card's hwmon folder: <code>power1_cap</code>,
+<code>power1_cap_min</code> / <code>_max</code> / <code>_default</code>,
+<code>temp*_input</code>, <code>power1_average</code>,
+<code>freq1_input</code>, <code>in0_input</code>,
+<code>fan1_input</code></td>
+</tr>
+<tr>
+<td>The card's name</td>
+<td><code>/usr/share/libdrm/amdgpu.ids</code>, else
+<code>pci.ids</code></td>
+</tr>
+<tr>
+<td>Tux Burner</td>
+<td><code>tburn-cli</code> on PATH; its service socket
+<code>/run/tux-burnerd.sock</code>, asked two read questions:
+<code>status</code> and <code>gpu_capabilities</code></td>
+</tr>
+<tr>
+<td>LACT</td>
+<td>running = the file <code>/run/lactd.sock</code> exists and a
+<code>lact</code> process is alive; saved values from
+<code>/etc/lact/config.yaml</code></td>
+</tr>
+</tbody>
+</table>
+<p>Nothing is written anywhere. SRS has no code that sends Tux Burner's
+service a request that changes something, it never contacts LACT's
+service, and it never edits LACT's settings file.</p>
+<p><strong>Background.</strong> A graphics chip is shipped with more
+voltage than most samples need, so that every chip of the series works.
+Taking some of it away (<em>undervolting</em>) makes the card cooler,
+quieter and thriftier at the same speed - until it is too little, and
+the chip starts to compute wrongly or stops answering.
+<em>Overclocking</em> raises the top speed and fails the same way. The
+safe amount differs from card to card, which is why it has to be tested,
+not copied. On Linux the amdgpu driver exposes these settings as one
+text file (the OverDrive table); <strong>LACT</strong> is the usual
+program for setting them every day, and <strong>Tux Burner</strong> can
+search for the limits of a card step by step, behind safety limits of
+its own. Tux Burner's root service is the only part that writes to the
+card. SRS shows the result here and brings its own <a
+href="#sections-tools--gpu-burnin">GPU Burnin</a> as the test that judges a setting.</p>
+<p>Not tested on real hardware yet: this page was built and tested with
+made-up system files and a fake Tux Burner service. Other AMD
+generations, NVIDIA, Intel and laptops with two graphics cards may show
+something odd; please report it.</p>
+<hr />
 <h2 id="sections-tools--gpu-compute-vulkan-vs-hip-vs-cuda-vs-opencl">GPU Compute: Vulkan
 vs HIP vs CUDA vs OpenCL</h2>
 <p><code>gpu-compare</code> - Linux data</p>
@@ -32432,7 +33061,55 @@ calls to an AMD GPU - and one column per OpenCL driver, such as
 on the same card; CPU OpenCL drivers (PoCL) are marked CPU. A back end
 that is not installed shows "not installed" with a one-line hint. Below:
 each column's device and driver / runtime version, whether a vendor
-library was found, the sizes and the <strong>Build</strong> line.</p>
+library was found, a <strong>how it ran</strong> line when a back end's
+kernels were built or its transfers made in a special way (see below),
+the sizes and the <strong>Build</strong> line.</p>
+<p><strong>The same work, compiled and timed fairly (2.6).</strong> The
+work, its size and every check are the same on every back end. Four
+things differ between the runtimes, and SRS evens them out for this
+comparison only (GPU Burnin builds, times and queues exactly as in
+2.5):</p>
+<ul>
+<li><em>Wave width.</em> A GPU runs threads in groups called waves. The
+Vulkan driver (RADV) builds compute shaders for 64 threads per wave;
+AMD's own compiler (ROCm / HIP, ROCm's OpenCL) builds for 32 unless
+asked. On RDNA 3 and 4 a 64-wide instruction uses the whole vector unit
+and a 32-wide one half of it, so SRS asks AMD's compiler for 64-wide
+waves for its FP32 kernels. The column's <strong>how it ran</strong>
+line says "FP32 own kernels built for 64-wide waves". The option and
+SRS's tuned kernel text (a loop compiled four passes per branch, a
+lighter barrier on HIP) are tried independently: if the compiler refuses
+one, the other is kept, and if it refuses both the kernels are built as
+in 2.5. The line then says what was refused and what the compiler said.
+<code>SRS_GPU_WAVE=32</code> keeps the compiler's default (for
+comparing). FP64 kernels are not changed. CUDA through ZLUDA stays 32
+wide: ZLUDA has no such switch.</li>
+<li><em>Waiting.</em> For the <strong>launch round trip</strong> SRS
+starts one empty kernel and waits until the host knows it has finished.
+Vulkan waits inside the driver. HIP, CUDA and OpenCL have no wait with a
+time limit, so SRS asks "finished?" in a loop; for the first 2 ms it
+asks without sleeping, so the row shows the launch and not SRS's own
+sleep. A piece of work still gets 5 s before it is given up (the
+watchdog).</li>
+<li><em>Copying.</em> <strong>Upload / Download</strong> time a copy
+between system memory and video memory. On Mesa's Rusticl the plain
+OpenCL read and write calls copy on the CPU through mapped video memory,
+which is slow to read; there SRS uses a buffer in system memory and lets
+the GPU copy (<code>clEnqueueCopyBuffer</code>), as the Vulkan test
+does. The <strong>how it ran</strong> line says so.
+<code>SRS_CL_XFER=plain</code> keeps the plain calls; if the driver
+refuses the copy, SRS uses the plain calls and the line says that.</li>
+<li><em>Timing.</em> Vulkan, HIP and CUDA report how long the GPU
+worked; OpenCL does too, but only on a queue with profiling switched on.
+Rusticl waits for two timestamp read-backs per command on such a queue,
+which slows a run of many short kernels to about half. On Rusticl SRS
+therefore uses a plain queue and times the run on the host (first kernel
+queued to last kernel finished), which can only make a speed look lower,
+never higher. The line says "timed on the host".
+<code>SRS_CL_TIMING=events</code> keeps the old way there;
+<code>SRS_CL_TIMING=host</code> uses host timing on any OpenCL
+driver.</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -32476,7 +33153,26 @@ code; a healthy result has every row filled in and no errors.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>One back end far behind the others on the same card: an old or debug
-runtime, or a driver that does not support that card well.</li>
+runtime, or a driver that does not support that card well. Since 2.6
+SRS's own code should no longer be the reason; if a <strong>how it
+ran</strong> line says the compiler refused the 64-wide waves, that
+column's FP32 own-kernel and multiply-add rows run at about half of what
+the card can do on RDNA 3 / 4.</li>
+<li><strong>WRONG RESULT</strong> in a column whose <strong>how it
+ran</strong> line says 64-wide waves: run again with
+<code>SRS_GPU_WAVE=32</code> before suspecting the card. Wrong both
+ways: the card or its driver. Wrong only 64 wide: the runtime's 64-wide
+mode (please report it), not the card.</li>
+<li>Upload / download on OpenCL (Rusticl) far above every other column
+(hundreds of GB/s): the driver kept the "system-memory" buffer in video
+memory, so the copy never left the card. Use
+<code>SRS_CL_XFER=plain</code> and please report it.</li>
+<li>FP32 multiply-add chain on CUDA (ZLUDA) at about half of Vulkan:
+expected. ZLUDA builds for 32-wide waves, and a chain of plain
+multiply-adds cannot use the other half of the vector unit.</li>
+<li>A launch round trip that is much higher than in another run:
+something else was using the CPU. The row needs a quiet PC (it measures
+tens of microseconds).</li>
 <li>CUDA (ZLUDA) rows: since 2.3 they run from SRS's built-in kernels
 (PTX); the CUDA column's software line says "own kernels built in (PTX),
 no NVRTC". "not available ... the CUDA driver refused the built-in
@@ -32775,7 +33471,7 @@ own, and root-only data comes from srs-root.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
 pci.ids Version 2026.10.01 (42452 records), usb.ids Version 2026.06.26
 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-<code>/usr/bin/sysreport-search</code>, V2.5.0.</p>
+<code>/usr/bin/sysreport-search</code>, V2.6.0.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li><code>not found</code>: the hwdata package is missing. Install
@@ -33442,7 +34138,7 @@ arguments).</td>
 </tr>
 <tr>
 <td>Version</td>
-<td>Program version, e.g. <code>V2.5.0</code>.</td>
+<td>Program version, e.g. <code>V2.6.0</code>.</td>
 <td>Quote this in bug reports.</td>
 </tr>
 <tr>
@@ -33511,7 +34207,7 @@ GitHub page.</td>
 </tbody>
 </table>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-<code>V2.5.0</code>, built with gcc 16.2.1 and glibc, image
+<code>V2.6.0</code>, built with gcc 16.2.1 and glibc, image
 <code>/usr/bin/sysreport-search (1.38MB)</code>, Linux 7.3.0 x86_64 on
 an ASUS TUF GAMING X870-PRO WIFI7 W NEO (BIOS 1805), AMD Ryzen 7
 7800X3D. pci.ids version 2026.10.01, usb.ids 2026.06.26. pnp.ids has no
@@ -34934,7 +35630,7 @@ program file was made, and when your settings were last saved.</p>
 file date) and Settings Last Written (SRSDEF.ini date, <code>-</code> if
 none). A note: SRS keeps no usage counter.</p>
 <p><strong>Healthy / typical values.</strong> On the author's PC:
-<code>V2.5.0</code>, image 2026-10-31, settings 2026-10-31.</p>
+<code>V2.6.0</code>, image 2026-11-23, settings 2026-11-23.</p>
 <p><strong>Where Linux gets it.</strong> File modification times of the
 program and SRSDEF.ini.</p>
 <hr />
@@ -35468,8 +36164,9 @@ every command, including <code>-save</code>, <code>--list</code>,
 <code>prime</code>, <code>cachemem</code>, <code>storage</code>,
 <code>os-latency</code>, <code>compute</code>, <code>work</code>,
 <code>net</code>, <code>gpu</code>, <code>gpu-burn</code>,
-<code>gpu-compare</code>, <code>cuda-toolkit</code>,
-<code>gpu-top</code> (also <code>big-top</code>), <code>ir</code> and
+<code>gpu-compare</code>, <code>gpu-tune</code>,
+<code>cuda-toolkit</code>, <code>gpu-top</code> (also
+<code>big-top</code>), <code>ir</code> and
 <code>update-lists</code>.</p>
 </blockquote>
 <blockquote>
@@ -35501,8 +36198,9 @@ sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single | --all-threads-only] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
-sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live] [--watch-kernel]
 sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]
 sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
 sysreport-search update-lists [--list] [--yes]
 sysreport-search ir [--status|--list|--send REMOTE BUTTON|--send-code HEX|--learn [--save REMOTE BUTTON]|--probe|--reset|--export FILE|--import FILE] [--repeat N] [--dry-run] [--yes]
@@ -35520,7 +36218,7 @@ read-only)</h2>
 <p>Prints the usage text: every command, <code>-save</code>,
 <code>--list</code>, <code>guide</code>, the load commands and the
 <code>srs-gui</code> start options. Exit code 0.</p>
-<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,update-lists} ...
+<pre><code>usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,gpu-tune,cuda-toolkit,gpu-top,big-top,ir,update-lists} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -35595,21 +36293,37 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory
         read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
         ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
-  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]
-           [--limit C] [--accept-high-limit] [--list] [--yes]
+  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64]
+           [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live] [--watch-kernel]
         GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted
         (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
         100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
-        or fans (default 60 s); asks first, --yes starts at once
+        or fans (default 60 s); asks first, --yes starts at once. --json / --json-live: the result
+        as JSON for programs, with exit codes 0 PASS, 10 stopped, 11 FAIL, 12 could not start, 13 ended
+        early, 14 GPU reset in the kernel log, 15 temperature limit. --watch-kernel: a GPU reset or ring
+        timeout in the kernel log during the run fails it, also when it hit another program
   gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
         GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
         library, multiply-add, copy, upload / download, launch time) through every installed back end
         on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
+  gpu-tune status [--json] [--pci ADDR | --all] [--wake]
+        GPU Tuning, read-only: what the graphics card is set to right now (voltage offset, clock offset,
+        memory clock, power limit), the driver&#39;s ranges, Tux Burner&#39;s limits and state, LACT&#39;s state and saved
+        values. It only reads (the kernel&#39;s files, two read requests to Tux Burner&#39;s service); it never
+        changes a setting. Changing GPU settings needs Tux Burner, a separate program
   cuda-toolkit [--check|--install|--ask-again|--never-ask]
         the optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): whether it is installed, what it
         is for, the install command for this distribution; --install runs that command after you type
         yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS&#39;s CUDA tests are built
         in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it
+  gpu-top [--list|--dump|--gpu-metrics|--drm-info|--pp-table|--process|--xdna|--smi|--tui] [-J] [--device N [--wake]]
+          [--pc] [--interval MS] [-n COUNT]       (big-top is the same command)
+        The Big Top&#39;s GPU part: activity, GRBM blocks, VRAM, sensors, gpu_metrics and processes of every GPU (AMD like
+        amdgpu_top; NVIDIA through NVML); read-only, changes nothing
+  ir [--status|--list|--send REMOTE BUTTON [--repeat N]|--send-code HEX [--nec]|--learn [--save REMOTE BUTTON]|
+     --probe|--reset|--export FILE|--import FILE [--replace]] [--dry-run] [--yes]
+        IR Blaster: ELK Smart / OCRUSTAR USB infrared dongles - learn and send remote-control codes, kept in IR
+        Remote&#39;s remotes.json (shared with that app); --send and --learn ask first, --yes starts at once
   update-lists [--list] [--yes]
         download fresh pci.ids, usb.ids and pnp.ids from their official sources into
         ~/.local/share/srs/lists (no root); SRS then uses the newer of these and the system&#39;s copies.
@@ -35619,7 +36333,7 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
-srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|gputune|cudatoolkit|loadterms|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power &amp; Cost page; --power-recorder record its history with no window</code></pre>
@@ -35628,14 +36342,14 @@ window runs it in a child process to find the items that have nothing to
 show on this PC, only on Options &gt; Check now or Check daily; it never
 runs the network items or Ping.</p>
 <h3 id="cli-reference----version"><code>--version</code></h3>
-<pre><code>sysreport-search 2.5.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+<pre><code>sysreport-search 2.6.0 (ELF x86-64, gcc 16.2.1 20261122, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
 Home page: https://github.com/eugenesflanagin-spec/srs-sysinfo</code></pre>
 <p>The part in brackets describes how your copy was built.</p>
 <h3 id="cli-reference----list"><code>--list</code></h3>
-<p>Lists every item SRS knows (559 lines), one per line:</p>
+<p>Lists every item SRS knows (560 lines), one per line:</p>
 <pre><code>about                tuning    linux         siv      About SRS
 acpi-buses           hardware  linux         machine  ACPI PCI root buses
 acpi-ipf             hardware  absent        machine  ACPI IPF (Intel Platform Framework) methods</code></pre>
@@ -35744,7 +36458,7 @@ srs-gui &#39;-save=[sensors]&#39;
 sysreport-search &#39;-save=[all]=full-report.txt&#39;
 sysreport-search &#39;-save=[all]=for-forum.txt&#39; --redact</code></pre>
 <p>Output starts with a header and then each item:</p>
-<pre><code>srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+<pre><code>srs-gui - System Report Search V2.6.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...</code></pre>
@@ -36080,6 +36794,167 @@ GRBM), <code>libdrm.so.2</code> (<code>--drm-info</code>) and
 <code>--json</code>, a <code>--device</code> that does not exist, or
 <code>--device N</code> on a sleeping card without
 <code>--wake</code>.</p>
+<h3 id="cli-reference--gpu-tune---gpu-tuning-read-only-26"><code>gpu-tune</code> - GPU
+Tuning (read-only, 2.6)</h3>
+<pre><code>sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]</code></pre>
+<p>Shows what a graphics card is <strong>set to right now</strong> -
+voltage offset, core clock offset, highest memory clock, power limit -
+the driver's own ranges, the live readings, whether <strong>Tux
+Burner</strong> is installed and its service runs (with the voltage
+floor the service reports), and whether <strong>LACT</strong> runs, with
+LACT's saved values for the card and whether the card is at them. The
+same text as the <strong>GPU Tuning</strong> tab (<a
+href="#sections-tools--gpu-tuning">tools.md</a> explains every
+line).</p>
+<p><strong>It only reads</strong>, and it does not ask before it starts,
+because it loads nothing and changes nothing: it reads the kernel's
+files under <code>/sys</code>, sends two read requests to Tux Burner's
+service socket (<code>status</code> and <code>gpu_capabilities</code> -
+SRS has no code that sends anything else) and reads LACT's settings
+file. It never changes a clock, a voltage, a power limit or a fan, never
+contacts LACT's service and never runs Tux Burner's command line tool.
+<code>status</code> is the only <code>gpu-tune</code> command in this
+version; the commands that will change a setting through Tux Burner
+(<code>apply</code>, <code>auto-uv</code>, <code>restore</code> ...)
+answer "not in this version" and exit with 2.</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--json</code> (<code>-J</code>)</td>
+<td>One JSON object for the card (with <code>--all</code>: a list of
+them)</td>
+</tr>
+<tr>
+<td><code>--pci ADDR</code></td>
+<td>The card at this PCI address, as in <code>0000:03:00.0</code>.
+Default: the first card with tuning controls, else the first card</td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td>Every graphics card</td>
+</tr>
+<tr>
+<td><code>--wake</code></td>
+<td>Also read a card that is asleep (a second card the kernel powered
+down to save energy). Reading wakes it; without <code>--wake</code> such
+a card is only named, and Tux Burner's service is not asked about any
+card (it numbers the cards its own way, so the question could wake the
+sleeping one)</td>
+</tr>
+</tbody>
+</table>
+<p>Exit code 0: shown; 1: no graphics card found; 2: a wrong option, or
+<code>--pci</code> names no card.</p>
+<p>The JSON object (one line; shown wrapped here, with example
+values):</p>
+<div class="sourceCode" id="cli-reference--cb16"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cli-reference--cb16-1"><a href="#cli-reference--cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;gpu&quot;</span><span class="fu">:{</span><span class="dt">&quot;name&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;driver&quot;</span><span class="fu">:</span><span class="st">&quot;amdgpu&quot;</span><span class="fu">,</span><span class="dt">&quot;card&quot;</span><span class="fu">:</span><span class="st">&quot;card0&quot;</span><span class="fu">,</span><span class="dt">&quot;vendor&quot;</span><span class="fu">:</span><span class="st">&quot;amd&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb16-2"><a href="#cli-reference--cb16-2" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&quot;asleep&quot;</span><span class="fu">:</span><span class="kw">false</span><span class="fu">,</span><span class="dt">&quot;overdrive&quot;</span><span class="fu">:</span><span class="st">&quot;offsets&quot;</span><span class="fu">,</span><span class="dt">&quot;backend&quot;</span><span class="fu">:</span><span class="st">&quot;tux-burner-amd&quot;</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-3"><a href="#cli-reference--cb16-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;now&quot;</span><span class="fu">:{</span><span class="dt">&quot;voltage_offset_mv&quot;</span><span class="fu">:</span><span class="dv">-110</span><span class="fu">,</span><span class="dt">&quot;sclk_offset_mhz&quot;</span><span class="fu">:</span><span class="dv">300</span><span class="fu">,</span><span class="dt">&quot;sclk_max_mhz&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;mclk_max_mhz&quot;</span><span class="fu">:</span><span class="dv">1375</span><span class="fu">,</span><span class="dt">&quot;mclk_offset_mhz&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;power_cap_w&quot;</span><span class="fu">:</span><span class="dv">374</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-4"><a href="#cli-reference--cb16-4" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;live&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">27</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">31</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">33</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">63</span><span class="fu">,</span><span class="dt">&quot;vddgfx_mv&quot;</span><span class="fu">:</span><span class="dv">700</span><span class="fu">,</span><span class="dt">&quot;fan_rpm&quot;</span><span class="fu">:</span><span class="dv">589</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-5"><a href="#cli-reference--cb16-5" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;ranges&quot;</span><span class="fu">:{</span><span class="dt">&quot;voltage_offset_mv&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="dv">-200</span><span class="ot">,</span><span class="dv">0</span><span class="ot">]</span><span class="fu">,</span><span class="dt">&quot;sclk_offset_mhz&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="dv">-500</span><span class="ot">,</span><span class="dv">1000</span><span class="ot">]</span><span class="fu">,</span><span class="dt">&quot;sclk_mhz&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;mclk_mhz&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="dv">97</span><span class="ot">,</span><span class="dv">1500</span><span class="ot">]</span><span class="fu">,</span><span class="dt">&quot;mclk_offset_mhz&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span></span>
+<span id="cli-reference--cb16-6"><a href="#cli-reference--cb16-6" aria-hidden="true" tabindex="-1"></a>           <span class="dt">&quot;power_cap_w&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="dv">212</span><span class="ot">,</span><span class="dv">374</span><span class="ot">]</span><span class="fu">,</span><span class="dt">&quot;power_cap_default_w&quot;</span><span class="fu">:</span><span class="dv">304</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-7"><a href="#cli-reference--cb16-7" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;limits&quot;</span><span class="fu">:{</span><span class="dt">&quot;voltage_floor_mv&quot;</span><span class="fu">:</span><span class="dv">-150</span><span class="fu">,</span><span class="dt">&quot;voltage_floor_source&quot;</span><span class="fu">:</span><span class="st">&quot;default&quot;</span><span class="fu">,</span><span class="dt">&quot;suggest_floor_mv&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;sclk_ceiling_mhz&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-8"><a href="#cli-reference--cb16-8" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;tux_burner&quot;</span><span class="fu">:{</span><span class="dt">&quot;installed&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;cli&quot;</span><span class="fu">:</span><span class="st">&quot;/usr/bin/tburn-cli&quot;</span><span class="fu">,</span><span class="dt">&quot;daemon&quot;</span><span class="fu">:</span><span class="st">&quot;running&quot;</span><span class="fu">,</span><span class="dt">&quot;version&quot;</span><span class="fu">:</span><span class="st">&quot;0.99.0&quot;</span><span class="fu">,</span><span class="dt">&quot;build&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb16-9"><a href="#cli-reference--cb16-9" aria-hidden="true" tabindex="-1"></a>               <span class="dt">&quot;state&quot;</span><span class="fu">:</span><span class="st">&quot;idle&quot;</span><span class="fu">,</span><span class="dt">&quot;protocol&quot;</span><span class="fu">:</span><span class="st">&quot;2.0&quot;</span><span class="fu">,</span><span class="dt">&quot;message&quot;</span><span class="fu">:</span><span class="kw">null</span><span class="fu">,</span><span class="dt">&quot;serves_this_card&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span></span>
+<span id="cli-reference--cb16-10"><a href="#cli-reference--cb16-10" aria-hidden="true" tabindex="-1"></a>               <span class="dt">&quot;missing_capabilities&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="st">&quot;amd-lact-gate-v1&quot;</span><span class="ot">,</span><span class="st">&quot;amd-sclk-ceiling-v1&quot;</span><span class="ot">,</span><span class="st">&quot;gpu-reset-events-v1&quot;</span><span class="ot">,</span><span class="st">&quot;tuning-session-v1&quot;</span><span class="ot">]</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-11"><a href="#cli-reference--cb16-11" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;lact&quot;</span><span class="fu">:{</span><span class="dt">&quot;running&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;active_profile&quot;</span><span class="fu">:</span><span class="st">&quot;123&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb16-12"><a href="#cli-reference--cb16-12" aria-hidden="true" tabindex="-1"></a>         <span class="dt">&quot;active_values&quot;</span><span class="fu">:{</span><span class="dt">&quot;voltage_offset_mv&quot;</span><span class="fu">:</span><span class="dv">-110</span><span class="fu">,</span><span class="dt">&quot;sclk_offset_mhz&quot;</span><span class="fu">:</span><span class="dv">300</span><span class="fu">,</span><span class="dt">&quot;mclk_max_mhz&quot;</span><span class="fu">:</span><span class="dv">1375</span><span class="fu">,</span><span class="dt">&quot;power_cap_w&quot;</span><span class="fu">:</span><span class="dv">374</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-13"><a href="#cli-reference--cb16-13" aria-hidden="true" tabindex="-1"></a>         <span class="dt">&quot;matches_card&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;config_sha256&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">},</span></span>
+<span id="cli-reference--cb16-14"><a href="#cli-reference--cb16-14" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;can_write&quot;</span><span class="fu">:</span><span class="kw">false</span><span class="fu">,</span><span class="dt">&quot;why_not&quot;</span><span class="fu">:</span><span class="st">&quot;needs a newer Tux Burner for: ...&quot;</span><span class="fu">}</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gpu.overdrive</code></td>
+<td><code>offsets</code> (a table SRS reads: a voltage offset, with a
+clock offset on RDNA 4 or the highest core clock on RDNA 3),
+<code>older-table</code> (clock and voltage points: not supported yet),
+<code>not-readable</code>, <code>none</code></td>
+</tr>
+<tr>
+<td><code>now.sclk_max_mhz</code>, <code>ranges.sclk_mhz</code></td>
+<td>RDNA 3 only: the highest core clock and its range (these cards have
+no <code>sclk_offset_mhz</code>)</td>
+</tr>
+<tr>
+<td><code>gpu.backend</code></td>
+<td><code>tux-burner-amd</code> / <code>tux-burner-nvidia</code> when
+Tux Burner's service knows the card, else <code>null</code></td>
+</tr>
+<tr>
+<td><code>now</code>, <code>ranges</code></td>
+<td>From the kernel's files; for a card with no table of its own
+(NVIDIA) from Tux Burner's service. <code>null</code> = not
+available</td>
+</tr>
+<tr>
+<td><code>limits.voltage_floor_mv</code></td>
+<td>The deepest undervolt Tux Burner's service will write, as the
+service reports it; <code>null</code> without the service</td>
+</tr>
+<tr>
+<td><code>limits.suggest_floor_mv</code>,
+<code>limits.sclk_ceiling_mhz</code></td>
+<td>Always <code>null</code> in this version: Tux Burner does not report
+them yet, and SRS does not guess</td>
+</tr>
+<tr>
+<td><code>tux_burner.daemon</code></td>
+<td><code>running</code>, <code>not-running</code> (no socket),
+<code>not-answering</code> (a socket nobody answers),
+<code>not-allowed</code> (the service does not serve this user),
+<code>no-answer</code> (too slow, or not understood),
+<code>unusable-version</code> (another protocol),
+<code>not-checked</code> (tests)</td>
+</tr>
+<tr>
+<td><code>tux_burner.missing_capabilities</code></td>
+<td>Abilities the coming search functions will require that this service
+does not have</td>
+</tr>
+<tr>
+<td><code>lact.active_values</code></td>
+<td>LACT's saved values for this card: of the active profile, else of
+its base settings; <code>null</code> when the selected profile has
+nothing for the card</td>
+</tr>
+<tr>
+<td><code>lact.matches_card</code></td>
+<td><code>true</code> the card is at those values, <code>false</code> it
+is not, <code>null</code> nothing to compare</td>
+</tr>
+<tr>
+<td><code>lact.config_sha256</code></td>
+<td>A fingerprint of LACT's settings file as it is now (to see later
+whether it changed)</td>
+</tr>
+<tr>
+<td><code>can_write</code>, <code>why_not</code></td>
+<td>Whether everything a change would need is in place (Tux Burner's
+tool, its service, this card, the abilities), and if not, the first
+thing missing. This version has no command that changes anything</td>
+</tr>
+</tbody>
+</table>
+<p>Examples:</p>
+<pre><code>$ sysreport-search gpu-tune status
+$ sysreport-search gpu-tune status --all
+$ sysreport-search gpu-tune status --pci 0000:03:00.0 --json</code></pre>
+<p>Not tried on a real card, a real Tux Burner service or a real LACT
+yet (tests use made-up files and a fake service); other AMD generations,
+NVIDIA, Intel and laptops with two cards may show something odd.</p>
 <h3 id="cli-reference--ir---ir-blaster-learn-and-send-infrared-codes"><code>ir</code> -
 IR Blaster: learn and send infrared codes</h3>
 <pre><code>sysreport-search ir [--status | --list | --send REMOTE BUTTON [--repeat N] | --send-code HEX [--nec] [--frequency HZ] [--repeat N] |
@@ -36815,8 +37690,9 @@ start (bad option, not confirmed, no Vulkan, no such device, Stress
 $ sysreport-search gpu --only fp32,read,upload --seconds 0.5</code></pre>
 <p>See <a href="#sections-tools--gpu-benchmark">tools.md</a>.</p>
 <h3 id="cli-reference--gpu-burn---gpu-burnin"><code>gpu-burn</code> - GPU Burnin</h3>
-<pre><code>sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]
-                          [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]</code></pre>
+<pre><code>sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR]
+                          [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
+                          [--json] [--json-live] [--watch-kernel]</code></pre>
 <p>Keeps the GPU fully busy with large matrix multiplications and counts
 every result that differs from the first one (0 = PASS). On a terminal a
 live line shows the time, GFLOPS, the error count, edge and hotspot
@@ -36884,8 +37760,33 @@ are already at or near their own maximum; you accept that risk)</td>
 work</td>
 </tr>
 <tr>
+<td><code>--pci ADDR</code></td>
+<td>The GPU at this PCI address (as in <code>0000:03:00.0</code>)
+instead of a device number; not together with <code>--device</code>
+(2.6)</td>
+</tr>
+<tr>
 <td><code>--yes</code></td>
 <td>Start without asking</td>
+</tr>
+<tr>
+<td><code>--json</code></td>
+<td>For programs (2.6): print <strong>one JSON object</strong> on
+standard output when the run is over - nothing else is written there,
+the usual report still goes to
+<code>~/.cache/srs/bench-gpuburn.txt</code> - and use the exit codes of
+the table below. Needs <code>--yes</code></td>
+</tr>
+<tr>
+<td><code>--json-live</code></td>
+<td><code>--json</code>, plus one JSON line every half second while it
+runs (<code>"event":"sample"</code>); the result object is the last
+line</td>
+</tr>
+<tr>
+<td><code>--watch-kernel</code></td>
+<td>Also watch the kernel log during the run and for 5 seconds after it
+(2.6): a GPU reset or ring timeout there fails the run. See below</td>
 </tr>
 </tbody>
 </table>
@@ -36894,12 +37795,199 @@ the table and a <code>note -</code> line says how many; the exit code
 comes from the cards that ran (all of them failing to start = 1, ended
 early). Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended
 early by a safety rule, 2 = not started (bad option, not confirmed, back
-end not installed, no device, Stress &amp; Burnin running).
-Examples:</p>
+end not installed, no device, Stress &amp; Burnin running).</p>
+<p><strong>For programs: <code>--json</code> (2.6).</strong> Without
+<code>--json</code> the exit codes above stay as they are. With it:</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th>Meaning</th>
+<th><code>result</code> in the JSON</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>PASS: no wrong result, and (with <code>--watch-kernel</code>) no GPU
+reset seen</td>
+<td><code>pass</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Stopped by a signal (Ctrl+C, or SIGTERM from the program that
+started it); no errors so far</td>
+<td><code>stopped</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>FAIL: wrong results were found</td>
+<td><code>fail</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Could not start: no device, the back end is not installed,
+<code>--pci</code> names no device of that back end, the GPU could not
+be opened</td>
+<td><code>not-started</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Ended early: the GPU did not answer in time, the device was lost, or
+the GPU runtime reported an error</td>
+<td><code>ended-early</code></td>
+</tr>
+<tr>
+<td>14</td>
+<td>A GPU reset or ring timeout appeared in the kernel log during the
+run (<code>--watch-kernel</code>), even if the numbers were right</td>
+<td><code>fail</code></td>
+</tr>
+<tr>
+<td>15</td>
+<td>Ended early at the temperature limit: a cooling limit,
+<strong>not</strong> a verdict about stability</td>
+<td><code>ended-early</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>A wrong option (also <code>--json</code> without
+<code>--yes</code>); no JSON is printed</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Wrong results <strong>and</strong> a reset in the kernel log give 11
+(the kernel events are in the JSON all the same); a reset together with
+anything else gives 14. A process killed by a signal it cannot catch has
+no exit code of its own: treat that as a crash of the test.</p>
+<p>The result object (one line; shown wrapped here, with example
+values):</p>
+<div class="sourceCode" id="cli-reference--cb43"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cli-reference--cb43-1"><a href="#cli-reference--cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;tool&quot;</span><span class="fu">:</span><span class="st">&quot;srs gpu-burn&quot;</span><span class="fu">,</span><span class="dt">&quot;version&quot;</span><span class="fu">:</span><span class="st">&quot;2.6.0&quot;</span><span class="fu">,</span><span class="dt">&quot;result&quot;</span><span class="fu">:</span><span class="st">&quot;fail&quot;</span><span class="fu">,</span><span class="dt">&quot;exit&quot;</span><span class="fu">:</span><span class="dv">14</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-2"><a href="#cli-reference--cb43-2" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;reason&quot;</span><span class="fu">:</span><span class="st">&quot;kernel log: the GPU stopped answering, ring timeout (gfx_0.0.0, in kwin_wayland), then GPU reset (MODE1, video memory wiped)&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-3"><a href="#cli-reference--cb43-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;end&quot;</span><span class="fu">:</span><span class="st">&quot;completed&quot;</span><span class="fu">,</span><span class="dt">&quot;backend&quot;</span><span class="fu">:</span><span class="st">&quot;vulkan&quot;</span><span class="fu">,</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-4"><a href="#cli-reference--cb43-4" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;seconds&quot;</span><span class="fu">:</span><span class="fl">61.3</span><span class="fu">,</span><span class="dt">&quot;planned_seconds&quot;</span><span class="fu">:</span><span class="dv">60</span><span class="fu">,</span><span class="dt">&quot;precision&quot;</span><span class="fu">:</span><span class="st">&quot;fp32&quot;</span><span class="fu">,</span><span class="dt">&quot;limit_c&quot;</span><span class="fu">:</span><span class="dv">100</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-5"><a href="#cli-reference--cb43-5" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-6"><a href="#cli-reference--cb43-6" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span></span>
+<span id="cli-reference--cb43-7"><a href="#cli-reference--cb43-7" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;devices&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span><span class="st">&quot;done&quot;</span><span class="fu">,</span><span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span><span class="dt">&quot;matrix&quot;</span><span class="fu">:</span><span class="dv">4096</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-8"><a href="#cli-reference--cb43-8" aria-hidden="true" tabindex="-1"></a>             <span class="dt">&quot;temperature_limit_active&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span><span class="dt">&quot;note&quot;</span><span class="fu">:</span><span class="st">&quot;&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-9"><a href="#cli-reference--cb43-9" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_watch&quot;</span><span class="fu">:</span><span class="st">&quot;on&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-10"><a href="#cli-reference--cb43-10" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.1</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;ring-timeout&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;gfx_0.0.0&quot;</span><span class="fu">,</span><span class="dt">&quot;process&quot;</span><span class="fu">:</span><span class="st">&quot;kwin_wayland&quot;</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cli-reference--cb43-11"><a href="#cli-reference--cb43-11" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.9</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;gpu-reset&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;MODE1&quot;</span><span class="fu">,</span><span class="dt">&quot;vram_lost&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cli-reference--cb43-12"><a href="#cli-reference--cb43-12" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events_other_cards&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;kernel_other&quot;</span><span class="fu">:</span><span class="ot">[]</span><span class="fu">}</span></span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>result</code>, <code>exit</code></td>
+<td>The verdict and the exit code (table above)</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>Why it ended early, could not start or failed, in plain words; empty
+after a clean PASS</td>
+</tr>
+<tr>
+<td><code>end</code></td>
+<td>How the test itself ended: <code>completed</code>,
+<code>stopped</code>, <code>compute-errors</code>,
+<code>not-started</code>, <code>temperature-limit</code>,
+<code>no-answer</code>, <code>device-lost</code>,
+<code>runtime-error</code></td>
+</tr>
+<tr>
+<td><code>backend</code>, <code>device</code>, <code>pci</code></td>
+<td>What ran and where (<code>null</code> when nothing ran or the back
+end gives no PCI address, as a software renderer)</td>
+</tr>
+<tr>
+<td><code>seconds</code>, <code>planned_seconds</code></td>
+<td>How long it ran, and how long it was asked to</td>
+</tr>
+<tr>
+<td><code>iterations</code>, <code>errors</code>,
+<code>gflops_avg</code></td>
+<td>Matrix multiplications done, wrong results, average speed - summed
+over the devices</td>
+</tr>
+<tr>
+<td><code>max</code></td>
+<td>The highest sensor readings of the run; <code>null</code> for a
+sensor the card does not have</td>
+</tr>
+<tr>
+<td><code>devices</code></td>
+<td>The same per device (<code>--device all</code>); <code>state</code>
+is <code>done</code>, <code>stopped</code>, <code>failed</code>,
+<code>ended-early</code> or <code>not-started</code></td>
+</tr>
+<tr>
+<td><code>kernel_watch</code></td>
+<td><code>off</code> (not asked for), <code>on</code>, or
+<code>unreadable</code> with a <code>kernel_watch_note</code> saying
+why</td>
+</tr>
+<tr>
+<td><code>kernel_events</code></td>
+<td>With <code>--watch-kernel</code>: what the kernel log said about
+<strong>this</strong> card during the run. <code>kind</code> is
+<code>ring-timeout</code>, <code>gpu-reset</code>,
+<code>gpu-reset-done</code>, <code>device-lost</code>,
+<code>parser-error</code>, <code>nvidia-xid</code> or
+<code>gpu-hang</code>; <code>t_s</code> = seconds after the watch began;
+<code>process</code> = the program the driver blamed, when it said</td>
+</tr>
+<tr>
+<td><code>kernel_events_other_cards</code></td>
+<td>Events about another graphics card (not counted)</td>
+</tr>
+<tr>
+<td><code>kernel_other</code></td>
+<td>Driver error lines seen that SRS does not know as a reset (shown,
+not counted)</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>--json-live</code> line:
+<code>{"event":"sample","t_s":12.5,"planned_seconds":60,"iterations":3620,"errors":0, "gflops":2712.0,"edge_c":61,"junction_c":79,"power_w":331,"clock_mhz":3105}</code>.</p>
+<p><strong><code>--watch-kernel</code> (2.6).</strong> A GPU that is
+undervolted or overclocked too far often does not fail inside the test
+program. The driver notices that the GPU stopped answering one of its
+work queues (a <em>ring timeout</em>), resets the GPU, and the program
+that was hit is the desktop, not the test. <code>--watch-kernel</code>
+reads the kernel log (<code>/dev/kmsg</code>, opened read-only, from its
+end: only lines that appear after the start count) while the test runs
+<strong>and for 5 seconds after the load ends</strong>, because the
+moment the clocks drop is a known moment for hangs. It knows these
+lines: amdgpu's <code>ring ... timeout</code>,
+<code>GPU reset begin</code> / <code>succeeded</code>,
+<code>MODE1 reset</code>, <code>VRAM is lost</code>,
+<code>device lost from bus</code>,
+<code>Failed to initialize parser</code>; NVIDIA's
+<code>NVRM: Xid</code> reports; and, best effort, i915's
+<code>GPU HANG</code> / <code>Resetting</code> and xe's
+<code>Engine reset</code>. A line that names another card's PCI address
+is not counted. A line that names no card (older kernels) cannot be
+ruled out and is counted. Without <code>--json</code> a reset is said on
+standard error ("FAIL - kernel log: ...") and the exit code is 1.</p>
+<p>When the kernel log cannot be read (many distributions set
+<code>kernel.dmesg_restrict=1</code>), the run says so - "Kernel log not
+readable ...: only the test's own result is checked." - and the JSON has
+<code>"kernel_watch":"unreadable"</code>. It never reports "nothing
+seen" for a log it could not read. Not tested with the messages of a
+real reset yet: the patterns follow the drivers' wording.</p>
+<p>Examples:</p>
 <pre><code>$ sysreport-search gpu-burn --list
 $ sysreport-search gpu-burn --seconds 600 --limit 95
 $ sysreport-search gpu-burn --backend hip --fp64 --seconds 120
-$ sysreport-search gpu-burn --seconds 900 --limit 105 --accept-high-limit</code></pre>
+$ sysreport-search gpu-burn --seconds 900 --limit 105 --accept-high-limit
+$ sysreport-search gpu-burn --pci 0000:03:00.0 --seconds 60 --yes --json --watch-kernel</code></pre>
 <p>Since 2.4 every back end uses a register-blocked matrix multiply (64
 x 64 tiles, 4 x 4 results per thread) that loads the GPU much harder;
 the result's <code>Kernel</code> line says which kernel ran, and
@@ -36930,6 +38018,24 @@ available: this OpenCL driver has no FP64 (double precision)". When the
 GPU hangs or stops answering in one column, the run ends there: no later
 back end touches that GPU, and the tests that did not run say "not
 run".</p>
+<p>Since 2.6 a column can have a <strong>how it ran</strong> line under
+the table. ROCm / HIP and OpenCL (ROCm): the FP32 own kernels are built
+for 64-wide waves, as the Vulkan driver builds its shaders
+(<code>SRS_GPU_WAVE=32</code> keeps AMD's default of 32; if the compiler
+refuses the option or SRS's tuned kernel text, the other is kept, and
+the line says what was refused and what the compiler said). OpenCL
+(Rusticl): the kernels are timed on the host on a queue without
+profiling (<code>SRS_CL_TIMING=events</code> keeps the driver's event
+times), and upload and download are GPU copies between a system-memory
+buffer and video memory (<code>SRS_CL_XFER=plain</code> keeps
+<code>clEnqueueWriteBuffer</code> / <code>ReadBuffer</code>, and so does
+a driver that refuses the copy). All of this is for
+<code>gpu-compare</code> only: <code>gpu-burn</code> builds, times and
+queues as in 2.5. A WRONG RESULT in a 64-wide column: run again with
+<code>SRS_GPU_WAVE=32</code> before suspecting the card. The launch
+round trip is timed on the host from the launch call until the host
+knows the kernel has finished, with no sleep in SRS's wait loop for the
+first 2 ms; run it on a quiet PC.</p>
 <table>
 <thead>
 <tr>
@@ -37235,6 +38341,11 @@ item)</td>
 <td>GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL</td>
 </tr>
 <tr>
+<td><code>gputune</code></td>
+<td>The GPU Tuning tab (read-only) on Benchmarks &amp; Stress (2.6); the
+item name <code>gpu-tuning</code> does the same</td>
+</tr>
+<tr>
 <td><code>cudatoolkit</code></td>
 <td>The <strong>Options -&gt; NVIDIA CUDA toolkit for GPU
 tests...</strong> window</td>
@@ -37342,7 +38453,10 @@ switched on)</td>
 <td>AMD: the BIOS's AOD table (memory settings), named by an SSDT; read
 from <code>/dev/mem</code> only when the kernel allows it
 (<code>iomem=relaxed</code> on kernels with IO_STRICT_DEVMEM), else
-<code>aod.txt</code> says why</td>
+<code>aod.txt</code> says why; without it, the page reads
+<code>/sys/kernel/aod_voltages/full_raw</code> when QTuxTimings'
+<code>aod_voltages</code> module is loaded (never loaded by SRS;
+<code>SRS_AOD_SYSFS</code> overrides the path for tests)</td>
 </tr>
 <tr>
 <td><code>rapl.txt</code></td>
@@ -37441,7 +38555,7 @@ passed</td>
 <td>1</td>
 <td><code>find</code> found no matches; lookup or benchmark failed;
 <code>burn</code> failed; <code>gpu-top</code> found no GPU or could not
-open one</td>
+open one; <code>gpu-tune status</code> found no graphics card</td>
 </tr>
 <tr>
 <td>2</td>
@@ -37453,6 +38567,13 @@ to run; a benchmark was not started (answered No, or no terminal and no
 <tr>
 <td>130</td>
 <td><code>burn</code> stopped with Ctrl+C</td>
+</tr>
+<tr>
+<td>10-15</td>
+<td><code>gpu-burn --json</code> only: 10 stopped, 11 FAIL (compute
+errors), 12 could not start, 13 ended early, 14 a GPU reset in the
+kernel log (<code>--watch-kernel</code>), 15 the temperature limit - see
+<a href="#cli-reference--gpu-burn---gpu-burnin"><code>gpu-burn</code></a></td>
 </tr>
 </tbody>
 </table>
@@ -37546,6 +38667,26 @@ tests: fake tools that are never run). Ignored otherwise</td>
 register-blocked one (for comparing)</td>
 </tr>
 <tr>
+<td><code>SRS_GPU_WAVE=32</code></td>
+<td>GPU Compute comparison, ROCm / HIP and OpenCL (ROCm): build the FP32
+own kernels for AMD's default of 32 threads per wave instead of 64 (for
+comparing with 2.5 and older)</td>
+</tr>
+<tr>
+<td><code>SRS_CL_XFER=plain</code></td>
+<td>GPU Compute comparison, OpenCL (Rusticl): upload and download with
+<code>clEnqueueWriteBuffer</code> / <code>ReadBuffer</code> as before
+2.6, instead of a GPU copy from a system-memory buffer (for
+comparing)</td>
+</tr>
+<tr>
+<td><code>SRS_CL_TIMING=events</code> / <code>host</code></td>
+<td>GPU Compute comparison, OpenCL: time the kernels with the driver's
+event times on a profiling queue (<code>events</code>: every driver, as
+before 2.6) or on the host on a plain queue (<code>host</code>).
+Default: host on Rusticl, events elsewhere</td>
+</tr>
+<tr>
 <td><code>SRS_SPD_DIR</code></td>
 <td>Memory Timings: read the modules' SPD from
 <code>&lt;dir&gt;/&lt;device&gt;/eeprom</code> instead of
@@ -37561,6 +38702,26 @@ register-blocked one (for comparing)</td>
 <td><code>SRS_GPU_SOFTWARE_ONLY=1</code></td>
 <td>GPU Benchmarks: refuse every Vulkan device that is not a software
 renderer such as lavapipe (for tests)</td>
+</tr>
+<tr>
+<td><code>SRS_TUX_BURNER_SOCKET</code></td>
+<td>GPU Tuning: the path of Tux Burner's service socket instead of
+<code>/run/tux-burnerd.sock</code> (for tests: a fake service, or a path
+that does not exist)</td>
+</tr>
+<tr>
+<td><code>SRS_TEST_SYSFS_ROOT</code></td>
+<td>GPU Tuning and GPU Burnin's sensors: a folder put in front of
+<code>/sys</code>, <code>/proc</code>, <code>/run</code>,
+<code>/etc</code> and <code>/usr</code> (for tests: a made-up graphics
+card). With it set and no <code>SRS_TUX_BURNER_SOCKET</code>, the real
+service socket is not used</td>
+</tr>
+<tr>
+<td><code>SRS_TEST_KMSG</code>, <code>SRS_TEST_KWATCH_TAIL_S</code></td>
+<td><code>gpu-burn --watch-kernel</code>: read this text file instead of
+<code>/dev/kmsg</code>, and watch this many seconds after the load
+instead of 5 (for tests)</td>
 </tr>
 <tr>
 <td><code>SUDO_USER</code>, <code>PKEXEC_UID</code></td>
@@ -37627,6 +38788,12 @@ Top's <strong>Affinity...</strong> sets it with a tick box per logical
 CPU. <em>See: <a href="#sections-processors">processors</a>, <a
 href="#sections-srs-items">srs-items</a>, <a
 href="#user-guide--6143-processes">User Guide 6.14.3</a>.</em></li>
+<li><strong>AGESA (AMD Generic Encapsulated Software
+Architecture)</strong> - the AMD code inside the BIOS that starts the
+processor and memory; its version (for example "ComboAm5PI 1.3.0.1d")
+says which processor fixes and features a BIOS has. SRS 2.6 shows it
+from the SMBIOS tables after Run as root once. <em>See: <a
+href="#sections-machine">machine</a>.</em></li>
 <li><strong>AGM (arithmetic-geometric mean), Gauss-Legendre</strong> - a
 way to compute pi that doubles the number of correct digits at every
 step; the method SuperPi uses. <em>See: <a
@@ -37663,8 +38830,9 @@ DSDT and SSDTs that the operating system runs to control devices.
 <li><strong>AOD (AMD Overclocking Data) table</strong> - a table the
 BIOS of AMD boards leaves in memory with its memory settings: ProcODT,
 drive strengths, RTT values and the voltages it set. Memory Timings
-reads it when the kernel allows (<code>iomem=relaxed</code>). <em>See:
-<a href="#sections-machine">machine</a>, <a
+reads it when the kernel allows (<code>iomem=relaxed</code>) or through
+QTuxTimings' <code>aod_voltages</code> module when you have loaded it.
+<em>See: <a href="#sections-machine">machine</a>, <a
 href="#user-guide--612-memory-timings">User Guide 6.12</a>.</em></li>
 <li><strong>APIC</strong> - Advanced Programmable Interrupt Controller;
 each CPU thread has one, and its APIC ID is the hardware's own number
@@ -37740,6 +38908,12 @@ measures bandwidth and delay instead of waiting for packet loss.
 descriptor: the device's own release number, and the USB version it
 claims to follow. <em>See: <a
 href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>BCLK / eCLK (base clock)</strong> - the reference clock
+every CPU core speed is a multiple of, normally 100 MHz; on AM5 boards
+with an external clock generator it is called eCLK and can be raised
+(for example to 104 MHz). Linux works out its speed limits at 100 MHz,
+so since 2.6 SRS shows them at the measured base clock. <em>See: <a
+href="#sections-processors">processors</a>.</em></li>
 <li><strong>bfq</strong> - Budget Fair Queueing: a Linux I/O scheduler
 that suits spinning disks and slow USB devices. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -37817,6 +38991,12 @@ OpenCL; the "vendor library" SRS uses on OpenCL when it is installed.
 from the right one. GPU Burnin counts them: any error means the card is
 not stable as set up (overclock, undervolt, heat, power) or faulty.
 <em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>Core clock offset</strong> - how many MHz are added to (or
+taken off) a graphics chip's top speed. <code>+300 MHz</code> is an
+overclock of 300 MHz. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>C-state</strong> - an idle power level of a CPU core; C0 is
 running, deeper states (C1, C2, C3) save more power but take longer to
 wake. <em>See: <a
@@ -38205,6 +39385,12 @@ href="#sections-machine">machine</a>.</em></li>
 <li><strong>exFAT</strong> - Extended FAT: a simple filesystem for flash
 media that allows files over 4 GiB. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>Exit code</strong> - the small number a command hands back
+when it ends, which a script or another program reads to learn how it
+went: 0 means success. <code>gpu-burn --json</code> uses 0 and 10 to 15
+to say exactly how a GPU test ended. <em>See: <a
+href="#cli-reference--gpu-burn---gpu-burnin">CLI reference</a>, <a
+href="#user-guide--918-gpu-burnin">User Guide 9.18</a>.</em></li>
 <li><strong>EXPO</strong> - AMD Extended Profiles for Overclocking;
 faster memory settings stored in the SPD. <em>See: <a
 href="#sections-machine">machine</a>.</em></li>
@@ -38267,6 +39453,12 @@ href="#sections-srs-items">srs-items</a>.</em></li>
 connected. Its voltage drifts with leakage and noise, so the reading is
 meaningless. <em>See: <a
 href="#sections-sensors">sensors</a>.</em></li>
+<li><strong>Floor (voltage floor)</strong> - the lowest value a program
+will write. Tux Burner's service has a floor for the GPU voltage offset
+(-150 mV unless changed there): a deeper undervolt is refused. <em>See:
+<a href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>fontconfig</strong> - the Linux library that finds fonts and
 picks one for each character. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
@@ -38346,6 +39538,19 @@ signal pins that chips use for LEDs, buttons, resets and enables.
 <li><strong>GPT</strong> - GUID Partition Table: the modern partition
 table format, with type GUIDs, PARTUUIDs and names for each partition.
 <em>See: <a href="#sections-storage">storage</a>.</em></li>
+<li><strong>GPU reset</strong> - the driver restarting a graphics chip
+that stopped answering. The video memory may be wiped, and programs that
+were using the GPU can crash or freeze for a few seconds. A sign that
+the card is not stable as set up. <em>See: <a
+href="#cli-reference--gpu-burn---gpu-burnin">CLI reference</a>, <a
+href="#user-guide--918-gpu-burnin">User Guide 9.18</a>.</em></li>
+<li><strong>GPU Tuning</strong> - SRS's tab (Benchmarks &amp; Stress)
+that shows what a graphics card is set to right now: voltage offset,
+clock offset, memory clock, power limit, the limits, and whether Tux
+Burner and LACT are there. Read-only in 2.6. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>gpu_metrics</strong> - a table the amdgpu driver offers in
 <code>/sys/class/drm/cardN/device/gpu_metrics</code>: temperatures,
 clocks, power, activity and throttle reasons straight from the card's
@@ -38585,6 +39790,11 @@ href="#sections-tools">tools</a>.</em></li>
 <li><strong>Joule (J)</strong> - a unit of energy: 3,600 J = 1 Wh. Linux
 energy counters count microjoules (millionths of a joule). <em>See: <a
 href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
+<li><strong>JSON</strong> - a plain-text format for structured data that
+programs can read easily: names and values in braces, such as
+<code>{"result":"pass","errors":0}</code>. <em>See: <a
+href="#cli-reference--gpu-burn---gpu-burnin">CLI reference</a>, <a
+href="#user-guide--918-gpu-burnin">User Guide 9.18</a>.</em></li>
 <li><strong>Junction temperature</strong> - the hottest point measured
 on a graphics chip, usually higher than its "edge" temperature. <em>See:
 <a href="#sections-tools">tools</a>.</em></li>
@@ -38597,6 +39807,13 @@ href="#sections-processors">processors</a>.</em></li>
 <li><strong>Kernel (GPU)</strong> - a small program that runs on the
 GPU, many copies at once (not the Linux kernel). <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
+<li><strong>Kernel log</strong> - the Linux kernel's own diary (shown by
+<code>dmesg</code>; the file <code>/dev/kmsg</code>). Drivers write
+there when hardware misbehaves, for example when a GPU is reset. On some
+systems only root may read it (<code>kernel.dmesg_restrict=1</code>).
+<em>See: <a href="#cli-reference--gpu-burn---gpu-burnin">CLI
+reference</a>, <a href="#user-guide--918-gpu-burnin">User Guide
+9.18</a>.</em></li>
 <li><strong>Kernel module</strong> - a loadable piece of the kernel,
 usually a driver; the Linux counterpart of a Windows driver. <em>See: <a
 href="#sections-linux-os">linux-os</a>, <a
@@ -38626,9 +39843,13 @@ href="#user-guide--611-power--cost">User Guide 6.11</a>.</em></li>
 </ul>
 <h2 id="glossary--l">L</h2>
 <ul>
-<li><strong>LACT</strong> - A Linux tool for AMD GPU overclocking,
-undervolting and fan control. <em>See: <a
-href="#sections-graphics">graphics</a>.</em></li>
+<li><strong>LACT</strong> - A Linux tool for GPU overclocking,
+undervolting, power limits and fan control; its service is
+<code>lactd</code> and its settings are in
+<code>/etc/lact/config.yaml</code>. SRS's GPU Tuning tab shows whether
+it runs and what it has saved for the card; SRS never changes its
+settings. <em>See: <a href="#sections-graphics">graphics</a>, <a
+href="#sections-tools--gpu-tuning">tools</a>.</em></li>
 <li><strong>LAN (local area network)</strong> - the devices in your home
 or office connected to the same router or switch. <em>See: <a
 href="#sections-network">network</a>.</em></li>
@@ -38949,6 +40170,12 @@ href="#user-guide--920-the-nvidia-cuda-toolkit-optional">User Guide
 straight to the drive, past Linux's page cache in RAM; benchmarks use it
 so they measure the drive, not the RAM. <em>See: <a
 href="#sections-tools">tools</a>.</em></li>
+<li><strong>OD_RANGE</strong> - the part of amdgpu's OverDrive table
+that lists the lowest and highest value the driver accepts for each
+setting. It says what the driver takes, not what is safe. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>ODT, ProcODT (on-die termination)</strong> - a resistance a
 chip switches on at its own pins so signals on the memory bus do not
 bounce back; ProcODT is the processor's. Set by the BIOS, in ohms.
@@ -38970,12 +40197,20 @@ href="#sections-tools">tools</a>.</em></li>
 <li><strong>OUI (Organizationally Unique Identifier)</strong> - the
 first three bytes of a MAC address, identifying the maker. <em>See: <a
 href="#sections-network">network</a>.</em></li>
+<li><strong>Overclock (GPU)</strong> - letting a graphics chip run
+faster than the factory setting. Too much makes it compute wrongly or
+stop answering. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>Overcommit</strong> - the kernel promising programs more
 memory than it really has, betting they will not all use it at once.
 <em>See: <a href="#sections-linux-os">linux-os</a>.</em></li>
 <li><strong>OverDrive</strong> - AMD's name for user clock, voltage and
-power tuning. On Linux it appears as <code>pp_od_clk_voltage</code>.
-<em>See: <a href="#sections-graphics">graphics</a>.</em></li>
+power tuning. On Linux it appears as the text file
+<code>pp_od_clk_voltage</code>, which the GPU Tuning tab reads. <em>See:
+<a href="#sections-graphics">graphics</a>, <a
+href="#sections-tools--gpu-tuning">tools</a>.</em></li>
 </ul>
 <h2 id="glossary--p">P</h2>
 <ul>
@@ -39001,6 +40236,12 @@ read the voltages it is set to (an opt-in). <em>See: <a
 href="#sections-machine">machine</a>, <a
 href="#user-guide--54-what-srs-root-reads-since-24-and-the-opt-ins">User
 Guide 5.4</a>.</em></li>
+<li><strong>Power limit</strong> - the most watts a graphics card is
+allowed to draw; lowering it makes the card cooler and a little slower.
+Also called power cap. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>P-state</strong> - a performance state: a running speed and
 voltage level of the CPU. <em>See: <a
 href="#sections-processors">processors</a>.</em></li>
@@ -39209,6 +40450,11 @@ href="#sections-storage">storage</a>.</em></li>
 <li><strong>Ray tracing</strong> - drawing a picture by following rays
 of light from the eye into a scene, with shadows and reflections.
 <em>See: <a href="#sections-tools">tools</a>.</em></li>
+<li><strong>RDNA</strong> - AMD's graphics chip design since the RX 5000
+series: RDNA 2 = RX 6000, RDNA 3 = RX 7000, RDNA 4 = RX 9000. The GPU
+Tuning tab reads RDNA 3 and RDNA 4 cards. <em>See: <a
+href="#sections-graphics">graphics</a>, <a
+href="#sections-tools--gpu-tuning">tools</a>.</em></li>
 <li><strong>Regex</strong> - regular expression, a text search pattern
 (for example <code>^</code> = start of line, <code>.</code> = any
 character). <em>See: <a href="#sections-tools">tools</a>.</em></li>
@@ -39236,6 +40482,12 @@ href="#sections-buses-1">buses-1</a>.</em></li>
 <li><strong>rfkill</strong> - the Linux kernel's on/off switch for
 radios (Wi-Fi, Bluetooth, mobile data); soft = software, hard = physical
 switch. <em>See: <a href="#sections-network">network</a>.</em></li>
+<li><strong>Ring timeout</strong> - the graphics driver noticing that
+the GPU stopped answering one of its work queues (a "ring"). It is
+usually followed by a GPU reset. <code>gpu-burn --watch-kernel</code>
+looks for it in the kernel log. <em>See: <a
+href="#cli-reference--gpu-burn---gpu-burnin">CLI reference</a>, <a
+href="#user-guide--918-gpu-burnin">User Guide 9.18</a>.</em></li>
 <li><strong>ROCm</strong> - AMD's open GPU computing platform (HIP,
 OpenCL, libraries) for Linux. <em>See: <a
 href="#sections-graphics">graphics</a>.</em></li>
@@ -39276,6 +40528,11 @@ D3; The Big Top then leaves it asleep while it is idle. <em>See: <a
 href="#sections-graphics">graphics</a>, <a
 href="#user-guide--613-the-big-top-live-pc-and-gpu-activity">User Guide
 6.13</a>.</em></li>
+<li><strong>Rusticl</strong> - Mesa's OpenCL driver (written in Rust),
+shown as its own "OpenCL (Rusticl)" column in the GPU Compute
+comparison. Since 2.6 SRS times it on the host and copies through the
+GPU there, because its own timing and plain copies are slow. <em>See: <a
+href="#sections-tools">tools</a>.</em></li>
 <li><strong>ryzen_smu</strong> - a third-party kernel driver (AUR
 <code>ryzen_smu-dkms-git</code>) that gives Linux AMD Ryzen's PM table
 and read access to its internal registers (SMN). SRS reads clocks,
@@ -39524,6 +40781,11 @@ is the Linux version of a program that starts with your Windows login.
 condition since boot (unsigned module, hardware error, warning); it
 clears only on reboot. <em>See: <a
 href="#sections-linux-os">linux-os</a>.</em></li>
+<li><strong>tburn-cli</strong> - Tux Burner's command line tool (also
+installed as <code>tux-burner-cli</code>). SRS only checks whether it is
+there. <em>See: <a href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>TBW</strong> - Terabytes written: the amount of data an SSD
 maker rates the drive to survive. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
@@ -39615,6 +40877,20 @@ href="#sections-tools">tools</a>.</em></li>
 <li><strong>TTY</strong> - A terminal or serial device in Linux
 (<code>ttyS0</code>, <code>ttyUSB0</code>, <code>pts/0</code>). <em>See:
 <a href="#sections-buses-1">buses-1</a>.</em></li>
+<li><strong>Tux Burner</strong> - a separate free program for GPU tuning
+(undervolt, overclock, power limit, searching for a card's limits). Its
+root service is the only part that writes to the card, and it holds the
+safety limits. SRS's GPU Tuning tab reads its state; SRS does not
+include it. <em>See: <a href="#sections-tools--gpu-tuning">tools</a>,
+<a href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
+<li><strong>tux-burnerd</strong> - Tux Burner's small service that runs
+as root and listens on the local socket
+<code>/run/tux-burnerd.sock</code>. SRS sends it two read questions
+(<code>status</code>, <code>gpu_capabilities</code>) and nothing else.
+<em>See: <a href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 </ul>
 <h2 id="glossary--u">U</h2>
 <ul>
@@ -39658,6 +40934,12 @@ href="#sections-linux-os">linux-os</a>.</em></li>
 controller, built into the CPU's Data Fabric. <em>See: <a
 href="#sections-buses-1">buses-1</a>, <a
 href="#sections-machine">machine</a>.</em></li>
+<li><strong>Undervolt (GPU)</strong> - giving a graphics chip a little
+less voltage than the factory set. Less heat, power and fan noise at the
+same speed; too much makes it unstable. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>UPS (Uninterruptible Power Supply)</strong> - A battery unit
 that keeps the PC powered during a power cut. <em>See: <a
 href="#sections-sensors">sensors</a>.</em></li>
@@ -39724,6 +41006,13 @@ href="#sections-graphics">graphics</a>.</em></li>
 <li><strong>VMD</strong> - Volume Management Device: an Intel PCIe block
 that gathers NVMe drives for Intel RST and VROC. <em>See: <a
 href="#sections-storage">storage</a>.</em></li>
+<li><strong>Voltage offset</strong> - the number of millivolts taken off
+(or added to) a graphics chip's core voltage, at every speed at once.
+<code>-110 mV</code> = 0.110 V less than the factory set. amdgpu calls
+it VDDGFX offset. <em>See: <a
+href="#sections-tools--gpu-tuning">tools</a>, <a
+href="#user-guide--923-gpu-tuning-read-only">User Guide
+9.23</a>.</em></li>
 <li><strong>VPN (virtual private network)</strong> - an encrypted tunnel
 that carries your traffic through another network or server. <em>See: <a
 href="#sections-network">network</a>.</em></li>
@@ -39751,6 +41040,11 @@ href="#sections-graphics">graphics</a>.</em></li>
 <ul>
 <li><strong>WAN (wide area network)</strong> - the internet side of your
 router. <em>See: <a href="#sections-network">network</a>.</em></li>
+<li><strong>Wave (GPU wave, wavefront)</strong> - the group of threads a
+graphics card runs together, one instruction for all of them: 32 or 64
+on AMD cards. The GPU Compute comparison builds its kernels 64 wide on
+every AMD back end that allows it, so the back ends are compared like
+for like. <em>See: <a href="#sections-tools">tools</a>.</em></li>
 <li><strong>WGP (work-group processor)</strong> - Two compute units
 working as a pair on RDNA GPUs. ROCm OpenCL counts WGPs as compute
 units. <em>See: <a href="#sections-graphics">graphics</a>.</em></li>
@@ -39820,6 +41114,13 @@ href="#sections-storage">storage</a>.</em></li>
 controller also serves USB 2 and USB 1 devices. <em>See: <a
 href="#sections-buses-1">buses-1</a>, <a
 href="#sections-buses-2">buses-2</a>.</em></li>
+<li><strong>Xid (NVIDIA)</strong> - the numbered error reports NVIDIA's
+driver writes to the kernel log (<code>NVRM: Xid ...</code>), for
+example Xid 79 "GPU has fallen off the bus".
+<code>gpu-burn --watch-kernel</code> counts one for the tested card as a
+failure. <em>See: <a href="#cli-reference--gpu-burn---gpu-burnin">CLI
+reference</a>, <a href="#user-guide--918-gpu-burnin">User Guide
+9.18</a>.</em></li>
 <li><strong>XMC (Switched Mezzanine Card)</strong> - an ANSI/VITA 42
 plug-in module for industrial and embedded computers, connected over PCI
 Express. <em>See: <a href="#sections-buses-2">buses-2</a>.</em></li>
