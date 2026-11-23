@@ -244,3 +244,10 @@ or result files were used or looked at for them. Public sources are credited in 
   OpenCL), and that the tuned text changes only `gemm_r` and `fma_r`. None of the 2.6.0 changes
   was run on a real GPU before the commit: compiler output and the fake runtime
   (`tests/gpu-stub-test.sh`) only.
+  The gaps quoted in brackets in the 2.6.0 changelog (FP32 multiply-add chain 35%, FP32 matrix multiply 54% and
+  50%, launch round trip 155 to 436 µs against Vulkan's 48, Rusticl upload / download 17 and 4.9 GB/s against
+  about 55 / 52) are **before** numbers: the author's own GPU Compute comparison runs with the 2.5 kernels on a
+  Radeon RX 9070 XT (RADV, ROCm / HIP, ZLUDA, ROCm's OpenCL and Rusticl), which is what pointed at each cause.
+  They differ from run to run and with the seconds per test (the launch round trip most of all), so read them as
+  the size of each gap, not as exact values. No "after" numbers exist yet; the speed-ups are **not yet measured
+  on a real card**.

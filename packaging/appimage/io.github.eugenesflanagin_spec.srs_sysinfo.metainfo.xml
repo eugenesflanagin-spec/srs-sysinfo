@@ -89,8 +89,8 @@
         This version only shows; SRS never writes to a graphics card.</p>
         <p>GPU Burnin for other programs: a JSON result with exit codes, a card chosen by its PCI
         address, and a kernel log watch that fails a run when the GPU was reset. The GPU Compute
-        comparison runs in its own process, so a crashing GPU runtime no longer closes SRS, and ROCm /
-        HIP, CUDA and OpenCL no longer lose speed to SRS's own code. Also: CPU voltages, temperatures and
+        comparison runs in its own process, so a crashing GPU runtime no longer closes SRS. ROCm / HIP,
+        CUDA and OpenCL should no longer lose speed to SRS's own code (not yet measured on a real card). Also: CPU voltages, temperatures and
         clocks from the SMU PM table, five more DDR5 timings, the AGESA version, CPU speeds at the
         measured base clock, and The Big Top from the tray.</p>
         <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): GPU Tuning was tried on made-up

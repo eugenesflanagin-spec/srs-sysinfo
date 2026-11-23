@@ -197,9 +197,10 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     installed back end on the same GPU, side by side, fastest marked, % of Vulkan; "CUDA (ZLUDA)"
     and one column per OpenCL driver. CUDA's kernels are built in (pre-compiled PTX), so CUDA and
     ZLUDA need no NVIDIA runtime compiler; OpenCL drivers without FP64 say so. 2.6: it runs in its own
-    process, so a crashing GPU runtime no longer closes SRS, and ROCm / HIP, CUDA and OpenCL no longer lose
-    speed to SRS's own code (64-wide waves for AMD's compiler, no sleeping in the launch wait, GPU copies and
-    host timing on Rusticl); a **how it ran** line says what applied. GPU Burnin is unchanged.
+    process, so a crashing GPU runtime no longer closes SRS. ROCm / HIP, CUDA and OpenCL should no longer lose
+    speed to SRS's own code (not yet measured on a real card): 64-wide waves for AMD's compiler, no sleeping in
+    the launch wait, GPU copies and host timing on Rusticl; a **how it ran** line says what applied. GPU Burnin
+    is unchanged.
   - **GPU Tuning (read-only)** (2.6, Benchmarks & Stress page; `sysreport-search gpu-tune status`) - what each
     graphics card is set to right now (voltage offset, core clock offset, highest memory clock, power limit),
     the driver's ranges, live readings, and whether **Tux Burner** (a separate program that changes GPU
@@ -232,8 +233,10 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     (PTX, 2.3) were checked offline and against a fake driver, and the GPU Compute comparison ran every
     CUDA row from them through ZLUDA on my RX 9070 XT (cuBLAS FP64 "not available": ZLUDA's cuBLAS has
     none); GPU Burnin with CUDA was not run on the real card, and nothing CUDA on NVIDIA hardware.
-    GPU Tuning and `gpu-burn --json` / `--watch-kernel` (2.6) ran only on made-up `/sys` files, a stand-in for
-    Tux Burner's service, lavapipe, a fake GPU runtime and made-up kernel log lines, and the 2.6 GPU Compute
+    GPU Tuning and `gpu-burn --json` / `--watch-kernel` (2.6) were built and tested on made-up `/sys` files, a
+    stand-in for Tux Burner's service, lavapipe, a fake GPU runtime and made-up kernel log lines; on the real
+    card, `gpu-tune status` was read once and `gpu-burn --json --watch-kernel` passed one run on the RX 9070 XT,
+    but the watch has never seen a real GPU reset. The 2.6 GPU Compute
     comparison speed-ups were checked on the compiler's output and the fake runtime: their numbers on a real
     card are still to be measured. GPU Burnin ends by itself on a
     driver error, a GPU that stops answering, a piece of work that takes far too long, or a
@@ -436,7 +439,10 @@ window page has two entries with the same Alt+letter.
 | `kmsg_watch.c` | `gpu-burn --watch-kernel`: reads the kernel log for GPU resets during a run (read only; the pattern table for amdgpu, NVIDIA Xid, i915 / xe) |
 | `gpu_tune.c` | GPU Tuning, the read-only part: the card's OverDrive settings from `/sys`, two read requests to Tux Burner's service socket, LACT's state and saved values; `gpu-tune status` and the GPU Tuning tab |
 | `tests/gpu-burn-json-test.sh`, `tests/kmsg_fixtures/` | `gpu-burn --json` / `--watch-kernel` on lavapipe, the fake GPU runtime and made-up kernel log lines (no GPU) |
-| `tests/gpu-tune-test.sh`, `tests/fake-tux-burnerd.py` | GPU Tuning against a made-up `/sys` and a fake Tux Burner service (no GPU, no real service, nothing written), Xvfb GUI check |
+| `tests/gpu-tune-test.sh`, `tests/fake-tux-burnerd.py` | GPU Tuning against a made-up `/sys` and a fake Tux Burner service (no GPU, no real service, nothing written), Xvfb GUI check; `make test-asan` runs its command-line part under AddressSanitizer + UBSan |
+| `tests/gpucompare-child-test.sh` | the GPU Compute comparison's own process on lavapipe under Xvfb: a crash made on purpose, a normal run, Stop, a back end that crashes while starting, a decimal-comma language |
+| `cpu_clock.c` | the measured base clock (BCLK / eCLK) behind the CPU speed lines (2.6) |
+| `srs-root.sh`, `srs-root@.service`, `tests/srs-root-args-test.sh` | the root helper and its boot unit; the test checks its argument and root checks, a dry run and the hand-over step as a normal user on throw-away folders (never as root, never a real collection) |
 | `gpu_kernels_ptx.inc`, `tools/gen-cuda-ptx.sh` | the CUDA kernels of `gpu_kernels.h` pre-compiled to PTX with clang (`make cuda-ptx`), loaded instead of compiling with NVRTC |
 | `cuda_toolkit.c` | the optional NVIDIA CUDA toolkit: detection, explanation, install command per distribution, "don't ask again", checks before an install |
 | `tests/gpu-stub-test.sh`, `tests/gpu_stub.c` | HIP / CUDA / OpenCL back ends against a fake runtime (no GPU), and the built-in PTX checked offline |

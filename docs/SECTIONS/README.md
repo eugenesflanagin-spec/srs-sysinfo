@@ -58,7 +58,7 @@ The groups are in the same order as SRS's Menu.
 | Graphics / Monitors / Audio | 52 | [graphics.md](graphics.md) | Graphics & Audio |
 | Buses / Devices (part 1) | 65 | [buses-1.md](buses-1.md) | USB & PCI devices |
 | Buses / Devices (part 2) | 63 | [buses-2.md](buses-2.md) | USB & PCI devices |
-| Tools | 35 | [tools.md](tools.md) | Benchmarks & Stress; Tools |
+| Tools | 42 | [tools.md](tools.md) | Benchmarks & Stress; Tools |
 | SRS (SIV items) | 60 | [srs-items.md](srs-items.md) | Tools |
 
 ## Every item

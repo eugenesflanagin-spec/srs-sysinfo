@@ -342,7 +342,7 @@ short PARTUUIDs like `XXXXXXXX-01`: the 8-digit disk signature plus the partitio
 - Two disks with the same by-id serial: cheap card readers and clones often share serials; use by-path
   or the filesystem UUID for those.
 - A partition with a UUID but no filesystem name: udev saw something but could not identify it.
-- An ISO-style UUID such as `2026-08-19-18-44-21-00`: that is an ISO 9660 (CD image) filesystem,
+- An ISO-style UUID such as `2026-01-01-12-00-00-00`: that is an ISO 9660 (CD image) filesystem,
   whose "UUID" is its creation date. Normal on live USB sticks.
 
 **Where Linux gets it.** The udev database (`S:` symlink lines and `ID_PART_ENTRY_UUID`,
@@ -548,7 +548,7 @@ The last line gives the totals: "N block, N network, N virtual mount points".
 
 **Healthy / typical values.** The author's PC has 17 block, 2 network and 33 virtual mount points.
 The btrfs root partition appears seven times (`/`, `/home`, `/var/log`...), one per subvolume. A
-second mount of the NTFS data disk at `/srv/newdl-ro` uses `ro` (read-only). Network shares include an
+second mount of an NTFS data disk (for example at `/srv/data-ro`) uses `ro` (read-only). Network shares include an
 NFS v4 export and a CIFS share from a router at `//192.0.2.x/...`.
 
 **Unusual values and what they suggest.**
@@ -944,8 +944,8 @@ practice everything shown here comes from public sysfs files, so it is complete 
   the underlying devices.
 - **Pools**: "N btrfs, N dm/md".
 
-**Healthy / typical values.** On the author's PC: three btrfs filesystems (LINUX, SteamLibrary,
-500GB_SSD), each on one device, with error counters all 0, and no dm/md volumes.
+**Healthy / typical values.** For example: three btrfs filesystems (labelled, say, ROOT, GAMES and
+DATA), each on one device, with error counters all 0, and no dm/md volumes.
 
 **Unusual values and what they suggest.** A btrfs filesystem whose Devices count is lower than you
 set up: a member disk is missing (the filesystem may only mount with `-o degraded`). Non-zero error

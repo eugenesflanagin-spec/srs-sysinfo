@@ -64,6 +64,7 @@ srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray | --tray] [--gui-classic | --gui
 srs-gui --power-recorder
 srs-root [--user NAME]
 srs-root --acpi-eval METHOD [ARG...]
+srs-root -h | --help
 srs-sysreport
 ```
 
@@ -1006,7 +1007,7 @@ started (bad option, not confirmed, back end not installed, no device, Stress & 
 
 | Exit code | Meaning | `result` in the JSON |
 |---|---|---|
-| 0 | PASS: no wrong result, and (with `--watch-kernel`) no GPU reset seen | `pass` |
+| 0 | PASS: no wrong result, and (with `--watch-kernel`) no GPU reset seen. **Also 0 when `--watch-kernel` was asked for but the kernel log could not be read**: then `"kernel_watch":"unreadable"`, and a caller **must treat the run as not watched** (see below) | `pass` |
 | 10 | Stopped by a signal (Ctrl+C, or SIGTERM from the program that started it); no errors so far | `stopped` |
 | 11 | FAIL: wrong results were found | `fail` |
 | 12 | Could not start: no device, the back end is not installed, `--pci` names no device of that back end, the GPU could not be opened | `not-started` |
@@ -1046,7 +1047,7 @@ The result object (one line; shown wrapped here, with example values):
 | `iterations`, `errors`, `gflops_avg` | Matrix multiplications done, wrong results, average speed - summed over the devices |
 | `max` | The highest sensor readings of the run; `null` for a sensor the card does not have |
 | `devices` | The same per device (`--device all`); `state` is `done`, `stopped`, `failed`, `ended-early` or `not-started` |
-| `kernel_watch` | `off` (not asked for), `on`, or `unreadable` with a `kernel_watch_note` saying why |
+| `kernel_watch` | `off` (not asked for), `on`, or `unreadable` with a `kernel_watch_note` saying why. **`unreadable` = not watched**: the exit code and `result` then come from the test's own numbers alone, exactly as without `--watch-kernel`. A program that needs the watch must check for `"kernel_watch":"on"`, not only for exit 0 |
 | `kernel_events` | With `--watch-kernel`: what the kernel log said about **this** card during the run. `kind` is `ring-timeout`, `gpu-reset`, `gpu-reset-done`, `device-lost`, `parser-error`, `nvidia-xid` or `gpu-hang`; `t_s` = seconds after the watch began; `process` = the program the driver blamed, when it said |
 | `kernel_events_other_cards` | Events about another graphics card (not counted) |
 | `kernel_other` | Driver error lines seen that SRS does not know as a reset (shown, not counted) |
@@ -1067,7 +1068,20 @@ a reset is said on standard error ("FAIL - kernel log: ...") and the exit code i
 
 When the kernel log cannot be read (many distributions set `kernel.dmesg_restrict=1`), the run says so -
 "Kernel log not readable ...: only the test's own result is checked." - and the JSON has
-`"kernel_watch":"unreadable"`. It never reports "nothing seen" for a log it could not read.
+`"kernel_watch":"unreadable"`. It never reports "nothing seen" for a log it could not read. **The exit code
+stays the test's own (0 after a clean run), so callers must treat `unreadable` as "not watched"**: a GPU
+reset during such a run would not have been seen. Check `kernel_watch` for `on` before you trust a 0 as
+"no reset" (to let a user read the log: run as root, add the user to a group that may read `/dev/kmsg`, or
+set `kernel.dmesg_restrict=0`).
+
+A run that fails on the kernel log (exit 14, or 1 without `--json`) is also **saved** as a failure:
+`~/.cache/srs/bench-gpuburn.txt` has a red "Result of the run: FAIL - kernel log: ..." line and
+"FAIL (kernel log)" in the table, and the Benchmark History line starts with FAIL and ends with the reason
+(2.6.0 as first built saved such a run as PASS, because the report was written before the log was looked at).
+
+The JSON of `gpu-burn` and `gpu-tune` is always valid, whatever a device name, a service or a settings file
+holds: quotes, backslashes and control characters are escaped, and bytes that are not UTF-8 (also a letter cut
+in the middle) are written as U+FFFD, the replacement character.
 Not tested with the messages of a real reset yet: the patterns follow the drivers' wording.
 
 Examples:
@@ -1262,10 +1276,43 @@ The menu entries use: `--gui-open=stressburn` (SRS Stress & Burnin),
 pkexec srs-root            # or: sudo srs-root
 sudo srs-root --user NAME  # collect for another user (used by the boot unit)
 pkexec srs-root --acpi-eval METHOD [ARG...]   # evaluate one ACPI method (2.4; what the window's ACPI method evaluation runs)
+srs-root --help            # the usage text (also -h); needs no root
 ```
 
-Collects root-only data into `~/.cache/srs/root/` of the user who started it (via `PKEXEC_UID`
-or the current user), then gives the files to that user. It prints one line per step:
+Collects root-only data for the user who started it (`PKEXEC_UID` under pkexec, `SUDO_UID` under sudo,
+else root itself) and puts it into that user's `~/.cache/srs/root/`. It must run as root.
+
+**What it checks first (2.6).** Before it creates or changes anything, srs-root checks its arguments and
+that it is root. Only these forms are accepted: no arguments, `--user NAME` (exactly one name),
+`--acpi-eval METHOD [ARG...]`, and `-h` / `--help`. Anything else - an unknown option, `--user` with no
+name, a stray word - prints the usage text and exits 2. Started without root it says
+`srs-root: needs root (use: pkexec srs-root). Nothing was changed.` and exits 2. (Before 2.6 all of
+these ran a full collection anyway, which without root overwrote the good cached files with
+"Permission denied" texts.)
+
+**How the data gets to you (2.6).** Root no longer writes inside your home folder:
+
+1. Everything is collected in a new folder that only root can enter (`/run/srs-root.XXXXXX`). It is
+   removed when srs-root ends, however it ends.
+2. When the collection is complete, the folder is given to you (`chown`) and put in place of
+   `~/.cache/srs/root` by a process that runs **as you** (through `runuser`, or `setpriv`). The cache
+   is replaced only then, in one step: a run that fails or is interrupted leaves the earlier data as it
+   was. `acpi-calls.txt` is carried over. The folder is yours alone (mode 700).
+3. Only one srs-root runs at a time (a lock, `/run/srs-root.lock`), so the boot unit and the window's
+   Run as root cannot mix their files. A second one waits up to 3 minutes, then exits 4.
+
+Because the last step runs as you, a link planted in `~/.cache/srs/root` can no longer make root write
+to the file it points at (this closes a symlink issue that was there since the helper was added).
+
+| Exit code | Meaning |
+|---|---|
+| 0 | Done (or `--help`) |
+| 2 | Wrong arguments, not root, or no such user; `--acpi-eval`: a method or argument that is not allowed. Nothing was changed |
+| 3 | `--acpi-eval`: the `acpi_call` module is not installed |
+| 4 | Another srs-root did not finish within 3 minutes; nothing was collected this time |
+| 5 | The data was collected but could not be put into the cache; the earlier data is unchanged |
+
+A collection prints one line per step:
 
 ```
 srs-root: dmidecode
@@ -1307,7 +1354,9 @@ running. It loads `acpi_call` (exit 3 if it is not installed), writes the call t
 prints the result and appends it to `acpi-calls.txt`. **This runs BIOS code and can change hardware
 state**; the window asks once before it allows it (User Guide 9.22).
 
-- It has no `--help`; any argument other than `--user NAME` or `--acpi-eval` is ignored.
+- `-h` / `--help` prints the usage text (2.6). Any other argument than `--user NAME` or `--acpi-eval ...` is
+  refused with exit 2; before 2.6 it was ignored and a full collection ran.
+- The log line of `--acpi-eval` is appended by a process running as you as well (2.6).
 - `--user NAME` works only as root; exit code 2 if not root or the user does not exist.
 - Set `SRS_SMART_USB=1` to include USB-attached disks in the SMART collection.
 - Tools that are not installed are skipped.

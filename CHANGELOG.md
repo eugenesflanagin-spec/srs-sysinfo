@@ -10,17 +10,18 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 (voltage offset, clock offset, memory clock, power limit), the driver's ranges, and the state of Tux Burner and LACT -
 it only shows, changing settings comes in a later version through Tux Burner. Also: GPU Burnin for other programs
 (`gpu-burn --json`, exit codes, `--pci`, and `--watch-kernel`, which fails a run on a GPU reset in the kernel log), a
-fairer and faster GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime
-crashes, CPU telemetry from the SMU PM table, five more DDR5 timings and the AGESA version, CPU speeds at the measured
+fairer GPU Compute comparison for ROCm / HIP, CUDA and OpenCL that no longer closes SRS when a GPU runtime crashes
+(it should also be faster on those three: not yet measured on a real card), CPU telemetry from the SMU PM table, five more DDR5 timings and the AGESA version, CPU speeds at the measured
 base clock (BCLK / eCLK), and The Big Top from the tray with its own Tray Meter Speed.
 
 ### Changed
 
-- **GPU Compute comparison: HIP, CUDA and OpenCL no longer lose speed to SRS's own code.** The work, its size and
-  every result check are unchanged on every back end; what changed is how SRS has it compiled, how it waits, and how
-  it copies. Vulkan is untouched. Measured gaps on a Radeon RX 9070 XT (Vulkan = 100%) are in brackets; the new
-  numbers have to be measured on real hardware (the changes were checked on the compiler's output and with the fake
-  GPU runtime only, so please report anything odd).
+- **GPU Compute comparison: HIP, CUDA and OpenCL should no longer lose speed to SRS's own code (not yet measured on
+  a real card).** The work, its size and every result check are unchanged on every back end; what changed is how SRS
+  has it compiled, how it waits, and how it copies. Vulkan is untouched. The numbers in brackets are the gaps
+  **before** these changes: the author's own GPU Compute comparison runs with the 2.5 kernels on a Radeon RX 9070 XT
+  (Vulkan = 100%; they differ somewhat from run to run, see EVIDENCE.md). There are no "after" numbers yet: the
+  changes were checked on the compiler's output and with the fake GPU runtime only, so please report anything odd.
   - **FP32 multiply-add chain and FP32 matrix multiply, own kernel, on ROCm / HIP and OpenCL (ROCm)** (35% and
     54%): AMD's compiler builds a kernel for 32 GPU threads per *wave* unless told otherwise; the Vulkan driver
     builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit, a 32-wide
@@ -155,6 +156,37 @@ base clock (BCLK / eCLK), and The Big Top from the tray with its own Tray Meter 
 
 ### Fixed
 
+- **`srs-root` no longer overwrites the cache when run without root or with an unknown option, and closes a
+  symlink issue.** Started without root, with `--help`, with any unknown option or with `--user` and no name,
+  srs-root ran a full collection anyway; without root every collector then wrote "Permission denied" over the good
+  cached file and several files were deleted. Now the arguments and root are checked before anything is created or
+  changed: only no arguments, `--user NAME`, `--acpi-eval ...` and `-h` / `--help` (usage, exit 0) are accepted,
+  everything else exits 2, and without root it says "needs root (use: pkexec srs-root). Nothing was changed.".
+  `sudo srs-root` now collects for the user who ran sudo (`SUDO_UID`), not into root's own home. Second, root no
+  longer writes inside the user's home at all: the data is collected in a new root-only folder in `/run`, and only
+  when it is complete is it handed to the user and put in place of `~/.cache/srs/root` by a process running as
+  that user (`runuser` / `setpriv`). A failed or interrupted run leaves the earlier data as it was, `acpi-calls.txt`
+  is carried over, and a link planted in the cache folder can no longer make root overwrite the file it points to
+  (with the boot unit enabled that needed no password; the issue is as old as the helper). One srs-root runs at a
+  time (a lock in `/run`), so the boot unit and Run as root cannot mix their files. New exit codes 4 (another
+  srs-root is still running) and 5 (collected, but the cache could not be replaced). The part that runs as root was
+  checked by reading and by tests of its pieces as a normal user (`tests/srs-root-args-test.sh`: the checks, a dry
+  run, and the install step on throw-away folders); see "Tested" below.
+- **GPU Tuning crashed on a PC with Tux Burner's service running and no AMD card** (found in the pre-release review,
+  never released): `gpu-tune status`, the GPU Tuning tab and a full report read the service's answer after freeing
+  it. It did not show with an AMD card, because an earlier, larger read happened to keep the memory alive. Fixed;
+  `tests/gpu-tune-test.sh` now has an NVIDIA-only made-up PC and runs it with glibc told to return freed memory
+  at once, and the GPU Tuning tests were run once under AddressSanitizer.
+- **GPU Compute comparison window, "Seconds per test" in languages with a decimal comma** (German, French ...;
+  found in the review, never released): 0.5 became 0 and 1.5 became 1 on the way to the comparison's own process.
+  The number is now written and read with a decimal point in every language.
+- **`gpu-burn --watch-kernel`: a run that failed on the kernel log was saved as PASS** (found in the review, never
+  released). The exit code was right, but `bench-gpuburn.txt` and Benchmark History were written before the kernel
+  log was looked at. The kernel log now has its say before anything is saved: the report has a red "Result of the
+  run: FAIL - kernel log: ..." line and the history line starts with FAIL and ends with the reason.
+- **`--json` output is always valid JSON** (`gpu-burn`, `gpu-tune`): quotes, backslashes and control characters
+  are escaped everywhere (Tux Burner's vendor word was not), and bytes that are not UTF-8 - also a letter cut in
+  the middle, as in a long LACT profile name - are written as U+FFFD instead of breaking strict parsers.
 - **GPU Compute comparison closed SRS when a GPU runtime crashed.** With ROCm 10.1, opening a GPU test made SRS vanish:
   CUDA's start-up (ZLUDA's cuInit) crashed inside AMD's HIP library (hipStreamCreateWithFlags / hipMemcpyHtoD). The
   comparison now runs in a child process (`srs-gui --gpu-compare-child`, like GPU Burnin): a crash ends only the child,
@@ -182,7 +214,12 @@ real hardware**, so please expect a bug or two:
   stand-in for Tux Burner's service were used. RDNA 3 (RX 7000) and NVIDIA (through Tux Burner) are untested, older
   AMD cards are only recognised, and Intel GPUs only get a note.
 - **`gpu-burn --json` / `--watch-kernel`**: run on lavapipe, a fake GPU runtime and made-up kernel log lines; never
-  with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from the drivers' wording.
+  with a real GPU reset. The NVIDIA Xid and Intel i915 / xe lines are written from the drivers' wording. When the
+  kernel log cannot be read the exit code stays 0 with `"kernel_watch":"unreadable"`: callers must treat that as
+  "not watched".
+- **The new `srs-root`** (collect in `/run`, hand over as the user, the lock): its checks and its install step are
+  tested as a normal user on throw-away folders; the part that runs as root - through pkexec, sudo and the boot
+  unit - could not be run by the tests.
 - **The GPU Compute comparison speed-ups**: checked on the compiler's output and against the fake runtime; the new
   numbers on a real card, real NVIDIA CUDA, and RDNA 3 or older AMD cards are still to be measured.
 - The PM table telemetry on 16-core Ryzen 7000 and every other table version (shown as "not known"), Intel and

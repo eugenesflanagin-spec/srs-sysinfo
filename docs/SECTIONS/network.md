@@ -861,8 +861,8 @@ Bluetooth tethering.
 | Last used | When it was last activated, or "never". |
 | UUID | The profile's unique ID, used by `nmcli connection up <uuid>`. |
 
-**Healthy / typical values.** On the author's PC: "Wired connection 3" on em1, the home Wi-Fi
-profile on wlan0, profiles for lo and two bridges and a TAP device, plus inactive ones: older wired
+**Healthy / typical values.** For example: "Wired connection 1" on the Ethernet port, the home Wi-Fi
+profile on the Wi-Fi card, profiles for lo and two bridges and a TAP device, plus inactive ones: older wired
 profiles, two other Wi-Fi networks, a VPN profile, and a Bluetooth phone-tethering profile.
 
 **Unusual values and what they suggest.** Several "Wired connection N" profiles for one port:

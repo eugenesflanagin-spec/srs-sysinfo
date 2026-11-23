@@ -291,14 +291,22 @@ reads those things once, as root, and saves them as text files in your own folde
 of `/proc/ioports` and `/proc/iomem`, `dmesg`, `smbstatus` (if Samba is installed) and reads of a
 fixed list of AMD and architectural MSRs through `/dev/cpu/N/msr` (it loads the `msr` kernel module
 for that). Since 2.4 it also reads the items in [5.4](#54-what-srs-root-reads-since-24-and-the-opt-ins).
-It then gives the files to you (`chown`).
+
+Since 2.6 it collects everything in a folder of its own that only root can enter, and only when the
+collection is complete does it hand the folder to you; the last step, putting it in place of
+`~/.cache/srs/root`, is done by a process running as you, not as root. So a run that fails or is
+interrupted leaves the data you had, and root never writes inside your home folder.
 
 ### 5.2 Three ways to run it
 
 1. **From the window:** **Menu -> Run as root (srs-root)...** -> OK -> enter your password once.
    When it finishes, a dialog says "Root data collected into ~/.cache/srs/root" and every open
    panel refreshes.
-2. **From a terminal:** `pkexec srs-root` (or `sudo srs-root`).
+2. **From a terminal:** `pkexec srs-root` (or `sudo srs-root`). It has to be root: plain `srs-root`
+   says "needs root (use: pkexec srs-root). Nothing was changed." and stops. `srs-root --help` shows
+   its few options. (Before 2.6, `srs-root` without root, with `--help` or with a mistyped option ran a
+   collection anyway and replaced good cached data with error texts; if items that need root look empty
+   after an older version did that, run it once more as root.)
 3. **At every boot, automatically:** see 5.3.
 
 **From the AppImage:** way 1 works the same. The administrator account cannot look inside a
@@ -324,7 +332,8 @@ ran sudo (or collects one first if there is none). You do not need to do this no
 - Ticking it asks for your password **once** and enables the systemd unit
   `srs-root@<your user>.service`. It also collects straight away.
 - At every boot the unit runs `srs-root --user <you>` as root, at the lowest CPU priority (Nice 19)
-  and idle disk priority, so boot is not slowed. The files are owned by you.
+  and idle disk priority, so boot is not slowed. The files are owned by you. If you start
+  Run as root while the boot run is still going, the second one waits for the first (2.6).
 - Unticking it disables the unit (one password prompt). If you cancel the prompt, the tick stays
   as it was.
 - By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `disable`).
@@ -1708,10 +1717,11 @@ what was tried; in short, not tried on real hardware so far:
   `045c:0184`, `045c:0195` and `045c:0134` models and the compressed (Huffman) protocol were checked
   against elksmart-comm's packets only, never on a real dongle.
 - GPU Tuning (2.6, [9.23](#923-gpu-tuning-read-only)) and `gpu-burn --json` / `--watch-kernel`
-  ([9.18](#918-gpu-burnin)): made-up system files, a stand-in for Tux Burner's service, a software
-  renderer, a fake GPU runtime and made-up kernel log lines only. Not tried on a real graphics card, a
-  real Tux Burner service, a real LACT or with a real GPU reset; NVIDIA, Intel, older AMD cards and
-  laptops with two cards are untested.
+  ([9.18](#918-gpu-burnin)): built and tested on made-up system files, a stand-in for Tux Burner's
+  service, a software renderer, a fake GPU runtime and made-up kernel log lines. On a real card
+  (Radeon RX 9070 XT) `gpu-tune status` was read once and `gpu-burn --json --watch-kernel` passed one
+  run; the watch has never seen a real GPU reset, and a real Tux Burner service was not asked. NVIDIA,
+  Intel, older AMD cards and laptops with two cards are untested.
 
 **Things to know about the GPU tests:**
 
@@ -2585,7 +2595,9 @@ SRS also watches the kernel log (the system's own diary) while the test runs and
 That matters because a GPU that is pushed too far often does not fail *inside* the test: the driver notices
 that the GPU stopped answering, restarts it (a *GPU reset*), and the program that crashes is the desktop,
 while the test's own numbers look fine. With the watch on, such a reset fails the run. If the kernel log
-cannot be read on your system, SRS says so instead of pretending that nothing happened. `--pci 0000:03:00.0`
+cannot be read on your system, SRS says so instead of pretending that nothing happened (the JSON then has
+`"kernel_watch":"unreadable"` and the exit code is the test's own: treat such a run as not watched). A run
+that fails on the kernel log is also saved as FAIL in the report file and in Benchmark History. `--pci 0000:03:00.0`
 picks the card by its PCI address. Without `--json` the command behaves exactly as before. Details and the
 JSON fields: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin). This part was tested on a software
 renderer, a fake GPU runtime and made-up kernel log lines, not with a real GPU reset.
