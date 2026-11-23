@@ -655,6 +655,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## W
 
 - **WAN (wide area network)** - the internet side of your router. *See: [network](SECTIONS/network.md).*
+- **Wave (GPU wave, wavefront)** - the group of threads a graphics card runs together, one instruction for all of them: 32 or 64 on AMD cards. The GPU Compute comparison builds its kernels 64 wide on every AMD back end that allows it, so the back ends are compared like for like. *See: [tools](SECTIONS/tools.md).*
 - **WGP (work-group processor)** - Two compute units working as a pair on RDNA GPUs. ROCm OpenCL counts WGPs as compute units. *See: [graphics](SECTIONS/graphics.md).*
 - **Whetstone** - a classic floating-point (decimal maths) CPU benchmark. Its score is given in MWIPS. *See: [tools](SECTIONS/tools.md).*
 - **Wh (watt-hour)** - energy used over time: 100 W for one hour is 100 Wh; 1,000 Wh is 1 kWh. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*

@@ -31,9 +31,10 @@
 
 typedef struct { const char *name; int fp64; } stub_fn;
 typedef struct { int fp64; } stub_mod;
-typedef struct { int fp64; } stub_prog;
+typedef struct { int fp64, plain; } stub_prog;
 
 static long n_launch[8], n_blas, n_null, n_ptx, n_rtc, n_clbuild[2];
+static long n_rtc_w64, n_rtc_plain, n_cl_w64, n_cl_plain, n_cl_copy, n_cl_rw, n_evrec, n_evq, n_cl_profq;   /* 2.6: builds asked for 64-wide waves / of the plain text, clEnqueueCopyBuffer, read + write, event records / queries, kernels queued on the profiling queue */
 /* gemm_b: GPU Burnin's register-blocked kernel (hipRTC and OpenCL source, and the built-in PTX since 2.4) */
 static const char *const kname[6] = { "gemm_r", "fma_r", "copy_u4", "cmp_u32", "tick", "gemm_b" };
 static stub_fn g_fn[2][6];
@@ -53,6 +54,7 @@ __attribute__((destructor)) static void stub_report(void)
     for (i = 0; i < 6; i++) fprintf(o, "launch %s %ld\n", kname[i], n_launch[i]);
     fprintf(o, "blas %ld\n", n_blas);
     fprintf(o, "ptxload %ld\nrtccompile %ld\nclbuild32 %ld\nclbuild64 %ld\n", n_ptx, n_rtc, n_clbuild[0], n_clbuild[1]);
+    fprintf(o, "rtcwave64 %ld\nrtcplain %ld\nclwave64 %ld\nclplain %ld\nclcopy %ld\nclrw %ld\nevrecord %ld\nevquery %ld\nprofq %ld\n", n_rtc_w64, n_rtc_plain, n_cl_w64, n_cl_plain, n_cl_copy, n_cl_rw, n_evrec, n_evq, n_cl_profq);
     fclose(o);
 }
 
@@ -296,10 +298,14 @@ EXPORT int hipModuleLaunchKernel(void *f, unsigned gx, unsigned gy, unsigned gz,
 
 EXPORT int cuEventCreate(void **e, unsigned f) { (void)f; *e = malloc(8); return 0; }
 EXPORT int hipEventCreateWithFlags(void **e, unsigned f) { return cuEventCreate(e, f); }
-EXPORT int cuEventRecord(void *e, void *s) { (void)e; (void)s; return 0; }
-EXPORT int hipEventRecord(void *e, void *s) { (void)e; (void)s; return 0; }
-EXPORT int cuEventQuery(void *e) { (void)e; return 0; }
-EXPORT int hipEventQuery(void *e) { (void)e; return 0; }
+/* STUB_EV_BUSY=N: every event answers "not ready" (600) N times after it was recorded, as a GPU that is still working */
+static int g_ev_busy;
+static int ev_record(void) { const char *b = getenv("STUB_EV_BUSY"); n_evrec++; g_ev_busy = b && *b ? atoi(b) : 0; return 0; }
+static int ev_query(void) { n_evq++; if (g_ev_busy > 0) { g_ev_busy--; return 600; } return 0; }
+EXPORT int cuEventRecord(void *e, void *s) { (void)e; (void)s; return ev_record(); }
+EXPORT int hipEventRecord(void *e, void *s) { (void)e; (void)s; return ev_record(); }
+EXPORT int cuEventQuery(void *e) { (void)e; return ev_query(); }
+EXPORT int hipEventQuery(void *e) { (void)e; return ev_query(); }
 EXPORT int cuEventElapsedTime(float *ms, void *a, void *b) { (void)a; (void)b; *ms = (float)fake_ms(); return 0; }
 EXPORT int hipEventElapsedTime(float *ms, void *a, void *b) { return cuEventElapsedTime(ms, a, b); }
 EXPORT int cuEventDestroy_v2(void *e) { free(e); return 0; }
@@ -312,10 +318,22 @@ static int rtc_create(void **p, const char *src)
 {
     stub_prog *s = malloc(sizeof *s);
     s->fp64 = strstr(src, "#define REAL double") != NULL;
+    s->plain = strstr(src, "#define GK_PLAIN 1") != NULL;
     *p = s;
     return 0;
 }
-static int rtc_compile(void) { n_rtc++; return getenv("STUB_RTC_FAIL") ? 6 : 0; }
+/* STUB_RTC_NO_WAVE64: the compiler refuses the option for 64-wide waves; STUB_RTC_NO_HINTS: it refuses everything but the plain text */
+static int rtc_compile(void *p, int n, const char **o)
+{
+    int w64 = n > 0 && o && o[0] && strstr(o[0], "wavefrontsize64");
+    n_rtc++;
+    if (w64) n_rtc_w64++;
+    if (((stub_prog *)p)->plain) n_rtc_plain++;
+    if (getenv("STUB_RTC_FAIL")) return 6;
+    if (w64 && getenv("STUB_RTC_NO_WAVE64")) return 6;
+    if (!((stub_prog *)p)->plain && getenv("STUB_RTC_NO_HINTS")) return 6;
+    return 0;
+}
 static int rtc_size(void *p, size_t *n) { (void)p; *n = 16; return 0; }
 static int rtc_code(void *p, char *b) { strcpy(b, ((stub_prog *)p)->fp64 ? "STUBCODE FP64" : "STUBCODE FP32"); return 0; }
 static int rtc_logsize(void *p, size_t *n) { (void)p; *n = 40; return 0; }
@@ -323,8 +341,8 @@ static int rtc_log(void *p, char *b) { (void)p; strcpy(b, "stub: the test compil
 static int rtc_destroy(void **p) { free(*p); *p = NULL; return 0; }
 EXPORT int nvrtcCreateProgram(void **p, const char *src, const char *n, int nh, const char **h, const char **i) { (void)n; (void)nh; (void)h; (void)i; return rtc_create(p, src); }
 EXPORT int hiprtcCreateProgram(void **p, const char *src, const char *n, int nh, const char **h, const char **i) { (void)n; (void)nh; (void)h; (void)i; return rtc_create(p, src); }
-EXPORT int nvrtcCompileProgram(void *p, int n, const char **o) { (void)p; (void)n; (void)o; return rtc_compile(); }
-EXPORT int hiprtcCompileProgram(void *p, int n, const char **o) { (void)p; (void)n; (void)o; return rtc_compile(); }
+EXPORT int nvrtcCompileProgram(void *p, int n, const char **o) { return rtc_compile(p, n, o); }
+EXPORT int hiprtcCompileProgram(void *p, int n, const char **o) { return rtc_compile(p, n, o); }
 EXPORT int nvrtcGetPTXSize(void *p, size_t *n) { return rtc_size(p, n); }
 EXPORT int hiprtcGetCodeSize(void *p, size_t *n) { return rtc_size(p, n); }
 EXPORT int nvrtcGetPTX(void *p, char *b) { return rtc_code(p, b); }
@@ -367,13 +385,13 @@ GEMM_SIG(hipblasHgemm, uint16_t) GEMM_BODY(2)
 
 /* ---------------------------------------------------------------- OpenCL (one platform, one GPU device) + CLBlast */
 typedef struct { int magic; void *p; size_t n; } cl_buf;
-typedef struct { int fp64; } cl_prog;
+typedef struct { int fp64, plain; } cl_prog;
 typedef struct { stub_fn fn; unsigned char val[8][16]; } cl_kern;
 typedef struct { uint64_t t0, t1; } cl_ev;
 #define BUF_MAGIC 0x5742
 static cl_buf *g_bufs[64];
 static uint64_t g_clock = 1000000;
-static int g_plat, g_dev, g_ctx, g_q;
+static int g_plat, g_dev, g_ctx, g_q, g_qplain, g_cl_busy;   /* g_q: a queue with profiling, g_qplain: one without */
 
 static int is_buf(const void *h) { int i; for (i = 0; i < 64; i++) if (g_bufs[i] && g_bufs[i] == h) return 1; return 0; }
 static void new_ev(void **ev)
@@ -384,6 +402,7 @@ static void new_ev(void **ev)
     e = malloc(sizeof *e);
     e->t0 = g_clock; g_clock += d; e->t1 = g_clock;
     *ev = e;
+    { const char *b = getenv("STUB_EV_BUSY"); g_cl_busy = b && *b ? atoi(b) : 0; }
 }
 static int put_str(const char *s, size_t n, void *v, size_t *r)
 {
@@ -398,7 +417,10 @@ EXPORT int clGetPlatformIDs(unsigned n, void **p, unsigned *np) { if (np) *np = 
 EXPORT int clGetPlatformInfo(void *p, unsigned w, size_t n, void *v, size_t *r)
 {
     (void)p;
-    return put_str(w == 0x0902 ? "SRS stub OpenCL" : w == 0x0901 ? "OpenCL 3.0 stub" : "SRS test", n, v, r);
+    {   /* STUB_CL_PLATFORM: the platform name (e.g. "rusticl", "AMD Accelerated Parallel Processing") - it decides the column label */
+        const char *pn = getenv("STUB_CL_PLATFORM");
+        return put_str(w == 0x0902 ? (pn && *pn ? pn : "SRS stub OpenCL") : w == 0x0901 ? "OpenCL 3.0 stub" : "SRS test", n, v, r);
+    }
 }
 EXPORT int clGetDeviceIDs(void *p, uint64_t t, unsigned n, void **d, unsigned *nd) { (void)p; (void)t; if (nd) *nd = 1; if (d && n) d[0] = &g_dev; return 0; }
 EXPORT int clGetDeviceInfo(void *d, unsigned w, size_t n, void *v, size_t *r)
@@ -417,7 +439,7 @@ EXPORT int clGetDeviceInfo(void *d, unsigned w, size_t n, void *v, size_t *r)
 }
 EXPORT void *clCreateContext(const void *pr, unsigned n, void *const *d, void *cb, void *u, int *e) { (void)pr; (void)n; (void)d; (void)cb; (void)u; if (e) *e = 0; return &g_ctx; }
 EXPORT int clReleaseContext(void *c) { (void)c; return 0; }
-EXPORT void *clCreateCommandQueue(void *c, void *d, uint64_t p, int *e) { (void)c; (void)d; (void)p; if (e) *e = 0; return &g_q; }
+EXPORT void *clCreateCommandQueue(void *c, void *d, uint64_t p, int *e) { (void)c; (void)d; if (e) *e = 0; return (p & 2) ? &g_q : &g_qplain; }
 EXPORT int clReleaseCommandQueue(void *q) { (void)q; return 0; }
 EXPORT void *clCreateBuffer(void *c, uint64_t f, size_t n, void *h, int *e)
 {
@@ -440,26 +462,46 @@ EXPORT int clReleaseMemObject(void *m)
 EXPORT int clEnqueueWriteBuffer(void *q, void *m, unsigned bl, size_t off, size_t n, const void *p, unsigned ne, void *const *wl, void **ev)
 {
     (void)q; (void)bl; (void)ne; (void)wl;
+    n_cl_rw++;
     memcpy((char *)((cl_buf *)m)->p + off, p, n); new_ev(ev); return 0;
 }
 EXPORT int clEnqueueReadBuffer(void *q, void *m, unsigned bl, size_t off, size_t n, void *p, unsigned ne, void *const *wl, void **ev)
 {
     (void)q; (void)bl; (void)ne; (void)wl;
+    n_cl_rw++;
     memcpy(p, (char *)((cl_buf *)m)->p + off, n); new_ev(ev); return 0;
+}
+/* STUB_CL_COPY_BAD: the copy delivers one wrong byte (the transfer check must see it) */
+EXPORT int clEnqueueCopyBuffer(void *q, void *s, void *d, size_t so, size_t dof, size_t n, unsigned ne, void *const *wl, void **ev)
+{
+    (void)q; (void)ne; (void)wl;
+    if (!is_buf(s) || !is_buf(d) || so + n > ((cl_buf *)s)->n || dof + n > ((cl_buf *)d)->n) return -30;
+    n_cl_copy++;
+    memcpy((char *)((cl_buf *)d)->p + dof, (char *)((cl_buf *)s)->p + so, n);
+    if (getenv("STUB_CL_COPY_BAD") && n) ((char *)((cl_buf *)d)->p)[dof + n / 2] ^= 1;
+    new_ev(ev); return 0;
 }
 EXPORT void *clCreateProgramWithSource(void *c, unsigned n, const char **src, const size_t *l, int *e)
 {
     cl_prog *p = malloc(sizeof *p);
     (void)c; (void)n; (void)l;
     p->fp64 = strstr(src[0], "#define REAL double") != NULL;
+    p->plain = strstr(src[0], "#define GK_PLAIN 1") != NULL;
     if (e) *e = 0;
     return p;
 }
 EXPORT int clBuildProgram(void *p, unsigned n, void *const *d, const char *o, void *cb, void *u)
 {
-    (void)n; (void)d; (void)o; (void)cb; (void)u;
+    int w64 = o && strstr(o, "wavefrontsize64");
+    (void)n; (void)d; (void)cb; (void)u;
     n_clbuild[((cl_prog *)p)->fp64]++;
-    return getenv("STUB_CL_BUILD_FAIL") ? -11 : 0;
+    if (w64) n_cl_w64++;
+    if (((cl_prog *)p)->plain) n_cl_plain++;
+    if (getenv("STUB_CL_BUILD_FAIL")) return -11;
+    /* STUB_CL_NO_WAVE64: the driver refuses the option for 64-wide waves; STUB_CL_NO_HINTS: everything but the plain text */
+    if (w64 && getenv("STUB_CL_NO_WAVE64")) return -43;
+    if (!((cl_prog *)p)->plain && getenv("STUB_CL_NO_HINTS")) return -11;
+    return 0;
 }
 EXPORT int clGetProgramBuildInfo(void *p, void *d, unsigned w, size_t n, void *v, size_t *r) { (void)p; (void)d; (void)w; return put_str("", n, v, r); }
 EXPORT int clReleaseProgram(void *p) { free(p); return 0; }
@@ -491,7 +533,8 @@ EXPORT int clEnqueueNDRangeKernel(void *q, void *k, unsigned dim, const size_t *
     cl_kern *kk = k;
     void *a[8];
     int i;
-    (void)q; (void)dim; (void)off; (void)ne; (void)wl;
+    (void)dim; (void)off; (void)ne; (void)wl;
+    if (q == &g_q) n_cl_profq++;
     for (i = 0; i < 8; i++) a[i] = kk->val[i];
     if (!strcmp(kk->fn.name, "gemm_b")) {   /* OpenCL counts work-items: n/4 x n/4 in groups of 16 x 16 */
         int nn = *(int *)a[3];
@@ -504,7 +547,16 @@ EXPORT int clEnqueueNDRangeKernel(void *q, void *k, unsigned dim, const size_t *
     return 0;
 }
 EXPORT int clEnqueueMarkerWithWaitList(void *q, unsigned ne, void *const *wl, void **ev) { (void)q; (void)ne; (void)wl; new_ev(ev); return 0; }
-EXPORT int clGetEventInfo(void *ev, unsigned w, size_t n, void *v, size_t *r) { (void)ev; (void)w; if (r) *r = 4; if (v && n >= 4) *(int *)v = 0; return 0; }
+EXPORT int clGetEventInfo(void *ev, unsigned w, size_t n, void *v, size_t *r)
+{
+    int st = 0;   /* CL_COMPLETE; with STUB_EV_BUSY=N an event is "running" (1) for its first N questions */
+    (void)ev; (void)w;
+    n_evq++;
+    if (g_cl_busy > 0) { g_cl_busy--; st = 1; }
+    if (r) *r = 4;
+    if (v && n >= 4) *(int *)v = st;
+    return 0;
+}
 EXPORT int clGetEventProfilingInfo(void *ev, unsigned w, size_t n, void *v, size_t *r) { const cl_ev *e = ev; return put_u64(w == 0x1282 ? e->t0 : e->t1, n, v, r); }
 EXPORT int clReleaseEvent(void *ev) { free(ev); return 0; }
 EXPORT int clFinish(void *q) { (void)q; return 0; }

@@ -18,7 +18,12 @@ static const char gk_pre_cuda[] =
     "#define GID_X (blockIdx.x * blockDim.x + threadIdx.x)\n#define GID_Y (blockIdx.y * blockDim.y + threadIdx.y)\n"
     "#define GSIZE_X (gridDim.x * blockDim.x)\n#define BARRIER() __syncthreads()\n#define ATOMIC_ADD(p, v) atomicAdd(p, v)\n"
     "#define FMA32(a, b, c) fmaf(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n"
-    "#define GRP_X blockIdx.x\n#define GRP_Y blockIdx.y\n#define FAST_ATTR __launch_bounds__(256)\n";
+    "#define GRP_X blockIdx.x\n#define GRP_Y blockIdx.y\n#define FAST_ATTR __launch_bounds__(256)\n"
+    /* gemm_r shares only its two tiles (shared memory) between threads. HIP's __syncthreads() fences GLOBAL memory as well,
+       which on RDNA 4 costs a cache invalidate (global_inv) after every barrier; the local-memory barrier (HIP's own
+       __barrier, still with the wait for the shared-memory writes) is what OpenCL's barrier(CLK_LOCAL_MEM_FENCE), the
+       Vulkan shader and the CUDA PTX under ZLUDA run. hipRTC only: NVRTC has no __AMDGCN__ */
+    "#if defined(__AMDGCN__) && !defined(GK_PLAIN)\n#define LBARRIER() __barrier(__CLK_LOCAL_MEM_FENCE)\n#else\n#define LBARRIER() __syncthreads()\n#endif\n";
 
 static const char gk_pre_cl[] =
     "#define KERNEL __kernel\n#define GLOBAL __global\n#define LOCAL __local\n"
@@ -26,7 +31,8 @@ static const char gk_pre_cl[] =
     "#define GID_X get_global_id(0)\n#define GID_Y get_global_id(1)\n"
     "#define GSIZE_X get_global_size(0)\n#define BARRIER() barrier(CLK_LOCAL_MEM_FENCE)\n#define ATOMIC_ADD(p, v) atomic_add(p, v)\n"
     "#define FMA32(a, b, c) fma(a, b, c)\n#define FMA64(a, b, c) fma(a, b, c)\n"
-    "#define GRP_X get_group_id(0)\n#define GRP_Y get_group_id(1)\n#define FAST_ATTR __attribute__((reqd_work_group_size(16, 16, 1)))\n";
+    "#define GRP_X get_group_id(0)\n#define GRP_Y get_group_id(1)\n#define FAST_ATTR __attribute__((reqd_work_group_size(16, 16, 1)))\n"
+    "#define LBARRIER() barrier(CLK_LOCAL_MEM_FENCE)\n";
 
 /* CUDA for clang without the CUDA headers (tools/gen-cuda-ptx.sh only): clang's own NVPTX builtins in place
    of threadIdx / atomicAdd / fmaf, and uint4 as a 16-byte vector so copy_u4 moves 16 bytes per load like NVRTC's */
@@ -40,7 +46,31 @@ static const char gk_pre_ptx[] =
     "#define FMA32(a, b, c) __builtin_fmaf(a, b, c)\n#define FMA64(a, b, c) __builtin_fma(a, b, c)\n"
     "typedef unsigned uint4 __attribute__((ext_vector_type(4)));\n"
     "#define GRP_X ((unsigned)__nvvm_read_ptx_sreg_ctaid_x())\n#define GRP_Y ((unsigned)__nvvm_read_ptx_sreg_ctaid_y())\n"
-    "#define FAST_ATTR __attribute__((launch_bounds(256)))\n";
+    "#define FAST_ATTR __attribute__((launch_bounds(256)))\n"
+    "#define LBARRIER() __syncthreads()\n#define GK_PTX 1\n";
+
+/* Compiler hints for the FP32 kernels of the GPU Compute comparison, after every preamble. They change how the SAME work is
+   compiled, never the work: the same multiply-adds in the same order, the same results, the same checks.
+   FMA_UNROLL four passes of the multiply-add loop per branch instead of one. AMD's compiler ends every pass with a counter
+              step, a wait for it, a compare and a branch (4 instructions next to the 16 multiply-adds). For AMD's compiler
+              (hipRTC, ROCm OpenCL: __AMDGCN__) and the built-in CUDA PTX (made by clang at build time: GK_PTX).
+   (The other hint is not in the text: gpuburn_rt.c and gpuburn_cl.c ask AMD's compiler for 64-wide waves, GK_WAVE64_OPT.)
+   GK_PLAIN (gk_source, plain = 1) switches every hint off: the text a back end falls back to when its compiler refuses
+   the hinted one. */
+static const char gk_tune[] =
+    "#if defined(GK_FP32) && !defined(GK_PLAIN) && (defined(__AMDGCN__) || defined(GK_PTX))\n#define FMA_UNROLL _Pragma(\"unroll 4\")\n#else\n#define FMA_UNROLL\n#endif\n";
+
+/* AMD's own compiler (hipRTC, ROCm OpenCL) builds kernels for 32 threads per wave on RDNA unless told otherwise; the Vulkan
+   driver (RADV) builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit; a 32-wide
+   one uses half of it unless two instructions pair up, and v_fma_f32 (the multiply-add chain) and a single running sum (gemm_r)
+   never pair. This compiler option builds the comparison's kernels 64 wide, like the Vulkan shaders. It is the option the
+   ROCm runtime itself adds when GPU_ENABLE_WAVE32_MODE=0. SRS_GPU_WAVE=32 in the environment keeps the compiler's default. */
+#define GK_WAVE64_OPT "-mwavefrontsize64"
+static inline int gk_want_wave64(void)
+{
+    const char *e = getenv("SRS_GPU_WAVE");
+    return !(e && !strcmp(e, "32"));
+}
 
 /* REAL / FMAR are set per build: float + FMA32, or double + FMA64 */
 static const char gk_body[] =
@@ -51,9 +81,9 @@ static const char gk_body[] =
     "    REAL acc = 0;\n"
     "    for (t = 0; t < n; t += 16) {\n"
     "        ta[ly][lx] = A[row * n + t + lx];\n        tb[ly][lx] = B[(t + ly) * n + col];\n"
-    "        BARRIER();\n"
+    "        LBARRIER();\n"
     "        for (k = 0; k < 16; k++) acc = FMAR(ta[ly][k], tb[k][lx], acc);\n"
-    "        BARRIER();\n"
+    "        LBARRIER();\n"
     "    }\n"
     "    C[row * n + col] = acc;\n"
     "}\n"
@@ -62,6 +92,7 @@ static const char gk_body[] =
     "    unsigned g = GID_X, i;\n"
     "    REAL a0 = (REAL)((g + seed) & 255u), a1 = (REAL)((g * 3u + 1u) & 255u), a2 = (REAL)((g * 5u + 2u) & 255u), a3 = (REAL)((g * 7u + 3u) & 255u);\n"
     "    REAL a4 = (REAL)((g * 11u + 4u) & 255u), a5 = (REAL)((g * 13u + 5u) & 255u), a6 = (REAL)((g * 17u + 6u) & 255u), a7 = (REAL)((g * 19u + 7u) & 255u);\n"
+    "    FMA_UNROLL\n"
     "    for (i = 0; i < iters; i++) {\n"
     "        a0 = FMAR(a0, m1, c1); a1 = FMAR(a1, m1, c1); a2 = FMAR(a2, m1, c1); a3 = FMAR(a3, m1, c1);\n"
     "        a4 = FMAR(a4, m1, c1); a5 = FMAR(a5, m1, c1); a6 = FMAR(a6, m1, c1); a7 = FMAR(a7, m1, c1);\n"
@@ -89,7 +120,8 @@ static const char gk_body[] =
 /* GPU Burnin's own matrix multiply for HIP, OpenCL and CUDA (variant GV_FAST; Vulkan: shaders/gpu/gemm32b / 64b).
    gemm_r (one result per thread, 16 x 16 tiles) stays the kernel of the GPU Compute comparison on every back end, but the
    LLVM AMDGPU compiler behind hipRTC and ROCm's OpenCL gets only about half of what Mesa's Vulkan compiler gets out of it
-   (RX 9070 XT FP32: ~3.4 vs ~6.1 TFLOPS), so those back ends did not load the GPU fully. gemm_b blocks the work in
+   (RX 9070 XT FP32: ~3.4 vs ~6.1 TFLOPS; 2.6 looks at why for the comparison: wave width and HIP's barrier, see
+   GK_WAVE64_OPT and LBARRIER above), so those back ends did not load the GPU fully. gemm_b blocks the work in
    registers: a 16 x 16 work-group makes a 64 x 64 tile of C, every thread 4 x 4 results (rows ty + 16 i, columns
    tx + 16 j), 16 multiply-adds per 8 shared-memory reads instead of 1 per 2 (RX 9070 XT, HIP: ~13 TFLOPS).
    The sums run in the same order as gemm_r (k = 0 .. n-1), and the inputs are 0 / 1, so the results are identical.
@@ -127,16 +159,18 @@ static const char gk_body_fast[] =
     "    for (i = 0; i < 4; i++) for (j = 0; j < 4; j++) C[(long)(row0 + ty + 16 * i) * n + col0 + tx + 16 * j] = acc[i][j];\n"
     "}\n";
 
-/* malloc'd source text for a dialect and a precision (GP_FP64 = double, anything else float) */
-static inline char *gk_source(int dialect, int fp64)
+/* malloc'd source text for a dialect and a precision (GP_FP64 = double, anything else float). plain = 1: without the
+   compiler hints (GK_PLAIN) */
+static inline char *gk_source(int dialect, int fp64, int plain)
 {
     const char *pre = dialect == GKD_OPENCL ? gk_pre_cl : dialect == GKD_PTX ? gk_pre_ptx : gk_pre_cuda;
-    const char *def = fp64 ? "#define REAL double\n#define FMAR(a, b, c) FMA64(a, b, c)\n" : "#define REAL float\n#define FMAR(a, b, c) FMA32(a, b, c)\n";
+    const char *def = fp64 ? "#define REAL double\n#define FMAR(a, b, c) FMA64(a, b, c)\n" : "#define REAL float\n#define FMAR(a, b, c) FMA32(a, b, c)\n#define GK_FP32 1\n";
     const char *ext = dialect == GKD_OPENCL && fp64 ? "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n" : "";
+    const char *pl = plain ? "#define GK_PLAIN 1\n" : "";
     const char *fast = gk_body_fast;   /* 2.4: every dialect, the PTX too (CUDA / ZLUDA GPU Burnin) */
-    size_t n = strlen(pre) + strlen(def) + strlen(ext) + sizeof gk_body + strlen(fast) + 8;
+    size_t n = strlen(pre) + strlen(def) + strlen(ext) + strlen(pl) + sizeof gk_tune + sizeof gk_body + strlen(fast) + 8;
     char *s = (char *)malloc(n);
-    if (s) snprintf(s, n, "%s%s%s%s%s", ext, pre, def, gk_body, fast);
+    if (s) snprintf(s, n, "%s%s%s%s%s%s%s", ext, pl, pre, def, gk_tune, gk_body, fast);
     return s;
 }
 

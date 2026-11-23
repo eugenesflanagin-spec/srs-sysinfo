@@ -1099,8 +1099,38 @@ Columns: "Vulkan", "ROCm / HIP", "CUDA" - or **"CUDA (ZLUDA)"** when the CUDA li
 ZLUDA translating CUDA calls to an AMD GPU - and one column per OpenCL driver, such as
 **"OpenCL (ROCm)"** and **"OpenCL (Rusticl)"** on the same card; CPU OpenCL drivers (PoCL) are
 marked CPU. A back end that is not installed shows "not installed" with a one-line hint. Below:
-each column's device and driver / runtime version, whether a vendor library was found, the sizes
-and the **Build** line.
+each column's device and driver / runtime version, whether a vendor library was found, a **how it
+ran** line when a back end's kernels were built or its transfers made in a special way (see
+below), the sizes and the **Build** line.
+
+**The same work, compiled and timed fairly (2.6).** The work, its size and every check are the same
+on every back end. Three things differ between the runtimes, and SRS evens them out:
+
+- *Wave width.* A GPU runs threads in groups called waves. The Vulkan driver (RADV) builds compute
+  shaders for 64 threads per wave; AMD's own compiler (ROCm / HIP, ROCm's OpenCL) builds for 32
+  unless asked. On RDNA 3 and 4 a 64-wide instruction uses the whole vector unit and a 32-wide one
+  half of it, so SRS asks AMD's compiler for 64-wide waves for its FP32 kernels. The column's **how
+  it ran** line says "FP32 own kernels built for 64-wide waves"; if the compiler refuses, the
+  kernels are built the plain way and the line says that instead. `SRS_GPU_WAVE=32` keeps the
+  compiler's default (for comparing). FP64 kernels and GPU Burnin are not changed. CUDA through
+  ZLUDA stays 32 wide: ZLUDA has no such switch.
+- *Waiting.* For the **launch round trip** SRS starts one empty kernel and waits until the host
+  knows it has finished. Vulkan waits inside the driver. HIP, CUDA and OpenCL have no wait with a
+  time limit, so SRS asks "finished?" in a loop; for the first 2 ms it asks without sleeping, so the
+  row shows the launch and not SRS's own sleep. A piece of work still gets 5 s before it is given
+  up (the watchdog).
+- *Copying.* **Upload / Download** time a copy between system memory and video memory. On Mesa's
+  Rusticl the plain OpenCL read and write calls copy on the CPU through mapped video memory, which
+  is slow to read; there SRS uses a buffer in system memory and lets the GPU copy
+  (`clEnqueueCopyBuffer`), as the Vulkan test does. The **how it ran** line says so.
+  `SRS_CL_XFER=plain` keeps the plain calls.
+- *Timing.* Vulkan, HIP and CUDA report how long the GPU worked; OpenCL does too, but only on a
+  queue with profiling switched on. Rusticl waits for two timestamp read-backs per command on such a
+  queue, which slows a run of many short kernels to about half. On Rusticl SRS therefore uses a
+  plain queue and times the run on the host (first kernel queued to last kernel finished), which can
+  only make a speed look lower, never higher. The line says "timed on the host".
+  `SRS_CL_TIMING=events` keeps the old way there; `SRS_CL_TIMING=host` uses host timing on any
+  OpenCL driver.
 
 | Setting | Choices |
 |---|---|
@@ -1122,7 +1152,13 @@ healthy result has every row filled in and no errors.
 
 **Unusual values and what they suggest.**
 - One back end far behind the others on the same card: an old or debug runtime, or a driver that
-  does not support that card well.
+  does not support that card well. Since 2.6 SRS's own code should no longer be the reason; if
+  a **how it ran** line says the compiler refused the 64-wide waves, that column's FP32 own-kernel
+  and multiply-add rows run at about half of what the card can do on RDNA 3 / 4.
+- FP32 multiply-add chain on CUDA (ZLUDA) at about half of Vulkan: expected. ZLUDA builds for
+  32-wide waves, and a chain of plain multiply-adds cannot use the other half of the vector unit.
+- A launch round trip that is much higher than in another run: something else was using the
+  CPU. The row needs a quiet PC (it measures tens of microseconds).
 - CUDA (ZLUDA) rows: since 2.3 they run from SRS's built-in kernels (PTX); the CUDA column's
   software line says "own kernels built in (PTX), no NVRTC". "not available ... the CUDA driver
   refused the built-in kernels ... see Options > NVIDIA CUDA toolkit": that driver or ZLUDA version

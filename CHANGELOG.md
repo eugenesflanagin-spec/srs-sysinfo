@@ -8,6 +8,55 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ### Changed
 
+- **GPU Compute comparison: HIP, CUDA and OpenCL no longer lose speed to SRS's own code.** The work, its size and
+  every result check are unchanged on every back end; what changed is how SRS has it compiled, how it waits, and how
+  it copies. Vulkan is untouched. Measured gaps on a Radeon RX 9070 XT (Vulkan = 100%) are in brackets; the new
+  numbers have to be measured on real hardware (the changes were checked on the compiler's output and with the fake
+  GPU runtime only, so please report anything odd).
+  - **FP32 multiply-add chain and FP32 matrix multiply, own kernel, on ROCm / HIP and OpenCL (ROCm)** (35% and
+    54%): AMD's compiler builds a kernel for 32 GPU threads per *wave* unless told otherwise; the Vulkan driver
+    builds compute shaders for 64. On RDNA 3 and 4 one 64-wide instruction uses the whole vector unit, a 32-wide
+    one half of it, and the instructions these two tests are made of cannot pair up to fill the other half. SRS
+    now asks AMD's compiler for 64-wide waves for these FP32 kernels (`-mwavefrontsize64`, the option the ROCm
+    runtime itself uses in its 64-wide mode). If the compiler refuses, the kernels are built as before. The
+    column's new **how it ran** line says which happened; `SRS_GPU_WAVE=32` keeps the compiler's default. FP64 and
+    GPU Burnin are built as before.
+  - **FP32 multiply-add chain on ROCm / HIP, OpenCL (ROCm) and CUDA** (ZLUDA 35%): the loop is now compiled four
+    passes per branch. AMD's compiler ended every pass of 16 multiply-adds with 4 more instructions (count, wait,
+    compare, branch); now there are 64 multiply-adds between them. The built-in CUDA kernels (PTX) were rebuilt
+    the same way. The same number of multiply-adds, the same results.
+  - **FP32 / FP64 matrix multiply, own kernel, on ROCm / HIP**: its barrier now guards the shared tile memory only,
+    which is all this kernel shares between threads. HIP's `__syncthreads()` also guarded global memory, which
+    on RDNA 4 added a cache invalidate after every barrier (twice per tile step). OpenCL, Vulkan and the CUDA PTX
+    never had it.
+  - **Kernel launch round trip on ROCm / HIP, CUDA and OpenCL** (155 to 436 µs against Vulkan's 48): these
+    runtimes have no wait with a time limit, so SRS asks "finished?" in a loop - and slept 100 µs between the
+    questions, which was most of what the row showed. Now the loop does not sleep for the first 2 ms of a launch
+    (the 5 s watchdog is unchanged). HIP / CUDA also had a second timing event and a GPU-timer read inside the
+    timed part; OpenCL used a queue with profiling switched on, which makes a driver take timestamps around every
+    command. Both are gone from this row: one launch, one wait, timed on the host from the launch call.
+  - **Upload and download on OpenCL (Rusticl)** (17 and 4.9 GB/s against about 55 / 52): Rusticl's
+    `clEnqueueWriteBuffer` / `ReadBuffer` copy on the CPU straight into and out of mapped video memory, and reading
+    video memory that way is very slow. The Vulkan test and the other runtimes let the GPU copy between system
+    memory and video memory. On Rusticl SRS now does the same: a buffer in system memory
+    (`CL_MEM_ALLOC_HOST_PTR`) and `clEnqueueCopyBuffer`, timed to the end of the last copy and checked through a
+    separate read. Only on Rusticl, where Mesa's source says such a buffer is kept in system memory;
+    `SRS_CL_XFER=plain` keeps the old way. Every other OpenCL driver is measured as before.
+  - **Every kernel row on OpenCL (Rusticl)** (FP32 matrix multiply 50%): SRS timed OpenCL kernels with the
+    driver's event times, which need a queue with profiling. On such a queue Rusticl reads two GPU timestamp
+    queries back for every command and waits for each, so a run of many short kernels (a matrix multiply and its
+    check, over and over) spent about as long waiting between kernels as computing. On Rusticl the kernels now go
+    to a queue without profiling and the run is timed on the host, from the first kernel queued to the last one
+    finished; that can only make a speed look lower, never higher. Other OpenCL drivers keep the event times.
+    `SRS_CL_TIMING=events` / `host` forces one or the other (for comparing).
+  - **Not changed, and why**: CUDA through ZLUDA stays 32 wide (ZLUDA compiles SRS's PTX itself and offers no
+    switch), so its multiply-add chain can gain only from the loop change. Rusticl's multiply-add chain (65%) is
+    one long kernel, so the timing change does not touch it: it is compiled by Mesa from the same OpenCL text ROCm
+    gets, and nothing in SRS's text explains it. FP64 rows were already within 2% everywhere.
+  - Tests: `tests/gpu-stub-test.sh` covers the 64-wide option and both fall-backs (HIP, OpenCL), that GPU Burnin
+    and NVRTC never get it, a GPU that is still busy when asked, Rusticl's host timing (no kernel on the profiling
+    queue), and the Rusticl copy path including a copy that delivers one wrong byte (shown as WRONG RESULT).
+
 - **The Big Top from the tray, like a task manager**: the SRS tray icon's right-click menu has **The Big Top (Task
   Manager)** right under Show SRS / Hide to Tray, and every tray meter's menu has it at the top; it opens The Big Top's
   Performance tab without the main window (a meter's left click already did). Closing or minimising the main window

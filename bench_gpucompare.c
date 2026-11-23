@@ -293,6 +293,7 @@ static void cmp_render(srs_out *o, void *ctx)
         if (!k->shown) { so_kvf(o, k->info.label, C_GRAY, "%s", k->hint); continue; }   /* the hint says "not installed - ..." or why there is no device */
         so_kvf(o, k->info.label, C_VALUE, "%s (%s)", k->info.device, k->info.kind);
         so_kvf(o, "  software", C_GRAY, "%s%s", k->info.runtime, k->info.has_lib ? "" : "; no vendor GEMM library");
+        if (k->tune[0]) so_kv(o, "  how it ran", C_GRAY, k->tune);
         if (k->aborted[0]) so_kv(o, "  ended early", C_RED, k->aborted);
         for (row = 0; row < GC_N; row++) {
             int r2, again = 0;
@@ -369,6 +370,7 @@ int bench_gpucompare(const gpucmp_cfg *cfg, gpucmp_result *res, srs_out *o, vola
                 break;
             }
         }
+        if (ops->note) snprintf(col->tune, sizeof col->tune, "%.190s", ops->note(ctx));
         ops->close(ctx);
     }
     if (x->failed)   /* every test that did not run after the failure says so, in this column and the ones after it */

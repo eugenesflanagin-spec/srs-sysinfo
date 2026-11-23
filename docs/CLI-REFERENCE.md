@@ -941,6 +941,16 @@ FP64 shows its FP64 rows as "not available: this OpenCL driver has no FP64 (doub
 stops answering in one column, the run ends there: no later back end touches that GPU, and the
 tests that did not run say "not run".
 
+Since 2.6 a column can have a **how it ran** line under the table. ROCm / HIP and OpenCL (ROCm): the
+FP32 own kernels are built for 64-wide waves, as the Vulkan driver builds its shaders
+(`SRS_GPU_WAVE=32` keeps AMD's default of 32; if the compiler refuses, the line says the plain text
+was built). OpenCL (Rusticl): the kernels are timed on the host on a queue without profiling
+(`SRS_CL_TIMING=events` keeps the driver's event times), and upload and download are GPU copies
+between a system-memory buffer and video memory (`SRS_CL_XFER=plain` keeps
+`clEnqueueWriteBuffer` / `ReadBuffer`). The launch round
+trip is timed on the host from the launch call until the host knows the kernel has finished, with
+no sleep in SRS's wait loop for the first 2 ms; run it on a quiet PC.
+
 | Option | Meaning |
 |---|---|
 | `--backends L` | Comma-separated: `vulkan`, `hip`, `cuda`, `opencl` (default: every installed one). `--backend B` is the same |
@@ -1177,6 +1187,9 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_CTK_TOOL_DIRS` | Only together with `SRS_CTK_DRY_RUN=1`: look for the package manager, `sudo` and `pkexec` in these folders (colon-separated) instead of `/usr/bin`, `/usr/sbin`, `/bin`, `/sbin` (for tests: fake tools that are never run). Ignored otherwise |
 | `SRS_OS_RELEASE`, `SRS_PCI_SYSFS`, `SRS_CTK_ROUTE`, `SRS_CTK_PACMAN_LOCK` | NVIDIA CUDA toolkit checks: read this file instead of `/etc/os-release`, this folder instead of `/sys/bus/pci/devices`, this route table instead of `/proc/net/route`, this lock file instead of pacman's `db.lck` (for tests: `tests/cuda-toolkit-test.sh`) |
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older tiled matrix multiply instead of the 2.4 register-blocked one (for comparing) |
+| `SRS_GPU_WAVE=32` | GPU Compute comparison, ROCm / HIP and OpenCL (ROCm): build the FP32 own kernels for AMD's default of 32 threads per wave instead of 64 (for comparing with 2.5 and older) |
+| `SRS_CL_XFER=plain` | GPU Compute comparison, OpenCL (Rusticl): upload and download with `clEnqueueWriteBuffer` / `ReadBuffer` as before 2.6, instead of a GPU copy from a system-memory buffer (for comparing) |
+| `SRS_CL_TIMING=events` / `host` | GPU Compute comparison and GPU Burnin, OpenCL: time the kernels with the driver's event times on a profiling queue (`events`: every driver, as before 2.6) or on the host on a plain queue (`host`). Default: host on Rusticl, events elsewhere |
 | `SRS_SPD_DIR` | Memory Timings: read the modules' SPD from `<dir>/<device>/eeprom` instead of `/sys/bus/i2c/drivers/spd5118` (for tests) |
 | `XDG_DATA_HOME` | Update hardware lists keeps its copies in `$XDG_DATA_HOME/srs/lists` (default `~/.local/share/srs/lists`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU Benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |

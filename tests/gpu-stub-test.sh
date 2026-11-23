@@ -234,6 +234,86 @@ run_cli "${CLENV[@]}" STUB_CL_BUILD_FAIL=1 -- gpu-compare --backends opencl --se
 if no_abort && [ $RC = 0 ] && grep -q "the OpenCL kernel did not build (OpenCL error -11; the driver gave no build log)" <<<"$OUT" && ! grep -q "did not build: *$" <<<"$OUT"
 then ok "opencl, build fails silently: the error code is shown"; else bad "opencl build fail: rc=$RC $(grep -i 'build' <<<"$OUT" | head -3)"; fi
 
+# ---- 2.6: the comparison's compiler hints (64-wide waves on AMD's compiler), the launch round trip's wait, Rusticl transfers
+HIPENV=(SRS_CUDA_LIB=/nonexistent/libcuda.so)
+echo "== hip, gpu-compare: FP32 own kernels are built for 64-wide waves (the option), FP64 is not"
+run_cli "${HIPENV[@]}" -- gpu-compare --backends hip --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count rtccompile)" = 2 ] && [ "$(count rtcwave64)" = 1 ] && [ "$(count rtcplain)" = 0 ] && grep -q "how it ran *FP32 own kernels built for 64-wide waves" <<<"$OUT"
+then ok "hip compare: the FP32 module asked for 64-wide waves, the FP64 module did not, the column says so"; else bad "hip wave64: rc=$RC $LOG $(grep 'how it ran' <<<"$OUT")"; fi
+echo "== hip, gpu-compare: the compiler refuses the option -> the plain text is built, every row still runs"
+run_cli "${HIPENV[@]}" STUB_RTC_NO_WAVE64=1 -- gpu-compare --backends hip --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count rtcplain)" -ge 1 ] && [ "$(count gemm_r)" -gt 0 ] && [ "$(count fma_r)" -gt 0 ] && ! grep -q "failed\|WRONG" <<<"$OUT" && grep -q "how it ran *the compiler refused the tuned kernel text" <<<"$OUT" \
+    && grep -q "^FP32 matrix multiply, own kernel (GFLOPS) *[0-9]" <<<"$OUT" && grep -q "^FP32 multiply-add chain (peak) (GFLOPS) *[0-9]" <<<"$OUT"
+then ok "hip compare, option refused: fell back to the plain text, nothing failed, the column says so"; else bad "hip wave64 refused: rc=$RC $LOG $(grep -E 'how it ran|failed' <<<"$OUT" | head -3)"; fi
+run_cli "${HIPENV[@]}" STUB_RTC_NO_HINTS=1 -- gpu-compare --backends hip --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count rtcplain)" -ge 2 ] && ! grep -q "failed\|WRONG" <<<"$OUT" && grep -q "^FP64 multiply-add chain (peak) (GFLOPS) *[0-9]" <<<"$OUT"
+then ok "hip compare, hinted text refused (FP32 and FP64): the plain text is built for both"; else bad "hip hints refused: rc=$RC $LOG $(grep -E 'failed' <<<"$OUT" | head -3)"; fi
+echo "== hip, gpu-compare: SRS_GPU_WAVE=32 keeps the compiler's default"
+run_cli "${HIPENV[@]}" SRS_GPU_WAVE=32 -- gpu-compare --backends hip --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count rtcwave64)" = 0 ] && [ "$(count rtcplain)" = 0 ] && grep -q "how it ran *FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)" <<<"$OUT"
+then ok "hip compare, SRS_GPU_WAVE=32: no option, the column says so"; else bad "hip SRS_GPU_WAVE=32: rc=$RC $LOG $(grep 'how it ran' <<<"$OUT")"; fi
+echo "== hip, gpu-burn: GPU Burnin's module is not built for 64-wide waves (unchanged)"
+run_cli "${HIPENV[@]}" -- gpu-burn --backend hip --seconds 1 --yes
+if [ $RC = 0 ] && grep -q "PASS" <<<"$OUT" && [ "$(count rtcwave64)" = 0 ] && [ "$(count gemm_b)" -gt 0 ]; then ok "hip burn: gemm_b, no 64-wide-wave option"; else bad "hip burn wave64: rc=$RC $LOG"; fi
+echo "== cuda, gpu-compare: NVRTC is never given AMD's option"
+run_cli STUB_PTX_FAIL=1 SRS_HIP_LIB=/nonexistent/libamdhip64.so -- gpu-compare --backends cuda --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count rtccompile)" -gt 0 ] && [ "$(count rtcwave64)" = 0 ] && [ "$(count rtcplain)" = 0 ] && ! grep -q "how it ran" <<<"$OUT"; then ok "cuda compare, NVRTC: no option, no plain rebuild, no note"; else bad "cuda NVRTC option: rc=$RC $LOG"; fi
+
+echo "== hip / cuda / opencl, gpu-compare: a GPU that is still working when asked (the wait loop without sleeping)"
+for be in hip cuda; do
+    run_cli STUB_EV_BUSY=5 -- gpu-compare --backends $be --seconds 0.1 --yes
+    if [ $RC = 0 ] && no_abort && ! grep -q "failed\|WRONG" <<<"$OUT" && [ "$(count evquery)" -gt "$(count evrecord)" ] && [ "$(count tick)" -ge 500 ] \
+        && grep -q "^Kernel launch round trip (lower is better) (µs) *[0-9]" <<<"$OUT"
+    then ok "$be compare, busy events: every wait ended, $(count tick) launches counted and checked"; else bad "$be busy events: rc=$RC $LOG $(grep -E 'failed|round trip' <<<"$OUT" | head -3)"; fi
+    # the launch round trip queues ONE event per launch (no start event in the timed part): 504 launches, and no more
+    # event records than launches + the other tests' two per piece
+    lat=$(count tick)
+    [ "$lat" = 504 ] && ok "$be compare: 4 warm-up + 500 timed launches" || bad "$be launches: $lat"
+done
+run_cli "${CLENV[@]}" STUB_EV_BUSY=5 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && ! grep -q "failed\|WRONG" <<<"$OUT" && [ "$(count tick)" = 504 ] && grep -q "^Kernel launch round trip (lower is better) (µs) *[0-9]" <<<"$OUT"
+then ok "opencl compare, busy events: every wait ended, 504 launches counted and checked"; else bad "opencl busy events: rc=$RC $LOG $(grep -E 'failed|round trip' <<<"$OUT" | head -3)"; fi
+
+echo "== opencl (AMD ROCm platform): FP32 own kernels are built with the 64-wide-wave option; a refusal falls back"
+AMDP="STUB_CL_PLATFORM=AMD Accelerated Parallel Processing"
+run_cli "${CLENV[@]}" "$AMDP" STUB_CL_FP64=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count clwave64)" = 1 ] && [ "$(count clplain)" = 0 ] && [ "$(count clbuild64)" = 1 ] && [ "$(count clcopy)" = 0 ] \
+    && grep -q "^Test *OpenCL (ROCm)" <<<"$OUT" && grep -q "how it ran *FP32 own kernels built for 64-wide waves" <<<"$OUT"
+then ok "opencl ROCm: the FP32 program asked for 64-wide waves, the FP64 one did not, transfers stay read / write"; else bad "opencl ROCm wave64: rc=$RC $LOG $(grep 'how it ran' <<<"$OUT")"; fi
+run_cli "${CLENV[@]}" "$AMDP" STUB_CL_NO_WAVE64=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count clbuild32)" = 2 ] && [ "$(count clplain)" = 0 ] && ! grep -q "failed\|WRONG" <<<"$OUT" && grep -q "how it ran *the compiler refused the option for 64-wide waves" <<<"$OUT" \
+    && grep -q "^FP32 matrix multiply, own kernel (GFLOPS) *[0-9]" <<<"$OUT"
+then ok "opencl ROCm, option refused: built again without it, nothing failed, the column says so"; else bad "opencl ROCm option refused: rc=$RC $LOG $(grep -E 'how it ran|failed' <<<"$OUT" | head -3)"; fi
+run_cli "${CLENV[@]}" "$AMDP" STUB_CL_NO_HINTS=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count clbuild32)" = 3 ] && [ "$(count clplain)" = 1 ] && ! grep -q "failed\|WRONG" <<<"$OUT" && grep -q "how it ran *the compiler refused the tuned kernel text" <<<"$OUT"
+then ok "opencl ROCm, hinted text refused: the plain text is built (third try)"; else bad "opencl ROCm hints refused: rc=$RC $LOG $(grep -E 'how it ran|failed' <<<"$OUT" | head -3)"; fi
+run_cli "${CLENV[@]}" "$AMDP" SRS_GPU_WAVE=32 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count clwave64)" = 0 ] && [ "$(count clbuild32)" = 1 ]; then ok "opencl ROCm, SRS_GPU_WAVE=32: no option"; else bad "opencl ROCm SRS_GPU_WAVE=32: rc=$RC $LOG"; fi
+run_cli "${CLENV[@]}" "$AMDP" -- gpu-burn --backend opencl --seconds 1 --yes
+if [ $RC = 0 ] && grep -q "PASS" <<<"$OUT" && [ "$(count clwave64)" = 0 ] && [ "$(count gemm_b)" -gt 0 ]; then ok "opencl ROCm burn: gemm_b, no 64-wide-wave option (unchanged)"; else bad "opencl ROCm burn: rc=$RC $LOG"; fi
+run_cli "${CLENV[@]}" -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count clwave64)" = 0 ] && [ "$(count clplain)" = 0 ] && [ "$(count clbuild32)" = 1 ] && [ "$(count clcopy)" = 0 ] && [ "$(count profq)" -gt 0 ] && ! grep -q "how it ran" <<<"$OUT"
+then ok "opencl, any other platform: no option, one build, read / write transfers, the driver's event times, no note"; else bad "opencl other platform: rc=$RC $LOG"; fi
+run_cli "${CLENV[@]}" STUB_CL_BUILD_FAIL=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
+[ "$(count clbuild32)" -le 6 ] && [ "$(count clplain)" = 0 ] && ok "opencl, other platform, build fails: not retried with another text" || bad "opencl build retries: $LOG"
+
+echo "== opencl (Rusticl): upload / download go through a host-memory buffer and clEnqueueCopyBuffer, and are checked"
+run_cli "${CLENV[@]}" STUB_CL_PLATFORM=rusticl -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && no_abort && [ "$(count clcopy)" -gt 0 ] && [ "$(count clwave64)" = 0 ] && ! grep -q "failed\|WRONG" <<<"$OUT" && grep -q "^Test *OpenCL (Rusticl)" <<<"$OUT" \
+    && grep -q "^Upload (system to video memory) (GB/s) *[0-9]" <<<"$OUT" && grep -q "^Download (video to system memory) (GB/s) *[0-9]" <<<"$OUT" \
+    && grep -q "how it ran *timed on the host, on a queue without profiling; upload / download are GPU copies from / to a system-memory buffer" <<<"$OUT" \
+    && grep -q "^FP32 matrix multiply, own kernel (GFLOPS) *[0-9]" <<<"$OUT" && grep -q "^FP32 multiply-add chain (peak) (GFLOPS) *[0-9]" <<<"$OUT" && [ "$(count profq)" = 0 ]
+then ok "opencl Rusticl: both transfer rows ran through the copy, no kernel went to the profiling queue, the column says so"; else bad "opencl Rusticl transfers: rc=$RC $LOG $(grep -E 'how it ran|load|failed' <<<"$OUT" | head -4)"; fi
+run_cli "${CLENV[@]}" STUB_CL_PLATFORM=rusticl STUB_CL_COPY_BAD=1 -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 1 ] && grep -q "^Upload (system to video memory) (GB/s) *WRONG RESULT" <<<"$OUT" && grep -q "^Download (video to system memory) (GB/s) *WRONG RESULT" <<<"$OUT"
+then ok "opencl Rusticl, a copy that delivers one wrong byte: both rows are WRONG RESULT, exit 1"; else bad "opencl Rusticl bad copy: rc=$RC $(grep -E 'load' <<<"$OUT" | head -3)"; fi
+run_cli "${CLENV[@]}" STUB_CL_PLATFORM=rusticl SRS_CL_XFER=plain -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count clcopy)" = 0 ] && ! grep -q "GPU copies" <<<"$OUT" && grep -q "^Upload (system to video memory) (GB/s) *[0-9]" <<<"$OUT"; then ok "opencl Rusticl, SRS_CL_XFER=plain: read / write as before"; else bad "opencl Rusticl plain: rc=$RC $LOG"; fi
+run_cli "${CLENV[@]}" STUB_CL_PLATFORM=rusticl SRS_CL_TIMING=events -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count profq)" -gt 0 ] && ! grep -q "timed on the host" <<<"$OUT" && ! grep -q "failed\|WRONG" <<<"$OUT"; then ok "opencl Rusticl, SRS_CL_TIMING=events: the driver's event times, as before"; else bad "opencl Rusticl events timing: rc=$RC $LOG"; fi
+run_cli "${CLENV[@]}" SRS_CL_TIMING=host -- gpu-compare --backends opencl --seconds 0.1 --yes
+if [ $RC = 0 ] && [ "$(count profq)" = 0 ] && grep -q "how it ran *timed on the host" <<<"$OUT" && ! grep -q "failed\|WRONG" <<<"$OUT"; then ok "opencl, SRS_CL_TIMING=host on another driver: host timing"; else bad "opencl host timing: rc=$RC $LOG"; fi
+
 echo "== the stub itself aborts on a NULL launch (the test can see the bug)"
 cat > "$TMP/nulllaunch.c" <<'C'
 #include <dlfcn.h>

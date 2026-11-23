@@ -226,3 +226,15 @@ or result files were used or looked at for them. Public sources are credited in 
   recognised by marker strings in the loaded CUDA library file; OpenCL platforms are named from
   their own platform names; devices of different back ends are matched by PCI address
   (`VK_EXT_pci_bus_info`, `hipDeviceGetPCIBusId`, `cuDeviceGetPCIBusId`, `cl_khr_pci_bus_info`).
+  2.6.0, the compile, wait and copy changes: found by compiling SRS's own kernel text for the
+  RX 9070 XT (`gfx1201`) with ROCm's compiler without running it (`hipcc --offload-arch=gfx1201 -S`,
+  `clang -x cl -target amdgcn-amd-amdhsa -mcpu=gfx1201 -S`) and reading the instructions, and by
+  disassembling the code ZLUDA had made from SRS's PTX (its own cache file). Facts taken from public
+  sources, no code copied: Mesa's source (RADV builds compute shaders for 64-wide waves unless
+  `RADV_PERFTEST=cswave32`; Rusticl keeps a `CL_MEM_ALLOC_HOST_PTR` buffer in system memory, copies
+  `clEnqueueWriteBuffer` / `ReadBuffer` data on the CPU, and on a profiling queue waits for two
+  timestamp queries per command), ROCm's public HIP header (`__syncthreads()` fences global and local
+  memory, `__barrier(__CLK_LOCAL_MEM_FENCE)` local memory only) and the `-mwavefrontsize64` compiler
+  option, which the ROCm runtime names itself (`GPU_ENABLE_WAVE32_MODE`). None of the 2.6.0 changes
+  was run on a real GPU before the commit: compiler output and the fake runtime
+  (`tests/gpu-stub-test.sh`) only.

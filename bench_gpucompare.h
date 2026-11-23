@@ -41,6 +41,7 @@ typedef struct {
     double v[GC_N];
     char note[GC_N][160];
     char aborted[200];         /* the GPU failed during this column */
+    char tune[200];            /* how the back end built its own kernels / made its transfers, when not the plain way (gb_ops.note) */
 } gpucmp_col;
 
 typedef struct {

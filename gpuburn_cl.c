@@ -56,6 +56,7 @@ typedef struct {
     int (*Finish)(cl_h);
     int (*Flush)(cl_h);
     int (*Marker)(cl_h, unsigned, const cl_h *, cl_h *);   /* clEnqueueMarkerWithWaitList (OpenCL 1.2), optional */
+    int (*CopyBuffer)(cl_h, cl_h, cl_h, size_t, size_t, size_t, unsigned, const cl_h *, cl_h *);   /* clEnqueueCopyBuffer, optional (Rusticl transfers) */
     int (*BlastS)(int, int, int, size_t, size_t, size_t, float, cl_h, size_t, size_t, cl_h, size_t, size_t, float, cl_h, size_t, size_t, cl_h *, cl_h *);
     int (*BlastD)(int, int, int, size_t, size_t, size_t, double, cl_h, size_t, size_t, cl_h, size_t, size_t, double, cl_h, size_t, size_t, cl_h *, cl_h *);
     int (*BlastH)(int, int, int, size_t, size_t, size_t, uint16_t, cl_h, size_t, size_t, cl_h, size_t, size_t, uint16_t, cl_h, size_t, size_t, cl_h *, cl_h *);
@@ -116,6 +117,7 @@ static int cl_bind_once(void)
     CSYM(a->lib, Flush, "clFlush");
     if (a->miss[0]) return 0;
     *(void **)&a->Marker = dlsym(a->lib, "clEnqueueMarkerWithWaitList");   /* optional: CLBlast timing */
+    *(void **)&a->CopyBuffer = dlsym(a->lib, "clEnqueueCopyBuffer");        /* optional: transfers through a host-memory buffer */
     /* tests: SRS_CLBLAST_LIB opens exactly that file (a name that does not exist = "not installed") */
     if (envb && *envb) a->blast = dlopen(envb, RTLD_NOW | RTLD_LOCAL);
     else for (i = 0; bl[i] && !a->blast; i++) a->blast = dlopen(bl[i], RTLD_NOW | RTLD_LOCAL);
@@ -242,6 +244,15 @@ static int cl_list(gb_info *out, int max, char *why, size_t wn)
 struct gb_ctx {
     cl_api *a;
     cl_h plat, dev, ctx, q, prog[2];
+    cl_h qfast;                 /* a second queue WITHOUT profiling (NULL: use q): launch round trip, Rusticl */
+    cl_h tq;                    /* the queue the timed kernels go to: q (timed by the driver's event times), or qfast when host_timed */
+    int host_timed;             /* Rusticl: kernels timed on the host, from the first one queued to the last one finished */
+    double t0;                  /* host_timed: when the first kernel of this run was queued */
+    cl_h bh;                    /* Rusticl transfers: the host-memory side (CL_MEM_ALLOC_HOST_PTR), NULL = plain read / write */
+    int is_amd, is_rusticl;     /* AMD's ROCm OpenCL / Mesa's Rusticl (from the column label) */
+    int tune[2];                /* how program [fp64] was built: TUNE_* */
+    int xfer_pinned;            /* an upload / download ran through bh in this column (for the note) */
+    char note[200];
     cl_h k_gemm, k_fma, k_copy, k_cmp, k_tick;
     cl_h k_gemmb;               /* GPU Burnin's register-blocked gemm_b (gpu_kernels.h); NULL when the driver did not give it */
     cl_h ba, bb, bc, bref, bcnt;
@@ -253,6 +264,8 @@ struct gb_ctx {
     int verified;
     char err[240];
 };
+
+enum { TUNE_NONE, TUNE_HINTS, TUNE_WAVE64, TUNE_PLAIN };
 
 static void seterr(gb_ctx *c, int e, const char *what) { snprintf(c->err, sizeof c->err, "%s failed (OpenCL error %d)", what, e); }
 
@@ -279,6 +292,24 @@ static int cl_open(gb_ctx **cp, const gb_info *d, int so, char *why, size_t wn)
     if (!c->ctx || e) { snprintf(why, wn, "could not open the OpenCL device (error %d)", e); free(c); return -1; }
     c->q = a->CreateQueue(c->ctx, c->dev, 2, &e);   /* profiling on */
     if (!c->q || e) { snprintf(why, wn, "could not create an OpenCL queue (error %d)", e); a->ReleaseContext(c->ctx); free(c); return -1; }
+    /* what is timed on the host uses a queue without profiling: a profiling queue makes the driver take GPU timestamps
+       around every command */
+    e = 0;
+    c->qfast = a->CreateQueue(c->ctx, c->dev, 0, &e);
+    if (e && c->qfast) { a->ReleaseQueue(c->qfast); c->qfast = NULL; }
+    if (e) c->qfast = NULL;
+    c->is_rusticl = strstr(d->label, "Rusticl") != NULL;
+    c->is_amd = strstr(d->label, "(ROCm)") != NULL;
+    /* Rusticl reads two GPU timestamp queries back for every command of a profiling queue and waits for each, so a
+       run of many short kernels (matrix multiply + its check, over and over) spent about as long waiting between
+       kernels as computing. There the kernels go to the plain queue and the run is timed on the host, which can only
+       make a speed look lower, never higher. Other drivers keep the driver's event times (SRS_CL_TIMING=host / events
+       forces one or the other, for comparing). */
+    {
+        const char *tm = getenv("SRS_CL_TIMING");
+        c->host_timed = c->qfast && (tm && !strcmp(tm, "host") ? 1 : tm && !strcmp(tm, "events") ? 0 : c->is_rusticl);
+    }
+    c->tq = c->host_timed ? c->qfast : c->q;
     *cp = c;
     return 0;
 }
@@ -286,7 +317,7 @@ static int cl_open(gb_ctx **cp, const gb_info *d, int so, char *why, size_t wn)
 static void cl_release(gb_ctx *c)
 {
     cl_api *a = c->a;
-    cl_h *m[] = { &c->ba, &c->bb, &c->bc, &c->bref, &c->bcnt };
+    cl_h *m[] = { &c->ba, &c->bb, &c->bc, &c->bref, &c->bcnt, &c->bh };
     size_t i;
     if (!c->ready) return;
     if (!c->dead) for (i = 0; i < sizeof m / sizeof *m; i++) if (*m[i]) a->ReleaseMem(*m[i]);
@@ -305,6 +336,7 @@ static void cl_close(gb_ctx *c)
         cl_h *k[] = { &c->k_gemm, &c->k_fma, &c->k_copy, &c->k_cmp, &c->k_tick, &c->k_gemmb };
         for (i = 0; i < 6; i++) if (*k[i]) c->a->ReleaseKernel(*k[i]);
         for (i = 0; i < 2; i++) if (c->prog[i]) c->a->ReleaseProgram(c->prog[i]);
+        if (c->qfast) c->a->ReleaseQueue(c->qfast);
         c->a->ReleaseQueue(c->q);
         c->a->ReleaseContext(c->ctx);
         free(c);
@@ -326,22 +358,36 @@ static int build(gb_ctx *c, int fp64)
     for (i = 0; i < 6; i++) if (*k[i]) { a->ReleaseKernel(*k[i]); *k[i] = NULL; }
     c->built_fp64 = 0;   /* no kernel is loaded now: a failure below must not look like a finished build */
     if (!c->prog[fp64]) {
-        if (!(src = gk_source(GKD_OPENCL, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
-        sp = src;
-        c->prog[fp64] = a->CreateProgram(c->ctx, 1, &sp, NULL, &e);
-        if (!c->prog[fp64] || e) { seterr(c, e, "creating the program"); goto out; }
-        if ((e = a->BuildProgram(c->prog[fp64], 1, &c->dev, "", NULL, NULL))) {
-            char log[400] = "";
-            size_t ll;
-            if (a->GetBuildInfo(c->prog[fp64], c->dev, 0x1183, sizeof log - 1, log, NULL)) log[0] = 0;
-            log[sizeof log - 1] = 0;
-            for (ll = strlen(log); ll && (log[ll - 1] == '\n' || log[ll - 1] == ' ' || log[ll - 1] == '\r'); ll--) log[ll - 1] = 0;
-            if (log[0]) snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d): %.170s", e, log);
-            else snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d; the driver gave no build log)", e);
-            a->ReleaseProgram(c->prog[fp64]);
-            c->prog[fp64] = NULL;
-            goto out;
+        /* AMD's ROCm OpenCL: the comparison's FP32 kernels are built for 64-wide waves, as the Vulkan driver builds its
+           compute shaders (gpu_kernels.h, GK_WAVE64_OPT; -Wf, hands an option to ROCm's compiler front end). Not FP64 and
+           not a program GPU Burnin builds for its register-blocked kernel. Three tries, so a hint can never cost a column:
+           0 = hinted text + the option, 1 = hinted text, 2 = the plain text. Every other driver: try 1 only (the hints
+           are empty there). */
+        int w64 = c->is_amd && !fp64 && c->variant != GV_FAST && gk_want_wave64(), at;
+        for (at = w64 ? 0 : 1; at < 3 && !c->prog[fp64]; at++) {
+            free(src);
+            if (!(src = gk_source(GKD_OPENCL, fp64, at == 2))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
+            sp = src;
+            e = 0;
+            c->prog[fp64] = a->CreateProgram(c->ctx, 1, &sp, NULL, &e);
+            if (!c->prog[fp64] || e) { seterr(c, e, "creating the program"); c->prog[fp64] = NULL; goto out; }
+            if ((e = a->BuildProgram(c->prog[fp64], 1, &c->dev, at == 0 ? "-Wf," GK_WAVE64_OPT : "", NULL, NULL))) {
+                char log[400] = "";
+                size_t ll;
+                if (a->GetBuildInfo(c->prog[fp64], c->dev, 0x1183, sizeof log - 1, log, NULL)) log[0] = 0;
+                log[sizeof log - 1] = 0;
+                for (ll = strlen(log); ll && (log[ll - 1] == '\n' || log[ll - 1] == ' ' || log[ll - 1] == '\r'); ll--) log[ll - 1] = 0;
+                if (log[0]) snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d): %.170s", e, log);
+                else snprintf(c->err, sizeof c->err, "the OpenCL kernel did not build (OpenCL error %d; the driver gave no build log)", e);
+                a->ReleaseProgram(c->prog[fp64]);
+                c->prog[fp64] = NULL;
+                if (!c->is_amd) break;   /* nothing else to try */
+                continue;
+            }
+            c->tune[fp64] = at == 0 ? TUNE_WAVE64 : at == 2 ? TUNE_PLAIN : c->is_amd ? TUNE_HINTS : TUNE_NONE;
         }
+        if (!c->prog[fp64]) goto out;
+        c->err[0] = 0;
     }
     for (i = 0; i < 5; i++) {
         *k[i] = a->CreateKernel(c->prog[fp64], kn[i], &e);
@@ -388,34 +434,56 @@ static int setarg(gb_ctx *c, cl_h k, unsigned i, size_t sz, const void *v)
     return GBP_OK;
 }
 
-static int enq(gb_ctx *c, cl_h k, size_t gx, size_t gy, size_t lx, size_t ly, cl_h *ev)
+static int enq_q(gb_ctx *c, cl_h q, cl_h k, size_t gx, size_t gy, size_t lx, size_t ly, cl_h *ev)
 {
     size_t g[2] = { gx, gy }, l[2] = { lx, ly };
     int e;
     if (!k) { snprintf(c->err, sizeof c->err, "a kernel was not loaded (internal error); the run was ended"); return GBP_ERROR; }
-    e = c->a->NDRange(c->q, k, gy > 1 ? 2 : 1, NULL, g, lx ? l : NULL, 0, NULL, ev);
+    e = c->a->NDRange(q, k, gy > 1 ? 2 : 1, NULL, g, lx ? l : NULL, 0, NULL, ev);
     if (e) { seterr(c, e, "starting a kernel"); return GBP_ERROR; }
     return GBP_OK;
 }
 
-/* wait for the last event; the GPU gets WATCHDOG_S seconds, then the run ends and nothing is freed */
-static int wait_ev(gb_ctx *c, cl_h ev)
+static int enq(gb_ctx *c, cl_h k, size_t gx, size_t gy, size_t lx, size_t ly, cl_h *ev) { return enq_q(c, c->tq, k, gx, gy, lx, ly, ev); }
+
+/* wait for the last event of queue q; the GPU gets WATCHDOG_S seconds, then the run ends and nothing is freed.
+   spin = 1 (launch round trip, host-timed transfers): no sleep between the questions for the first GB_SPIN_S seconds */
+static int wait_ev_q(gb_ctx *c, cl_h q, cl_h ev, int spin)
 {
-    double t0 = now_s();
-    c->a->Flush(c->q);
+    double t0 = now_s(), el;
+    c->a->Flush(q);
     for (;;) {
         int st = 1, e = c->a->GetEventInfo(ev, 0x11D3, sizeof st, &st, NULL);
         struct timespec d = { 0, 100000 };
         if (e) { seterr(c, e, "the GPU"); return GBP_LOST; }
         if (st == 0) return GBP_OK;
         if (st < 0) { seterr(c, st, "the GPU work"); return GBP_LOST; }
-        if (now_s() - t0 > WATCHDOG_S) {
+        el = now_s() - t0;
+        if (el > WATCHDOG_S) {
             c->dead = 1;
             snprintf(c->err, sizeof c->err, "the GPU did not finish its work within %.0f s; the run was ended and the GPU left alone", WATCHDOG_S);
             return GBP_HUNG;
         }
-        nanosleep(&d, NULL);
+        if (spin && el < GB_SPIN_S) gb_cpu_relax(); else nanosleep(&d, NULL);
     }
+}
+
+static int wait_ev(gb_ctx *c, cl_h ev) { return wait_ev_q(c, c->tq, ev, c->host_timed); }
+
+/* what the comparison shows under the column (gb_ops.note) */
+static const char *cl_note(gb_ctx *c)
+{
+    size_t l;
+    c->note[0] = 0;
+    if (c->tune[0] == TUNE_WAVE64) snprintf(c->note, sizeof c->note, "FP32 own kernels built for 64-wide waves, as the Vulkan driver builds its shaders (SRS_GPU_WAVE=32: the compiler's default)");
+    else if (c->tune[0] == TUNE_PLAIN || c->tune[1] == TUNE_PLAIN) snprintf(c->note, sizeof c->note, "the compiler refused the tuned kernel text; the plain text was built instead");
+    else if (c->tune[0] == TUNE_HINTS && gk_want_wave64()) snprintf(c->note, sizeof c->note, "the compiler refused the option for 64-wide waves; FP32 own kernels use its default wave width");
+    else if (c->tune[0] == TUNE_HINTS) snprintf(c->note, sizeof c->note, "FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)");
+    l = strlen(c->note);
+    if (c->host_timed) snprintf(c->note + l, sizeof c->note - l, "%stimed on the host, on a queue without profiling", l ? "; " : "");
+    l = strlen(c->note);
+    if (c->xfer_pinned) snprintf(c->note + l, sizeof c->note - l, "%supload / download are GPU copies from / to a system-memory buffer, as in the Vulkan test", l ? "; " : "");
+    return c->note;
 }
 
 static int span(gb_ctx *c, cl_h first, cl_h last, double *secs)
@@ -423,6 +491,7 @@ static int span(gb_ctx *c, cl_h first, cl_h last, double *secs)
     uint64_t t0 = 0, t1 = 0;
     int rc = wait_ev(c, last), e;
     if (rc) return rc;
+    if (c->host_timed) { *secs = now_s() - c->t0; return GBP_OK; }   /* c->t0: set where the run queued its first kernel */
     e = c->a->GetEventProfiling(first, 0x1282, sizeof t0, &t0, NULL);
     e |= c->a->GetEventProfiling(last, 0x1283, sizeof t1, &t1, NULL);
     if (e || t1 < t0) { seterr(c, e ? e : -1, "timing"); return GBP_ERROR; }
@@ -470,9 +539,9 @@ static int gemm_once(gb_ctx *c, cl_h dst, cl_h *ev)
         cl_api *a = c->a;
         int s;
         size_t n = c->n;
-        if (c->prec == GP_FP64) s = a->BlastD(101, 111, 111, n, n, n, 1.0, c->ba, 0, n, c->bb, 0, n, 0.0, dst, 0, n, &c->q, ev);
-        else if (c->prec == GP_FP16) s = a->BlastH(101, 111, 111, n, n, n, 0x3C00, c->ba, 0, n, c->bb, 0, n, 0, dst, 0, n, &c->q, ev);
-        else s = a->BlastS(101, 111, 111, n, n, n, 1.0f, c->ba, 0, n, c->bb, 0, n, 0.0f, dst, 0, n, &c->q, ev);
+        if (c->prec == GP_FP64) s = a->BlastD(101, 111, 111, n, n, n, 1.0, c->ba, 0, n, c->bb, 0, n, 0.0, dst, 0, n, &c->tq, ev);
+        else if (c->prec == GP_FP16) s = a->BlastH(101, 111, 111, n, n, n, 0x3C00, c->ba, 0, n, c->bb, 0, n, 0, dst, 0, n, &c->tq, ev);
+        else s = a->BlastS(101, 111, 111, n, n, n, 1.0f, c->ba, 0, n, c->bb, 0, n, 0.0f, dst, 0, n, &c->tq, ev);
         if (s) { snprintf(c->err, sizeof c->err, "CLBlast failed (status %d)", s); return GBP_ERROR; }
         return GBP_OK;
     }
@@ -582,15 +651,28 @@ static int cl_prep(gb_ctx *c, int kind, int prec, int variant, size_t n, double 
     case GK_UPLOAD: case GK_DOWNLOAD: {
         size_t i, bytes = n / 16384 * 16384;
         uint32_t *w;
+        const char *xe;
         if (bytes < 16384) bytes = 16384;
         c->bytes = bytes;
         if ((rc = mk(c, &c->ba, bytes))) break;
+        /* Rusticl: clEnqueueWriteBuffer / ReadBuffer copy on the CPU into and out of mapped video memory (reading it back is
+           very slow), where the Vulkan test and the other runtimes let the GPU copy between host memory and video memory.
+           So on Rusticl the transfer is that same GPU copy: a host-memory buffer (CL_MEM_ALLOC_HOST_PTR: Rusticl keeps it in
+           system memory) and clEnqueueCopyBuffer. Only there: on a driver that put such a buffer in video memory this would
+           time a copy inside the card. SRS_CL_XFER=plain keeps read / write. */
+        if (c->is_rusticl && c->a->CopyBuffer && !((xe = getenv("SRS_CL_XFER")) && !strcmp(xe, "plain"))) {
+            int e = 0;
+            c->bh = c->a->CreateBuffer(c->ctx, 1 | (1 << 4), bytes, NULL, &e);   /* read-write | CL_MEM_ALLOC_HOST_PTR */
+            if (!c->bh || e) { if (c->bh) c->a->ReleaseMem(c->bh); c->bh = NULL; }
+        }
         c->host = malloc(bytes);
-        c->ha = malloc(bytes);
+        c->ha = calloc(1, bytes);   /* zeros: the check reads into it, so it cannot pass on what was there before */
         if (!c->host || !c->ha) { snprintf(c->err, sizeof c->err, "out of memory"); rc = GBP_ERROR; break; }
         w = c->host;
         for (i = 0; i < bytes / 4; i++) w[i] = (uint32_t)i * 2654435761u + MEM_SEED;
         if (kind == GK_DOWNLOAD && (rc = wr(c, c->ba, c->host, bytes))) break;
+        /* the host-memory side: the pattern to send (upload), or zeros to be overwritten by what comes back (download) */
+        if (c->bh && (rc = wr(c, c->bh, kind == GK_UPLOAD ? c->host : c->ha, bytes))) break;
         *work = (double)bytes;
         *maxreps = 256;
         rc = GBP_OK;
@@ -628,7 +710,8 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         if (!reps) return GBP_OK;
         /* CLBlast hands back the event of its LAST internal kernel, so its GEMM is timed from a marker put in the
            queue before it (the queue runs in order) */
-        if (c->variant == GV_LIB && a->Marker && a->Marker(c->q, 0, NULL, &mark)) mark = NULL;
+        c->t0 = now_s();
+        if (c->variant == GV_LIB && !c->host_timed && a->Marker && a->Marker(c->q, 0, NULL, &mark)) mark = NULL;
         for (i = 0; i < reps && !rc; i++) {
             rc = gemm_once(c, c->bc, i == 0 && !mark ? &first : NULL);
             if (!rc) rc = cmp_once(c, c->bc, c->bref, words, i + 1 == reps ? &last : NULL);
@@ -653,6 +736,7 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         for (i = 0; i < 4; i++) e |= setarg(c, c->k_fma, 1 + i, as, fp64 ? (const void *)&md[i] : (const void *)&mf[i]);
         e |= setarg(c, c->k_fma, 5, sizeof reps, &reps) | setarg(c, c->k_fma, 6, sizeof seed, &seed) | setarg(c, c->k_fma, 7, sizeof nn, &nn);
         if (e) return GBP_ERROR;
+        c->t0 = now_s();
         if ((rc = enq(c, c->k_fma, (size_t)c->gx * 64, 1, 64, 1, &ev)) || (rc = span(c, ev, ev, secs))) { rel_ev(c, ev); return rc; }
         rel_ev(c, ev);
         if ((rc = rd(c, c->host, c->ba, c->nthreads * as))) return rc;
@@ -673,6 +757,7 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         if (g > 4096) g = 4096;
         if ((rc = wr(c, c->bcnt, zero, 64))) return rc;
         if (setarg(c, c->k_copy, 0, sizeof(cl_h), &c->ba) || setarg(c, c->k_copy, 1, sizeof(cl_h), &c->bb) || setarg(c, c->k_copy, 2, sizeof n4, &n4)) return GBP_ERROR;
+        c->t0 = now_s();
         for (i = 0; i < reps && !rc; i++) rc = enq(c, c->k_copy, g * 256, 1, 256, 1, i == 0 ? &first : NULL);
         if (!rc) rc = cmp_once(c, c->ba, c->bb, words, &last);
         if (!rc) rc = span(c, first ? first : last, last, secs);
@@ -683,7 +768,27 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         return GBP_OK;
     }
     case GK_UPLOAD: case GK_DOWNLOAD: {
-        double t0 = now_s();
+        double t0;
+        if (c->bh) {   /* Rusticl: GPU copies between the host-memory buffer and video memory, timed on the host to the end of the last one */
+            cl_h q = c->qfast ? c->qfast : c->q, ev = NULL, src = c->kind == GK_UPLOAD ? c->bh : c->ba, dst = c->kind == GK_UPLOAD ? c->ba : c->bh;
+            int e = 0;
+            if (!reps) return GBP_OK;
+            t0 = now_s();
+            for (i = 0; i < reps && !e; i++) e = a->CopyBuffer(q, src, dst, 0, 0, c->bytes, 0, NULL, i + 1 == reps ? &ev : NULL);
+            if (e || !ev) { rel_ev(c, ev); seterr(c, e, "copying"); return GBP_ERROR; }
+            rc = wait_ev_q(c, q, ev, 1);
+            *secs = now_s() - t0;
+            rel_ev(c, ev);
+            if (rc) return rc;
+            c->xfer_pinned = 1;
+            if (!c->verified) {   /* once per workload, through the other path (a blocking read): what arrived is what was sent */
+                c->verified = 1;
+                if ((rc = rd(c, c->ha, c->kind == GK_UPLOAD ? c->ba : c->bh, c->bytes))) return rc;
+                if (memcmp(c->ha, c->host, c->bytes)) *wrong = 1;
+            }
+            return GBP_OK;
+        }
+        t0 = now_s();
         for (i = 0; i < reps; i++) if ((rc = c->kind == GK_UPLOAD ? wr(c, c->ba, c->host, c->bytes) : rd(c, c->ha, c->ba, c->bytes))) return rc;
         *secs = now_s() - t0;
         if (!c->verified) {
@@ -696,13 +801,17 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     case GK_LATENCY: {
         double *lat = malloc((reps ? reps : 1) * sizeof *lat);
         uint32_t v = 0;
-        cl_h ev = NULL;
+        cl_h ev = NULL, ql;
         if (!lat) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
         if (setarg(c, c->k_tick, 0, sizeof(cl_h), &c->ba)) { free(lat); return GBP_ERROR; }
+        /* one round trip = start the kernel, then know on the host that it has finished. On the queue without profiling, and
+           without sleeping between the "finished?" questions (wait_ev_q, spin). What prep put in the counter went through a
+           blocking write, so it is in place */
+        ql = c->qfast ? c->qfast : c->q;
         for (i = 0; i < reps; i++) {
             double t0 = now_s();
             ev = NULL;
-            if ((rc = enq(c, c->k_tick, 1, 1, 0, 0, &ev)) || (rc = wait_ev(c, ev))) { rel_ev(c, ev); free(lat); return rc; }
+            if ((rc = enq_q(c, ql, c->k_tick, 1, 1, 0, 0, &ev)) || (rc = wait_ev_q(c, ql, ev, 1))) { rel_ev(c, ev); free(lat); return rc; }
             rel_ev(c, ev);
             lat[i] = now_s() - t0;
             c->ticks++;
@@ -717,11 +826,11 @@ static int cl_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     return GBP_ERROR;
 }
 
-const gb_ops gb_opencl = { GB_OPENCL, cl_available, cl_list, cl_open, cl_close, cl_prep, cl_run, cl_release, cl_error };
+const gb_ops gb_opencl = { GB_OPENCL, cl_available, cl_list, cl_open, cl_close, cl_prep, cl_run, cl_release, cl_error, cl_note };
 
 #else   /* not 64-bit Linux */
 int gb_cl_bind_check(char *d, size_t n) { snprintf(d, n, "64-bit Linux only"); return -1; }
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "64-bit Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "64-bit Linux only"); return -1; }
-const gb_ops gb_opencl = { GB_OPENCL, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_opencl = { GB_OPENCL, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif

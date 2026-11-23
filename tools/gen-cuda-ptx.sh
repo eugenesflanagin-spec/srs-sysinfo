@@ -35,7 +35,7 @@ cat > "$tmp/emit.c" <<'C'
 #include "gpu_kernels.h"
 int main(int argc, char **argv)
 {
-    char *s = gk_source(GKD_PTX, argc > 1 && argv[1][0] == '1');
+    char *s = gk_source(GKD_PTX, argc > 1 && argv[1][0] == '1', 0);
     if (!s) return 1;
     fputs(s, stdout);
     free(s);

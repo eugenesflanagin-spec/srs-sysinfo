@@ -376,8 +376,10 @@ struct gb_ctx {
     long prep_wrong, ticks;
     unsigned seed;
     int verified, ready, gx;
-    char err[240];
+    int tune[2];                /* how module [fp64] was built (HIP): 0 not built / nothing special, TUNE_* below */
+    char err[240], note[200];
 };
+enum { TUNE_NONE, TUNE_HINTS, TUNE_WAVE64, TUNE_PLAIN };
 
 static void seterr(gb_ctx *c, int e, const char *what)
 {
@@ -449,13 +451,44 @@ static void rt_close(gb_ctx *c)
 static const char *rt_error(gb_ctx *c) { return c->err; }
 
 /* ---------------------------------------------------------------- own kernels */
+/* compile the kernel text with hipRTC / NVRTC and load it. plain = 1: the text without the compiler hints (gpu_kernels.h);
+   wave64 = 1: ask AMD's compiler for 64-wide waves. On failure c->err says why and *mod stays NULL */
+static int rtc_build(gb_ctx *c, int fp64, int plain, int wave64, void **mod, const char *ptxerr)
+{
+    rt_api *r = c->r;
+    char *src = NULL, *code = NULL, *log = NULL;
+    const char *opts[1] = { GK_WAVE64_OPT };
+    void *prog = NULL;
+    size_t sz = 0, ls = 0;
+    int e, rc = GBP_ERROR;
+    *mod = NULL;
+    if (!(src = gk_source(GKD_CUDA_HIP, fp64, plain))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
+    if ((e = r->RtcCreate(&prog, src, "srs_kernels.cu", 0, NULL, NULL))) { seterr(c, e, "kernel compiler"); goto out; }
+    if ((e = r->RtcCompile(prog, wave64 ? 1 : 0, wave64 ? opts : NULL))) {
+        r->RtcLogSize(prog, &ls);
+        if (ls > 1 && (log = malloc(ls + 1)) && !r->RtcLog(prog, log)) { log[ls] = 0; snprintf(c->err, sizeof c->err, "the kernel did not compile: %.180s", log); }
+        else seterr(c, e, "the kernel did not compile");
+        goto out;
+    }
+    if ((e = r->RtcSize(prog, &sz)) || !(code = malloc(sz + 1)) || (e = r->RtcCode(prog, code))) { seterr(c, e, "kernel compiler"); goto out; }
+    if ((e = r->ModuleLoadData(mod, code))) {
+        char what[220];
+        snprintf(what, sizeof what, "%s%s%s", ptxerr[0] ? "loading the kernels (the built-in ones were refused too: " : "loading the kernels", ptxerr, ptxerr[0] ? ")" : "");
+        seterr(c, e, what); *mod = NULL; goto out;
+    }
+    rc = GBP_OK;
+out:
+    if (prog) r->RtcDestroy(&prog);
+    free(src); free(code); free(log);
+    return rc;
+}
+
 static int build_module(gb_ctx *c, int fp64)
 {
     rt_api *r = c->r;
-    char *src = NULL, *code = NULL, *log = NULL, ptxerr[180] = "";
-    void *prog = NULL, *mod = NULL, *f[5] = { NULL, NULL, NULL, NULL, NULL };
-    size_t sz = 0, ls = 0;
-    int e, rc = GBP_ERROR;
+    char ptxerr[180] = "";
+    void *mod = NULL, *f[5] = { NULL, NULL, NULL, NULL, NULL };
+    int e, rc = GBP_ERROR, tune = TUNE_NONE;
     if (c->mod[fp64]) return GBP_OK;
     if (r->cuda) {   /* CUDA: the built-in PTX first; NVRTC only when the driver refuses it */
         char eb[160];
@@ -467,20 +500,19 @@ static int build_module(gb_ctx *c, int fp64)
                      "see Options > NVIDIA CUDA toolkit", ptxerr);
             return GBP_UNSUPPORTED;
         }
-    } else if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (libhiprtc) is not installed, so the own kernels cannot be built"); return GBP_UNSUPPORTED; }
-    if (!(src = gk_source(GKD_CUDA_HIP, fp64))) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
-    if ((e = r->RtcCreate(&prog, src, "srs_kernels.cu", 0, NULL, NULL))) { seterr(c, e, "kernel compiler"); goto out; }
-    if ((e = r->RtcCompile(prog, 0, NULL))) {
-        r->RtcLogSize(prog, &ls);
-        if (ls > 1 && (log = malloc(ls + 1)) && !r->RtcLog(prog, log)) { log[ls] = 0; snprintf(c->err, sizeof c->err, "the kernel did not compile: %.180s", log); }
-        else seterr(c, e, "the kernel did not compile");
-        goto out;
-    }
-    if ((e = r->RtcSize(prog, &sz)) || !(code = malloc(sz + 1)) || (e = r->RtcCode(prog, code))) { seterr(c, e, "kernel compiler"); goto out; }
-    if ((e = r->ModuleLoadData(&mod, code))) {
-        char what[220];
-        snprintf(what, sizeof what, "%s%s%s", ptxerr[0] ? "loading the kernels (the built-in ones were refused too: " : "loading the kernels", ptxerr, ptxerr[0] ? ")" : "");
-        seterr(c, e, what); mod = NULL; goto out;
+        if (rtc_build(c, fp64, 0, 0, &mod, ptxerr)) goto out;
+    } else {
+        /* HIP: the comparison's FP32 kernels are built for 64-wide waves, as the Vulkan driver builds its compute shaders
+           (gpu_kernels.h, GK_WAVE64_OPT). Not FP64 (limited by the hardware's FP64 rate either way) and not a module that GPU
+           Burnin builds for its register-blocked kernel. If the compiler or the driver refuses that, the plain text (no
+           hints, no option) is built instead, so a hint can never cost a column. */
+        int w64 = !fp64 && c->variant != GV_FAST && gk_want_wave64();
+        if (!r->have_rtc) { snprintf(c->err, sizeof c->err, "the runtime compiler (libhiprtc) is not installed, so the own kernels cannot be built"); return GBP_UNSUPPORTED; }
+        tune = w64 ? TUNE_WAVE64 : TUNE_HINTS;
+        if (rtc_build(c, fp64, 0, w64, &mod, ptxerr)) {
+            tune = TUNE_PLAIN;
+            if (rtc_build(c, fp64, 1, 0, &mod, ptxerr)) goto out;
+        }
     }
 loaded:
     /* all five kernels or none: a half-loaded module must never be remembered as built (a NULL function crashes the driver) */
@@ -489,6 +521,7 @@ loaded:
         (e = r->ModuleGetFunction(&f[4], mod, "tick"))) { seterr(c, e, "finding a kernel"); goto out; }
     if (!f[0] || !f[1] || !f[2] || !f[3] || !f[4]) { snprintf(c->err, sizeof c->err, "the GPU runtime returned no kernel (internal error)"); goto out; }
     c->mod[fp64] = mod; mod = NULL;
+    c->tune[fp64] = tune;
     c->fn_gemm[fp64] = f[0]; c->fn_fma[fp64] = f[1]; c->fn_copy = f[2]; c->fn_cmp = f[3]; c->fn_tick = f[4];
     /* optional: without it GPU Burnin uses gemm_r (bench_gpuburn.c falls back on GBP_UNSUPPORTED) */
     if (r->ModuleGetFunction(&c->fn_gemmb[fp64], c->mod[fp64], "gemm_b")) c->fn_gemmb[fp64] = NULL;
@@ -499,9 +532,17 @@ out:
         snprintf(c->err + l, sizeof c->err - l, " (after the built-in kernels were refused: %.60s)", ptxerr);
     }
     if (mod) r->ModuleUnload(mod);
-    if (prog) r->RtcDestroy(&prog);
-    free(src); free(code); free(log);
     return rc;
+}
+
+/* what the comparison shows under the column (gb_ops.note) */
+static const char *rt_note(gb_ctx *c)
+{
+    c->note[0] = 0;
+    if (c->tune[0] == TUNE_WAVE64) snprintf(c->note, sizeof c->note, "FP32 own kernels built for 64-wide waves, as the Vulkan driver builds its shaders (SRS_GPU_WAVE=32: the compiler's default)");
+    else if (c->tune[0] == TUNE_PLAIN || c->tune[1] == TUNE_PLAIN) snprintf(c->note, sizeof c->note, "the compiler refused the tuned kernel text (64-wide waves); the plain text was built instead");
+    else if (c->tune[0] == TUNE_HINTS && !gk_want_wave64()) snprintf(c->note, sizeof c->note, "FP32 own kernels built for the compiler's default wave width (SRS_GPU_WAVE=32)");
+    return c->note;
 }
 
 static int launch(gb_ctx *c, void *fn, unsigned gx, unsigned gy, unsigned bx, unsigned by, void **args)
@@ -512,21 +553,23 @@ static int launch(gb_ctx *c, void *fn, unsigned gx, unsigned gy, unsigned bx, un
     return GBP_OK;
 }
 
-/* wait for an event; the GPU gets WATCHDOG_S seconds, then the run ends and nothing is freed */
-static int wait_ev(gb_ctx *c, void *ev)
+/* wait for an event; the GPU gets WATCHDOG_S seconds, then the run ends and nothing is freed.
+   spin = 1 (launch round trip): no sleep between the questions for the first GB_SPIN_S seconds (gpu_backend.h) */
+static int wait_ev(gb_ctx *c, void *ev, int spin)
 {
-    double t0 = now_s();
+    double t0 = now_s(), el;
     for (;;) {
         int e = c->r->EventQuery(ev);
         struct timespec d = { 0, 100000 };
         if (!e) return GBP_OK;
         if (e != 600) { seterr(c, e, "the GPU"); return GBP_LOST; }
-        if (now_s() - t0 > WATCHDOG_S) {
+        el = now_s() - t0;
+        if (el > WATCHDOG_S) {
             c->dead = 1;
             snprintf(c->err, sizeof c->err, "the GPU did not finish its work within %.0f s; the run was ended and the GPU left alone", WATCHDOG_S);
             return GBP_HUNG;
         }
-        nanosleep(&d, NULL);
+        if (spin && el < GB_SPIN_S) gb_cpu_relax(); else nanosleep(&d, NULL);
     }
 }
 
@@ -535,7 +578,7 @@ static int timed_end(gb_ctx *c, double *secs)
     float ms = 0;
     int e, rc;
     if ((e = c->r->EventRecord(c->ev1, NULL))) { seterr(c, e, "timing"); return GBP_ERROR; }
-    if ((rc = wait_ev(c, c->ev1))) return rc;
+    if ((rc = wait_ev(c, c->ev1, 0))) return rc;
     if ((e = c->r->EventElapsed(&ms, c->ev0, c->ev1))) { seterr(c, e, "timing"); return GBP_ERROR; }
     *secs = (double)ms / 1000.0;
     return GBP_OK;
@@ -820,9 +863,14 @@ static int rt_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
         void *args[1] = { &c->a };
         uint32_t v = 0;
         if (!lat) { snprintf(c->err, sizeof c->err, "out of memory"); return GBP_ERROR; }
+        /* one round trip = start the kernel, then know on the host that it has finished: the clock starts at the launch call
+           and stops when the event queued behind the kernel is done. Nothing else is in the timed part (before 2.6 a start
+           event and a GPU-timer read were in it too, and the wait slept 100 us between its "finished?" questions) */
         for (i = 0; i < reps; i++) {
             double t0 = now_s();
-            if ((rc = timed_begin(c)) || (rc = launch(c, c->fn_tick, 1, 1, 1, 1, args)) || (rc = timed_end(c, secs))) { free(lat); return rc; }
+            if ((rc = launch(c, c->fn_tick, 1, 1, 1, 1, args))) { free(lat); return rc; }
+            if ((e = r->EventRecord(c->ev1, NULL))) { seterr(c, e, "timing"); free(lat); return GBP_ERROR; }
+            if ((rc = wait_ev(c, c->ev1, 1))) { free(lat); return rc; }
             lat[i] = now_s() - t0;
             c->ticks++;
         }
@@ -836,14 +884,14 @@ static int rt_run(gb_ctx *c, unsigned reps, double *secs, long *wrong)
     return GBP_ERROR;
 }
 
-const gb_ops gb_hip = { GB_HIP, hip_available, hip_list, hip_open, rt_close, rt_prep, rt_run, rt_release, rt_error };
-const gb_ops gb_cuda = { GB_CUDA, cuda_available, cuda_list, cuda_open, rt_close, rt_prep, rt_run, rt_release, rt_error };
+const gb_ops gb_hip = { GB_HIP, hip_available, hip_list, hip_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note };
+const gb_ops gb_cuda = { GB_CUDA, cuda_available, cuda_list, cuda_open, rt_close, rt_prep, rt_run, rt_release, rt_error, rt_note };
 
 #else   /* not 64-bit Linux */
 int gb_rt_bind_check(int cuda, char *d, size_t n) { (void)cuda; snprintf(d, n, "64-bit Linux only"); return -1; }
 int gb_cuda_probe(gb_cuda_state *st, int recheck) { (void)recheck; memset(st, 0, sizeof *st); return 0; }
 static int na_av(char *h, size_t n) { if (h) snprintf(h, n, "64-bit Linux only"); return 0; }
 static int na_list(gb_info *o, int m, char *w, size_t n) { (void)o; (void)m; if (w) snprintf(w, n, "64-bit Linux only"); return -1; }
-const gb_ops gb_hip = { GB_HIP, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL };
-const gb_ops gb_cuda = { GB_CUDA, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_hip = { GB_HIP, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
+const gb_ops gb_cuda = { GB_CUDA, na_av, na_list, NULL, NULL, NULL, NULL, NULL, NULL, NULL };
 #endif

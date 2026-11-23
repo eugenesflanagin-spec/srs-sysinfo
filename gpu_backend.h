@@ -58,7 +58,24 @@ typedef struct {
     int  (*run)(gb_ctx *c, unsigned reps, double *secs, long *wrong);
     void (*release)(gb_ctx *c);          /* free what prep made */
     const char *(*error)(gb_ctx *c);     /* plain-English last error */
+    /* optional (may be NULL): how this back end's own kernels were built and its transfers made, when that differs from the
+       plain way ("" = nothing to say). Valid until close; shown under the column in the GPU Compute comparison */
+    const char *(*note)(gb_ctx *c);
 } gb_ops;
+
+/* Waiting for a kernel launch (HIP, CUDA, OpenCL): these have no wait with a time limit, so SRS asks "finished?" in a
+   loop, with the watchdog. For the launch round trip the loop does not sleep for the first GB_SPIN_S seconds (a 100 us
+   sleep per question would be measured instead of the launch); after that, and in every other test, it sleeps between
+   questions. */
+#define GB_SPIN_S 0.002
+static inline void gb_cpu_relax(void)
+{
+#if defined(__x86_64__) || defined(__i386__)
+    __builtin_ia32_pause();
+#elif defined(__aarch64__)
+    __asm__ volatile("yield");
+#endif
+}
 
 extern const gb_ops *const gb_table[GB_N];
 extern const gb_ops gb_vulkan, gb_hip, gb_cuda, gb_opencl;

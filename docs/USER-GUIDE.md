@@ -2596,6 +2596,20 @@ an update (or a rollback) of that runtime.
   that use the libraries can get.
 - **Multiply-add chain**, **video memory copy**, **upload / download** and **kernel launch round
   trip** (lower is better) work as in the [GPU Benchmark](#917-gpu-benchmark).
+- **how it ran** (a line under the table, new in 2.6): shown when a back end's kernels were built,
+  or its copies made, in a special way so that the comparison is fair. A graphics card runs its
+  threads in groups called *waves*. The Vulkan driver builds its programs for 64 threads per wave,
+  AMD's own compiler (ROCm / HIP and ROCm's OpenCL) for 32 unless it is asked, and on Radeon RX 7000
+  and 9000 cards 32 uses only half of the card's arithmetic unit in these tests. So SRS asks for 64
+  there too, and the line says "FP32 own kernels built for 64-wide waves". On OpenCL (Rusticl) the
+  line says that the run is timed on the host (Rusticl's own timing makes it wait after every
+  command, which halved some rows) and that upload and download are copied by the GPU from a buffer
+  in system memory, as in the Vulkan test, because Rusticl's plain read and write calls copy on the
+  CPU and are slow. The work and the checks are the same either way. `SRS_GPU_WAVE=32`,
+  `SRS_CL_TIMING=events` and `SRS_CL_XFER=plain` switch the three off, to compare with older SRS
+  versions.
+- **Kernel launch round trip** needs a quiet PC: it measures a few tens of millionths of a second,
+  and other programs using the CPU make it look slower.
 - `*` marks the fastest in each row. **(85%)** after a number means that column reached 85% of
   Vulkan's speed in that row (above 100% = faster than Vulkan).
 - **CUDA (ZLUDA)**: your CUDA library is really ZLUDA, which runs CUDA programs on an AMD card.
@@ -3149,6 +3163,9 @@ Environment variables:
 | `SRS_DOC_DIR=folder` | Where the Guide button, F1 and `guide` look for `SRS-User-Guide.pdf` and `html/` (default `/usr/share/doc/srs-sysinfo`, then beside the program). |
 | `GTK_THEME` | Remembered for "Follow desktop"; the Theme option drives SRS's own look. |
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older, simpler matrix multiply instead of the 2.4 one (for comparing) ([9.18](#918-gpu-burnin)). |
+| `SRS_GPU_WAVE=32` | GPU Compute comparison: ROCm / HIP and OpenCL (ROCm) build SRS's FP32 kernels for 32 threads per wave (AMD's default) instead of 64 (for comparing with older versions). |
+| `SRS_CL_XFER=plain` | GPU Compute comparison: OpenCL (Rusticl) uploads and downloads with the plain read / write calls, as before 2.6 (for comparing). |
+| `SRS_CL_TIMING=events` | GPU Compute comparison and GPU Burnin: OpenCL (Rusticl) is timed by the driver's event times, as before 2.6 (for comparing); `host` times any OpenCL driver on the host. |
 | `SRS_RSMU_DIR=folder` | Read the ryzen_smu files (`pm_table`, `codename`, `pm_table_version`) from this folder instead of `/sys/kernel/ryzen_smu_drv` (tests). |
 
 ## 15. Reading results and comparing runs

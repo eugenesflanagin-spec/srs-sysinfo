@@ -201,6 +201,15 @@ read the ryzen_smu files from this directory instead of /sys/kernel/ryzen_smu_dr
 .B SRS_GPUBURN_SIMPLE
 when set, GPU Burnin uses the older tiled matrix multiply instead of the 2.4 register\-blocked one (for comparing).
 .TP
+.B SRS_GPU_WAVE
+when set to 32, the GPU Compute comparison builds its FP32 kernels on ROCm / HIP and OpenCL (ROCm) for AMD's default of 32 threads per wave instead of 64 (for comparing).
+.TP
+.B SRS_CL_TIMING
+when set to events, OpenCL kernels are timed by the driver's event times on every driver, as before 2.6; when set to host, on the host on a queue without profiling. Default: host on Rusticl, events elsewhere.
+.TP
+.B SRS_CL_XFER
+when set to plain, the GPU Compute comparison uploads and downloads on OpenCL (Rusticl) with the plain read / write calls instead of a GPU copy from a system\-memory buffer (for comparing).
+.TP
 .B SRS_SPD_DIR
 read the DDR5 modules' SPD from this directory instead of /sys/bus/i2c/drivers/spd5118 (tests).
 .SH FILES
