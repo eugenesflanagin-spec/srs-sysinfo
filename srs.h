@@ -10,6 +10,7 @@
 #define SRS_H
 
 #include <stddef.h>
+#include <stdio.h>
 
 #define SRS_VERSION "2.6.0"
 
@@ -99,6 +100,9 @@ double srs_now_ms(void);
 void srs_thousands(size_t n, char *out, size_t outsz);
 const char *srs_bus_name(enum srs_bus b);   /* "pci"/"usb" */
 int  srs_utf8_pad(char *out, size_t outsz, const char *s, int width); /* truncate+pad by codepoints */
+/* s as a JSON string, quotes included, always valid: " \ and control characters escaped; bytes that are not UTF-8
+   (also a letter cut in the middle by a fixed-size buffer) written as U+FFFD. NULL = "" */
+void srs_json_str(FILE *f, const char *s);
 
 /* ---------- platform layer (plat_posix.c / plat_win32.c) ---------- */
 int  plat_listdir(const char *dir, char ***names);      /* sorted; returns count */

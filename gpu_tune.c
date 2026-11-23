@@ -410,13 +410,16 @@ static void tb_read(gtune_status *st)
             size_t l = strlen(tb->missing);
             snprintf(tb->missing + l, sizeof tb->missing - l, "%s%s", l ? "," : "", tb_needs[k].cap);
         }
-    free(line);
+    /* res and caps point into line: it is freed only after the last look at them (2.6.0: it was freed one line too
+       early, which crashed on a PC with the service running and no AMD card) */
     if (!res || tb->proto_major != 2 || !js_has(caps, "gpu-capabilities-v1")) {
         tb->daemon = GTD_OLD;
         if (tb->proto_major == GTN_NONE) snprintf(tb->msg, sizeof tb->msg, "the service's answer names no protocol version");
         else snprintf(tb->msg, sizeof tb->msg, "the service speaks protocol %d.%d; this SRS knows protocol 2", tb->proto_major, tb->proto_minor == GTN_NONE ? 0 : tb->proto_minor);
+        free(line);
         return;
     }
+    free(line);
     tb->daemon = GTD_RUNNING;
     /* the service's view of each card it knows, matched to SRS's cards by PCI address. The service numbers the cards
        its own way, so SRS cannot ask about one card only: while ANY card is asleep it asks about none, because the
@@ -1090,17 +1093,7 @@ void gtune_section(srs_out *o)
 }
 
 /* ------------------------------------------------------------------ JSON ("gpu-tune status --json") */
-static void j_str(FILE *f, const char *s)
-{
-    const unsigned char *p = (const unsigned char *)(s ? s : "");
-    fputc('"', f);
-    for (; *p; p++) {
-        if (*p == '"' || *p == '\\') { fputc('\\', f); fputc(*p, f); }
-        else if (*p < 0x20) fprintf(f, "\\u%04x", *p);
-        else fputc(*p, f);
-    }
-    fputc('"', f);
-}
+static void j_str(FILE *f, const char *s) { srs_json_str(f, s); }   /* always valid JSON, see core.c */
 static void j_int(FILE *f, const char *k, int v) { if (v == GTN_NONE) fprintf(f, "\"%s\":null", k); else fprintf(f, "\"%s\":%d", k, v); }
 static void j_pair(FILE *f, const char *k, int a, int b) { if (a == GTN_NONE || b == GTN_NONE) fprintf(f, "\"%s\":null", k); else fprintf(f, "\"%s\":[%d,%d]", k, a, b); }
 static void j_dbl(FILE *f, const char *k, double v) { if (v < 0) fprintf(f, "\"%s\":null", k); else fprintf(f, "\"%s\":%.0f", k, v); }
@@ -1122,7 +1115,11 @@ static void json_card(FILE *f, const gtune_status *st, int idx)
     j_kstr(f, "card", g->card);
     fprintf(f, ",\"vendor\":\"%s\",\"asleep\":%s,\"overdrive\":\"%s\",\"backend\":", g->vendor, g->asleep ? "true" : "false",
             g->od == 1 ? "offsets" : g->od == 2 ? "older-table" : g->od == -1 ? "not-readable" : "none");   /* offsets: a voltage offset */
-    if (g->tb) fprintf(f, "\"tux-burner-%s\"", g->tb_vendor); else fputs("null", f);
+    if (g->tb) {   /* the vendor word is the service's text: through j_str like every other string that is not SRS's own */
+        char be[40];
+        snprintf(be, sizeof be, "tux-burner-%s", g->tb_vendor);
+        j_str(f, be);
+    } else fputs("null", f);
     fputs("},\"now\":{", f);
     j_int(f, "voltage_offset_mv", od ? g->vo_mv : g->tb_vo_mv); fputc(',', f);
     j_int(f, "sclk_offset_mhz", od ? g->sclk_off_mhz : g->tb_sclk_off); fputc(',', f);

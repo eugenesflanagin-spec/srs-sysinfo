@@ -344,6 +344,53 @@ PATH="$NOTB" T --help >"$TMP/u6" 2>&1;                [ $? = 0 ] && grep -q "nev
 E=$TMP/empty; mkdir -p "$E/sys/class/drm"
 SRS_TEST_SYSFS_ROOT=$E PATH="$NOTB" T status >"$TMP/u7" 2>&1; [ $? = 1 ] && grep -q "no graphics card found" "$TMP/u7" && ok "no graphics card: exit 1, says so" || bad "no graphics card"
 
+echo "== a PC with no AMD card and the service running (2.6.0: SRS read the service's answer after freeing it)"
+# One NVIDIA card, no amdgpu.ids: nothing large is read before the service's answer, which is the case that crashed.
+# GLIBC_TUNABLES makes glibc hand every larger block back to the system on free(), so a read after free() is a crash
+# on any machine and with any earlier allocations, not only on this layout.
+NV=$TMP/nvroot
+mkdir -p "$NV/sys/class/drm/card0/device/power" "$NV/proc" "$NV/run" "$NV/etc"
+printf '0x10de\n' >"$NV/sys/class/drm/card0/device/vendor"; printf '0x2684\n' >"$NV/sys/class/drm/card0/device/device"
+printf '0x10de\n' >"$NV/sys/class/drm/card0/device/subsystem_vendor"; printf '0x0001\n' >"$NV/sys/class/drm/card0/device/subsystem_device"
+printf '0xa1\n' >"$NV/sys/class/drm/card0/device/revision"; printf 'DRIVER=nvidia\nPCI_SLOT_NAME=0000:01:00.0\n' >"$NV/sys/class/drm/card0/device/uevent"
+printf 'active\n' >"$NV/sys/class/drm/card0/device/power/runtime_status"
+daemon nvidia || exit 1
+for tun in "" glibc.malloc.mmap_threshold=65536; do
+    SRS_TEST_SYSFS_ROOT=$NV PATH="$WITHTB" env ${tun:+GLIBC_TUNABLES=$tun} "$BIN" gpu-tune status --json >"$TMP/nvonly.json" 2>"$TMP/nvonly.err"; rc=$?
+    [ $rc = 0 ] && ok "NVIDIA-only PC, service running${tun:+, $tun}: exit 0" || { bad "NVIDIA-only PC${tun:+, $tun}: exit $rc"; head -5 "$TMP/nvonly.err"; }
+    jsok "$TMP/nvonly.json" 'd["gpu"]["vendor"] == "nvidia" and d["tux_burner"]["daemon"] == "running" and d["gpu"]["backend"] == "tux-burner-nvidia" and d["now"]["power_cap_w"] == 320' "and the JSON is whole: the NVIDIA card through the service"
+    SRS_TEST_SYSFS_ROOT=$NV PATH="$WITHTB" env ${tun:+GLIBC_TUNABLES=$tun} "$BIN" gpu-tune status >"$TMP/nvonly.txt" 2>&1; rc=$?
+    [ $rc = 0 ] && grep -Eq "Settings Back End +Tux Burner NVIDIA" "$TMP/nvonly.txt" && ok "the text form too" || bad "NVIDIA-only text: exit $rc"
+    SRS_TEST_SYSFS_ROOT=$NV PATH="$WITHTB" env ${tun:+GLIBC_TUNABLES=$tun} "$BIN" '-save=[gpu-tuning]=STDOUT' >"$TMP/nvonly.item" 2>&1; rc=$?
+    [ $rc = 0 ] && grep -q "Tux Burner NVIDIA" "$TMP/nvonly.item" && ok "the [gpu-tuning] item too" || bad "NVIDIA-only item: exit $rc"
+done
+daemon old || exit 1
+SRS_TEST_SYSFS_ROOT=$NV PATH="$WITHTB" env GLIBC_TUNABLES=glibc.malloc.mmap_threshold=65536 "$BIN" gpu-tune status --json >"$TMP/nvold.json" 2>&1; rc=$?
+[ $rc = 0 ] && js "$TMP/nvold.json" 'd["tux_burner"]["daemon"] == "unusable-version"' && ok "an old service on the NVIDIA-only PC: exit 0, unusable-version" || bad "old service, NVIDIA-only: exit $rc"
+daemon_stop
+
+echo "== the JSON stays valid whatever the service and LACT hand over"
+# strict: the bytes must be UTF-8 and the text must parse (python's json.load(open()) could be lenient about bytes)
+jstrict() { python3 -I -c 'import json,sys
+d = json.loads(open(sys.argv[1], "rb").read().decode("utf-8", "strict"))
+sys.exit(0 if eval(sys.argv[2]) else 1)' "$1" "$2" 2>"$TMP/jstrict.err"; }
+daemon hostile || exit 1
+PATH="$WITHTB" T status --json >"$TMP/h.json" 2>&1; rc=$?
+[ $rc = 0 ] && ok "a service with quotes, backslashes, control characters and non-UTF-8 bytes in its words: exit 0" || bad "hostile service: exit $rc"
+jstrict "$TMP/h.json" 'd["gpu"]["backend"] == "tux-burner-a\"b\\c d\ufffde\ufffd"' && ok "the vendor word is escaped (the tab was already made a space), bad bytes become U+FFFD" || { bad "hostile vendor word"; cat "$TMP/jstrict.err"; head -c 600 "$TMP/h.json"; echo; }
+jstrict "$TMP/h.json" 'd["tux_burner"]["version"] == "0.99.0x�"' && ok "a letter cut in the middle becomes U+FFFD" || { bad "cut letter"; cat "$TMP/jstrict.err"; }
+PATH="$WITHTB" T status --all --json >"$TMP/h2.json" 2>&1
+jstrict "$TMP/h2.json" 'len(d) == 5' && ok "--all --json is valid too" || { bad "hostile --all"; cat "$TMP/jstrict.err"; }
+daemon_stop
+# a LACT profile name of 40 two-byte letters: SRS keeps 63 bytes, which cuts the 32nd letter in half
+lact_on; lact_cfg "current_profile: $(printf 'é%.0s' $(seq 1 40))"
+PATH="$NOTB" T status --json >"$TMP/h3.json" 2>&1
+jstrict "$TMP/h3.json" 'd["lact"]["active_profile"].startswith("ééé") and "�" in d["lact"]["active_profile"]' && ok "a LACT profile name cut in mid-letter: valid JSON, the half letter is U+FFFD" || { bad "cut LACT profile name"; cat "$TMP/jstrict.err"; head -c 400 "$TMP/h3.json"; echo; }
+printf 'current_profile: "a\\"b\xff"\n' >"$TMP/lact-tail"; lact_cfg "$(cat "$TMP/lact-tail")"
+PATH="$NOTB" T status --json >"$TMP/h4.json" 2>&1
+jstrict "$TMP/h4.json" 'isinstance(d["lact"], dict)' && ok "a LACT profile name with a quote and a non-UTF-8 byte: valid JSON" || { bad "hostile LACT profile name"; cat "$TMP/jstrict.err"; head -c 400 "$TMP/h4.json"; echo; }
+lact_off; rm -f "$R/etc/lact/config.yaml"
+
 echo "== nothing was written"
 [ "$(fingerprint)" = "$FP0" ] && ok "the made-up /sys, /proc, /run and /etc are byte for byte as before" || bad "SRS changed the made-up tree"
 [ ! -s "$TMP/bin/tburn-cli.log" ] && ok "tburn-cli was never run" || bad "tburn-cli was run"

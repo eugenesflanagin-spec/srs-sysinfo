@@ -14,6 +14,8 @@ receives to LOG, and answers with made-up data. It touches no GPU and no real se
     old       a service that speaks protocol 1
     silent    accepts the connection and never answers
     garbage   answers with a line that is not JSON
+    hostile   one AMD card whose vendor word and version hold a quote, a backslash, a control character and bytes
+              that are not UTF-8 (written to the socket as raw bytes): whatever SRS prints must still be valid JSON
 
 Any request other than "status" and "gpu_capabilities" is logged and refused: the test then fails, because SRS
 may only ever send those two. Prints "ready" when it listens; ends on SIGTERM.
@@ -76,13 +78,16 @@ def main():
             return {"ok": False, "error": "request must be a JSON object"}
         method = req.get("method")
         if method == "status":
-            return {"ok": True, "result": {"state": "idle", "active_job": None, "version": "0.99.0", "build": "testbld",
+            return {"ok": True, "result": {"state": "idle", "active_job": None, "build": "testbld",
+                                           "version": "0.99.0@CUT@" if mode == "hostile" else "0.99.0",
                                            "protocol_major": 1 if mode == "old" else 2, "protocol_minor": 0, "capabilities": caps}}
         if method == "gpu_capabilities":
             index = req.get("gpu_index", 0)
             if not isinstance(index, int) or index < 0 or index >= len(cards):
                 return {"ok": False, "error": f"gpu index {index} is not available"}
             reply = dict(cards[index], gpu_index=index, gpu_count=len(cards))
+            if mode == "hostile":
+                reply["vendor"] = "@HOSTILE@"
             return {"ok": True, "result": reply}
         return {"ok": False, "error": f"REFUSED by the fake service: {method}"}
 
@@ -105,6 +110,13 @@ def main():
             if mode == "garbage":
                 note(line)
                 conn.sendall(b"this is not JSON\n")
+                return
+            if mode == "hostile":
+                # the answer as raw bytes: the markers become a quote, a backslash, a tab (all escaped, as JSON asks)
+                # and bytes that are not UTF-8 (a lone 0xFF, and the first byte of a two-byte letter with no second)
+                raw = json.dumps(answer(line)).encode()
+                raw = raw.replace(b"@HOSTILE@", b'a\\"b\\\\c\\td\xffe\xc3').replace(b"@CUT@", b"x\xe2\x82")
+                conn.sendall(raw + b"\n")
                 return
             conn.sendall((json.dumps(answer(line)) + "\n").encode())
 

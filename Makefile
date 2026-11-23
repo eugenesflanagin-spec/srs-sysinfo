@@ -159,6 +159,14 @@ NO_TB_SOCKET := /nonexistent/srs-test-no-tux-burner.sock
 test-bench: $(NATIVE)/sysreport-search
 	@for t in $(BENCHTESTS); do echo "== $$t"; SRS_TUX_BURNER_SOCKET=$(NO_TB_SOCKET) $$t $(NATIVE)/sysreport-search || exit 1; done
 
+# the tests that read text from outside (a service's answers, settings files) once more under AddressSanitizer and
+# UBSan: a command-line build only, made-up data only (2.6.0: a read after free() did not show in the normal build)
+ASANTESTS := tests/gpu-tune-test.sh
+test-asan: $(CORE) plat_posix.c $(SECS) $(HDRS) $(SECHDRS)
+	@mkdir -p $(DIST)/asan
+	$(CC) $(WFLAGS) -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer $(LINUX) $(CPPFLAGS) -o $(DIST)/asan/sysreport-search $(CORE) plat_posix.c $(SECS) -lm -ldl
+	@for t in $(ASANTESTS); do echo "== $$t (ASan + UBSan)"; ASAN_OPTIONS=abort_on_error=1:detect_leaks=0 SRS_TUX_BURNER_SOCKET=$(NO_TB_SOCKET) $$t $(DIST)/asan/sysreport-search || exit 1; done
+
 install-system: native
 	install -Dm755 $(NATIVE)/srs-gui $(DESTDIR)$(SYSPREFIX)/bin/srs-gui
 	install -Dm755 $(NATIVE)/sysreport-search $(DESTDIR)$(SYSPREFIX)/bin/sysreport-search
@@ -212,4 +220,4 @@ headers: win64 win32
 clean:
 	rm -rf $(DIST)
 
-.PHONY: test-power test-bench gpu-shaders cuda-ptx guide check-guide check-mnemonics native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean
+.PHONY: test-power test-bench test-asan gpu-shaders cuda-ptx guide check-guide check-mnemonics native install-system all cli-x86_64 cli-i686 cli-aarch64 gui win64 win32 data install headers clean

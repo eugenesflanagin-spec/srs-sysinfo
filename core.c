@@ -1041,3 +1041,39 @@ int srs_devices(enum srs_bus bus, srs_dev **out)
     *out = v;
     return cnt;
 }
+
+/* ---- JSON strings (2.6.0): every --json output goes through this, so the object stays valid whatever a device
+   name, a service's answer or a settings file holds. Well-formed UTF-8 passes through; anything else (a stray byte,
+   an overlong form, a surrogate, a letter cut in the middle by a fixed-size buffer) becomes U+FFFD, one per broken
+   sequence. */
+void srs_json_str(FILE *f, const char *s)
+{
+    const unsigned char *p = (const unsigned char *)(s ? s : "");
+    fputc('"', f);
+    while (*p) {
+        unsigned c = *p;
+        int need = 0, k;
+        unsigned lo = 0x80, hi = 0xBF;   /* the allowed range of the first continuation byte */
+        if (c < 0x80) {
+            if (c == '"' || c == '\\') { fputc('\\', f); fputc((int)c, f); }
+            else if (c < 0x20 || c == 0x7F) fprintf(f, "\\u%04x", c);
+            else fputc((int)c, f);
+            p++;
+            continue;
+        }
+        if (c >= 0xC2 && c <= 0xDF) need = 1;
+        else if (c == 0xE0) { need = 2; lo = 0xA0; }                 /* no overlong three-byte forms */
+        else if (c == 0xED) { need = 2; hi = 0x9F; }                 /* no surrogates */
+        else if (c >= 0xE1 && c <= 0xEF) need = 2;
+        else if (c == 0xF0) { need = 3; lo = 0x90; }                 /* no overlong four-byte forms */
+        else if (c >= 0xF1 && c <= 0xF3) need = 3;
+        else if (c == 0xF4) { need = 3; hi = 0x8F; }                 /* nothing above U+10FFFF */
+        for (k = 1; k <= need; k++) {
+            unsigned d = p[k];
+            if (d < (k == 1 ? lo : 0x80u) || d > (k == 1 ? hi : 0xBFu)) break;   /* also stops at the end of the text */
+        }
+        if (need && k > need) { fwrite(p, 1, (size_t)need + 1, f); p += need + 1; }
+        else { fputs("\xEF\xBF\xBD", f); p += need ? k : 1; }   /* the broken sequence's good start counts as part of it */
+    }
+    fputc('"', f);
+}

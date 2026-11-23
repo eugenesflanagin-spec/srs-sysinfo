@@ -1076,17 +1076,7 @@ static void gpuburn_live(const gpuburn_snap *s, void *ud)
    second while it runs), and exit codes a program can act on. Without --json the command behaves as before. ---- */
 enum { GBX_PASS = 0, GBX_STOPPED = 10, GBX_FAIL = 11, GBX_NOTSTARTED = 12, GBX_EARLY = 13, GBX_KERNEL = 14, GBX_TEMP = 15 };
 
-static void gbj_str(FILE *f, const char *s)
-{
-    const unsigned char *p = (const unsigned char *)(s ? s : "");
-    fputc('"', f);
-    for (; *p; p++) {
-        if (*p == '"' || *p == '\\') { fputc('\\', f); fputc(*p, f); }
-        else if (*p < 0x20) fprintf(f, "\\u%04x", *p);
-        else fputc(*p, f);   /* UTF-8 passes through (device names, the degree sign in a reason) */
-    }
-    fputc('"', f);
-}
+static void gbj_str(FILE *f, const char *s) { srs_json_str(f, s); }   /* always valid JSON, see core.c */
 /* "key":value, or null for a sensor the card does not have (-1) */
 static void gbj_num(FILE *f, const char *key, double v, int prec)
 {
