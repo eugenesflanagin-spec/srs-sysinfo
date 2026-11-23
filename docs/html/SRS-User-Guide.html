@@ -498,8 +498,13 @@ copies of <code>/proc/ioports</code> and <code>/proc/iomem</code>,
 reads of a fixed list of AMD and architectural MSRs through
 <code>/dev/cpu/N/msr</code> (it loads the <code>msr</code> kernel module
 for that). Since 2.4 it also reads the items in <a
-href="#user-guide--54-what-srs-root-reads-since-24-and-the-opt-ins">5.4</a>. It then
-gives the files to you (<code>chown</code>).</p>
+href="#user-guide--54-what-srs-root-reads-since-24-and-the-opt-ins">5.4</a>.</p>
+<p>Since 2.6 it collects everything in a folder of its own that only
+root can enter, and only when the collection is complete does it hand
+the folder to you; the last step, putting it in place of
+<code>~/.cache/srs/root</code>, is done by a process running as you, not
+as root. So a run that fails or is interrupted leaves the data you had,
+and root never writes inside your home folder.</p>
 <h3 id="user-guide--52-three-ways-to-run-it">5.2 Three ways to run it</h3>
 <ol type="1">
 <li><strong>From the window:</strong> <strong>Menu -&gt; Run as root
@@ -507,7 +512,14 @@ gives the files to you (<code>chown</code>).</p>
 finishes, a dialog says "Root data collected into ~/.cache/srs/root" and
 every open panel refreshes.</li>
 <li><strong>From a terminal:</strong> <code>pkexec srs-root</code> (or
-<code>sudo srs-root</code>).</li>
+<code>sudo srs-root</code>). It has to be root: plain
+<code>srs-root</code> says "needs root (use: pkexec srs-root). Nothing
+was changed." and stops. <code>srs-root --help</code> shows its few
+options. (Before 2.6, <code>srs-root</code> without root, with
+<code>--help</code> or with a mistyped option ran a collection anyway
+and replaced good cached data with error texts; if items that need root
+look empty after an older version did that, run it once more as
+root.)</li>
 <li><strong>At every boot, automatically:</strong> see 5.3.</li>
 </ol>
 <p><strong>From the AppImage:</strong> way 1 works the same. The
@@ -539,7 +551,9 @@ the systemd unit <code>srs-root@&lt;your user&gt;.service</code>. It
 also collects straight away.</li>
 <li>At every boot the unit runs <code>srs-root --user &lt;you&gt;</code>
 as root, at the lowest CPU priority (Nice 19) and idle disk priority, so
-boot is not slowed. The files are owned by you.</li>
+boot is not slowed. The files are owned by you. If you start Run as root
+while the boot run is still going, the second one waits for the first
+(2.6).</li>
 <li>Unticking it disables the unit (one password prompt). If you cancel
 the prompt, the tick stays as it was.</li>
 <li>By hand:
@@ -3094,11 +3108,14 @@ checked against elksmart-comm's packets only, never on a real
 dongle.</li>
 <li>GPU Tuning (2.6, <a href="#user-guide--923-gpu-tuning-read-only">9.23</a>) and
 <code>gpu-burn --json</code> / <code>--watch-kernel</code> (<a
-href="#user-guide--918-gpu-burnin">9.18</a>): made-up system files, a stand-in for
-Tux Burner's service, a software renderer, a fake GPU runtime and
-made-up kernel log lines only. Not tried on a real graphics card, a real
-Tux Burner service, a real LACT or with a real GPU reset; NVIDIA, Intel,
-older AMD cards and laptops with two cards are untested.</li>
+href="#user-guide--918-gpu-burnin">9.18</a>): built and tested on made-up system
+files, a stand-in for Tux Burner's service, a software renderer, a fake
+GPU runtime and made-up kernel log lines. On a real card (Radeon RX 9070
+XT) <code>gpu-tune status</code> was read once and
+<code>gpu-burn --json --watch-kernel</code> passed one run; the watch
+has never seen a real GPU reset, and a real Tux Burner service was not
+asked. NVIDIA, Intel, older AMD cards and laptops with two cards are
+untested.</li>
 </ul>
 <p><strong>Things to know about the GPU tests:</strong></p>
 <ul>
@@ -4436,7 +4453,10 @@ notices that the GPU stopped answering, restarts it (a <em>GPU
 reset</em>), and the program that crashes is the desktop, while the
 test's own numbers look fine. With the watch on, such a reset fails the
 run. If the kernel log cannot be read on your system, SRS says so
-instead of pretending that nothing happened.
+instead of pretending that nothing happened (the JSON then has
+<code>"kernel_watch":"unreadable"</code> and the exit code is the test's
+own: treat such a run as not watched). A run that fails on the kernel
+log is also saved as FAIL in the report file and in Benchmark History.
 <code>--pci 0000:03:00.0</code> picks the card by its PCI address.
 Without <code>--json</code> the command behaves exactly as before.
 Details and the JSON fields: <a
@@ -6764,7 +6784,7 @@ href="#user-guide--111-live-tray-meters-and-the-task-manager-settings">11.1</a>.
 </tr>
 <tr>
 <td>Tools</td>
-<td>35</td>
+<td>42</td>
 <td><a href="#sections-tools">tools.md</a></td>
 <td>Benchmarks &amp; Stress; Tools</td>
 </tr>
@@ -17230,7 +17250,7 @@ number.</p>
 often share serials; use by-path or the filesystem UUID for those.</li>
 <li>A partition with a UUID but no filesystem name: udev saw something
 but could not identify it.</li>
-<li>An ISO-style UUID such as <code>2026-08-19-18-44-21-00</code>: that
+<li>An ISO-style UUID such as <code>2026-01-01-12-00-00-00</code>: that
 is an ISO 9660 (CD image) filesystem, whose "UUID" is its creation date.
 Normal on live USB sticks.</li>
 </ul>
@@ -17596,10 +17616,10 @@ points".</p>
 <p><strong>Healthy / typical values.</strong> The author's PC has 17
 block, 2 network and 33 virtual mount points. The btrfs root partition
 appears seven times (<code>/</code>, <code>/home</code>,
-<code>/var/log</code>...), one per subvolume. A second mount of the NTFS
-data disk at <code>/srv/newdl-ro</code> uses <code>ro</code>
-(read-only). Network shares include an NFS v4 export and a CIFS share
-from a router at <code>//192.0.2.x/...</code>.</p>
+<code>/var/log</code>...), one per subvolume. A second mount of an NTFS
+data disk (for example at <code>/srv/data-ro</code>) uses
+<code>ro</code> (read-only). Network shares include an NFS v4 export and
+a CIFS share from a router at <code>//192.0.2.x/...</code>.</p>
 <p><strong>Unusual values and what they suggest.</strong></p>
 <ul>
 <li>A disk filesystem mounted <code>ro</code> that should be writable:
@@ -18394,8 +18414,8 @@ counters, commit stats.</li>
 underlying devices.</li>
 <li><strong>Pools</strong>: "N btrfs, N dm/md".</li>
 </ul>
-<p><strong>Healthy / typical values.</strong> On the author's PC: three
-btrfs filesystems (LINUX, SteamLibrary, 500GB_SSD), each on one device,
+<p><strong>Healthy / typical values.</strong> For example: three btrfs
+filesystems (labelled, say, ROOT, GAMES and DATA), each on one device,
 with error counters all 0, and no dm/md volumes.</p>
 <p><strong>Unusual values and what they suggest.</strong> A btrfs
 filesystem whose Devices count is lower than you set up: a member disk
@@ -20258,11 +20278,11 @@ bridge, tun, loopback, bluetooth, gsm...</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Healthy / typical values.</strong> On the author's PC: "Wired
-connection 3" on em1, the home Wi-Fi profile on wlan0, profiles for lo
-and two bridges and a TAP device, plus inactive ones: older wired
-profiles, two other Wi-Fi networks, a VPN profile, and a Bluetooth
-phone-tethering profile.</p>
+<p><strong>Healthy / typical values.</strong> For example: "Wired
+connection 1" on the Ethernet port, the home Wi-Fi profile on the Wi-Fi
+card, profiles for lo and two bridges and a TAP device, plus inactive
+ones: older wired profiles, two other Wi-Fi networks, a VPN profile, and
+a Bluetooth phone-tethering profile.</p>
 <p><strong>Unusual values and what they suggest.</strong> Several "Wired
 connection N" profiles for one port: NetworkManager made a new one each
 time the adapter or its MAC changed; the old ones can be deleted. A
@@ -36210,6 +36230,7 @@ srs-gui [--gui-open=WHAT[,WHAT...]] [--gui-tray | --tray] [--gui-classic | --gui
 srs-gui --power-recorder
 srs-root [--user NAME]
 srs-root --acpi-eval METHOD [ARG...]
+srs-root -h | --help
 srs-sysreport</code></pre>
 <hr />
 <h2 id="cli-reference--information-commands-safe-read-only">Information commands (safe,
@@ -37810,7 +37831,10 @@ end not installed, no device, Stress &amp; Burnin running).</p>
 <tr>
 <td>0</td>
 <td>PASS: no wrong result, and (with <code>--watch-kernel</code>) no GPU
-reset seen</td>
+reset seen. <strong>Also 0 when <code>--watch-kernel</code> was asked
+for but the kernel log could not be read</strong>: then
+<code>"kernel_watch":"unreadable"</code>, and a caller <strong>must
+treat the run as not watched</strong> (see below)</td>
 <td><code>pass</code></td>
 </tr>
 <tr>
@@ -37931,7 +37955,11 @@ is <code>done</code>, <code>stopped</code>, <code>failed</code>,
 <td><code>kernel_watch</code></td>
 <td><code>off</code> (not asked for), <code>on</code>, or
 <code>unreadable</code> with a <code>kernel_watch_note</code> saying
-why</td>
+why. <strong><code>unreadable</code> = not watched</strong>: the exit
+code and <code>result</code> then come from the test's own numbers
+alone, exactly as without <code>--watch-kernel</code>. A program that
+needs the watch must check for <code>"kernel_watch":"on"</code>, not
+only for exit 0</td>
 </tr>
 <tr>
 <td><code>kernel_events</code></td>
@@ -37980,8 +38008,27 @@ standard error ("FAIL - kernel log: ...") and the exit code is 1.</p>
 <code>kernel.dmesg_restrict=1</code>), the run says so - "Kernel log not
 readable ...: only the test's own result is checked." - and the JSON has
 <code>"kernel_watch":"unreadable"</code>. It never reports "nothing
-seen" for a log it could not read. Not tested with the messages of a
-real reset yet: the patterns follow the drivers' wording.</p>
+seen" for a log it could not read. <strong>The exit code stays the
+test's own (0 after a clean run), so callers must treat
+<code>unreadable</code> as "not watched"</strong>: a GPU reset during
+such a run would not have been seen. Check <code>kernel_watch</code> for
+<code>on</code> before you trust a 0 as "no reset" (to let a user read
+the log: run as root, add the user to a group that may read
+<code>/dev/kmsg</code>, or set
+<code>kernel.dmesg_restrict=0</code>).</p>
+<p>A run that fails on the kernel log (exit 14, or 1 without
+<code>--json</code>) is also <strong>saved</strong> as a failure:
+<code>~/.cache/srs/bench-gpuburn.txt</code> has a red "Result of the
+run: FAIL - kernel log: ..." line and "FAIL (kernel log)" in the table,
+and the Benchmark History line starts with FAIL and ends with the reason
+(2.6.0 as first built saved such a run as PASS, because the report was
+written before the log was looked at).</p>
+<p>The JSON of <code>gpu-burn</code> and <code>gpu-tune</code> is always
+valid, whatever a device name, a service or a settings file holds:
+quotes, backslashes and control characters are escaped, and bytes that
+are not UTF-8 (also a letter cut in the middle) are written as U+FFFD,
+the replacement character. Not tested with the messages of a real reset
+yet: the patterns follow the drivers' wording.</p>
 <p>Examples:</p>
 <pre><code>$ sysreport-search gpu-burn --list
 $ sysreport-search gpu-burn --seconds 600 --limit 95
@@ -38404,10 +38451,81 @@ Benchmark), and the jump-list actions <code>sensors</code>,
 <h2 id="cli-reference--srs-root"><code>srs-root</code></h2>
 <pre><code>pkexec srs-root            # or: sudo srs-root
 sudo srs-root --user NAME  # collect for another user (used by the boot unit)
-pkexec srs-root --acpi-eval METHOD [ARG...]   # evaluate one ACPI method (2.4; what the window&#39;s ACPI method evaluation runs)</code></pre>
-<p>Collects root-only data into <code>~/.cache/srs/root/</code> of the
-user who started it (via <code>PKEXEC_UID</code> or the current user),
-then gives the files to that user. It prints one line per step:</p>
+pkexec srs-root --acpi-eval METHOD [ARG...]   # evaluate one ACPI method (2.4; what the window&#39;s ACPI method evaluation runs)
+srs-root --help            # the usage text (also -h); needs no root</code></pre>
+<p>Collects root-only data for the user who started it
+(<code>PKEXEC_UID</code> under pkexec, <code>SUDO_UID</code> under sudo,
+else root itself) and puts it into that user's
+<code>~/.cache/srs/root/</code>. It must run as root.</p>
+<p><strong>What it checks first (2.6).</strong> Before it creates or
+changes anything, srs-root checks its arguments and that it is root.
+Only these forms are accepted: no arguments, <code>--user NAME</code>
+(exactly one name), <code>--acpi-eval METHOD [ARG...]</code>, and
+<code>-h</code> / <code>--help</code>. Anything else - an unknown
+option, <code>--user</code> with no name, a stray word - prints the
+usage text and exits 2. Started without root it says
+<code>srs-root: needs root (use: pkexec srs-root). Nothing was changed.</code>
+and exits 2. (Before 2.6 all of these ran a full collection anyway,
+which without root overwrote the good cached files with "Permission
+denied" texts.)</p>
+<p><strong>How the data gets to you (2.6).</strong> Root no longer
+writes inside your home folder:</p>
+<ol type="1">
+<li>Everything is collected in a new folder that only root can enter
+(<code>/run/srs-root.XXXXXX</code>). It is removed when srs-root ends,
+however it ends.</li>
+<li>When the collection is complete, the folder is given to you
+(<code>chown</code>) and put in place of <code>~/.cache/srs/root</code>
+by a process that runs <strong>as you</strong> (through
+<code>runuser</code>, or <code>setpriv</code>). The cache is replaced
+only then, in one step: a run that fails or is interrupted leaves the
+earlier data as it was. <code>acpi-calls.txt</code> is carried over. The
+folder is yours alone (mode 700).</li>
+<li>Only one srs-root runs at a time (a lock,
+<code>/run/srs-root.lock</code>), so the boot unit and the window's Run
+as root cannot mix their files. A second one waits up to 3 minutes, then
+exits 4.</li>
+</ol>
+<p>Because the last step runs as you, a link planted in
+<code>~/.cache/srs/root</code> can no longer make root write to the file
+it points at (this closes a symlink issue that was there since the
+helper was added).</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Done (or <code>--help</code>)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Wrong arguments, not root, or no such user;
+<code>--acpi-eval</code>: a method or argument that is not allowed.
+Nothing was changed</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>--acpi-eval</code>: the <code>acpi_call</code> module is not
+installed</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Another srs-root did not finish within 3 minutes; nothing was
+collected this time</td>
+</tr>
+<tr>
+<td>5</td>
+<td>The data was collected but could not be put into the cache; the
+earlier data is unchanged</td>
+</tr>
+</tbody>
+</table>
+<p>A collection prints one line per step:</p>
 <pre><code>srs-root: dmidecode
 srs-root: decode-dimms
 srs-root: smart
@@ -38516,8 +38634,12 @@ to <code>/proc/acpi/call</code>, prints the result and appends it to
 hardware state</strong>; the window asks once before it allows it (User
 Guide 9.22).</p>
 <ul>
-<li>It has no <code>--help</code>; any argument other than
-<code>--user NAME</code> or <code>--acpi-eval</code> is ignored.</li>
+<li><code>-h</code> / <code>--help</code> prints the usage text (2.6).
+Any other argument than <code>--user NAME</code> or
+<code>--acpi-eval ...</code> is refused with exit 2; before 2.6 it was
+ignored and a full collection ran.</li>
+<li>The log line of <code>--acpi-eval</code> is appended by a process
+running as you as well (2.6).</li>
 <li><code>--user NAME</code> works only as root; exit code 2 if not root
 or the user does not exist.</li>
 <li>Set <code>SRS_SMART_USB=1</code> to include USB-attached disks in
