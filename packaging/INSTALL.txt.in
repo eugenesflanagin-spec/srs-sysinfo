@@ -11,7 +11,7 @@ Needs glibc @GLIBC@ or newer (check with: ldd --version). Older systems: use the
 Files (laid out like /usr):
   usr/bin/srs-gui            GTK 3 GUI (with arguments it behaves like the CLI)
   usr/bin/sysreport-search   command-line tool
-  usr/bin/srs-root           helper that collects root-only data (pkexec / sudo)
+  usr/bin/srs-root           helper that collects root-only data (run as root: pkexec srs-root, or sudo srs-root)
   usr/bin/srs-sysreport      full text/HTML system report script
   usr/lib/systemd/system/srs-root@.service   optional "refresh root data at boot" unit
   usr/share/...              menu entries, icon, docs and user guide, licence

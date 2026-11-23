@@ -618,7 +618,7 @@ static void root_autocollect(void)
     if (!path_exists(helper)) return;
     fprintf(stderr, "srs: running as root with no cached root data - collecting it once with %s ...\n", helper);
     {
-        const char *argv[] = { "/bin/sh", helper, NULL };
+        const char *argv[] = { helper, NULL };   /* by its own first line: srs-root is a bash script, and /bin/sh is not bash everywhere */
         char *out = NULL;
         run_out(&out, argv);
         free(out);

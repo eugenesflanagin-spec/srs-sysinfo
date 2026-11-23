@@ -1,27 +1,114 @@
 #!/bin/bash
 # srs-root - collect root-only data for srs-gui (run through pkexec; one prompt).
-# Writes ~/.cache/srs/root/ of the invoking user and hands the files back to them.
+# Fills ~/.cache/srs/root/ of the invoking user (PKEXEC_UID, or SUDO_UID under sudo).
 # Read-only on the hardware side: dmidecode, decode-dimms, smartctl/nvme queries, MSR reads,
 # lspci config dumps, copies of /sys/firmware/acpi/tables and AMD memory-controller registers (SMN reads through
 # ryzen_smu: an address is written to its smn file, which only selects what to read), the EBDA (/dev/mem below 1 MB),
 # and copies of the kernel's debugfs GPIO table and amdgpu VBIOS copy. Nothing is written to devices.
 # `srs-root --user NAME` collects for NAME (used by the srs-root@NAME.service boot unit).
+#
+# 2.6.0, how the data gets to the user (root writes nothing inside the user's home):
+#   1. the arguments are checked and anyone but root is refused BEFORE anything is created or changed;
+#   2. everything is collected in a new folder only root can enter (/run/srs-root.XXXXXX), removed on every exit;
+#   3. when the collection is complete the folder is given to the user and put in place of ~/.cache/srs/root BY A
+#      PROCESS RUNNING AS THAT USER (install_cache below), so a link planted in the user's cache can never make root
+#      write somewhere else, and a failed or interrupted run leaves the earlier data as it was;
+#   4. one srs-root at a time (a lock in /run), so the boot unit and the window's Run as root cannot mix their files.
+# Exit codes: 0 done; 2 wrong arguments, not root, or no such user (nothing was changed); 3 --acpi-eval without the
+# acpi_call module; 4 another srs-root did not finish in time; 5 collected, but the cache could not be replaced (the
+# earlier data is unchanged).
 set -u
-uid=${PKEXEC_UID:-$(id -u)}
-if [ "${1:-}" = "--user" ] && [ -n "${2:-}" ]; then
-  [ "$(id -u)" = 0 ] || { echo "srs-root: --user needs root" >&2; exit 2; }
+usage() {
+  echo "usage: pkexec srs-root                              collect root-only data for the user who asks"
+  echo "       srs-root --user NAME                         the same for NAME (as root; the boot unit)"
+  echo "       pkexec srs-root --acpi-eval METHOD [ARG...]  evaluate one ACPI method"
+  echo "       srs-root -h | --help                         this text"
+}
+# 1. the arguments, then root. Nothing above this line and nothing in this block creates, changes or deletes a file.
+case "${1:-}" in
+  "")          [ $# -eq 0 ] || { echo "srs-root: an empty argument" >&2; usage >&2; exit 2; } ;;
+  --user)      [ $# -eq 2 ] && [ -n "$2" ] || { echo "srs-root: --user needs one name" >&2; usage >&2; exit 2; } ;;
+  --acpi-eval) ;;
+  -h|--help)   usage; exit 0 ;;
+  *)           echo "srs-root: unknown option: $1" >&2; usage >&2; exit 2 ;;
+esac
+me=$(id -u)
+# Test seams (tests/srs-root-args-test.sh), looked at ONLY when not root, where srs-root can do nothing a user could
+# not do anyway: SRS_ROOT_TEST_HOME stands in for the user's home, and with SRS_ROOT_TEST_DRYRUN=1 the checks run and
+# srs-root stops with "dry run" where the work would begin. Without the dry run, a caller who is not root is refused.
+test_home="" dry=""
+if [ "$me" != 0 ]; then
+  test_home=${SRS_ROOT_TEST_HOME:-}
+  [ -n "$test_home" ] && [ -d "$test_home" ] && [ -n "${SRS_ROOT_TEST_DRYRUN:-}" ] && dry=1
+  [ -n "$dry" ] || { echo "srs-root: needs root (use: pkexec srs-root). Nothing was changed." >&2; exit 2; }
+  uid=$me
+else
+  uid=${PKEXEC_UID:-${SUDO_UID:-0}}   # the user who asked: through pkexec, through sudo, or root itself
+fi
+if [ "${1:-}" = "--user" ]; then
   uid=$(getent passwd "$2" | cut -d: -f3)
   [ -n "$uid" ] || { echo "srs-root: no such user: $2" >&2; exit 2; }
 fi
+case $uid in ""|*[!0-9]*) echo "srs-root: cannot resolve the invoking user" >&2; exit 2 ;; esac
 user=$(getent passwd "$uid" | cut -d: -f1)
+gid=$(getent passwd "$uid" | cut -d: -f4)
 home=$(getent passwd "$uid" | cut -d: -f6)
-[ -n "$user" ] && [ -d "$home" ] || { echo "srs-root: cannot resolve the invoking user" >&2; exit 2; }
+[ -n "$test_home" ] && home=$test_home
+[ -n "$user" ] && [ -n "$gid" ] && [ -d "$home" ] || { echo "srs-root: cannot resolve the invoking user" >&2; exit 2; }
 out="$home/.cache/srs/root"
-mkdir -p "$out" || exit 2
-# ~/.cache/srs belongs to the user (srs-gui keeps its own files there too), only root/ is ours
-[ -d "$home/.cache/srs" ] && [ ! -L "$home/.cache/srs" ] && chown -h "$uid" "$home/.cache/srs" 2>/dev/null || true   # never follow a symlink as root
-cd "$out" || exit 2
 log() { echo "srs-root: $*"; }
+
+# Everything inside the user's home is done by a process running AS THAT USER (never as root): runuser, or setpriv
+# where runuser cannot be used. Root itself (uid 0) and the tests (not root) need no switch.
+runas=""
+if [ "$me" = 0 ] && [ "$uid" != 0 ]; then
+  if command -v runuser >/dev/null && runuser -u "$user" -- true 2>/dev/null; then runas=runuser
+  elif command -v setpriv >/dev/null && setpriv --reuid "$uid" --regid "$gid" --init-groups -- true 2>/dev/null; then runas=setpriv
+  else echo "srs-root: cannot switch to $user (needs runuser or setpriv from util-linux). Nothing was changed." >&2; exit 2; fi
+fi
+as_user() {
+  case $runas in
+    runuser) runuser -u "$user" -- "$@" ;;
+    setpriv) setpriv --reuid "$uid" --regid "$gid" --init-groups -- "$@" ;;
+    *)       "$@" ;;
+  esac
+}
+# one srs-root at a time. The lock file is in /run, where only root can create files (not in /run/lock, which
+# everyone may write to on some systems). lock SECONDS: 0 = got it.
+lock() {
+  ( umask 077; : >> /run/srs-root.lock ) 2>/dev/null
+  exec 8< /run/srs-root.lock || return 1
+  flock -w "$1" 8
+}
+# install_cache OUT NEW - runs AS THE USER. The finished collection NEW becomes the cache OUT. OUT is replaced only
+# when the copy is whole; if anything fails before that, OUT is as it was. The ACPI call log is carried over.
+install_cache() {
+  local out=$1 new=$2 name=${1##*/} tmp old="" d
+  mkdir -p "${out%/*}" || return 1
+  for d in "$out".old.*; do   # an earlier run that was cut off in the middle of the swap: put its old cache back
+    [ -d "$d" ] || continue
+    if [ ! -e "$out" ] && [ ! -L "$out" ] && [ -d "$d/$name" ]; then mv "$d/$name" "$out"; fi
+    rm -rf "$d"
+  done
+  rm -rf "$out".new.*
+  tmp=$(mktemp -d "$out.new.XXXXXX") || return 1
+  cp -a "$new/." "$tmp/" && chmod 700 "$tmp" || { rm -rf "$tmp"; return 1; }   # serial numbers inside: the user's alone
+  [ -s "$tmp/collected.txt" ] || { rm -rf "$tmp"; return 1; }   # written last: without it the collection is not whole
+  if [ -f "$out/acpi-calls.txt" ] && [ ! -L "$out/acpi-calls.txt" ]; then
+    cp -p "$out/acpi-calls.txt" "$tmp/" || { rm -rf "$tmp"; return 1; }
+  fi
+  if [ -e "$out" ] || [ -L "$out" ]; then
+    old=$(mktemp -d "$out.old.XXXXXX") || { rm -rf "$tmp"; return 1; }
+    mv "$out" "$old/$name" || { rm -rf "$tmp"; rmdir "$old"; return 1; }
+  fi
+  if mv -T "$tmp" "$out"; then
+    [ -n "$old" ] && rm -rf "$old"
+    return 0
+  fi
+  [ -n "$old" ] && mv "$old/$name" "$out" && rmdir "$old"   # could not put the new one in place: the old one back
+  rm -rf "$tmp"
+  return 1
+}
 
 # 2.4: `srs-root --acpi-eval METHOD [ARG...]` evaluates ONE ACPI method through the acpi_call module, for the user's
 # Tools > ACPI method evaluation (asked twice in the GUI first). This runs BIOS code and can change hardware state, so
@@ -39,15 +126,28 @@ if [ "${1:-}" = "--acpi-eval" ]; then
     args="$args $a"
   done
   [ $# -le 7 ] || { echo "srs-root: at most 7 arguments" >&2; exit 2; }
+  [ -z "$dry" ] || { echo "srs-root: dry run (test): would evaluate $m$args for $user"; exit 0; }
   modprobe acpi_call 2>/dev/null
   [ -w /proc/acpi/call ] || { echo "srs-root: the acpi_call module is not installed (Arch: acpi_call-dkms)" >&2; exit 3; }
   printf '%s%s' "$m" "$args" > /proc/acpi/call
   res=$(tr -d '\000' < /proc/acpi/call)
-  printf '%s\t%s%s\t%s\n' "$(date -Is)" "$m" "$args" "$res" >> acpi-calls.txt
-  chown "$uid" acpi-calls.txt 2>/dev/null
+  # the log line is appended by a process running as the user, and not while a collection swaps the cache
+  lock 30 || true
+  printf '%s\t%s%s\t%s\n' "$(date -Is)" "$m" "$args" "$res" |
+    as_user sh -c 'mkdir -p "$1" && cat >> "$1/acpi-calls.txt"' sh "$out" ||
+    echo "srs-root: the call could not be logged to $out/acpi-calls.txt" >&2
   printf '%s\n' "$res"
   exit 0
 fi
+
+[ -z "$dry" ] || { echo "srs-root: dry run (test): would collect for $user into $out"; exit 0; }
+# 4. one at a time; 2. a new folder only root can enter, removed on every exit
+lock 180 || { echo "srs-root: another srs-root is still running; nothing was collected this time. Nothing was changed." >&2; exit 4; }
+new=$(mktemp -d /run/srs-root.XXXXXX 2>/dev/null) || new=$(mktemp -d "${TMPDIR:-/tmp}/srs-root.XXXXXX") ||
+  { echo "srs-root: cannot create a folder to collect into. Nothing was changed." >&2; exit 2; }
+trap 'cd /; rm -rf "$new"' EXIT
+trap 'exit 130' HUP INT TERM
+cd "$new" || exit 2
 
 command -v dmidecode >/dev/null && { dmidecode > dmidecode.txt 2>&1; log dmidecode; }
 command -v decode-dimms >/dev/null && { decode-dimms > spd.txt 2>&1; log decode-dimms; }
@@ -281,5 +381,12 @@ fi
 rm -f gpio.txt
 [ -r /sys/kernel/debug/gpio ] && { cat /sys/kernel/debug/gpio > gpio.txt 2>&1; log gpio; }
 date > collected.txt
-chown -R "$uid" "$out"
-log "done -> $out"
+# 3. the collection is complete: give the folder to the user (root writes nothing into it after this line) and let a
+# process running as the user put it in place of the cache
+chown -R "$uid:$gid" "$new"
+if as_user bash -c "$(declare -f install_cache)"'; install_cache "$1" "$2"' bash "$out" "$new"; then
+  log "done -> $out"
+else
+  echo "srs-root: the data was collected but could not be put into $out; the earlier data there is unchanged" >&2
+  exit 5
+fi

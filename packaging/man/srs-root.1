@@ -10,8 +10,13 @@ srs-root \- collect root-only hardware data for srs-gui
 .B pkexec srs-root \-\-acpi\-eval
 .I METHOD
 .RI [ ARG ...]
+.br
+.B srs-root \-h
+|
+.B \-\-help
 .SH DESCRIPTION
-Collects data that only root can read and hands it to the invoking user in
+Collects data that only root can read and hands it to the invoking user
+(PKEXEC_UID under pkexec, SUDO_UID under sudo) in
 .IR ~/.cache/srs/root/ :
 dmidecode, decode-dimms (DIMM SPD), smartctl and nvme SMART logs, MSR reads,
 full PCI configuration space and copies of the ACPI tables.
@@ -68,10 +73,38 @@ runs it through
 runs it once per boot for one user, as
 .BR "srs-root \-\-user " NAME ;
 srs-gui enables it from Menu \(-> Options \(-> Refresh root data at boot.
+.PP
+Since 2.6 srs-root checks its arguments, and that it is root, before it creates or changes anything.
+Started without root, with an unknown option or with
+.B \-\-user
+and no name it exits 2 and nothing is changed
+(earlier versions ran a full collection in all these cases, which without root overwrote the cached
+files with error texts).
+.PP
+Since 2.6 root also writes nothing inside the user's home.
+The data is collected in a new folder only root can enter
+.RI ( /run/srs\-root.XXXXXX ,
+removed on every exit).
+When the collection is complete, the folder is given to the user and put in place of
+.I ~/.cache/srs/root
+by a process running as that user
+.RB ( runuser (1)
+or
+.BR setpriv (1)),
+in one step, so a failed or interrupted run leaves the earlier data as it was, and a link planted in the
+user's cache cannot make root write somewhere else.
+.I acpi\-calls.txt
+is carried over; the folder gets mode 700.
+Only one srs-root runs at a time
+.RI ( /run/srs\-root.lock );
+a second one waits up to 3 minutes.
 .SH OPTIONS
 .TP
+.BR \-h ", " \-\-help
+print the usage text and exit 0; needs no root.
+.TP
 .BI \-\-user " NAME"
-collect for user NAME (root only; used by srs-root@NAME.service).
+collect for user NAME (root only; exactly one name; used by srs-root@NAME.service).
 .TP
 .BI \-\-acpi\-eval " METHOD " "[ARG...]"
 (2.4) evaluate one ACPI method through the acpi_call kernel module and exit; nothing else is collected.
@@ -83,5 +116,24 @@ The result is printed and logged with the time to
 .IR ~/.cache/srs/root/acpi\-calls.txt .
 .B This runs BIOS code and can change hardware state
 (switch devices, fan, power or performance settings, BIOS settings, or hang or reboot the PC).
+.PP
+Any other argument is refused (exit 2).
+.SH EXIT STATUS
+.TP
+.B 0
+done (or \-\-help).
+.TP
+.B 2
+wrong arguments, not root, or no such user; \-\-acpi\-eval: a method or argument that is not allowed.
+Nothing was changed.
+.TP
+.B 3
+\-\-acpi\-eval: the acpi_call module is not installed.
+.TP
+.B 4
+another srs-root did not finish within 3 minutes; nothing was collected this time.
+.TP
+.B 5
+the data was collected but could not be put into the cache; the earlier data is unchanged.
 .SH SEE ALSO
 .BR srs-gui (1)
