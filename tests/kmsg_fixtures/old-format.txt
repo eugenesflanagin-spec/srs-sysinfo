@@ -1,0 +1,4 @@
+[ 5131.000000] [drm:amdgpu_job_timedout [amdgpu]] *ERROR* ring gfx timeout, signaled seq=1201, emitted seq=1203
+[ 5131.000100] [drm:amdgpu_job_timedout [amdgpu]] *ERROR* Process information: process Xwayland pid 2210 thread Xwayland:cs0 pid 2231
+[ 5131.000200] amdgpu 0000:03:00.0: GPU reset begin!
+[ 5132.400000] amdgpu 0000:03:00.0: GPU reset succeeded, trying to resume

@@ -1,0 +1,9 @@
+6,1201,5130000000,-;usb 1-4: USB disconnect, device number 7
+3,1202,5131000000,-;amdgpu 0000:03:00.0: [drm] *ERROR* ring gfx_0.0.0 timeout, signaled seq=48211, emitted seq=48213
+3,1203,5131000100,-;amdgpu 0000:03:00.0: [drm] *ERROR* Process information: process kwin_wayland pid 1432 thread kwin_wayla:cs0 pid 1467
+6,1204,5131000200,-;amdgpu 0000:03:00.0: amdgpu: GPU reset begin!
+6,1205,5131500000,-;amdgpu 0000:03:00.0: amdgpu: MODE1 reset
+6,1206,5131500100,-;amdgpu 0000:03:00.0: amdgpu: GPU mode1 reset
+6,1207,5131900000,-;amdgpu 0000:03:00.0: amdgpu: VRAM is lost due to GPU reset!
+6,1208,5132400000,-;amdgpu 0000:03:00.0: amdgpu: GPU reset(2) succeeded!
+3,1209,5132500000,-;[drm:amdgpu_cs_ioctl [amdgpu]] *ERROR* Failed to initialize parser -125!

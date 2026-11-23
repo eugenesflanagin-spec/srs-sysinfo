@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# tests/gpu-burn-json-test.sh - gpu-burn for programs (2.6.0): --json, --json-live, --pci and the exit codes
-# 0 / 10 / 11 / 12 / 13 / 15 (only with --json; without it the old 0 / 1 / 2 stay), WITHOUT the real GPU.
+# tests/gpu-burn-json-test.sh - gpu-burn for programs (2.6.0): --json, --json-live, --pci, --watch-kernel and the exit
+# codes 0 / 10 / 11 / 12 / 13 / 14 / 15 (only with --json; without it the old 0 / 1 / 2 stay), WITHOUT the real GPU.
 #
 #   tests/gpu-burn-json-test.sh SYSREPORT-SEARCH      (make test-bench passes the path)
 #
@@ -10,6 +10,8 @@
 #   part 2 (HIP):    the HIP runtime is tests/gpu_stub.c (a fake GPU runtime in host memory); Vulkan, CUDA and OpenCL point
 #           at files that do not exist. The stub makes the wrong results and the runtime error on request.
 # SRS_TEST_SYSFS_ROOT points the GPU sensors at a made-up folder (the temperature-limit case), never at /sys.
+# --watch-kernel reads SRS_TEST_KMSG (text files from tests/kmsg_fixtures, or one written here), never /dev/kmsg:
+# every --watch-kernel run below sets it, and "run" refuses to start one without it.
 # Every run is traced with LD_DEBUG=libs and the test FAILS if a real GPU library was loaded. Throw-away HOME.
 set -u
 SRC=$(cd "$(dirname "$0")/.." && pwd)
@@ -34,6 +36,7 @@ run() {
     while [ "$1" != -- ]; do extra+=("$1"); shift; done
     shift
     n=$((n + 1))
+    case " $* " in *" --watch-kernel "*) case " ${extra[*]} " in *" SRS_TEST_KMSG="*) ;; *) bad "$tag: --watch-kernel without SRS_TEST_KMSG (the test would read the real kernel log)"; RC=-1; OUT=; ERR=/dev/null; return ;; esac ;; esac
     ERR=$TMP/err.$n
     OUT=$(env "${BASE[@]}" "${extra[@]}" LD_DEBUG=libs LD_DEBUG_OUTPUT="$TMP/ld.$n" timeout 120 nice -n 15 "$BIN" gpu-burn "$@" 2>"$ERR")
     RC=$?
@@ -115,7 +118,52 @@ assert "event" not in L[-1]' "$OUT" 2>"$TMP/py.err" && ok "one sample line about
     run u2 -- --pci 03:00.0 --yes --json;                 [ "$RC" = 2 ] && grep -q "PCI address" "$ERR" && ok "--pci with a short address: exit 2" || bad "--pci short: exit $RC"
     run u3 -- --pci 0000:03:00.0 --device 0 --yes --json; [ "$RC" = 2 ] && ok "--pci with --device: exit 2" || bad "--pci + --device: exit $RC"
     run u4 -- --json --list;                              [ "$RC" = 2 ] && ok "--json with --list: exit 2" || bad "--json --list: exit $RC"
-    run u5 -- --help;                                     [ "$RC" = 0 ] && grep -q -- "--json-live" <<<"$OUT" && grep -q "15 ended early at the temperature limit" <<<"$OUT" && ok "--help lists the new options and exit codes" || bad "--help"
+    run u5 -- --help;                                     [ "$RC" = 0 ] && grep -q -- "--json-live" <<<"$OUT" && grep -q -- "--watch-kernel" <<<"$OUT" && grep -q "15 ended early at the temperature limit" <<<"$OUT" && ok "--help lists the new options and exit codes" || bad "--help"
+
+    # ------------------------------------------------------------ --watch-kernel (lavapipe has no PCI address: every GPU line counts)
+    FIX=$SRC/tests/kmsg_fixtures
+    KW=(SRS_TEST_KWATCH_TAIL_S=0.3)
+    echo "== kernel watch: a clean log"
+    run kclean "${KW[@]}" SRS_TEST_KMSG=$FIX/clean.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 0 "exit 0; the watch was on and saw nothing" 'd["result"] == "pass" and d["kernel_watch"] == "on" and d["kernel_events"] == [] and d["kernel_other"] == []'
+    run koff -- --backend vulkan --seconds 1 --yes --json
+    want 0 "without --watch-kernel the JSON says the watch was off" 'd["kernel_watch"] == "off" and "kernel_events" not in d'
+
+    echo "== kernel watch: an amdgpu ring timeout and GPU reset"
+    run kring "${KW[@]}" SRS_TEST_KMSG=$FIX/amdgpu-ring-timeout.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 14 "exit 14 although the test's own numbers were right" 'd["exit"] == 14 and d["result"] == "fail" and d["errors"] == 0 and d["end"] == "completed" and d["reason"].startswith("kernel log: ")'
+    js '[e["kind"] for e in d["kernel_events"]] == ["ring-timeout", "gpu-reset", "gpu-reset-done", "parser-error"]' && ok "events: ring timeout, one GPU reset (three lines), reset done, parser error" || bad "events: $OUT"
+    js 'd["kernel_events"][0]["process"] == "kwin_wayland" and d["kernel_events"][0]["detail"] == "gfx_0.0.0" and d["kernel_events"][0]["pci"] == "0000:03:00.0"' && ok "the ring, the card and the program the driver blames (kwin_wayland)" || bad "ring timeout details: $OUT"
+    js 'd["kernel_events"][1]["vram_lost"] is True and d["kernel_events"][1]["detail"] == "MODE1" and d["kernel_events"][2]["vram_lost"] is False' && ok "the reset: MODE1, video memory lost" || bad "reset details: $OUT"
+    js '"ring timeout (gfx_0.0.0, in kwin_wayland)" in d["reason"] and "GPU reset (MODE1, video memory wiped)" in d["reason"]' && ok "the reason is in plain words" || bad "reason: $OUT"
+    grep -q "FAIL - kernel log:" "$ERR" && ok "and it is said on standard error" || bad "nothing on standard error"
+    run kring-plain "${KW[@]}" SRS_TEST_KMSG=$FIX/amdgpu-ring-timeout.txt -- --backend vulkan --seconds 1 --yes --watch-kernel
+    [ "$RC" = 1 ] && grep -q "FAIL - kernel log:" "$ERR" && ok "the same without --json: exit 1" || bad "plain kernel-watch run: exit $RC"
+
+    echo "== kernel watch: the older amdgpu wording, NVIDIA Xid, an unknown driver error"
+    run kold "${KW[@]}" SRS_TEST_KMSG=$FIX/old-format.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 14 "a ring timeout line with no PCI address (older kernels, dmesg form): exit 14" '[e["kind"] for e in d["kernel_events"]] == ["ring-timeout", "gpu-reset", "gpu-reset-done"] and d["kernel_events"][0]["pci"] is None and d["kernel_events"][0]["process"] == "Xwayland"'
+    run kxid "${KW[@]}" SRS_TEST_KMSG=$FIX/nvidia-xid.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 14 "NVIDIA Xid: exit 14" '[e["kind"] for e in d["kernel_events"]] == ["nvidia-xid"] and d["kernel_events"][0]["detail"] == "Xid 79" and d["kernel_events"][0]["process"] == "game.exe" and d["kernel_events"][0]["pci"] == "0000:01:00"'
+    run kunk "${KW[@]}" SRS_TEST_KMSG=$FIX/unknown-error.txt -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 0 "a driver error line SRS does not know: shown, not counted (exit 0)" 'd["kernel_events"] == [] and len(d["kernel_other"]) == 1 and "never seen" in d["kernel_other"][0]'
+
+    echo "== kernel watch: a reset that appears while the test runs, and one just after it"
+    cp "$FIX/clean.txt" "$TMP/kmsg.live"
+    (sleep 1.5; cat "$FIX/amdgpu-ring-timeout.txt" >>"$TMP/kmsg.live") &
+    run kmid "${KW[@]}" SRS_TEST_KMSG=$TMP/kmsg.live -- --backend vulkan --seconds 3 --yes --json --watch-kernel
+    wait
+    want 14 "lines written during the run are seen (exit 14), with their time" 'd["exit"] == 14 and 1.0 < d["kernel_events"][0]["t_s"] < 3.5'
+    cp "$FIX/clean.txt" "$TMP/kmsg.tail"
+    (sleep 3.2; cat "$FIX/amdgpu-ring-timeout.txt" >>"$TMP/kmsg.tail") &
+    run ktail SRS_TEST_KWATCH_TAIL_S=4 SRS_TEST_KMSG=$TMP/kmsg.tail -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    wait
+    want 14 "a reset in the seconds after the load ended still fails the run" 'd["exit"] == 14 and d["kernel_events"][0]["t_s"] > d["seconds"]'
+
+    echo "== kernel watch: a kernel log that cannot be read"
+    run knolog "${KW[@]}" SRS_TEST_KMSG=$TMP/does-not-exist -- --backend vulkan --seconds 1 --yes --json --watch-kernel
+    want 0 "exit 0, and the JSON says the log was not watched" 'd["kernel_watch"] == "unreadable" and "own result is checked" in d["kernel_watch_note"] and d["kernel_events"] == []'
+    grep -q "Kernel log not readable" "$ERR" && ok "said plainly on standard error" || bad "unreadable log not mentioned"
 else echo "  skip  no lavapipe ($LVP): the Vulkan part"; fi
 
 # ---------------------------------------------------------------- part 2: the fake HIP runtime
@@ -157,6 +205,23 @@ want 15 "104 C at a 100 C limit: exit 15, not a stability verdict" 'd["result"] 
 run hip-hot-plain -- --backend hip --seconds 5 --yes
 [ "$RC" = 1 ] && ok "the same without --json: exit 1" || bad "plain temperature run: exit $RC"
 rm -rf "$TMP/sysroot/sys"
+
+echo "== kernel watch with a known card (fake HIP, PCI $SPCI)"
+FIX=$SRC/tests/kmsg_fixtures
+KW=(SRS_TEST_KWATCH_TAIL_S=0.3)
+sed "s/0000:03:00\\.0/$SPCI/g" "$FIX/amdgpu-ring-timeout.txt" >"$TMP/kmsg.mine"
+run hk-other "${KW[@]}" SRS_TEST_KMSG=$FIX/amdgpu-ring-timeout.txt -- --backend hip --seconds 1 --yes --json --watch-kernel
+want 0 "a reset of ANOTHER card (0000:03:00.0) does not fail this run" 'd["exit"] == 0 and d["kernel_events"] == [] and d["kernel_events_other_cards"] == 4 and d["pci"] == "'$SPCI'"'
+run hk-mine "${KW[@]}" SRS_TEST_KMSG=$TMP/kmsg.mine -- --backend hip --seconds 1 --yes --json --watch-kernel
+want 14 "the same lines for THIS card: exit 14" 'd["exit"] == 14 and len(d["kernel_events"]) == 4 and d["kernel_events_other_cards"] == 0'
+run hk-xid "${KW[@]}" SRS_TEST_KMSG=$FIX/nvidia-xid.txt -- --backend hip --seconds 1 --yes --json --watch-kernel
+want 0 "an NVIDIA Xid of another card does not fail this run" 'd["exit"] == 0 and d["kernel_events_other_cards"] == 1'
+run hk-old "${KW[@]}" SRS_TEST_KMSG=$FIX/old-format.txt -- --backend hip --seconds 1 --yes --json --watch-kernel
+want 14 "a ring timeout that names no card cannot be ruled out: exit 14" 'd["exit"] == 14 and d["kernel_events"][0]["kind"] == "ring-timeout" and d["kernel_events_other_cards"] == 2'
+run hk-wrong "${KW[@]}" STUB_CMP_WRONG_AFTER=6 SRS_TEST_KMSG=$TMP/kmsg.mine -- --backend hip --seconds 1 --yes --json --watch-kernel
+want 11 "wrong results AND a reset: exit 11 stays, the kernel events are listed" 'd["exit"] == 11 and d["errors"] > 0 and len(d["kernel_events"]) == 4'
+run hk-err "${KW[@]}" STUB_LAUNCH_ERR_AFTER=40 SRS_TEST_KMSG=$TMP/kmsg.mine -- --backend hip --seconds 5 --yes --json --watch-kernel
+want 14 "a runtime error AND a reset: exit 14 (the reset explains it)" 'd["exit"] == 14 and d["end"] == "runtime-error" and d["reason"].startswith("kernel log: ")'
 
 echo "== fake HIP: --json-live with wrong results"
 run hip-live STUB_CMP_WRONG_AFTER=6 -- --backend hip --seconds 2 --yes --json-live

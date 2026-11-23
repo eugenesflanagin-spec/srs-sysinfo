@@ -1,0 +1,3 @@
+Made-up kernel log lines for tests/gpu-burn-json-test.sh (gpu-burn --watch-kernel, SRS_TEST_KMSG=<file>).
+The wording follows the drivers' messages; the numbers, process IDs and PCI addresses are invented.
+Lines are in /dev/kmsg form ("priority,sequence,time,flags;message") except old-format.txt (dmesg form).

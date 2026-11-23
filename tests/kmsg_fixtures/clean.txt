@@ -1,0 +1,7 @@
+6,1190,5120000000,-;usb 1-4: new high-speed USB device number 7 using xhci_hcd
+6,1191,5120100000,-;usb 1-4: New USB device found, idVendor=0781, idProduct=5581, bcdDevice= 1.00
+6,1192,5121000000,-;amdgpu 0000:03:00.0: [drm] fb0: amdgpudrmfb frame buffer device
+6,1193,5122000000,-;amdgpu 0000:03:00.0: amdgpu: ring gfx_0.0.0 uses VM inv eng 0 on hub 0
+5,1194,5123000000,-;audit: type=1131 audit(1700000000.123:412): pid=1 uid=0 msg='unit=example comm="systemd"'
+6,1195,5124000000,-;wlan0: Limiting TX power to 23 (23 - 0) dBm as advertised by the access point
+4,1196,5125000000,-;timeout waiting for the ring road sensor (not a GPU line)

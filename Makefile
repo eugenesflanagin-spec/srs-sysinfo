@@ -27,10 +27,10 @@ SECS      := sec_core.c sec_stubs.c sec_cpu.c sec_machine.c mem_timings.c lists.
              sec_os.c sec_gpu.c sec_bus.c sec_tools.c sec_siv.c burner.c bench.c bench_pi.c bench_crypto.c \
              bench_prime.c bench_cachemem.c bench_storage.c bench_os.c bench_compute.c bench_work.c bench_net.c \
              bench_gpu.c bench_gpuburn.c bench_gpucompare.c gpu_vk.c gpu_backend.c gpuburn_vk.c gpuburn_rt.c gpuburn_cl.c cuda_toolkit.c guide.c cpu_clock.c \
-             gpu_top.c gpu_top_amd.c gpu_top_nvml.c ir.c
+             gpu_top.c gpu_top_amd.c gpu_top_nvml.c ir.c kmsg_watch.c
 SECHDRS   := sec.h cpu_clock.h burner.h bench.h bench_cachemem.h bench_os.h bench_compute.h bench_work.h bench_net.h \
              bench_gpu.h bench_gpuburn.h bench_gpucompare.h gpu_vk.h gpu_backend.h gpu_kernels.h gpu_kernels_ptx.inc cuda_toolkit.h bench_gpu_spv.inc sec_default_save.inc guide_map.inc \
-             gpu_top.h gpu_top_int.h gpu_top_metrics.inc ir.h
+             gpu_top.h gpu_top_int.h gpu_top_metrics.inc ir.h kmsg_watch.h
 # -ldl on the Linux link lines: the benchmarks load optional libraries (zlib, zstd, lz4, xz, libcurl) at
 # run time with dlopen, and so do the GPU benchmarks (libvulkan, ROCm/HIP, CUDA, OpenCL, hipBLAS, cuBLAS, CLBlast);
 # glibc 2.34+ has dlopen in libc, older glibc needs libdl. The GPU shaders are pre-compiled into

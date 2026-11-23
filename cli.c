@@ -98,13 +98,14 @@ static const char *HELP =
     "        read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;\n"
     "        ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once\n"
     "  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64]\n"
-    "           [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live]\n"
+    "           [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live] [--watch-kernel]\n"
     "        GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted\n"
     "        (0 = PASS), live temperature / power / clock; stops at the temperature limit (default\n"
     "        100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages\n"
     "        or fans (default 60 s); asks first, --yes starts at once. --json / --json-live: the result\n"
     "        as JSON for programs, with exit codes 0 PASS, 10 stopped, 11 FAIL, 12 could not start, 13 ended\n"
-    "        early, 15 temperature limit\n"
+    "        early, 14 GPU reset in the kernel log, 15 temperature limit. --watch-kernel: a GPU reset or ring\n"
+    "        timeout in the kernel log during the run fails it, also when it hit another program\n"
     "  gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]\n"
     "        GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor\n"
     "        library, multiply-add, copy, upload / download, launch time) through every installed back end\n"
@@ -1063,6 +1064,9 @@ static void gpuburn_live(const gpuburn_snap *s, void *ud)
     fflush(stderr);
 }
 
+#include "kmsg_watch.h"
+#include <time.h>
+
 /* ---- gpu-burn --json / --json-live (2.6.0): one JSON object on stdout when the run is over (and one line every half
    second while it runs), and exit codes a program can act on. Without --json the command behaves as before. ---- */
 enum { GBX_PASS = 0, GBX_STOPPED = 10, GBX_FAIL = 11, GBX_NOTSTARTED = 12, GBX_EARLY = 13, GBX_KERNEL = 14, GBX_TEMP = 15 };
@@ -1102,12 +1106,13 @@ static void gbj_fold(gpu_sensors *m, const gpu_sensors *s)
     if (s->clock_mhz > m->clock_mhz) m->clock_mhz = s->clock_mhz;
 }
 
-typedef struct { int tty, live; double last; } gbj_ctx;
+typedef struct { int tty, live; double last; kw *k; } gbj_ctx;
 
 /* the run's callback, about four times a second: the terminal line, and with --json-live one JSON line every 0.5 s */
 static void gpuburn_cb_cli(const gpuburn_snap *s, void *ud)
 {
     gbj_ctx *x = ud;
+    kw_poll(x->k);   /* --watch-kernel: read what the kernel wrote since the last call */
     if (x->tty) gpuburn_live(s, NULL);
     if (x->live && s->ndev && s->elapsed - x->last >= 0.5) {
         gpu_sensors m = { -1, -1, -1, -1, -1, -1 };
@@ -1138,12 +1143,13 @@ static int gbj_exit(const gpuburn_result *r)
     }
 }
 
-static void gbj_result(const gpuburn_cfg *c, const gpuburn_result *r, int code, const char *reason)
+/* watch: 0 = --watch-kernel not given, 1 = watched, -1 = asked for but the kernel log cannot be read (note says so) */
+static void gbj_result(const gpuburn_cfg *c, const gpuburn_result *r, int code, const char *reason, int watch, const kw *k, const char *note)
 {
     static const char *const endw[] = { "completed", "stopped", "compute-errors", "not-started", "temperature-limit", "no-answer", "device-lost", "runtime-error" };
     static const char *const statew[] = { "running", "done", "stopped", "ended-early", "failed" };
     const char *res = code == GBX_PASS ? "pass" : code == GBX_STOPPED ? "stopped" : code == GBX_NOTSTARTED ? "not-started" :
-                      code == GBX_EARLY || code == GBX_TEMP ? "ended-early" : "fail";
+                      code == GBX_EARLY || code == GBX_TEMP ? "ended-early" : "fail";   /* fail: wrong results, or a reset in the kernel log */
     gpu_sensors m = { -1, -1, -1, -1, -1, -1 };
     long err = 0, it = 0;
     double gf = 0;
@@ -1174,8 +1180,40 @@ static void gbj_result(const gpuburn_cfg *c, const gpuburn_result *r, int code, 
         gbj_str(f, d->note);
         fputc('}', f);
     }
-    fputs("]}\n", f);
+    fprintf(f, "],\"kernel_watch\":\"%s\"", watch > 0 ? "on" : watch < 0 ? "unreadable" : "off");
+    if (watch < 0) { fputs(",\"kernel_watch_note\":", f); gbj_str(f, note); }
+    if (watch) {
+        const kw_event *ev;
+        const char *const *other;
+        int n = kw_events(k, &ev), no = kw_others(k, &other), first = 1, elsewhere = 0;
+        fputs(",\"kernel_events\":[", f);
+        for (i = 0; i < n; i++) {
+            if (!kw_event_for(&ev[i], r->pci)) { elsewhere++; continue; }   /* another card's trouble is not this run's */
+            fprintf(f, "%s{\"t_s\":%.1f,\"kind\":\"%s\",\"pci\":", first ? "" : ",", ev[i].t_s, ev[i].kind);
+            first = 0;
+            if (ev[i].pci[0]) gbj_str(f, ev[i].pci); else fputs("null", f);
+            if (ev[i].detail[0]) { fputs(",\"detail\":", f); gbj_str(f, ev[i].detail); }
+            if (ev[i].process[0]) { fputs(",\"process\":", f); gbj_str(f, ev[i].process); }
+            if (!strncmp(ev[i].kind, "gpu-reset", 9)) fprintf(f, ",\"vram_lost\":%s", ev[i].vram_lost ? "true" : "false");
+            fputs(",\"text\":", f);
+            gbj_str(f, ev[i].text);
+            fputc('}', f);
+        }
+        fprintf(f, "],\"kernel_events_other_cards\":%d,\"kernel_other\":[", elsewhere);
+        for (i = 0; i < no; i++) { if (i) fputc(',', f); gbj_str(f, other[i]); }
+        fputc(']', f);
+    }
+    fputs("}\n", f);
     fflush(f);
+}
+
+/* the kernel events of this run's card (another card's are not counted) */
+static int kw_count_for(const kw *k, const char *pci)
+{
+    const kw_event *ev;
+    int i, n = kw_events(k, &ev), c = 0;
+    for (i = 0; i < n; i++) c += kw_event_for(&ev[i], pci);
+    return c;
 }
 
 /* a PCI address as the kernel writes it (0000:03:00.0), lower case in out: 1 ok */
@@ -1196,13 +1234,13 @@ static int pci_addr_ok(const char *v, char *out, size_t n)
 }
 
 /* gpu-burn [--seconds N] [--backend ...] [--device N|all] [--pci ADDR] [--fp32|--fp64] [--limit C] [--list] [--yes]
-            [--json] [--json-live] */
+            [--json] [--json-live] [--watch-kernel] */
 static int cmd_gpu_burn(int argc, char **argv)
 {
     static const char usage[] =
         "usage: sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR]\n"
         "                                 [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]\n"
-        "                                 [--json] [--json-live]\n"
+        "                                 [--json] [--json-live] [--watch-kernel]\n"
         "  --seconds N   how long, 1..86400 (default 60)\n"
         "  --backend B   vulkan, hip (ROCm), cuda, opencl or auto (default: Vulkan when it has a GPU)\n"
         "  --device N    the device number of that back end (see --list), or all (default: the first)\n"
@@ -1217,16 +1255,20 @@ static int cmd_gpu_burn(int argc, char **argv)
         "  --json        for programs: print one JSON object on standard output when the run is over\n"
         "                (nothing else goes there) and use the exit codes below; needs --yes\n"
         "  --json-live   --json, plus one JSON line every half second while it runs\n"
+        "  --watch-kernel  also watch the kernel log (/dev/kmsg, read only) during the run and for 5 s after it:\n"
+        "                a GPU reset or a ring timeout there fails the run, even when it hit another program\n"
+        "                (the desktop) and the test's own numbers were right\n"
         "GPU Burnin never changes clocks, voltages or fans. Ctrl+C stops it.\n"
         "Exit codes: 0 PASS, 1 stopped / compute errors / ended early, 2 not started or a wrong option.\n"
         "With --json: 0 PASS, 10 stopped, 11 FAIL (compute errors), 12 could not start, 13 ended early (the GPU\n"
-        "did not answer, device lost, runtime error), 15 ended early at the temperature limit; 2 a wrong option.";
+        "did not answer, device lost, runtime error), 14 a GPU reset or ring timeout in the kernel log\n"
+        "(--watch-kernel), 15 ended early at the temperature limit; 2 a wrong option.";
     srs_out o;
     gpuburn_cfg c;
     gpuburn_result res;
-    gbj_ctx jx = { 0, 0, 0 };
-    char why[300], what[1200], dev[300], bk[80];
-    int i, yes = 0, list = 0, rc, hot = 0, json = 0, dev_set = 0;
+    gbj_ctx jx = { 0, 0, 0, NULL };
+    char why[300], what[1200], dev[300], bk[80], kwhy[300] = "", ksum[300] = "";
+    int i, yes = 0, list = 0, rc, hot = 0, json = 0, dev_set = 0, watch = 0, kev = 0;
     gpuburn_cfg_default(&c);
     memset(&res, 0, sizeof res);
     res.backend = -1;
@@ -1247,6 +1289,7 @@ static int cmd_gpu_burn(int argc, char **argv)
         else if (!strcmp(a, "--accept-high-limit")) hot = 1;
         else if (!strcmp(a, "--json")) json = 1;
         else if (!strcmp(a, "--json-live")) json = jx.live = 1;
+        else if (!strcmp(a, "--watch-kernel")) watch = 1;
         else if (!strcmp(a, "--pci")) {
             if (!pci_addr_ok(v, c.device_pci, sizeof c.device_pci)) { fprintf(stderr, "gpu-burn: --pci needs a PCI address such as 0000:03:00.0 (got '%s')\n", v); return 2; }
         } else if (!strcmp(a, "--device")) {
@@ -1309,7 +1352,7 @@ static int cmd_gpu_burn(int argc, char **argv)
             if (!json) return 2;
             res.rc = -1;
             res.end = GBE_NOTSTARTED;
-            gbj_result(&c, &res, GBX_NOTSTARTED, nostart);
+            gbj_result(&c, &res, GBX_NOTSTARTED, nostart, 0, NULL, "");
             return GBX_NOTSTARTED;
         }
     }
@@ -1322,24 +1365,51 @@ static int cmd_gpu_burn(int argc, char **argv)
              dev, bk, c.seconds, c.prec == GP_FP64 ? "FP64" : "FP32", c.limit_c);
     if (!yes && !ask_start("gpu-burn", what)) return 2;
     jx.tty = isatty(2);
-    if (jx.tty || jx.live) { c.cb = gpuburn_cb_cli; c.ud = &jx; }
+    if (watch && !(jx.k = kw_open(kwhy, sizeof kwhy))) {   /* said plainly: never a silent "nothing seen" */
+        watch = -1;
+        fprintf(stderr, "gpu-burn: %s\n", kwhy);
+    }
+    if (jx.tty || jx.live || jx.k) { c.cb = gpuburn_cb_cli; c.ud = &jx; }
     c.res = &res;
     signal(SIGINT, on_int_gpu);
     if (json) signal(SIGTERM, on_int_gpu);   /* a program that ends the run gets its JSON and exit 10, not a dead child */
     why[0] = 0;
     rc = bench_gpuburn(&c, json ? NULL : &o, &g_gpu_cancel, why, sizeof why);   /* --json: standard output is the JSON alone */
+    if (jx.tty) fputc('\n', stderr);
+    if (jx.k) {
+        /* the seconds after the load ends are a known moment for hangs (the clocks change): keep watching */
+        const char *t = getenv("SRS_TEST_KWATCH_TAIL_S");   /* tests: a shorter wait */
+        double tail = t && *t ? atof(t) : 5.0;
+        int ticks = rc == -1 ? 0 : (int)(tail * 10);        /* nothing ran: nothing to wait for */
+        g_gpu_cancel = 0;                                   /* Ctrl+C now ends the wait */
+        if (ticks > 0 && jx.tty) fprintf(stderr, "gpu-burn: watching the kernel log for %.0f more seconds (Ctrl+C skips it)\n", tail);
+        while (ticks-- > 0 && !g_gpu_cancel) { struct timespec ts = { 0, 100000000L }; nanosleep(&ts, NULL); kw_poll(jx.k); }
+        kw_poll(jx.k);
+        kev = kw_count_for(jx.k, res.pci);
+        kw_summary(jx.k, res.pci, ksum, sizeof ksum);
+        if (kev) {
+            const kw_event *ev;
+            int n = kw_events(jx.k, &ev);
+            fprintf(stderr, "gpu-burn: FAIL - %s\n", ksum);
+            for (i = 0; i < n; i++) if (kw_event_for(&ev[i], res.pci)) fprintf(stderr, "  %5.1f s  %s\n", ev[i].t_s, ev[i].text);
+        }
+    }
     signal(SIGINT, SIG_DFL);
     if (json) signal(SIGTERM, SIG_DFL);
-    if (jx.tty) fputc('\n', stderr);
     if (rc < 0 && why[0]) fprintf(stderr, "gpu-burn: %s%s\n", rc == -1 ? "not started - " : "ended early - ", why);
     else if (rc >= 0 && why[0]) fprintf(stderr, "gpu-burn: note - %s\n", why);   /* All GPUs: a card that could not start */
     if (c.backend == GB_CUDA) cuda_toolkit_hint();
     if (json) {
+        /* a reset seen in the kernel log makes the run a failure whatever the test itself said; wrong results stay
+           exit 11 (the more exact finding), and the kernel events are in the JSON either way */
         int code = gbj_exit(&res);
-        gbj_result(&c, &res, code, rc < 0 ? why : res.reason);
+        if (kev && code != GBX_FAIL) code = GBX_KERNEL;
+        gbj_result(&c, &res, code, code == GBX_KERNEL ? ksum : rc < 0 ? why : res.reason, watch, jx.k, kwhy);
+        kw_close(jx.k);
         return code;
     }
-    return rc == 0 ? 0 : rc == -1 ? 2 : 1;
+    kw_close(jx.k);
+    return rc == 0 ? (kev ? 1 : 0) : rc == -1 ? 2 : 1;
 }
 
 #include "bench_gpucompare.h"
