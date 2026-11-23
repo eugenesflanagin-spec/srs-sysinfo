@@ -87,6 +87,42 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ### Added
 
+- **GPU Tuning (read-only), a new tab on Benchmarks & Stress** (right after Stress & Burnin; Menu -> Benchmarks &
+  Stress -> GPU Tuning (Read-Only)..., `srs-gui --gui-open=gputune`, item `gpu-tuning`). It shows what each graphics
+  card is set to right now - voltage offset, core clock offset, highest memory clock, power limit - the driver's own
+  ranges, live temperature / power / clock, whether **Tux Burner** (a separate program that changes GPU settings and
+  holds the safety limits) is installed and running, the voltage floor Tux Burner's service reports, and whether
+  **LACT** is running, with LACT's saved values for the card and whether the card is at them. It is the first step of
+  GPU tuning inside SRS; **this version only shows**. No button on the tab changes anything.
+  - AMD cards with the newer OverDrive table (one voltage offset, one clock offset: RDNA 3 and 4) are read from the
+    kernel's files with no extra program. Older AMD cards (clock and voltage points) are recognised and marked "not
+    supported yet". NVIDIA cards show their values through Tux Burner's NVIDIA back end when its service runs. Other
+    cards get a read-only "not supported yet" note. A card that is asleep is not woken.
+  - Without Tux Burner the tab still works and says in two sentences what Tux Burner adds and how to install it; with
+    the command line tool but no service, a service that does not serve this user, or a service of another protocol
+    version, it says exactly that and what to do.
+  - **SRS never writes to a graphics card.** It sends Tux Burner's service two read requests (`status` and
+    `gpu_capabilities`) and nothing else; it reads LACT's settings file and never contacts LACT's service.
+    Values Tux Burner does not report yet (the suggested voltage floor, a clock ceiling) are left empty, not guessed.
+  - Command line: **`sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]`**.
+  - Tested with made-up `/sys` trees and a fake service only (`tests/gpu-tune-test.sh`). **Not tried on a real card
+    yet**, on a real Tux Burner service or with a real LACT, so it may have bugs there; please report what you see.
+- **GPU Burnin for programs: `gpu-burn --json`, `--json-live`, `--pci ADDR`, `--watch-kernel`.** With `--json` the
+  command prints one JSON object when the run is over (`--json-live`: also one line every half second) and exits
+  with a code a program can act on: 0 PASS, 10 stopped, 11 FAIL (compute errors), 12 could not start, 13 ended early
+  (the GPU did not answer, device lost, runtime error), 14 a GPU reset in the kernel log, 15 the temperature limit.
+  **Without `--json` nothing changes** (0 / 1 / 2 as before). `--pci` picks the GPU by its PCI address.
+  - **`--watch-kernel`** reads the kernel log (`/dev/kmsg`, read only) during the run and for 5 seconds after it. A
+    GPU pushed too far often does not fail inside the test: the driver notices that the GPU stopped answering (a
+    *ring timeout*), resets it, and the program that was hit is the desktop. With the watch on, such a reset fails
+    the run even when the test's own numbers were right. It knows amdgpu's messages (ring timeout, GPU reset, MODE1
+    / MODE2 reset, video memory lost, device lost from the bus, parser error), NVIDIA's `Xid` reports and, best
+    effort, i915 / xe. A reset of another card is not counted; a driver error line it does not know is listed, not
+    hidden; a kernel log that cannot be read (`kernel.dmesg_restrict=1`) is said plainly instead of reporting
+    "nothing seen".
+  - Tested on lavapipe (Mesa's software renderer), the fake GPU runtime and made-up kernel log lines
+    (`tests/gpu-burn-json-test.sh`, `tests/kmsg_fixtures`). The kernel messages of a real reset were written from
+    the drivers' wording, not captured from one in this test; NVIDIA and Intel lines are untested on real hardware.
 - **Memory Timings**: five more DDR5 fields on every channel, tMODPDA, tMRDPDA, tTRCPAGE, tWRPRE and tRDPRE (register
   fields as listed by QTuxTimings / TuxTimings, facts only). **AGESA version** (from SMBIOS type 40, after Run as root
   once) on the summary's BIOS line, BIOS Maker and the firmware page.

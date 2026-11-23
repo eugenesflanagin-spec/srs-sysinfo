@@ -73,6 +73,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Carrier frequency (infrared)** - how many times a second a remote's infrared light flashes while a burst is "on" - usually 38,000 Hz (38 kHz); the TV's receiver only listens at about that rate. Each saved IR code keeps its frequency. *See: [buses-1](SECTIONS/buses-1.md), [User Guide 6.15](USER-GUIDE.md#615-ir-blaster).*
 - **CLBlast** - a free, tuned matrix-maths library for OpenCL; the "vendor library" SRS uses on OpenCL when it is installed. *See: [tools](SECTIONS/tools.md).*
 - **Compute error (GPU)** - a GPU result that differs from the right one. GPU Burnin counts them: any error means the card is not stable as set up (overclock, undervolt, heat, power) or faulty. *See: [tools](SECTIONS/tools.md).*
+- **Core clock offset** - how many MHz are added to (or taken off) a graphics chip's top speed. `+300 MHz` is an overclock of 300 MHz. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **C-state** - an idle power level of a CPU core; C0 is running, deeper states (C1, C2, C3) save more power but take longer to wake. *See: [processors](SECTIONS/processors.md).*
 - **Cache** - small fast memory on the CPU that keeps copies of recently used RAM; L1 is smallest and fastest, L3 largest and shared. *See: [processors](SECTIONS/processors.md).*
 - **Cache level (L1, L2, L3)** - small, fast memories between the core and RAM. L1 is the smallest and fastest; L3 is the largest and is shared by many cores. *See: [tools](SECTIONS/tools.md).*
@@ -189,6 +190,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **ESP (EFI System Partition)** - EFI System Partition: the FAT partition the UEFI firmware loads bootloaders from. *See: [linux-os](SECTIONS/linux-os.md), [storage](SECTIONS/storage.md).*
 - **ESRT** - EFI System Resource Table; lists the firmware parts that can be updated with UEFI capsules. *See: [machine](SECTIONS/machine.md).*
 - **exFAT** - Extended FAT: a simple filesystem for flash media that allows files over 4 GiB. *See: [storage](SECTIONS/storage.md).*
+- **Exit code** - the small number a command hands back when it ends, which a script or another program reads to learn how it went: 0 means success. `gpu-burn --json` uses 0 and 10 to 15 to say exactly how a GPU test ended. *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
 - **EXPO** - AMD Extended Profiles for Overclocking; faster memory settings stored in the SPD. *See: [machine](SECTIONS/machine.md).*
 - **EXPO / XMP** - memory profiles (AMD EXPO, Intel XMP) stored on the RAM sticks, which set the rated speed and timings in one step. *See: [tools](SECTIONS/tools.md).*
 
@@ -209,6 +211,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **FireWire (IEEE 1394)** - An older high-speed bus used for camcorders and pro audio. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Fixture** - a saved data dump used to test a program without the real hardware. *See: [srs-items](SECTIONS/srs-items.md).*
 - **Floating input** - A sensor pin with nothing connected. Its voltage drifts with leakage and noise, so the reading is meaningless. *See: [sensors](SECTIONS/sensors.md).*
+- **Floor (voltage floor)** - the lowest value a program will write. Tux Burner's service has a floor for the GPU voltage offset (-150 mV unless changed there): a deeper undervolt is refused. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **fontconfig** - the Linux library that finds fonts and picks one for each character. *See: [linux-os](SECTIONS/linux-os.md).*
 - **FP16 / FP32 / FP64** - numbers with a decimal point stored in 16, 32 or 64 bits: half, single and double precision. Games mostly use FP32; most gaming GPUs are much slower at FP64. *See: [tools](SECTIONS/tools.md).*
 - **FPDT** - Firmware Performance Data Table; records how long the firmware took to boot. *See: [machine](SECTIONS/machine.md).*
@@ -234,6 +237,8 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **GPE (General Purpose Event)** - General Purpose Event; an ACPI event bit used for wake-up and hot-plug signals. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
 - **GPIO (General Purpose Input/Output)** - Simple on/off signal pins that chips use for LEDs, buttons, resets and enables. *See: [buses-1](SECTIONS/buses-1.md).*
 - **GPT** - GUID Partition Table: the modern partition table format, with type GUIDs, PARTUUIDs and names for each partition. *See: [storage](SECTIONS/storage.md).*
+- **GPU reset** - the driver restarting a graphics chip that stopped answering. The video memory may be wiped, and programs that were using the GPU can crash or freeze for a few seconds. A sign that the card is not stable as set up. *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
+- **GPU Tuning** - SRS's tab (Benchmarks & Stress) that shows what a graphics card is set to right now: voltage offset, clock offset, memory clock, power limit, the limits, and whether Tux Burner and LACT are there. Read-only in 2.6. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **gpu_metrics** - a table the amdgpu driver offers in `/sys/class/drm/cardN/device/gpu_metrics`: temperatures, clocks, power, activity and throttle reasons straight from the card's firmware, in versioned layouts (v1.x for graphics cards, v2.x / v3.0 for processors with built-in graphics). The Big Top decodes every field. *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **GRBM (Graphics Register Bus Management)** - AMD's name for the part of the graphics chip whose status registers say which blocks (shaders, texture units, command processor, caches ...) are busy. amdgpu_top and The Big Top read them about 100 times a second and show how often each block was busy; reading them can keep the card out of its power-saving states, so it can be turned off (Performance Counters (GRBM), `--no-pc`). *See: [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **GSI** - Global System Interrupt; the interrupt number space used by I/O APICs. *See: [machine](SECTIONS/machine.md).*
@@ -302,12 +307,14 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **JEDEC** - the standards body for memory; the JEDEC speed is a stick's standard base speed. *See: [machine](SECTIONS/machine.md).*
 - **Jitter** - how much a time (round trip, connect) changes from one try to the next. *See: [tools](SECTIONS/tools.md).*
 - **Joule (J)** - a unit of energy: 3,600 J = 1 Wh. Linux energy counters count microjoules (millionths of a joule). *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
+- **JSON** - a plain-text format for structured data that programs can read easily: names and values in braces, such as `{"result":"pass","errors":0}`. *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
 - **Junction temperature** - the hottest point measured on a graphics chip, usually higher than its "edge" temperature. *See: [tools](SECTIONS/tools.md).*
 
 ## K
 
 - **k10temp** - the Linux driver that reads AMD CPU temperature sensors (Tctl, Tccd). *See: [processors](SECTIONS/processors.md).*
 - **Kernel (GPU)** - a small program that runs on the GPU, many copies at once (not the Linux kernel). *See: [tools](SECTIONS/tools.md).*
+- **Kernel log** - the Linux kernel's own diary (shown by `dmesg`; the file `/dev/kmsg`). Drivers write there when hardware misbehaves, for example when a GPU is reset. On some systems only root may read it (`kernel.dmesg_restrict=1`). *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
 - **Kernel module** - a loadable piece of the kernel, usually a driver; the Linux counterpart of a Windows driver. *See: [linux-os](SECTIONS/linux-os.md), [srs-items](SECTIONS/srs-items.md).*
 - **KMS (kernel mode setting)** - The part of DRM that sets screen resolutions and refresh rates. *See: [graphics](SECTIONS/graphics.md).*
 - **KSM (Kernel Same-page Merging)** - **same-page merging**: the kernel finds memory pages (4 KB pieces) that hold exactly the same bytes and keeps only one copy, to save memory (mostly for virtual machines; tools such as ksmtuned can turn it on for every program). A benchmark whose memory is all alike can then be folded into one page that sits in the cache, and report impossible speeds; since 2.5 SRS keeps its benchmark memory out of merging, and Cache & Memory shows such a result as "not valid". *See: [srs-items](SECTIONS/srs-items.md), [tools](SECTIONS/tools.md), [User Guide 9.11](USER-GUIDE.md#911-cache--memory).*
@@ -317,7 +324,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 
 ## L
 
-- **LACT** - A Linux tool for AMD GPU overclocking, undervolting and fan control. *See: [graphics](SECTIONS/graphics.md).*
+- **LACT** - A Linux tool for GPU overclocking, undervolting, power limits and fan control; its service is `lactd` and its settings are in `/etc/lact/config.yaml`. SRS's GPU Tuning tab shows whether it runs and what it has saved for the card; SRS never changes its settings. *See: [graphics](SECTIONS/graphics.md), [tools](SECTIONS/tools.md#gpu-tuning).*
 - **LAN (local area network)** - the devices in your home or office connected to the same router or switch. *See: [network](SECTIONS/network.md).*
 - **Lane (PCIe)** - One pair of signal wires in each direction. A link has 1, 2, 4, 8 or 16 lanes. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Latency** - waiting time: how long it takes for a request (a memory load, a ping) to be answered. *See: [tools](SECTIONS/tools.md).*
@@ -415,14 +422,16 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## O
 
 - **O_DIRECT** - opening a file so reads and writes go straight to the drive, past Linux's page cache in RAM; benchmarks use it so they measure the drive, not the RAM. *See: [tools](SECTIONS/tools.md).*
+- **OD_RANGE** - the part of amdgpu's OverDrive table that lists the lowest and highest value the driver accepts for each setting. It says what the driver takes, not what is safe. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **ODT, ProcODT (on-die termination)** - a resistance a chip switches on at its own pins so signals on the memory bus do not bounce back; ProcODT is the processor's. Set by the BIOS, in ohms. *See: [machine](SECTIONS/machine.md).*
 - **OpenCL** - An open standard for running general computing tasks on GPUs and other processors. *See: [graphics](SECTIONS/graphics.md).*
 - **OpenGL** - The older cross-platform 3D graphics interface; still used by many programs and older games. *See: [graphics](SECTIONS/graphics.md).*
 - **Option ROM** - firmware stored on a PCI card (listed as the ROM BAR), for example a graphics card's video BIOS. *See: [buses-2](SECTIONS/buses-2.md), [machine](SECTIONS/machine.md).*
 - **OS latency** - how long the operating system takes to answer a program: system calls, task switches, wake-ups, timers. Lower and steadier means a more responsive PC. *See: [tools](SECTIONS/tools.md).*
 - **OUI (Organizationally Unique Identifier)** - the first three bytes of a MAC address, identifying the maker. *See: [network](SECTIONS/network.md).*
+- **Overclock (GPU)** - letting a graphics chip run faster than the factory setting. Too much makes it compute wrongly or stop answering. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **Overcommit** - the kernel promising programs more memory than it really has, betting they will not all use it at once. *See: [linux-os](SECTIONS/linux-os.md).*
-- **OverDrive** - AMD's name for user clock, voltage and power tuning. On Linux it appears as `pp_od_clk_voltage`. *See: [graphics](SECTIONS/graphics.md).*
+- **OverDrive** - AMD's name for user clock, voltage and power tuning. On Linux it appears as the text file `pp_od_clk_voltage`, which the GPU Tuning tab reads. *See: [graphics](SECTIONS/graphics.md), [tools](SECTIONS/tools.md#gpu-tuning).*
 
 ## P
 
@@ -431,6 +440,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **pkexec** - runs one command as root after polkit has asked for the administrator password. SRS uses it for srs-root and for acting on another user's process; polkit also guards starting and stopping system services. *See: [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
 - **PLATYPUS** - a 2020 attack that used CPU energy readings to learn secrets (CVE-2020-8694/8695, CVE-2020-12912); since Linux 5.10 the powercap RAPL counters are root-only because of it. *See: [User Guide 6.11](USER-GUIDE.md#611-power--cost).*
 - **PMIC (power management IC)** - the small power chip on every DDR5 module that makes its voltages (VDD, VDDQ, VPP). SRS can read the voltages it is set to (an opt-in). *See: [machine](SECTIONS/machine.md), [User Guide 5.4](USER-GUIDE.md#54-what-srs-root-reads-since-24-and-the-opt-ins).*
+- **Power limit** - the most watts a graphics card is allowed to draw; lowering it makes the card cooler and a little slower. Also called power cap. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **P-state** - a performance state: a running speed and voltage level of the CPU. *See: [processors](SECTIONS/processors.md).*
 - **PAC (proxy auto-config)** - a script that picks which proxy to use for each address. *See: [network](SECTIONS/network.md).*
 - **Page** - the unit the CPU and kernel use to manage memory, usually 4 KB on x86. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -503,6 +513,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **Resizable BAR** - A PCIe feature that lets the CPU see all of the GPU's VRAM at once instead of through a 256 MB window. AMD calls it Smart Access Memory. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md), [machine](SECTIONS/machine.md).*
 - **Revision ID** - The PCI number that tells chip steppings or versions apart. *See: [buses-1](SECTIONS/buses-1.md).*
 - **rfkill** - the Linux kernel's on/off switch for radios (Wi-Fi, Bluetooth, mobile data); soft = software, hard = physical switch. *See: [network](SECTIONS/network.md).*
+- **Ring timeout** - the graphics driver noticing that the GPU stopped answering one of its work queues (a "ring"). It is usually followed by a GPU reset. `gpu-burn --watch-kernel` looks for it in the kernel log. *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
 - **ROCm** - AMD's open GPU computing platform (HIP, OpenCL, libraries) for Linux. *See: [graphics](SECTIONS/graphics.md).*
 - **Root complex** - The part of the CPU where PCIe starts. On AMD it is the device at `00:00.0`. *See: [buses-1](SECTIONS/buses-1.md).*
 - **Root hub** - The virtual hub that stands for a USB host controller's ports. Each USB 3 controller has a 2.0 root hub and a 3.x root hub. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
@@ -584,6 +595,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 ## T
 
 - **Taint flag** - a kernel record of an unusual condition since boot (unsigned module, hardware error, warning); it clears only on reboot. *See: [linux-os](SECTIONS/linux-os.md).*
+- **tburn-cli** - Tux Burner's command line tool (also installed as `tux-burner-cli`). SRS only checks whether it is there. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **TBW** - Terabytes written: the amount of data an SSD maker rates the drive to survive. *See: [storage](SECTIONS/storage.md).*
 - **TCP (Transmission Control Protocol)** - the reliable, ordered connection protocol used by the web, SSH and most apps. *See: [network](SECTIONS/network.md).*
 - **TCP states** - the stages a TCP connection goes through, such as Listen, Established, Close Wait and Time Wait. *See: [network](SECTIONS/network.md).*
@@ -611,6 +623,8 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **TSC (Time Stamp Counter)** - Time Stamp Counter; a CPU counter that rises at a fixed rate and is the fastest clock for the OS when stable. *See: [linux-os](SECTIONS/linux-os.md), [processors](SECTIONS/processors.md).*
 - **TTL** - Time To Live, the number of router hops a network packet may still make. *See: [tools](SECTIONS/tools.md).*
 - **TTY** - A terminal or serial device in Linux (`ttyS0`, `ttyUSB0`, `pts/0`). *See: [buses-1](SECTIONS/buses-1.md).*
+- **Tux Burner** - a separate free program for GPU tuning (undervolt, overclock, power limit, searching for a card's limits). Its root service is the only part that writes to the card, and it holds the safety limits. SRS's GPU Tuning tab reads its state; SRS does not include it. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
+- **tux-burnerd** - Tux Burner's small service that runs as root and listens on the local socket `/run/tux-burnerd.sock`. SRS sends it two read questions (`status`, `gpu_capabilities`) and nothing else. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 
 ## U
 
@@ -623,6 +637,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **UEFI variable** - a named setting stored in the firmware's flash, such as BootOrder or SecureBoot. *See: [machine](SECTIONS/machine.md).*
 - **UID (user ID)** - the number the kernel uses for a user account; the name is only a label. *See: [linux-os](SECTIONS/linux-os.md).*
 - **UMC (Unified Memory Controller)** - AMD's memory controller, built into the CPU's Data Fabric. *See: [buses-1](SECTIONS/buses-1.md), [machine](SECTIONS/machine.md).*
+- **Undervolt (GPU)** - giving a graphics chip a little less voltage than the factory set. Less heat, power and fan noise at the same speed; too much makes it unstable. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **UPS (Uninterruptible Power Supply)** - A battery unit that keeps the PC powered during a power cut. *See: [sensors](SECTIONS/sensors.md).*
 - **USB (Universal Serial Bus)** - The common peripheral bus: 1.5 and 12 Mbps (USB 1), 480 Mbps (USB 2), 5/10/20 Gbps (USB 3.x). *See: [buses-1](SECTIONS/buses-1.md).*
 - **usb.ids** - the community list that maps USB vendor and product numbers to names, installed by the hwdata package. *See: [buses-2](SECTIONS/buses-2.md).*
@@ -645,6 +660,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **VID:PID** - USB vendor ID and product ID, which identify a USB chip or device model. *See: [storage](SECTIONS/storage.md).*
 - **VKD3D-Proton** - A translation layer that turns Direct3D 12 calls into Vulkan, used by Proton. *See: [graphics](SECTIONS/graphics.md).*
 - **VMD** - Volume Management Device: an Intel PCIe block that gathers NVMe drives for Intel RST and VROC. *See: [storage](SECTIONS/storage.md).*
+- **Voltage offset** - the number of millivolts taken off (or added to) a graphics chip's core voltage, at every speed at once. `-110 mV` = 0.110 V less than the factory set. amdgpu calls it VDDGFX offset. *See: [tools](SECTIONS/tools.md#gpu-tuning), [User Guide 9.23](USER-GUIDE.md#923-gpu-tuning-read-only).*
 - **VPN (virtual private network)** - an encrypted tunnel that carries your traffic through another network or server. *See: [network](SECTIONS/network.md).*
 - **VRAM** - The graphics card's own fast memory (video memory). The Big Top shows how much is used, and by which program. *See: [graphics](SECTIONS/graphics.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
 - **VROC** - Virtual RAID on CPU: Intel's RAID for NVMe drives attached to the processor. *See: [storage](SECTIONS/storage.md).*
@@ -678,6 +694,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **XDG (freedesktop.org Cross-Desktop Group) folders** - the standard per-user folders such as `~/.config`, `~/.local/share` and `~/.cache`. *See: [linux-os](SECTIONS/linux-os.md).*
 - **XFS** - A high-performance Linux journaling filesystem. *See: [storage](SECTIONS/storage.md).*
 - **xHCI** - The USB 3 host controller standard. One xHCI controller also serves USB 2 and USB 1 devices. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md).*
+- **Xid (NVIDIA)** - the numbered error reports NVIDIA's driver writes to the kernel log (`NVRM: Xid ...`), for example Xid 79 "GPU has fallen off the bus". `gpu-burn --watch-kernel` counts one for the tested card as a failure. *See: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin), [User Guide 9.18](USER-GUIDE.md#918-gpu-burnin).*
 - **XMC (Switched Mezzanine Card)** - an ANSI/VITA 42 plug-in module for industrial and embedded computers, connected over PCI Express. *See: [buses-2](SECTIONS/buses-2.md).*
 - **XMP** - Intel Extreme Memory Profile; faster memory settings stored in the SPD. *See: [machine](SECTIONS/machine.md).*
 - **xxHash** - a very fast non-cryptographic hash by Yann Collet, used to check data quickly; xxHash64 gives a 64-bit result. *See: [tools](SECTIONS/tools.md).*

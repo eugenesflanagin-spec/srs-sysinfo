@@ -39,8 +39,8 @@ Every one of SIV64X 5.87's **538 report items** has a counterpart in SRS
 as "not present" on a typical PC (Itanium, Xeon PIRs, RAID cards, IPMI, ...) and **38**
 Windows-only items, most of which show their Linux equivalent instead (services -> systemd,
 drivers -> kernel modules, registry find -> `/etc` and `~/.config`, WER -> coredumpctl, ...).
-SRS adds 21 items of its own (its benchmarks and their history, Stress & Burnin, Find, ID Lookup, IR Blaster and a few
-more), so `sysreport-search --list` shows **559** in all.
+SRS adds 22 items of its own (its benchmarks and their history, Stress & Burnin, GPU Tuning, Find, ID Lookup, IR Blaster
+and a few more), so `sysreport-search --list` shows **560** in all.
 
 | Program | What |
 |---|---|
@@ -320,7 +320,9 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui os-latency [--samples N] [--tick-seconds S] [--only GROUPS] [--yes]
     srs-gui net [--local] [--internet] [--seconds S] [--streams N] [--yes] [--yes-internet]
     srs-gui gpu [--device N] [--seconds S] [--only TESTS] [--list] [--yes]
-    srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--limit C] [--accept-high-limit] [--yes]
+    srs-gui gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--limit C] [--accept-high-limit] [--yes]
+                     [--json] [--json-live] [--watch-kernel]   for programs: JSON result, exit codes 0 / 10-15, GPU resets in the kernel log
+    srs-gui gpu-tune status [--json] [--pci ADDR | --all] [--wake]   GPU Tuning, read-only: what the card is set to, Tux Burner, LACT
     srs-gui gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
     srs-gui cuda-toolkit [--check|--install|--ask-again|--never-ask]   the optional NVIDIA CUDA toolkit
     srs-gui update-lists [--list] [--yes]   newest pci.ids / usb.ids / pnp.ids into ~/.local/share/srs/lists
@@ -412,6 +414,10 @@ window page has two entries with the same Alt+letter.
 | `gpu_vk.c`, `bench_gpu_spv.inc`, `shaders/gpu/` | the Vulkan layer of the GPU Benchmarks (loader opened with dlopen, own copy of the few Vulkan types it needs); the GLSL compute shaders and their pre-compiled SPIR-V (`shaders/gpu/build.sh`, `make gpu-shaders`) |
 | `bench_gpuburn.c`, `gpu_backend.c`, `gpuburn_vk.c`, `gpuburn_rt.c`, `gpuburn_cl.c`, `gpu_kernels.h` | GPU Burnin and the compute back ends: Vulkan, ROCm / HIP and CUDA (`gpuburn_rt.c`), OpenCL, each loaded with dlopen; GPU sensors from hwmon |
 | `bench_gpucompare.c` | GPU Compute comparison: Vulkan vs HIP vs CUDA vs OpenCL on the same GPU |
+| `kmsg_watch.c` | `gpu-burn --watch-kernel`: reads the kernel log for GPU resets during a run (read only; the pattern table for amdgpu, NVIDIA Xid, i915 / xe) |
+| `gpu_tune.c` | GPU Tuning, the read-only part: the card's OverDrive settings from `/sys`, two read requests to Tux Burner's service socket, LACT's state and saved values; `gpu-tune status` and the GPU Tuning tab |
+| `tests/gpu-burn-json-test.sh`, `tests/kmsg_fixtures/` | `gpu-burn --json` / `--watch-kernel` on lavapipe, the fake GPU runtime and made-up kernel log lines (no GPU) |
+| `tests/gpu-tune-test.sh`, `tests/fake-tux-burnerd.py` | GPU Tuning against a made-up `/sys` and a fake Tux Burner service (no GPU, no real service, nothing written), Xvfb GUI check |
 | `gpu_kernels_ptx.inc`, `tools/gen-cuda-ptx.sh` | the CUDA kernels of `gpu_kernels.h` pre-compiled to PTX with clang (`make cuda-ptx`), loaded instead of compiling with NVRTC |
 | `cuda_toolkit.c` | the optional NVIDIA CUDA toolkit: detection, explanation, install command per distribution, "don't ask again", checks before an install |
 | `tests/gpu-stub-test.sh`, `tests/gpu_stub.c` | HIP / CUDA / OpenCL back ends against a fake runtime (no GPU), and the built-in PTX checked offline |

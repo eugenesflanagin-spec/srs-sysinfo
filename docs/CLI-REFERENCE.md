@@ -21,7 +21,7 @@ SRS has four programs:
 So `srs-gui -save` and `sysreport-search -save` do the same thing.
 
 > **Note:** `sysreport-search --help` lists every command, including `-save`, `--list`, `burn`,
-> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `cuda-toolkit`, `gpu-top` (also `big-top`), `ir` and `update-lists`.
+> `bench`, `ipi`, `latency`, `pi`, `crypto`, `prime`, `cachemem`, `storage`, `os-latency`, `compute`, `work`, `net`, `gpu`, `gpu-burn`, `gpu-compare`, `gpu-tune`, `cuda-toolkit`, `gpu-top` (also `big-top`), `ir` and `update-lists`.
 
 > **zsh users:** quote anything with square brackets: `sysreport-search '-save=[cpuid]'`.
 > Without quotes zsh treats `[...]` as a file pattern and says "no matches found".
@@ -52,8 +52,9 @@ sysreport-search compute [--threads N] [--seconds S] [--tests sgemm,dgemm,...] [
 sysreport-search work [--threads N] [--seconds S] [--only compress,sort,hash,text,interp] [--libs zlib,zstd,lz4,xz] [--single | --all-threads-only] [--part-kib K] [--yes]
 sysreport-search net [--local] [--internet] [--seconds S] [--streams N] [--samples N] [--max-mb MB] [-4|-6] [--server URL] [--hosts HOST[:PORT],...] [--yes] [--yes-internet]
 sysreport-search gpu [--device N] [--seconds S] [--only fp32,fp16,fp64,int32,read,write,copy,upload,download,latency] [--mem-mib M] [--list] [--yes]
-sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live] [--watch-kernel]
 sysreport-search gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
+sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]
 sysreport-search cuda-toolkit [--check|--install|--ask-again|--never-ask]
 sysreport-search update-lists [--list] [--yes]
 sysreport-search ir [--status|--list|--send REMOTE BUTTON|--send-code HEX|--learn [--save REMOTE BUTTON]|--probe|--reset|--export FILE|--import FILE] [--repeat N] [--dry-run] [--yes]
@@ -76,7 +77,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,cuda-toolkit,update-lists} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,gpu-tune,cuda-toolkit,update-lists} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -151,16 +152,24 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         GPU compute (Vulkan): FP32 / FP16 / FP64 / INT32 multiply-add (GFLOPS / GIOPS), video memory
         read / write / copy and upload / download (GB/s), dispatch latency (us), every result checked;
         ~15 s at full GPU load; Vulkan is loaded at run time; asks first, --yes starts at once
-  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all] [--fp32|--fp64]
-           [--limit C] [--accept-high-limit] [--list] [--yes]
+  gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR] [--fp32|--fp64]
+           [--limit C] [--accept-high-limit] [--list] [--yes] [--json] [--json-live] [--watch-kernel]
         GPU Burnin: repeated matrix multiplications at full GPU load, compute errors counted
         (0 = PASS), live temperature / power / clock; stops at the temperature limit (default
         100 C), on a driver error or a GPU that stops answering; never changes clocks, voltages
-        or fans (default 60 s); asks first, --yes starts at once
+        or fans (default 60 s); asks first, --yes starts at once. --json / --json-live: the result
+        as JSON for programs, with exit codes 0 PASS, 10 stopped, 11 FAIL, 12 could not start, 13 ended
+        early, 14 GPU reset in the kernel log, 15 temperature limit. --watch-kernel: a GPU reset or ring
+        timeout in the kernel log during the run fails it, also when it hit another program
   gpu-compare [--backends vulkan,hip,cuda,opencl] [--seconds S] [--device N] [--yes]
         GPU Compute comparison: the same tests (matrix multiply with the own kernel and the vendor
         library, multiply-add, copy, upload / download, launch time) through every installed back end
         on the same GPU, side by side: fastest marked, % of Vulkan; asks first, --yes starts at once
+  gpu-tune status [--json] [--pci ADDR | --all] [--wake]
+        GPU Tuning, read-only: what the graphics card is set to right now (voltage offset, clock offset,
+        memory clock, power limit), the driver's ranges, Tux Burner's limits and state, LACT's state and saved
+        values. It only reads (the kernel's files, two read requests to Tux Burner's service); it never
+        changes a setting. Changing GPU settings needs Tux Burner, a separate program
   cuda-toolkit [--check|--install|--ask-again|--never-ask]
         the optional NVIDIA CUDA toolkit (its runtime compiler, NVRTC): whether it is installed, what it
         is for, the install command for this distribution; --install runs that command after you type
@@ -175,7 +184,7 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         count the primes up to the limit, checked against the known count (default 1e9, all threads);
         asks first, --yes starts at once
 
-srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|cudatoolkit|loadterms|sensors|idlookup|find]
+srs-gui only: --gui-open=ITEM[,ITEM|stressburn|burnin|stress|bench|ipi|latency|pi|crypto|prime|cachemem|storagebench|oslatency|compute|work|netbench|gpubench|gpuburn|gpucompare|gputune|cudatoolkit|loadterms|sensors|idlookup|find]
         open those panels / tools at start (also SRS_OPEN=...), --gui-tray start in the tray
         --gui-classic start in the classic SIV-style main window, --gui-new in the new one
         --gui-open=power-cost the Power & Cost page; --power-recorder record its history with no window
@@ -199,7 +208,7 @@ The part in brackets describes how your copy was built.
 
 ### `--list`
 
-Lists every item SRS knows (559 lines), one per line:
+Lists every item SRS knows (560 lines), one per line:
 
 ```
 about                tuning    linux         siv      About SRS
@@ -435,6 +444,79 @@ Libraries, each loaded at run time only when needed (none is needed to build SRS
 Exit code 0: printed; 1: no GPU found or a GPU could not be opened; 2: a bad option or value, two
 views at once, `--tui` with `--json`, a `--device` that does not exist, or `--device N` on a sleeping
 card without `--wake`.
+
+### `gpu-tune` - GPU Tuning (read-only, 2.6)
+
+```
+sysreport-search gpu-tune status [--json] [--pci ADDR | --all] [--wake]
+```
+
+Shows what a graphics card is **set to right now** - voltage offset, core clock offset, highest memory
+clock, power limit - the driver's own ranges, the live readings, whether **Tux Burner** is installed and
+its service runs (with the voltage floor the service reports), and whether **LACT** runs, with LACT's saved
+values for the card and whether the card is at them. The same text as the **GPU Tuning** tab
+([tools.md](SECTIONS/tools.md#gpu-tuning) explains every line).
+
+**It only reads**, and it does not ask before it starts, because it loads nothing and changes nothing: it
+reads the kernel's files under `/sys`, sends two read requests to Tux Burner's service socket (`status` and
+`gpu_capabilities` - SRS has no code that sends anything else) and reads LACT's settings file. It never
+changes a clock, a voltage, a power limit or a fan, never contacts LACT's service and never runs Tux
+Burner's command line tool. `status` is the only `gpu-tune` command in this version; the commands that will
+change a setting through Tux Burner (`apply`, `auto-uv`, `restore` ...) answer "not in this version" and
+exit with 2.
+
+| Option | Meaning |
+|---|---|
+| `--json` (`-J`) | One JSON object for the card (with `--all`: a list of them) |
+| `--pci ADDR` | The card at this PCI address, as in `0000:03:00.0`. Default: the first card with tuning controls, else the first card |
+| `--all` | Every graphics card |
+| `--wake` | Also read a card that is asleep (a second card the kernel powered down to save energy). Reading wakes it; without `--wake` such a card is only named |
+
+Exit code 0: shown; 1: no graphics card found; 2: a wrong option, or `--pci` names no card.
+
+The JSON object (one line; shown wrapped here, with example values):
+
+```json
+{"gpu":{"name":"<GPU name>","pci":"0000:03:00.0","driver":"amdgpu","card":"card0","vendor":"amd",
+        "asleep":false,"overdrive":"offsets","backend":"tux-burner-amd"},
+ "now":{"voltage_offset_mv":-110,"sclk_offset_mhz":300,"mclk_max_mhz":1375,"mclk_offset_mhz":null,"power_cap_w":374},
+ "live":{"edge_c":27,"junction_c":31,"power_w":33,"clock_mhz":63,"vddgfx_mv":700,"fan_rpm":589},
+ "ranges":{"voltage_offset_mv":[-200,0],"sclk_offset_mhz":[-500,1000],"mclk_mhz":[97,1500],"mclk_offset_mhz":null,
+           "power_cap_w":[212,374],"power_cap_default_w":304},
+ "limits":{"voltage_floor_mv":-150,"voltage_floor_source":"default","suggest_floor_mv":null,"sclk_ceiling_mhz":null},
+ "tux_burner":{"installed":true,"cli":"/usr/bin/tburn-cli","daemon":"running","version":"0.99.0","build":"...",
+               "state":"idle","protocol":"2.0","message":null,"serves_this_card":true,
+               "missing_capabilities":["amd-lact-gate-v1","amd-sclk-ceiling-v1","gpu-reset-events-v1","tuning-session-v1"]},
+ "lact":{"running":true,"active_profile":"123",
+         "active_values":{"voltage_offset_mv":-110,"sclk_offset_mhz":300,"mclk_max_mhz":1375,"power_cap_w":374},
+         "matches_card":true,"config_sha256":"..."},
+ "can_write":false,"why_not":"needs a newer Tux Burner for: ..."}
+```
+
+| Field | Meaning |
+|---|---|
+| `gpu.overdrive` | `offsets` (the table SRS reads: one voltage offset, one clock offset), `older-table` (clock and voltage points: not supported yet), `not-readable`, `none` |
+| `gpu.backend` | `tux-burner-amd` / `tux-burner-nvidia` when Tux Burner's service knows the card, else `null` |
+| `now`, `ranges` | From the kernel's files; for a card with no table of its own (NVIDIA) from Tux Burner's service. `null` = not available |
+| `limits.voltage_floor_mv` | The deepest undervolt Tux Burner's service will write, as the service reports it; `null` without the service |
+| `limits.suggest_floor_mv`, `limits.sclk_ceiling_mhz` | Always `null` in this version: Tux Burner does not report them yet, and SRS does not guess |
+| `tux_burner.daemon` | `running`, `not-running` (no socket), `not-answering` (a socket nobody answers), `not-allowed` (the service does not serve this user), `no-answer` (too slow, or not understood), `unusable-version` (another protocol), `not-checked` (tests) |
+| `tux_burner.missing_capabilities` | Abilities the coming search functions will require that this service does not have |
+| `lact.active_values` | LACT's saved values for this card: of the active profile, else of its base settings; `null` when the selected profile has nothing for the card |
+| `lact.matches_card` | `true` the card is at those values, `false` it is not, `null` nothing to compare |
+| `lact.config_sha256` | A fingerprint of LACT's settings file as it is now (to see later whether it changed) |
+| `can_write`, `why_not` | Whether everything a change would need is in place (Tux Burner's tool, its service, this card, the abilities), and if not, the first thing missing. This version has no command that changes anything |
+
+Examples:
+
+```
+$ sysreport-search gpu-tune status
+$ sysreport-search gpu-tune status --all
+$ sysreport-search gpu-tune status --pci 0000:03:00.0 --json
+```
+
+Not tried on a real card, a real Tux Burner service or a real LACT yet (tests use made-up files and a fake
+service); other AMD generations, NVIDIA, Intel and laptops with two cards may show something odd.
 
 ### `ir` - IR Blaster: learn and send infrared codes
 
@@ -872,8 +954,9 @@ See [tools.md](SECTIONS/tools.md#gpu-benchmark).
 ### `gpu-burn` - GPU Burnin
 
 ```
-sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all]
+sysreport-search gpu-burn [--seconds N] [--backend vulkan|hip|cuda|opencl|auto] [--device N|all | --pci ADDR]
                           [--fp32|--fp64] [--limit C] [--accept-high-limit] [--list] [--yes]
+                          [--json] [--json-live] [--watch-kernel]
 ```
 
 Keeps the GPU fully busy with large matrix multiplications and counts every result that differs
@@ -899,12 +982,85 @@ voltages or fans.** It never burns a software renderer such as llvmpipe as a GPU
 | `--limit C` | Stop at this GPU temperature in °C, 50-100 (default 100; hotspot / junction when the card reports it, else edge); 101-110 only with `--accept-high-limit` (2.4; before 2.4 the range was 50-120). `--limit-c` is the same |
 | `--accept-high-limit` | Allow a `--limit` of 101-110 °C (above 100 °C many GPUs are already at or near their own maximum; you accept that risk) |
 | `--list` | List the devices of each installed back end (or only `--backend`'s) and exit. This starts each runtime but runs no work |
+| `--pci ADDR` | The GPU at this PCI address (as in `0000:03:00.0`) instead of a device number; not together with `--device` (2.6) |
 | `--yes` | Start without asking |
+| `--json` | For programs (2.6): print **one JSON object** on standard output when the run is over - nothing else is written there, the usual report still goes to `~/.cache/srs/bench-gpuburn.txt` - and use the exit codes of the table below. Needs `--yes` |
+| `--json-live` | `--json`, plus one JSON line every half second while it runs (`"event":"sample"`); the result object is the last line |
+| `--watch-kernel` | Also watch the kernel log during the run and for 5 seconds after it (2.6): a GPU reset or ring timeout there fails the run. See below |
 
 With `--device all`, a card that cannot start is marked in the table and a `note -` line says how many;
 the exit code comes from the cards that ran (all of them failing to start = 1, ended early).
 Exit code 0 = PASS, 1 = FAIL (errors found), stopped, or ended early by a safety rule, 2 = not
 started (bad option, not confirmed, back end not installed, no device, Stress & Burnin running).
+
+**For programs: `--json` (2.6).** Without `--json` the exit codes above stay as they are. With it:
+
+| Exit code | Meaning | `result` in the JSON |
+|---|---|---|
+| 0 | PASS: no wrong result, and (with `--watch-kernel`) no GPU reset seen | `pass` |
+| 10 | Stopped by a signal (Ctrl+C, or SIGTERM from the program that started it); no errors so far | `stopped` |
+| 11 | FAIL: wrong results were found | `fail` |
+| 12 | Could not start: no device, the back end is not installed, `--pci` names no device of that back end, the GPU could not be opened | `not-started` |
+| 13 | Ended early: the GPU did not answer in time, the device was lost, or the GPU runtime reported an error | `ended-early` |
+| 14 | A GPU reset or ring timeout appeared in the kernel log during the run (`--watch-kernel`), even if the numbers were right | `fail` |
+| 15 | Ended early at the temperature limit: a cooling limit, **not** a verdict about stability | `ended-early` |
+| 2 | A wrong option (also `--json` without `--yes`); no JSON is printed | |
+
+Wrong results **and** a reset in the kernel log give 11 (the kernel events are in the JSON all the same); a
+reset together with anything else gives 14. A process killed by a signal it cannot catch has no exit code of
+its own: treat that as a crash of the test.
+
+The result object (one line; shown wrapped here, with example values):
+
+```json
+{"tool":"srs gpu-burn","version":"2.6.0","result":"fail","exit":14,
+ "reason":"kernel log: the GPU stopped answering, ring timeout (gfx_0.0.0, in kwin_wayland), then GPU reset (MODE1, video memory wiped)",
+ "end":"completed","backend":"vulkan","device":"<GPU name>","pci":"0000:03:00.0",
+ "seconds":61.3,"planned_seconds":60,"precision":"fp32","limit_c":100,
+ "iterations":18234,"errors":0,"gflops_avg":2710.4,
+ "max":{"edge_c":64,"junction_c":83,"power_w":338,"clock_mhz":3140},
+ "devices":[{"device":"<GPU name>","state":"done","iterations":18234,"errors":0,"gflops_avg":2710.4,"matrix":4096,
+             "temperature_limit_active":true,"max":{"edge_c":64,"junction_c":83,"power_w":338,"clock_mhz":3140},"note":""}],
+ "kernel_watch":"on",
+ "kernel_events":[{"t_s":41.1,"kind":"ring-timeout","pci":"0000:03:00.0","detail":"gfx_0.0.0","process":"kwin_wayland","text":"..."},
+                  {"t_s":41.9,"kind":"gpu-reset","pci":"0000:03:00.0","detail":"MODE1","vram_lost":true,"text":"..."}],
+ "kernel_events_other_cards":0,"kernel_other":[]}
+```
+
+| Field | Meaning |
+|---|---|
+| `result`, `exit` | The verdict and the exit code (table above) |
+| `reason` | Why it ended early, could not start or failed, in plain words; empty after a clean PASS |
+| `end` | How the test itself ended: `completed`, `stopped`, `compute-errors`, `not-started`, `temperature-limit`, `no-answer`, `device-lost`, `runtime-error` |
+| `backend`, `device`, `pci` | What ran and where (`null` when nothing ran or the back end gives no PCI address, as a software renderer) |
+| `seconds`, `planned_seconds` | How long it ran, and how long it was asked to |
+| `iterations`, `errors`, `gflops_avg` | Matrix multiplications done, wrong results, average speed - summed over the devices |
+| `max` | The highest sensor readings of the run; `null` for a sensor the card does not have |
+| `devices` | The same per device (`--device all`); `state` is `done`, `stopped`, `failed`, `ended-early` or `not-started` |
+| `kernel_watch` | `off` (not asked for), `on`, or `unreadable` with a `kernel_watch_note` saying why |
+| `kernel_events` | With `--watch-kernel`: what the kernel log said about **this** card during the run. `kind` is `ring-timeout`, `gpu-reset`, `gpu-reset-done`, `device-lost`, `parser-error`, `nvidia-xid` or `gpu-hang`; `t_s` = seconds after the watch began; `process` = the program the driver blamed, when it said |
+| `kernel_events_other_cards` | Events about another graphics card (not counted) |
+| `kernel_other` | Driver error lines seen that SRS does not know as a reset (shown, not counted) |
+
+A `--json-live` line: `{"event":"sample","t_s":12.5,"planned_seconds":60,"iterations":3620,"errors":0,
+"gflops":2712.0,"edge_c":61,"junction_c":79,"power_w":331,"clock_mhz":3105}`.
+
+**`--watch-kernel` (2.6).** A GPU that is undervolted or overclocked too far often does not fail inside the
+test program. The driver notices that the GPU stopped answering one of its work queues (a *ring timeout*),
+resets the GPU, and the program that was hit is the desktop, not the test. `--watch-kernel` reads the
+kernel log (`/dev/kmsg`, opened read-only, from its end: only lines that appear after the start count) while
+the test runs **and for 5 seconds after the load ends**, because the moment the clocks drop is a known moment
+for hangs. It knows these lines: amdgpu's `ring ... timeout`, `GPU reset begin` / `succeeded`, `MODE1 reset`,
+`VRAM is lost`, `device lost from bus`, `Failed to initialize parser`; NVIDIA's `NVRM: Xid` reports; and, best
+effort, i915's `GPU HANG` / `Resetting` and xe's `Engine reset`. A line that names another card's PCI address
+is not counted. A line that names no card (older kernels) cannot be ruled out and is counted. Without `--json`
+a reset is said on standard error ("FAIL - kernel log: ...") and the exit code is 1.
+
+When the kernel log cannot be read (many distributions set `kernel.dmesg_restrict=1`), the run says so -
+"Kernel log not readable ...: only the test's own result is checked." - and the JSON has
+`"kernel_watch":"unreadable"`. It never reports "nothing seen" for a log it could not read.
+Not tested with the messages of a real reset yet: the patterns follow the drivers' wording.
+
 Examples:
 
 ```
@@ -912,6 +1068,7 @@ $ sysreport-search gpu-burn --list
 $ sysreport-search gpu-burn --seconds 600 --limit 95
 $ sysreport-search gpu-burn --backend hip --fp64 --seconds 120
 $ sysreport-search gpu-burn --seconds 900 --limit 105 --accept-high-limit
+$ sysreport-search gpu-burn --pci 0000:03:00.0 --seconds 60 --yes --json --watch-kernel
 ```
 
 Since 2.4 every back end uses a register-blocked matrix multiply (64 x 64 tiles, 4 x 4 results per
@@ -1069,6 +1226,7 @@ or one of these tool names:
 | `netbench` | Network Benchmark (`network` alone is the Network page's item) |
 | `gpubench` | GPU Benchmark |
 | `gpucompare` | GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL |
+| `gputune` | The GPU Tuning tab (read-only) on Benchmarks & Stress (2.6); the item name `gpu-tuning` does the same |
 | `cudatoolkit` | The **Options -> NVIDIA CUDA toolkit for GPU tests...** window |
 | `lists` | Update hardware lists (asks first) (2.4) |
 | `acpieval` | ACPI method evaluation (the one-time warning first, if not accepted yet) (2.4) |
@@ -1168,9 +1326,10 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | Code | Meaning |
 |---|---|
 | 0 | Success; `find` found matches; `burn` passed |
-| 1 | `find` found no matches; lookup or benchmark failed; `burn` failed; `gpu-top` found no GPU or could not open one |
+| 1 | `find` found no matches; lookup or benchmark failed; `burn` failed; `gpu-top` found no GPU or could not open one; `gpu-tune status` found no graphics card |
 | 2 | Usage error (missing or unknown argument, bad value); `find` found no report folder; `burn` had nothing to run; a benchmark was not started (answered No, or no terminal and no `--yes`) |
 | 130 | `burn` stopped with Ctrl+C |
+| 10-15 | `gpu-burn --json` only: 10 stopped, 11 FAIL (compute errors), 12 could not start, 13 ended early, 14 a GPU reset in the kernel log (`--watch-kernel`), 15 the temperature limit - see [`gpu-burn`](#gpu-burn---gpu-burnin) |
 
 ## Environment variables
 
@@ -1195,4 +1354,7 @@ Search it with: sysreport-search find PATTERN   (or: sysreport-search id VVVV:DD
 | `SRS_SPD_DIR` | Memory Timings: read the modules' SPD from `<dir>/<device>/eeprom` instead of `/sys/bus/i2c/drivers/spd5118` (for tests) |
 | `XDG_DATA_HOME` | Update hardware lists keeps its copies in `$XDG_DATA_HOME/srs/lists` (default `~/.local/share/srs/lists`) |
 | `SRS_GPU_SOFTWARE_ONLY=1` | GPU Benchmarks: refuse every Vulkan device that is not a software renderer such as lavapipe (for tests) |
+| `SRS_TUX_BURNER_SOCKET` | GPU Tuning: the path of Tux Burner's service socket instead of `/run/tux-burnerd.sock` (for tests: a fake service, or a path that does not exist) |
+| `SRS_TEST_SYSFS_ROOT` | GPU Tuning and GPU Burnin's sensors: a folder put in front of `/sys`, `/proc`, `/run`, `/etc` and `/usr` (for tests: a made-up graphics card). With it set and no `SRS_TUX_BURNER_SOCKET`, the real service socket is not used |
+| `SRS_TEST_KMSG`, `SRS_TEST_KWATCH_TAIL_S` | `gpu-burn --watch-kernel`: read this text file instead of `/dev/kmsg`, and watch this many seconds after the load instead of 5 (for tests) |
 | `SUDO_USER`, `PKEXEC_UID` | Used to find whose root-data cache to use when run as root |

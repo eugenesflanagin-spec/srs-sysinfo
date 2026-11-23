@@ -20,7 +20,7 @@ I wanted a Linux version of SIV (System Information Viewer) for myself, so I bui
 
 Other pages:
 
-- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 559 items,
+- [SECTIONS/README.md](SECTIONS/README.md) - **Section Reference**: every one of the 560 items,
   field by field, what each value means, what is normal and what is not. Start here to *learn*.
 - [CLI-REFERENCE.md](CLI-REFERENCE.md) - every command-line command and option.
 - [GLOSSARY.md](GLOSSARY.md) - every technical word, in plain English.
@@ -76,7 +76,7 @@ It also has tools:
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
 behaves like SIV, the long-running Windows tool, so they feel at home.
-It has all 538 of SIV 5.87's report items (559 in total with SRS's own extras):
+It has all 538 of SIV 5.87's report items (560 in total with SRS's own extras):
 
 - **364** show real Linux data.
 - **136** are hardware most PCs do not have (Itanium, IPMI, RAID cards...). On a normal PC they
@@ -409,7 +409,7 @@ The window follows your desktop's light or dark theme (see **Options -> Theme** 
 ### 6.1 The pages and the items on them
 
 Every page groups the items of one topic. "Item" is SRS's word for one table of information, such
-as **Sensor status** or **SMART drives**; there are 559 of them.
+as **Sensor status** or **SMART drives**; there are 560 of them.
 
 | Page | What it covers | Tabs |
 |---|---|---|
@@ -535,7 +535,8 @@ Right-click the text for Copy, Select All, the guide link and the Classic Menu. 
 heading in a table to sort it ([6.8](#68-sortable-tables)); right-click a tab for Keep, Replace
 with..., Move and Close ([6.7](#67-arranging-the-tabs-and-lineups)).
 
-The **Benchmarks & Stress** page has one tab per tool (2.3.1): Stress & Burnin (CPU and GPU), CPU
+The **Benchmarks & Stress** page has one tab per tool (2.3.1): Stress & Burnin (CPU and GPU), (2.6) the
+read-only **GPU Tuning** tab ([9.23](#923-gpu-tuning-read-only)), CPU
 Benchmarks, Cache & Memory, Storage, OS latency, CPU compute, Everyday work, Network, GPU Benchmark,
 GPU Compare, SRS Pi, Crypto, Prime Sieve, IPI delay and Memory latency, each with its controls and
 live results, and compact sections at the top that jump to them ([9](#9-tools)); nothing runs until you press **Run** or
@@ -1702,6 +1703,11 @@ what was tried; in short, not tried on real hardware so far:
   `045c:0132` (plain protocol), and one TV: status, Test, Send, Repeat and Learn worked. The
   `045c:0184`, `045c:0195` and `045c:0134` models and the compressed (Huffman) protocol were checked
   against elksmart-comm's packets only, never on a real dongle.
+- GPU Tuning (2.6, [9.23](#923-gpu-tuning-read-only)) and `gpu-burn --json` / `--watch-kernel`
+  ([9.18](#918-gpu-burnin)): made-up system files, a stand-in for Tux Burner's service, a software
+  renderer, a fake GPU runtime and made-up kernel log lines only. Not tried on a real graphics card, a
+  real Tux Burner service, a real LACT or with a real GPU reset; NVIDIA, Intel, older AMD cards and
+  laptops with two cards are untested.
 
 **Things to know about the GPU tests:**
 
@@ -2566,6 +2572,20 @@ one comes from gpu-burn by Ville Timonen; the code is SRS's own. Tested on the a
 all four back ends (CUDA through ZLUDA; NVIDIA's own driver was not tried) - see the note at the start
 of this chapter.
 
+**For other programs (2.6).** A program that wants to use GPU Burnin as its test - for example a tool that
+searches for the lowest stable voltage one step at a time - can run
+`sysreport-search gpu-burn --yes --json`: the result then comes as one line of JSON (a plain-text format
+programs can read), and the exit code says exactly what happened (0 PASS, 10 stopped, 11 wrong results,
+12 could not start, 13 ended early, 14 a GPU reset, 15 the temperature limit). Add **`--watch-kernel`** and
+SRS also watches the kernel log (the system's own diary) while the test runs and for 5 seconds after it.
+That matters because a GPU that is pushed too far often does not fail *inside* the test: the driver notices
+that the GPU stopped answering, restarts it (a *GPU reset*), and the program that crashes is the desktop,
+while the test's own numbers look fine. With the watch on, such a reset fails the run. If the kernel log
+cannot be read on your system, SRS says so instead of pretending that nothing happened. `--pci 0000:03:00.0`
+picks the card by its PCI address. Without `--json` the command behaves exactly as before. Details and the
+JSON fields: [CLI reference](CLI-REFERENCE.md#gpu-burn---gpu-burnin). This part was tested on a software
+renderer, a fake GPU runtime and made-up kernel log lines, not with a real GPU reset.
+
 ### 9.19 GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL
 
 **In plain words:** the same GPU work, run through every way of programming your graphics card
@@ -2811,6 +2831,80 @@ root password for every call.
 A safe first try is a status method such as a device's `_STA` (it only reports whether the device is
 present and on). If you are not sure what a method does, do not run it.
 
+### 9.23 GPU Tuning (read-only)
+
+**In plain words:** a page that shows what your graphics card is **set to right now** - how much voltage is
+taken off, how much speed is added, the top memory speed and the most watts it may draw - together with
+the limits and with the two programs that can change those settings, **Tux Burner** and **LACT**. New in
+2.6. **It only shows. Nothing on this page changes the card, and SRS itself never writes to a graphics
+card.** It is the first part of GPU tuning in SRS: the controls for trying a setting and for searching for a
+safe undervolt or overclock come in a later version.
+
+Open: **Benchmarks & Stress -> GPU Tuning** (the tab right after Stress & Burnin), Menu -> Benchmarks &
+Stress -> **GPU Tuning (Read-Only)...**, or `srs-gui --gui-open=gputune`. Command line:
+`sysreport-search gpu-tune status` ([CLI reference](CLI-REFERENCE.md#gpu-tune---gpu-tuning-read-only-26)).
+
+**The words first.**
+
+| Word | Meaning |
+|---|---|
+| **Undervolt** | Giving the GPU a little less voltage than the factory set. Less heat, less power, less fan noise; too much makes it unstable |
+| **Voltage offset** | How many millivolts are taken off, at every speed at once. `-110 mV` = 0.110 V less |
+| **Overclock** | Letting the GPU run faster than the factory setting |
+| **Core clock offset** | How many MHz are added to the GPU's top speed |
+| **Power limit** | The most watts the card may draw |
+| **OverDrive** | The AMD driver's switch-board for these settings (one text file in `/sys`) |
+| **Tux Burner** | A separate free program for GPU tuning. Its small root service is the only thing that writes to the card, and it holds the safety limits |
+| **LACT** | The usual Linux program for everyday GPU settings and fan curves |
+
+**What the page shows,** for every graphics card in the PC:
+
+1. **The card**, and one line each for **Tux Burner** (installed? its service running? which version?) and
+   **LACT** (running? which profile is active?).
+2. **Now On The Card** - voltage offset, core clock offset, highest memory clock and power limit as they are
+   at this moment, and, when LACT runs, whether these are LACT's saved values.
+3. **Live Readings** - temperature, power draw, clock, voltage, fan.
+4. **Limits** - the deepest undervolt Tux Burner's service will write (its *floor*), and the ranges the
+   card's driver accepts. The driver's range is **not** a safe range: a card can freeze far inside it.
+5. **LACT's Saved Values** for this card, with anything the card is not at marked in orange.
+6. **Changing Settings** - what is missing before a setting could be changed, in plain words.
+
+The [Section Reference](SECTIONS/tools.md#gpu-tuning) explains every line.
+
+**What works with which card.**
+
+| Card | What you get |
+|---|---|
+| AMD, RDNA 3 and RDNA 4 (RX 7000 / RX 9000) with OverDrive switched on | Everything, read straight from the kernel's files - no other program needed |
+| AMD, older generations | The card is named and marked "not supported yet" (these cards use a different table) |
+| AMD with OverDrive switched off | "No OverDrive controls": the driver shows a tuning table only with the kernel option `amdgpu.ppfeaturemask` |
+| NVIDIA | The values Tux Burner's NVIDIA back end reports, when Tux Burner's service runs; otherwise a note |
+| Intel and others | A read-only "not supported yet" note |
+| A second card that is asleep | Named, not read: SRS does not wake a card just to look at it |
+
+**Without Tux Burner** the page still works: reading needs no other program. It then says "Changing GPU
+settings needs Tux Burner, a separate free program that holds the safety limits. Reading works without
+it." and how to get it (Arch Linux: the package `tux-burner` from the AUR). If Tux Burner is installed but
+its service is not, the page gives the one command that installs the service; SRS does not install it for
+you.
+
+**With LACT running** an orange line says so: LACT owns the card's settings, and SRS will never change what
+LACT has saved. If the page says the card is *not* at LACT's saved values, something else changed the card
+after LACT applied its profile; switching the profile in LACT, or a reboot, puts LACT's values back.
+
+**What SRS does and does not do here.**
+
+- It **reads** the kernel's files, asks Tux Burner's service two read questions ("what is your status?" and
+  "what can this card do?") and reads LACT's settings file.
+- It **never** writes to the card, never sends Tux Burner's service a request that changes something, never
+  contacts LACT's service, never edits LACT's file, and never runs Tux Burner's command line tool.
+- A value it cannot know is left empty ("not available", "kept by Tux Burner"), not guessed.
+
+**Not tested on real hardware yet.** I built and tested this page with made-up system files and a stand-in
+for Tux Burner's service, not on a real card, a real Tux Burner service or a real LACT. Other AMD
+generations, NVIDIA, Intel and laptops with two graphics cards may show something odd; if you see it, please
+open an issue with what the page showed.
+
 ## 10. Options
 
 **Menu -> Options** (in the main window's menu, the classic Menu and the tray's SRS Menu). All are
@@ -3014,7 +3108,7 @@ In the classic view:
 - **Menu -> Save Report...** (or **Ctrl+S**) saves SIV's default set of items as text.
   Default file name: `srs-<hostname>.txt` (`srs-report.txt` when **Options -> Redact identifiers in
   saved reports** is on).
-- **Menu -> Save All Items...** saves every one of the 559 items. Default name: `srs-<hostname>-all.txt`.
+- **Menu -> Save All Items...** saves every one of the 560 items. Default name: `srs-<hostname>-all.txt`.
   On the author's PC this is about 52,000 lines and takes about 12 seconds.
 
 The same from the command line ([CLI-REFERENCE.md](CLI-REFERENCE.md)):
@@ -3166,6 +3260,7 @@ Environment variables:
 | `SRS_DOC_DIR=folder` | Where the Guide button, F1 and `guide` look for `SRS-User-Guide.pdf` and `html/` (default `/usr/share/doc/srs-sysinfo`, then beside the program). |
 | `GTK_THEME` | Remembered for "Follow desktop"; the Theme option drives SRS's own look. |
 | `SRS_GPUBURN_SIMPLE=1` | GPU Burnin uses the older, simpler matrix multiply instead of the 2.4 one (for comparing) ([9.18](#918-gpu-burnin)). |
+| `SRS_TUX_BURNER_SOCKET=path` | GPU Tuning asks Tux Burner's service at this socket instead of `/run/tux-burnerd.sock` (tests) ([9.23](#923-gpu-tuning-read-only)). |
 | `SRS_GPU_WAVE=32` | GPU Compute comparison: ROCm / HIP and OpenCL (ROCm) build SRS's FP32 kernels for 32 threads per wave (AMD's default) instead of 64 (for comparing with older versions). |
 | `SRS_CL_XFER=plain` | GPU Compute comparison: OpenCL (Rusticl) uploads and downloads with the plain read / write calls, as before 2.6 (for comparing). |
 | `SRS_CL_TIMING=events` | GPU Compute comparison: OpenCL (Rusticl) is timed by the driver's event times, as before 2.6 (for comparing); `host` times any OpenCL driver on the host. |
@@ -3200,7 +3295,7 @@ The Section Reference has "Healthy / typical values" and "Unusual values" for ev
 
 ## 16. Known limits and differences from SIV
 
-- **Two views, same data.** The main window and the classic view show the same 559 items with the
+- **Two views, same data.** The main window and the classic view show the same 560 items with the
   same text. The classic panels' extra buttons (for example Features, ARP, PnP Dev) are items in
   their own right: in the main window find them under **All N items** on the page, or with the
   search box. **Open in window** shows any tab as the classic panel with its button row.
