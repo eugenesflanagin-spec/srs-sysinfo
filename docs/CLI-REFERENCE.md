@@ -470,7 +470,7 @@ exit with 2.
 | `--json` (`-J`) | One JSON object for the card (with `--all`: a list of them) |
 | `--pci ADDR` | The card at this PCI address, as in `0000:03:00.0`. Default: the first card with tuning controls, else the first card |
 | `--all` | Every graphics card |
-| `--wake` | Also read a card that is asleep (a second card the kernel powered down to save energy). Reading wakes it; without `--wake` such a card is only named |
+| `--wake` | Also read a card that is asleep (a second card the kernel powered down to save energy). Reading wakes it; without `--wake` such a card is only named, and Tux Burner's service is not asked about any card (it numbers the cards its own way, so the question could wake the sleeping one) |
 
 Exit code 0: shown; 1: no graphics card found; 2: a wrong option, or `--pci` names no card.
 
@@ -479,9 +479,9 @@ The JSON object (one line; shown wrapped here, with example values):
 ```json
 {"gpu":{"name":"<GPU name>","pci":"0000:03:00.0","driver":"amdgpu","card":"card0","vendor":"amd",
         "asleep":false,"overdrive":"offsets","backend":"tux-burner-amd"},
- "now":{"voltage_offset_mv":-110,"sclk_offset_mhz":300,"mclk_max_mhz":1375,"mclk_offset_mhz":null,"power_cap_w":374},
+ "now":{"voltage_offset_mv":-110,"sclk_offset_mhz":300,"sclk_max_mhz":null,"mclk_max_mhz":1375,"mclk_offset_mhz":null,"power_cap_w":374},
  "live":{"edge_c":27,"junction_c":31,"power_w":33,"clock_mhz":63,"vddgfx_mv":700,"fan_rpm":589},
- "ranges":{"voltage_offset_mv":[-200,0],"sclk_offset_mhz":[-500,1000],"mclk_mhz":[97,1500],"mclk_offset_mhz":null,
+ "ranges":{"voltage_offset_mv":[-200,0],"sclk_offset_mhz":[-500,1000],"sclk_mhz":null,"mclk_mhz":[97,1500],"mclk_offset_mhz":null,
            "power_cap_w":[212,374],"power_cap_default_w":304},
  "limits":{"voltage_floor_mv":-150,"voltage_floor_source":"default","suggest_floor_mv":null,"sclk_ceiling_mhz":null},
  "tux_burner":{"installed":true,"cli":"/usr/bin/tburn-cli","daemon":"running","version":"0.99.0","build":"...",
@@ -495,7 +495,8 @@ The JSON object (one line; shown wrapped here, with example values):
 
 | Field | Meaning |
 |---|---|
-| `gpu.overdrive` | `offsets` (the table SRS reads: one voltage offset, one clock offset), `older-table` (clock and voltage points: not supported yet), `not-readable`, `none` |
+| `gpu.overdrive` | `offsets` (a table SRS reads: a voltage offset, with a clock offset on RDNA 4 or the highest core clock on RDNA 3), `older-table` (clock and voltage points: not supported yet), `not-readable`, `none` |
+| `now.sclk_max_mhz`, `ranges.sclk_mhz` | RDNA 3 only: the highest core clock and its range (these cards have no `sclk_offset_mhz`) |
 | `gpu.backend` | `tux-burner-amd` / `tux-burner-nvidia` when Tux Burner's service knows the card, else `null` |
 | `now`, `ranges` | From the kernel's files; for a card with no table of its own (NVIDIA) from Tux Burner's service. `null` = not available |
 | `limits.voltage_floor_mv` | The deepest undervolt Tux Burner's service will write, as the service reports it; `null` without the service |

@@ -88,6 +88,31 @@ static int t_long(const char *path, long *v)
     return !errno && e != b;
 }
 
+/* a decimal number, read the same way in every locale (GTK sets the user's, where strtod may want a comma).
+   Returns the end of the number, or s when there is none */
+static const char *t_num(const char *s, double *out)
+{
+    const char *p = s;
+    double v = 0, scale = 0.1;
+    int neg = 0, digits = 0;
+    if (*p == '-') { neg = 1; p++; } else if (*p == '+') p++;
+    for (; isdigit((unsigned char)*p); p++, digits++) v = v * 10 + (*p - '0');
+    if (*p == '.') for (p++; isdigit((unsigned char)*p); p++, digits++, scale /= 10) v += (*p - '0') * scale;
+    if (!digits) return s;
+    if (*p == 'e' || *p == 'E') {   /* an exponent: rare in these answers, read it anyway */
+        const char *q = p + 1;
+        int en = 0, ex = 0;
+        if (*q == '-') { en = 1; q++; } else if (*q == '+') q++;
+        if (isdigit((unsigned char)*q)) {
+            for (; isdigit((unsigned char)*q) && ex < 400; q++) ex = ex * 10 + (*q - '0');
+            while (ex-- > 0) v = en ? v / 10 : v * 10;
+            p = q;
+        }
+    }
+    *out = neg ? -v : v;
+    return p;
+}
+
 /* ------------------------------------------------------------------ a small JSON reader (the service's answers) */
 static const char *js_ws(const char *p) { while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++; return p; }
 
@@ -183,13 +208,13 @@ static const char *js_at(const char *v, int i)   /* element i of the array at v 
 
 static int js_num(const char *v, int *out)   /* a number, rounded; GTN_NONE for null or anything else */
 {
-    char *e;
-    double d;
+    const char *e;
+    double d = 0;
     *out = GTN_NONE;
     if (!v) return 0;
     v = js_ws(v);
     if (*v != '-' && !isdigit((unsigned char)*v)) return 0;
-    d = strtod(v, &e);
+    e = t_num(v, &d);
     if (e == v || d > 1e9 || d < -1e9) return 0;
     *out = (int)(d < 0 ? d - 0.5 : d + 0.5);
     return 1;
@@ -229,11 +254,11 @@ static int js_has(const char *v, const char *word)
 /* ------------------------------------------------------------------ Tux Burner's socket: two read requests, no more */
 enum { TBQ_STATUS, TBQ_CAPABILITIES };
 
-static long now_ms(void)
+static long long now_ms(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+    return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 }
 
 /* Ask the service one of its two read questions. The request text is built HERE and only here: this function cannot
@@ -246,7 +271,7 @@ static int tb_ask(const char *sock, int question, int gpu_index, char **reply)
     struct pollfd pf;
     char req[80], *buf;
     size_t len = 0, want;
-    long end;
+    long long end;
     int fd, n;
     *reply = NULL;
     if (question == TBQ_STATUS) snprintf(req, sizeof req, "{\"method\":\"status\"}\n");
@@ -335,7 +360,7 @@ static int same_pci(const char *a, const char *b)
 
 static void tb_read(gtune_status *st)
 {
-    static long quiet_until;   /* after an answer that did not come: leave the service alone for a while (the tab refreshes) */
+    static long long quiet_until;   /* after an answer that did not come: leave the service alone for a while */
     gtune_tb *tb = &st->tb;
     const char *env = getenv("SRS_TUX_BURNER_SOCKET"), *res, *caps;
     char *line = NULL, err[200];
@@ -393,8 +418,11 @@ static void tb_read(gtune_status *st)
         return;
     }
     tb->daemon = GTD_RUNNING;
-    /* the service's view of each card it knows, matched to SRS's cards by PCI address. A card that is asleep is not
-       asked about: the question would wake it */
+    /* the service's view of each card it knows, matched to SRS's cards by PCI address. The service numbers the cards
+       its own way, so SRS cannot ask about one card only: while ANY card is asleep it asks about none, because the
+       question could wake the sleeping one (--wake reads everything) */
+    for (i = 0; i < st->ngpu; i++) if (st->gpu[i].asleep) st->asleep_skip = 1;
+    if (st->asleep_skip) return;
     count = 1;
     for (i = 0; i < count && i < GTN_MAXGPU; i++) {
         char pci[40], vendor[16];
@@ -449,10 +477,12 @@ static int num_after(const char *s, int *out)   /* "  -110mV" / "1: 1375MHz" -> 
     return 1;
 }
 
-/* amdgpu's OverDrive table, the RDNA 3 / RDNA 4 layout:
-     OD_SCLK_OFFSET: / 300Mhz        OD_MCLK: / 0: 676Mhz / 1: 1375MHz       OD_VDDGFX_OFFSET: / -110mV
-     OD_RANGE: / SCLK_OFFSET: -500Mhz 1000Mhz / MCLK: 97Mhz 1500Mhz / VDDGFX_OFFSET: -200mv 0mv
-   Older cards list absolute clock / voltage points (OD_SCLK:, OD_VDDC_CURVE:): recognised, not handled yet. */
+/* amdgpu's OverDrive table.
+   RDNA 4:  OD_SCLK_OFFSET: / 300Mhz        OD_MCLK: / 0: 676Mhz / 1: 1375MHz       OD_VDDGFX_OFFSET: / -110mV
+            OD_RANGE: / SCLK_OFFSET: -500Mhz 1000Mhz / MCLK: 97Mhz 1500Mhz / VDDGFX_OFFSET: -200mv 0mv
+   RDNA 3:  OD_SCLK: / 0: 500Mhz / 1: 2900Mhz (lowest and highest core clock, no offset)   OD_MCLK: ...
+            OD_VDDGFX_OFFSET: / 0mV         OD_RANGE: / SCLK: 500Mhz 5000Mhz / MCLK: ... / VDDGFX_OFFSET: -450mv 0mv
+   Older cards list voltage points (OD_VDDC_CURVE:) and have no voltage offset: recognised, not handled yet. */
 static void od_parse(gtune_gpu *g, const char *text)
 {
     char sec[32] = "", line[160];
@@ -467,11 +497,13 @@ static void od_parse(gtune_gpu *g, const char *text)
             if (!strcmp(sec, "OD_SCLK") || !strcmp(sec, "OD_VDDC_CURVE")) older = 1;
             continue;
         }
-        if (!strcmp(sec, "OD_SCLK_OFFSET")) { if (num_after(line, &g->sclk_off_mhz)) newer = 1; }
+        if (!strcmp(sec, "OD_SCLK")) { if (!strncmp(line, "1:", 2)) num_after(line + 2, &g->sclk_max_mhz); }
+        else if (!strcmp(sec, "OD_SCLK_OFFSET")) { if (num_after(line, &g->sclk_off_mhz)) newer = 1; }
         else if (!strcmp(sec, "OD_VDDGFX_OFFSET")) { if (num_after(line, &g->vo_mv)) newer = 1; }
         else if (!strcmp(sec, "OD_MCLK")) { if (!strncmp(line, "1:", 2)) num_after(line + 2, &g->mclk_max_mhz); }
         else if (!strcmp(sec, "OD_RANGE")) {
-            int *r = !strncmp(line, "SCLK_OFFSET:", 12) ? g->r_sclk : !strncmp(line, "MCLK:", 5) ? g->r_mclk : !strncmp(line, "VDDGFX_OFFSET:", 14) ? g->r_vo : NULL;
+            int *r = !strncmp(line, "SCLK_OFFSET:", 12) ? g->r_sclk : !strncmp(line, "MCLK:", 5) ? g->r_mclk : !strncmp(line, "VDDGFX_OFFSET:", 14) ? g->r_vo :
+                     !strncmp(line, "SCLK:", 5) ? g->r_sclk_abs : NULL;
             const char *q = strchr(line, ':');
             char *e;
             if (r && q) {
@@ -485,7 +517,8 @@ static void od_parse(gtune_gpu *g, const char *text)
             }
         }
     }
-    g->od = newer ? 1 : older ? 2 : 0;
+    g->od = newer ? 1 : older ? 2 : 0;   /* a voltage or clock offset = a table SRS reads; only points = the older kind */
+    if (g->od != 1) g->sclk_max_mhz = g->r_sclk_abs[0] = g->r_sclk_abs[1] = GTN_NONE;
 }
 
 static int uw_to_w(const char *path)
@@ -612,6 +645,7 @@ static void cards_read(gtune_status *st, int wake)
         }
         g->vendor = g->vendor_id == 0x1002 ? "amd" : g->vendor_id == 0x10de ? "nvidia" : g->vendor_id == 0x8086 ? "intel" : "other";
         g->vo_mv = g->sclk_off_mhz = g->mclk_max_mhz = g->cap_w = g->cap_min_w = g->cap_max_w = g->cap_default_w = GTN_NONE;
+        g->sclk_max_mhz = g->r_sclk_abs[0] = g->r_sclk_abs[1] = GTN_NONE;
         g->r_vo[0] = g->r_vo[1] = g->r_sclk[0] = g->r_sclk[1] = g->r_mclk[0] = g->r_mclk[1] = GTN_NONE;
         g->tb_floor_mv = g->tb_vo_mv = g->tb_sclk_off = g->tb_mem_off = g->tb_cap_w = g->tb_cap_min_w = g->tb_cap_max_w = g->tb_cap_default_w = GTN_NONE;
         g->tb_r_vo[0] = g->tb_r_vo[1] = g->tb_r_sclk[0] = g->tb_r_sclk[1] = g->tb_r_mem[0] = g->tb_r_mem[1] = GTN_NONE;
@@ -715,9 +749,8 @@ static void lact_parse(gtune_status *st, const char *text)
                     if (depth == base + 3) dst = !strcmp(name, "voltage_offset") ? &u->lact_vo : !strcmp(name, "max_memory_clock") ? &u->lact_mclk_max : !strcmp(name, "power_cap") ? &u->lact_cap_w : NULL;
                     else if (depth == base + 4 && !strcmp(name, "gpu_clock_offsets") && !strcmp(key[base + 3], "0")) dst = &u->lact_sclk;
                     if (dst) {
-                        char *e;
-                        double d = strtod(val, &e);
-                        if (e != val) { *dst = (int)(d < 0 ? d - 0.5 : d + 0.5); u->lact_have = 1; }
+                        double d = 0;
+                        if (t_num(val, &d) != val) { *dst = (int)(d < 0 ? d - 0.5 : d + 0.5); u->lact_have = 1; }
                     }
                 }
             }
@@ -756,6 +789,15 @@ static void lact_read(gtune_status *st)
 void gtune_read(gtune_status *st, int wake)
 {
     memset(st, 0, sizeof *st);
+    /* SRS's own GUI tests (their private bus, the all-items column dump) show this page too. Unless such a test brings
+       a made-up /sys, nothing real is read: not the card, not Tux Burner's service, not LACT's settings file */
+    if (!t_root()[0] && (getenv("SRS_TEST_PRIVATE_BUS") || getenv("SRS_TEST_ALIGN_DUMP"))) {
+        st->testmode = 1;
+        st->tb.daemon = GTD_UNCHECKED;
+        st->tb.proto_major = st->tb.proto_minor = GTN_NONE;
+        snprintf(st->tb.msg, sizeof st->tb.msg, "test mode: the real graphics card, Tux Burner's service and LACT are not read");
+        return;
+    }
     cards_read(st, wake);
     tb_read(st);
     lact_read(st);
@@ -806,6 +848,7 @@ int gtune_can_write(const gtune_status *st, int idx, char *why, size_t n)
     else if (tb->daemon == GTD_DENIED) snprintf(why, n, "Tux Burner's service does not serve this user: %s", tb->msg);
     else if (tb->daemon == GTD_OLD) snprintf(why, n, "Tux Burner's service is a version this SRS cannot use: %s", tb->msg);
     else if (tb->daemon != GTD_RUNNING) snprintf(why, n, "%s", tb->msg[0] ? tb->msg : "Tux Burner's service could not be asked");
+    else if (st->asleep_skip) snprintf(why, n, "a graphics card is asleep, so Tux Burner's service was not asked about the cards");
     else if (!g->tb) snprintf(why, n, "Tux Burner's service has no controls for this card");
     else if (!strcmp(g->tb_vendor, "amd") && !tb->cap_amd) snprintf(why, n, "this Tux Burner has no AMD tuning support");
     else { missing_words(tb, g, m, sizeof m); if (m[0]) snprintf(why, n, "needs a newer Tux Burner for: %s", m); }
@@ -886,8 +929,8 @@ static void render_card(srs_out *o, const gtune_status *st, int idx)
     if (g->od == 1) {
         val(b, sizeof b, g->vo_mv, "mV", 1);
         so_kv(o, "  Voltage Offset", C_VALUE, b);
-        val(b, sizeof b, g->sclk_off_mhz, "MHz", 1);
-        so_kv(o, "  Core Clock Offset", C_VALUE, b);
+        if (g->sclk_off_mhz != GTN_NONE || g->sclk_max_mhz == GTN_NONE) { val(b, sizeof b, g->sclk_off_mhz, "MHz", 1); so_kv(o, "  Core Clock Offset", C_VALUE, b); }
+        if (g->sclk_max_mhz != GTN_NONE) { val(b, sizeof b, g->sclk_max_mhz, "MHz", 0); so_kv(o, "  Core Clock (Highest)", C_VALUE, b); }
         val(b, sizeof b, g->mclk_max_mhz, "MHz", 0);
         so_kv(o, "  Memory Clock (Highest)", C_VALUE, b);
     } else if (g->tb) {   /* no table of its own to read (NVIDIA): the values the service reports */
@@ -922,7 +965,7 @@ static void render_card(srs_out *o, const gtune_status *st, int idx)
     so_par(o);
 
     if (g->edge_c >= 0 || g->junction_c >= 0 || g->power_w >= 0 || g->clock_mhz >= 0) {
-        so_b(o, C_VALUE, "Live Readings"); so_par(o);
+        so_b(o, C_VALUE, "Readings Right Now"); so_par(o);
         if (g->junction_c >= 0 || g->edge_c >= 0) {
             if (g->edge_c >= 0) snprintf(a, sizeof a, "%.0f C edge", g->edge_c); else a[0] = 0;
             if (g->junction_c >= 0) snprintf(c, sizeof c, "%s%.0f C hotspot", a[0] ? ", " : "", g->junction_c); else c[0] = 0;
@@ -946,6 +989,7 @@ static void render_card(srs_out *o, const gtune_status *st, int idx)
         } else if (g->od == 1) so_kv(o, "  Lowest Allowed Voltage Offset", C_GRAY, "kept by Tux Burner (not known without its service)");
         if (rv[0] != GTN_NONE) { range(b, sizeof b, rv, "mV", 1); so_kv(o, "  Driver Range, Voltage Offset", C_VALUE, b); }
         if (rs[0] != GTN_NONE) { range(b, sizeof b, rs, "MHz", 1); so_kv(o, "  Driver Range, Core Clock Offset", C_VALUE, b); }
+        if (g->od == 1 && g->r_sclk_abs[0] != GTN_NONE) { range(b, sizeof b, g->r_sclk_abs, "MHz", 0); so_kv(o, "  Driver Range, Core Clock", C_VALUE, b); }
         if (g->od == 1 && g->r_mclk[0] != GTN_NONE) { range(b, sizeof b, g->r_mclk, "MHz", 0); so_kv(o, "  Driver Range, Memory Clock", C_VALUE, b); }
         else if (g->od != 1 && g->tb_r_mem[0] != GTN_NONE) { range(b, sizeof b, g->tb_r_mem, "MHz", 1); so_kv(o, "  Driver Range, Memory Clock Offset", C_VALUE, b); }
         if (cmin != GTN_NONE && cmax != GTN_NONE) {
@@ -999,7 +1043,10 @@ static void render_card(srs_out *o, const gtune_status *st, int idx)
         so_t(o, C_ORANGE, tb->msg[0] ? tb->msg : "Tux Burner's service gave no usable answer."); so_par(o);
     } else if (tb->daemon == GTD_RUNNING) {
         if (!tb->cli) so_t(o, C_ORANGE, "Tux Burner's service is running, but its command line tool (tburn-cli) is not on PATH."), so_par(o);
-        if (!g->tb) so_note(o, "Tux Burner's service has no controls for this card.");
+        if (st->asleep_skip)
+            so_note(o, "A graphics card in this PC is asleep, so Tux Burner's service was not asked about the cards (the question "
+                       "could wake it). To ask anyway: sysreport-search gpu-tune status --wake");
+        else if (!g->tb) so_note(o, "Tux Burner's service has no controls for this card.");
         missing_words(tb, g, c, sizeof c);
         if (g->tb && c[0]) {
             snprintf(b, sizeof b, "Searches from SRS need a newer Tux Burner for: %s.", c);
@@ -1018,7 +1065,8 @@ void gtune_render(srs_out *o, const gtune_status *st, int idx)
     if (!st->ngpu) {
         static const int tabs[] = { 250 };
         so_tabs(o, tabs, 1);
-        so_note(o, "No graphics card found (nothing under /sys/class/drm with a PCI device).");
+        if (st->testmode) so_note(o, "Test mode: the real graphics card, Tux Burner's service and LACT are not read.");
+        else so_note(o, "No graphics card found (nothing under /sys/class/drm with a PCI device).");
         so_par(o);
         render_programs(o, st);
         return;
@@ -1073,11 +1121,12 @@ static void json_card(FILE *f, const gtune_status *st, int idx)
     j_kstr(f, "driver", g->driver); fputc(',', f);
     j_kstr(f, "card", g->card);
     fprintf(f, ",\"vendor\":\"%s\",\"asleep\":%s,\"overdrive\":\"%s\",\"backend\":", g->vendor, g->asleep ? "true" : "false",
-            g->od == 1 ? "offsets" : g->od == 2 ? "older-table" : g->od == -1 ? "not-readable" : "none");
+            g->od == 1 ? "offsets" : g->od == 2 ? "older-table" : g->od == -1 ? "not-readable" : "none");   /* offsets: a voltage offset */
     if (g->tb) fprintf(f, "\"tux-burner-%s\"", g->tb_vendor); else fputs("null", f);
     fputs("},\"now\":{", f);
     j_int(f, "voltage_offset_mv", od ? g->vo_mv : g->tb_vo_mv); fputc(',', f);
     j_int(f, "sclk_offset_mhz", od ? g->sclk_off_mhz : g->tb_sclk_off); fputc(',', f);
+    j_int(f, "sclk_max_mhz", g->sclk_max_mhz); fputc(',', f);
     j_int(f, "mclk_max_mhz", g->mclk_max_mhz); fputc(',', f);
     j_int(f, "mclk_offset_mhz", od ? GTN_NONE : g->tb_mem_off); fputc(',', f);
     j_int(f, "power_cap_w", g->cap_w != GTN_NONE ? g->cap_w : g->tb_cap_w);
@@ -1091,6 +1140,7 @@ static void json_card(FILE *f, const gtune_status *st, int idx)
     fputs("},\"ranges\":{", f);
     j_pair(f, "voltage_offset_mv", od ? g->r_vo[0] : g->tb_r_vo[0], od ? g->r_vo[1] : g->tb_r_vo[1]); fputc(',', f);
     j_pair(f, "sclk_offset_mhz", od ? g->r_sclk[0] : g->tb_r_sclk[0], od ? g->r_sclk[1] : g->tb_r_sclk[1]); fputc(',', f);
+    j_pair(f, "sclk_mhz", g->r_sclk_abs[0], g->r_sclk_abs[1]); fputc(',', f);
     j_pair(f, "mclk_mhz", g->r_mclk[0], g->r_mclk[1]); fputc(',', f);
     j_pair(f, "mclk_offset_mhz", od ? GTN_NONE : g->tb_r_mem[0], od ? GTN_NONE : g->tb_r_mem[1]); fputc(',', f);
     j_pair(f, "power_cap_w", g->cap_min_w != GTN_NONE ? g->cap_min_w : g->tb_cap_min_w, g->cap_max_w != GTN_NONE ? g->cap_max_w : g->tb_cap_max_w); fputc(',', f);

@@ -94,10 +94,11 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
   holds the safety limits) is installed and running, the voltage floor Tux Burner's service reports, and whether
   **LACT** is running, with LACT's saved values for the card and whether the card is at them. It is the first step of
   GPU tuning inside SRS; **this version only shows**. No button on the tab changes anything.
-  - AMD cards with the newer OverDrive table (one voltage offset, one clock offset: RDNA 3 and 4) are read from the
-    kernel's files with no extra program. Older AMD cards (clock and voltage points) are recognised and marked "not
+  - AMD cards with a voltage offset in their OverDrive table are read from the kernel's files with no extra program:
+    RDNA 4 (voltage offset and core clock offset) and RDNA 3 (voltage offset and highest core clock). Older AMD cards (clock and voltage points) are recognised and marked "not
     supported yet". NVIDIA cards show their values through Tux Burner's NVIDIA back end when its service runs. Other
-    cards get a read-only "not supported yet" note. A card that is asleep is not woken.
+    cards get a read-only "not supported yet" note. A card that is asleep is not woken (and while one sleeps, Tux
+    Burner's service is not asked about the cards); the page reads once and on Refresh, never by itself.
   - Without Tux Burner the tab still works and says in two sentences what Tux Burner adds and how to install it; with
     the command line tool but no service, a service that does not serve this user, or a service of another protocol
     version, it says exactly that and what to do.

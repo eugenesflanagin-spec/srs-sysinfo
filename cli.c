@@ -1462,7 +1462,12 @@ static int cmd_gpu_tune(int argc, char **argv)
     if (all && pci[0]) return usage_error("gpu-tune: --all and --pci do not go together");
     if (!(st = calloc(1, sizeof *st))) return 2;
     gtune_read(st, wake);
-    if (!st->ngpu) { fprintf(stderr, "gpu-tune: no graphics card found (nothing under /sys/class/drm with a PCI device)\n"); free(st); return 1; }
+    if (!st->ngpu) {
+        fprintf(stderr, "gpu-tune: %s\n", st->testmode ? "test mode without a made-up /sys - the real graphics card, Tux Burner's service and LACT are not read"
+                                                         : "no graphics card found (nothing under /sys/class/drm with a PCI device)");
+        free(st);
+        return 1;
+    }
     idx = all ? -1 : pci[0] ? gtune_find_pci(st, pci) : gtune_pick(st);
     if (pci[0] && idx < 0) { fprintf(stderr, "gpu-tune: no graphics card at PCI %s (see gpu-tune status --all)\n", pci); free(st); return 2; }
     if (json) gtune_json(stdout, st, idx);

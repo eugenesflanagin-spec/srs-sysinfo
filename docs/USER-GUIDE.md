@@ -2863,7 +2863,8 @@ Stress -> **GPU Tuning (Read-Only)...**, or `srs-gui --gui-open=gputune`. Comman
    **LACT** (running? which profile is active?).
 2. **Now On The Card** - voltage offset, core clock offset, highest memory clock and power limit as they are
    at this moment, and, when LACT runs, whether these are LACT's saved values.
-3. **Live Readings** - temperature, power draw, clock, voltage, fan.
+3. **Readings Right Now** - temperature, power draw, clock, voltage, fan, as they were when the page was read
+   (press **Refresh** or F5 to read again; the page does not refresh by itself).
 4. **Limits** - the deepest undervolt Tux Burner's service will write (its *floor*), and the ranges the
    card's driver accepts. The driver's range is **not** a safe range: a card can freeze far inside it.
 5. **LACT's Saved Values** for this card, with anything the card is not at marked in orange.
@@ -2875,12 +2876,13 @@ The [Section Reference](SECTIONS/tools.md#gpu-tuning) explains every line.
 
 | Card | What you get |
 |---|---|
-| AMD, RDNA 3 and RDNA 4 (RX 7000 / RX 9000) with OverDrive switched on | Everything, read straight from the kernel's files - no other program needed |
+| AMD, RDNA 4 (RX 9000) with OverDrive switched on | Everything, read straight from the kernel's files - no other program needed |
+| AMD, RDNA 3 (RX 7000) with OverDrive switched on | The same, except that these cards have no core clock offset: the page shows their highest core clock instead |
 | AMD, older generations | The card is named and marked "not supported yet" (these cards use a different table) |
 | AMD with OverDrive switched off | "No OverDrive controls": the driver shows a tuning table only with the kernel option `amdgpu.ppfeaturemask` |
 | NVIDIA | The values Tux Burner's NVIDIA back end reports, when Tux Burner's service runs; otherwise a note |
 | Intel and others | A read-only "not supported yet" note |
-| A second card that is asleep | Named, not read: SRS does not wake a card just to look at it |
+| A second card that is asleep | Named, not read: SRS does not wake a card just to look at it. While it sleeps, Tux Burner's service is not asked about any card either (the question could wake it) |
 
 **Without Tux Burner** the page still works: reading needs no other program. It then says "Changing GPU
 settings needs Tux Burner, a separate free program that holds the safety limits. Reading works without

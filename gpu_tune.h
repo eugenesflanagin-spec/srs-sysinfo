@@ -10,8 +10,9 @@
  *     contacted, its file is never written.
  *
  * Tests: SRS_TEST_SYSFS_ROOT=<dir> is put in front of /sys, /proc, /run, /etc and /usr (a made-up card);
- * SRS_TUX_BURNER_SOCKET=<path> names the socket (a mock server). In a test (a test root, the GUI tests' private bus
- * SRS_TEST_PRIVATE_BUS, or SRS_TEST_ALIGN_DUMP) with no socket named, the real socket is NOT used.
+ * SRS_TUX_BURNER_SOCKET=<path> names the socket (a mock server). In a test with no socket named, the real socket is
+ * NOT used; and in the GUI tests (their private bus, SRS_TEST_PRIVATE_BUS, or SRS_TEST_ALIGN_DUMP) without a test
+ * root nothing real is read at all: not the card, not the service, not LACT's file.
  *
  * SRS is Copyright (C) 2026 by Eugene Flanagin. Licensed under GPL-2.0-or-later. */
 #ifndef GPU_TUNE_H
@@ -39,10 +40,13 @@ typedef struct {
     unsigned vendor_id, device_id, sub_vendor, sub_device, revision;
     const char *vendor;             /* "amd", "nvidia", "intel", "other" */
     int asleep;                     /* powered down by the kernel: nothing that would wake it was read */
-    int od;                         /* OverDrive table: 1 = read (one voltage offset, one clock offset), 2 = an older
-                                       layout SRS does not handle yet, 0 = none, -1 = there but not readable */
+    int od;                         /* OverDrive table: 1 = read (a voltage offset; RDNA 4: a core clock offset, RDNA 3:
+                                       the highest core clock), 2 = an older layout SRS does not handle yet (clock and
+                                       voltage points), 0 = none, -1 = there but not readable */
     int vo_mv, sclk_off_mhz, mclk_max_mhz;            /* now on the card (sysfs) */
+    int sclk_max_mhz;                                 /* RDNA 3: the highest core clock (it has no offset) */
     int r_vo[2], r_sclk[2], r_mclk[2];                /* the driver's own range (OD_RANGE) */
+    int r_sclk_abs[2];                                /* RDNA 3: the range of the highest core clock */
     int cap_w, cap_min_w, cap_max_w, cap_default_w;   /* power limit (hwmon) */
     double edge_c, junction_c, power_w, clock_mhz, vddgfx_mv, fan_rpm;   /* live; -1 = not available */
     /* Tux Burner's view of this card (its gpu_capabilities answer) */
@@ -83,6 +87,8 @@ typedef struct {
 
 typedef struct {
     int ngpu;
+    int testmode;                   /* a test without a made-up /sys: the real card, service and LACT were NOT read */
+    int asleep_skip;                /* a card is asleep: the service was not asked about the cards (it could wake one) */
     gtune_gpu gpu[GTN_MAXGPU];
     gtune_tb tb;
     gtune_lact lact;

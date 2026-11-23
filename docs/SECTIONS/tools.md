@@ -1086,7 +1086,8 @@ SRS; the controls for trying and searching settings come in a later version.)
 
 Open it: **Benchmarks & Stress -> GPU Tuning** (the tab right after Stress & Burnin), Menu -> Benchmarks &
 Stress -> **GPU Tuning (Read-Only)...**, `srs-gui --gui-open=gputune`, or on the command line
-`sysreport-search gpu-tune status`. With **Live** on, the page reads again every few seconds.
+`sysreport-search gpu-tune status`. The page is read once when it opens; press **Refresh** (F5) to read it
+again. It does not refresh by itself, so that it never keeps a graphics card awake.
 
 **What you see.** One block per graphics card, headed by the card's name.
 
@@ -1102,13 +1103,14 @@ Stress -> **GPU Tuning (Read-Only)...**, `srs-gui --gui-open=gputune`, or on the
 | Line | Meaning |
 |---|---|
 | **Voltage Offset** | Millivolts taken off the GPU's core voltage at every speed. `-110 mV` = 0.110 V less than the factory set. `0 mV` = factory voltage |
-| **Core Clock Offset** | MHz added to (or taken off) the GPU's top speed. `+300 MHz` = an overclock of 300 MHz |
+| **Core Clock Offset** | MHz added to (or taken off) the GPU's top speed. `+300 MHz` = an overclock of 300 MHz (RDNA 4 cards) |
+| **Core Clock (Highest)** | RDNA 3 cards have no offset: their table gives the highest core clock in MHz instead |
 | **Memory Clock (Highest)** | The top speed of the video memory in MHz (AMD). NVIDIA cards show a **Memory Clock Offset** instead |
 | **Power Limit** | The most watts the card is allowed to draw |
 | **Set By** | Shown when LACT runs: either "LACT profile "name" (the card is at LACT's saved values)", or in orange that the card is **not** at LACT's saved values right now |
 
-**Live Readings** - edge and hotspot temperature, power draw, core clock, core voltage and fan speed at this
-moment (from the card's sensors; missing lines mean the card does not report them).
+**Readings Right Now** - edge and hotspot temperature, power draw, core clock, core voltage and fan speed at the
+moment the page was read (from the card's sensors; missing lines mean the card does not report them).
 
 **Limits**
 
@@ -1136,6 +1138,7 @@ SRS will not change what LACT has saved.
 | "This card uses the older OverDrive table ..." | An older AMD card (before RDNA 3) that lists clock and voltage points instead of offsets. Not supported yet |
 | "NVIDIA cards have no settings SRS can read by itself." | With Tux Burner's service running, its NVIDIA back end reports them here |
 | "This card is asleep ..." | A second graphics card that the kernel powered down to save energy. SRS does not wake it just to read it |
+| "A graphics card in this PC is asleep, so Tux Burner's service was not asked about the cards" | The service numbers the cards its own way, so asking about any card could wake the sleeping one. `sysreport-search gpu-tune status --wake` asks anyway |
 
 **Healthy / typical values.** On a card nobody has tuned: voltage offset `0 mV`, core clock offset `0 MHz`,
 power limit = the factory setting. An example of a tuned card, the one SRS's tests are modelled on (a Radeon

@@ -64,6 +64,8 @@ mkcard 1 0x10de 0x2684 nvidia 0000:01:00.0
 mkcard 2 0x1002 0x73bf amdgpu 0000:0a:00.0      # an older card: clock and voltage points, not offsets
 printf 'OD_SCLK:\n0: 500Mhz\n1: 2575Mhz\nOD_MCLK:\n0: 97Mhz\n1: 1000Mhz\nOD_VDDC_CURVE:\n0: 700Mhz 800mV\nOD_RANGE:\nSCLK:     500Mhz       2800Mhz\n' >"$DRM/card2/device/pp_od_clk_voltage"
 mkcard 3 0x8086 0x7d55 i915 0000:00:02.0
+mkcard 4 0x1002 0x744c amdgpu 0000:0b:00.0      # RDNA 3: a voltage offset, and lowest / highest core clock instead of a clock offset
+printf 'OD_SCLK:\n0: 500Mhz\n1: 2900Mhz\nOD_MCLK:\n0: 97Mhz\n1: 1249MHz\nOD_VDDGFX_OFFSET:\n0mV\nOD_RANGE:\nSCLK:     500Mhz       5000Mhz\nMCLK:      97Mhz       1500Mhz\nVDDGFX_OFFSET:    -450mv          0mv\n' >"$DRM/card4/device/pp_od_clk_voltage"
 mkdir -p "$DRM/card9/device"                    # a firmware framebuffer: no PCI device, must be skipped
 mkdir -p "$R/usr/share/libdrm"
 printf '# List of AMDGPU IDs\n1.0.0\n7550,\tC0,\tMade-Up Radeon RX Test\n' >"$R/usr/share/libdrm/amdgpu.ids"
@@ -134,7 +136,15 @@ echo "== guard: in a test with no socket named, the real service is not asked"
 env -u SRS_TUX_BURNER_SOCKET PATH="$NOTB" "$BIN" gpu-tune status --json >"$TMP/g.json" 2>"$TMP/g.err"; rc=$?
 [ $rc = 0 ] && ok "exit 0" || { bad "exit $rc"; cat "$TMP/g.err"; }
 jsok "$TMP/g.json" 'd["tux_burner"]["daemon"] == "not-checked" and "real service is not asked" in d["tux_burner"]["message"]' "a made-up /sys: the service state is not-checked, and it says why"
-[ -n "${SRS_TEST_PRIVATE_BUS:-}" ] && ok "this test runs with SRS_TEST_PRIVATE_BUS set (SRS then refuses the real socket in the GUI too)" || bad "SRS_TEST_PRIVATE_BUS is not set"
+env -u SRS_TEST_SYSFS_ROOT -u SRS_TUX_BURNER_SOCKET SRS_TEST_PRIVATE_BUS=1 PATH="$NOTB" "$BIN" gpu-tune status >"$TMP/g2" 2>&1; rc=$?
+[ $rc = 1 ] && grep -q "test mode without a made-up /sys" "$TMP/g2" && ok "a GUI-test environment with no made-up /sys: nothing real is read (card, service, LACT)" || { bad "test mode without a root: exit $rc"; head -3 "$TMP/g2"; }
+# a comma-decimal locale must not change how numbers are read (the GUI runs in the user's locale)
+if locale -a 2>/dev/null | grep -qi '^de_DE\.utf-\?8$'; then
+    lact_on; lact_cfg "current_profile: null"
+    LC_ALL=de_DE.UTF-8 PATH="$NOTB" "$BIN" gpu-tune status --json >"$TMP/loc.json" 2>&1
+    jsok "$TMP/loc.json" 'd["lact"]["active_values"]["power_cap_w"] == 304 and d["now"]["voltage_offset_mv"] == -110' "numbers read the same under a comma-decimal locale"
+    lact_off; rm -f "$R/etc/lact/config.yaml"
+fi
 export SRS_TUX_BURNER_SOCKET=$SOCK
 if PATH="$NOTB" command -v tburn-cli >/dev/null 2>&1 || PATH="$NOTB" command -v tux-burner-cli >/dev/null 2>&1; then
     # this PC has Tux Burner installed: for the "not installed" checks, a copy of /usr/bin (links) without its two commands
@@ -165,11 +175,11 @@ has "$TMP/s1" "Changing GPU settings needs Tux Burner, a separate free program t
 has "$TMP/s1" "the package tux-burner from the AUR" "how to install it (Arch)"
 has "$TMP/s1" "https://github.com/eugenesflanagin-spec/tux-burner" "where to get it (other systems)"
 has "$TMP/s1" "kept by Tux Burner (not known without its service)" "the voltage floor is not guessed"
-has "$TMP/s1" "3 more graphics cards" "says there are more cards"
+has "$TMP/s1" "4 more graphics cards" "says there are more cards"
 hasnt "$TMP/s1" "card9" "a framebuffer with no PCI device is not a card"
 PATH="$NOTB" T status --json >"$TMP/s1.json" 2>&1
 jsok "$TMP/s1.json" 'd["gpu"]["pci"] == "0000:03:00.0" and d["gpu"]["driver"] == "amdgpu" and d["gpu"]["vendor"] == "amd" and d["gpu"]["overdrive"] == "offsets" and d["gpu"]["backend"] is None' "JSON: the card"
-jsok "$TMP/s1.json" 'd["now"] == {"voltage_offset_mv": -110, "sclk_offset_mhz": 300, "mclk_max_mhz": 1375, "mclk_offset_mhz": None, "power_cap_w": 374}' "JSON: now"
+jsok "$TMP/s1.json" 'd["now"] == {"voltage_offset_mv": -110, "sclk_offset_mhz": 300, "sclk_max_mhz": None, "mclk_max_mhz": 1375, "mclk_offset_mhz": None, "power_cap_w": 374}' "JSON: now"
 jsok "$TMP/s1.json" 'd["ranges"]["voltage_offset_mv"] == [-200, 0] and d["ranges"]["sclk_offset_mhz"] == [-500, 1000] and d["ranges"]["power_cap_w"] == [212, 374] and d["ranges"]["mclk_mhz"] == [97, 1500]' "JSON: ranges"
 jsok "$TMP/s1.json" 'd["limits"] == {"voltage_floor_mv": None, "voltage_floor_source": None, "suggest_floor_mv": None, "sclk_ceiling_mhz": None}' "JSON: limits Tux Burner does not report are null, not guessed"
 jsok "$TMP/s1.json" 'd["tux_burner"]["installed"] is False and d["tux_burner"]["daemon"] == "not-running" and d["tux_burner"]["version"] is None' "JSON: Tux Burner absent"
@@ -183,7 +193,11 @@ has "$TMP/all" "NVIDIA cards have no settings SRS can read by itself" "NVIDIA wi
 has "$TMP/all" "older OverDrive table" "an older AMD card: not supported yet"
 has "$TMP/all" "Tuning this kind of card is not supported yet" "another vendor: not supported yet"
 PATH="$NOTB" T status --all --json >"$TMP/all.json" 2>&1
-jsok "$TMP/all.json" '[x["gpu"]["card"] for x in d] == ["card0", "card1", "card2", "card3"] and [x["gpu"]["overdrive"] for x in d] == ["offsets", "none", "older-table", "none"]' "JSON --all: four cards in order"
+jsok "$TMP/all.json" '[x["gpu"]["card"] for x in d] == ["card0", "card1", "card2", "card3", "card4"] and [x["gpu"]["overdrive"] for x in d] == ["offsets", "none", "older-table", "none", "offsets"]' "JSON --all: five cards in order"
+PATH="$NOTB" T status --pci 0000:0b:00.0 --json >"$TMP/r3.json" 2>&1
+jsok "$TMP/r3.json" 'd["now"]["voltage_offset_mv"] == 0 and d["now"]["sclk_max_mhz"] == 2900 and d["now"]["sclk_offset_mhz"] is None and d["now"]["mclk_max_mhz"] == 1249 and d["ranges"]["voltage_offset_mv"] == [-450, 0] and d["ranges"]["sclk_mhz"] == [500, 5000] and d["ranges"]["sclk_offset_mhz"] is None' "an RDNA 3 table: voltage offset, highest core clock and their ranges"
+PATH="$NOTB" T status --pci 0000:0b:00.0 >"$TMP/r3" 2>&1
+grep -Eq "Core Clock \(Highest\) +2900 MHz" "$TMP/r3" && grep -Eq "Driver Range, Core Clock +500 \.\. 5000 MHz" "$TMP/r3" && ok "RDNA 3 text: highest core clock and its range" || bad "RDNA 3 text"
 PATH="$NOTB" T status --pci 0000:0A:00.0 --json >"$TMP/p.json" 2>&1
 jsok "$TMP/p.json" 'd["gpu"]["card"] == "card2" and d["now"]["voltage_offset_mv"] is None' "--pci picks a card (upper case accepted)"
 printf 'suspended\n' >"$DRM/card3/device/power/runtime_status"
@@ -194,6 +208,14 @@ PATH="$NOTB" T status --pci 0000:00:02.0 --json >"$TMP/sl.json" 2>&1
 jsok "$TMP/sl.json" 'd["gpu"]["asleep"] is True and "asleep" in d["why_not"]' "JSON: asleep"
 PATH="$NOTB" T status --pci 0000:00:02.0 --wake --json >"$TMP/sl2.json" 2>&1
 jsok "$TMP/sl2.json" 'd["gpu"]["asleep"] is False' "--wake reads it"
+# a running service is not asked about the cards while one of them sleeps (the question could wake it)
+daemon both || exit 1
+PATH="$WITHTB" T status --json >"$TMP/sl3.json" 2>&1
+jsok "$TMP/sl3.json" 'd["tux_burner"]["daemon"] == "running" and d["tux_burner"]["serves_this_card"] is False and "asleep" in d["why_not"]' "with a sleeping card the service is asked for its status only"
+[ "$(sort -u "$LOG")" = '{"method":"status"}' ] && ok "no gpu_capabilities request was sent" || bad "requests sent: $(sort -u "$LOG" | tr '\n' ' ')"
+PATH="$WITHTB" T status --wake --json >"$TMP/sl4.json" 2>&1
+jsok "$TMP/sl4.json" 'd["tux_burner"]["serves_this_card"] is True' "--wake asks about the cards"
+daemon_stop
 printf 'active\n' >"$DRM/card3/device/power/runtime_status"; rm -f "$DRM/card3/device/pp_od_clk_voltage"
 
 echo "== Tux Burner installed, its service not running"
