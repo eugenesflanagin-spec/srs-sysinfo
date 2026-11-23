@@ -77,7 +77,7 @@ Prints the usage text: every command, `-save`, `--list`, `guide`, the load comma
 `srs-gui` start options. Exit code 0.
 
 ```
-usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,gpu-tune,cuda-toolkit,update-lists} ...
+usage: sysreport-search [-h] [--version] {id,find,devices,-save,--list,burn,bench,ipi,latency,pi,crypto,prime,cachemem,storage,os-latency,compute,work,net,gpu,gpu-burn,gpu-compare,gpu-tune,cuda-toolkit,gpu-top,big-top,ir,update-lists} ...
 
 SIV-style search for the native system report (srs-sysreport).
 
@@ -175,6 +175,14 @@ Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only
         is for, the install command for this distribution; --install runs that command after you type
         yes (needs a terminal; warns and asks twice when ZLUDA is in use). SRS's CUDA tests are built
         in, so it is optional. --ask-again / --never-ask: whether the GUI may ask about it
+  gpu-top [--list|--dump|--gpu-metrics|--drm-info|--pp-table|--process|--xdna|--smi|--tui] [-J] [--device N [--wake]]
+          [--pc] [--interval MS] [-n COUNT]       (big-top is the same command)
+        The Big Top's GPU part: activity, GRBM blocks, VRAM, sensors, gpu_metrics and processes of every GPU (AMD like
+        amdgpu_top; NVIDIA through NVML); read-only, changes nothing
+  ir [--status|--list|--send REMOTE BUTTON [--repeat N]|--send-code HEX [--nec]|--learn [--save REMOTE BUTTON]|
+     --probe|--reset|--export FILE|--import FILE [--replace]] [--dry-run] [--yes]
+        IR Blaster: ELK Smart / OCRUSTAR USB infrared dongles - learn and send remote-control codes, kept in IR
+        Remote's remotes.json (shared with that app); --send and --learn ask first, --yes starts at once
   update-lists [--list] [--yes]
         download fresh pci.ids, usb.ids and pnp.ids from their official sources into
         ~/.local/share/srs/lists (no root); SRS then uses the newer of these and the system's copies.
@@ -197,7 +205,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.5.0 (ELF x86-64, gcc 16.2.1 20260810, glibc (system C runtime))
+sysreport-search 2.6.0 (ELF x86-64, gcc 16.2.1 20261122, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
@@ -266,7 +274,7 @@ sysreport-search '-save=[all]=for-forum.txt' --redact
 Output starts with a header and then each item:
 
 ```
-srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
+srs-gui - System Report Search V2.6.0 MYPC 2026-10-26 08:28:53  [[cpuid][cache]]
 
 [cpuid]  [hardware]
 ...

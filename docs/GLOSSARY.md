@@ -19,6 +19,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **AER (Advanced Error Reporting)** - A PCI Express feature that counts and reports link errors (correctable and uncorrectable) to the kernel. *See: [buses-1](SECTIONS/buses-1.md), [graphics](SECTIONS/graphics.md).*
 - **AES (Advanced Encryption Standard), AES-NI** - the standard way to encrypt data (disk encryption, VPN, HTTPS). AES-NI are CPU instructions that do one AES round in hardware, many times faster than plain code. *See: [tools](SECTIONS/tools.md).*
 - **Affinity mask** - a bit pattern, one bit per CPU, saying which CPUs a task may run on. `FFFF` = CPUs 0-15. **CPU affinity** is that choice for one process: The Big Top's **Affinity...** sets it with a tick box per logical CPU. *See: [processors](SECTIONS/processors.md), [srs-items](SECTIONS/srs-items.md), [User Guide 6.14.3](USER-GUIDE.md#6143-processes).*
+- **AGESA (AMD Generic Encapsulated Software Architecture)** - the AMD code inside the BIOS that starts the processor and memory; its version (for example "ComboAm5PI 1.3.0.1d") says which processor fixes and features a BIOS has. SRS 2.6 shows it from the SMBIOS tables after Run as root once. *See: [machine](SECTIONS/machine.md).*
 - **AGM (arithmetic-geometric mean), Gauss-Legendre** - a way to compute pi that doubles the number of correct digits at every step; the method SuperPi uses. *See: [tools](SECTIONS/tools.md).*
 - **AIO** - All-In-One liquid cooler: a sealed pump, radiator and fans in one unit. *See: [tools](SECTIONS/tools.md).*
 - **AIO (all-in-one) cooler** - A sealed liquid cooler with pump, radiator and fans in one kit. *See: [sensors](SECTIONS/sensors.md).*
@@ -49,6 +50,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **BAR (Base Address Register)** - a register in a PCI device that asks for a window of memory or I/O address space; the firmware or kernel assigns its start address at boot. *See: [buses-1](SECTIONS/buses-1.md), [buses-2](SECTIONS/buses-2.md), [graphics](SECTIONS/graphics.md).*
 - **BBR** - a TCP congestion-control algorithm that measures bandwidth and delay instead of waiting for packet loss. *See: [network](SECTIONS/network.md).*
 - **bcdDevice / bcdUSB** - fields in a USB device descriptor: the device's own release number, and the USB version it claims to follow. *See: [buses-2](SECTIONS/buses-2.md).*
+- **BCLK / eCLK (base clock)** - the reference clock every CPU core speed is a multiple of, normally 100 MHz; on AM5 boards with an external clock generator it is called eCLK and can be raised (for example to 104 MHz). Linux works out its speed limits at 100 MHz, so since 2.6 SRS shows them at the measured base clock. *See: [processors](SECTIONS/processors.md).*
 - **bfq** - Budget Fair Queueing: a Linux I/O scheduler that suits spinning disks and slow USB devices. *See: [storage](SECTIONS/storage.md).*
 - **Binary MOF** - a compressed description of a vendor's WMI classes, stored in the firmware. *See: [machine](SECTIONS/machine.md).*
 - **Binary splitting** - computing a long series by splitting it in halves again and again and joining the halves with big multiplications, so the work stays fast and can be shared between threads. *See: [tools](SECTIONS/tools.md).*
@@ -506,6 +508,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **RAPL (Running Average Power Limit)** - A CPU feature that counts energy used; Linux exposes it under /sys/class/powercap, named intel-rapl even on AMD. *See: [processors](SECTIONS/processors.md), [sensors](SECTIONS/sensors.md).*
 - **Raw value** - A SMART attribute's actual counter (sectors, hours, degrees); its format is up to the maker. *See: [storage](SECTIONS/storage.md).*
 - **Ray tracing** - drawing a picture by following rays of light from the eye into a scene, with shadows and reflections. *See: [tools](SECTIONS/tools.md).*
+- **RDNA** - AMD's graphics chip design since the RX 5000 series: RDNA 2 = RX 6000, RDNA 3 = RX 7000, RDNA 4 = RX 9000. The GPU Tuning tab reads RDNA 3 and RDNA 4 cards. *See: [graphics](SECTIONS/graphics.md), [tools](SECTIONS/tools.md#gpu-tuning).*
 - **Regex** - regular expression, a text search pattern (for example `^` = start of line, `.` = any character). *See: [tools](SECTIONS/tools.md).*
 - **Register-blocked matrix multiply** - a way of writing a matrix multiply in which each GPU thread works out several results at once from numbers kept in its own registers, so the arithmetic units are kept busy instead of waiting for memory. GPU Burnin uses it since 2.4. *See: [tools](SECTIONS/tools.md).*
 - **Regular expression (regex)** - a search pattern, e.g. `nvme[0-9]` matches nvme0, nvme1 and so on. *See: [srs-items](SECTIONS/srs-items.md).*
@@ -525,6 +528,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 - **RTC (real-time clock)** - the battery-backed clock on the motherboard that keeps time while the PC is off. *See: [linux-os](SECTIONS/linux-os.md), [machine](SECTIONS/machine.md).*
 - **RTT (RttNom, RttWr, RttPark)** - the memory chips' own termination settings for different moments (idle, writing, parked), written as Off or RZQ/n (RZQ = 240 ohms). Set by the BIOS. *See: [machine](SECTIONS/machine.md).*
 - **Runtime PM** - Kernel power management that lets an idle device sleep while the system is running (its `power/control` file says `auto` when it may). A graphics card with runtime PM on and no monitor connected can drop into D3; The Big Top then leaves it asleep while it is idle. *See: [graphics](SECTIONS/graphics.md), [User Guide 6.13](USER-GUIDE.md#613-the-big-top-live-pc-and-gpu-activity).*
+- **Rusticl** - Mesa's OpenCL driver (written in Rust), shown as its own "OpenCL (Rusticl)" column in the GPU Compute comparison. Since 2.6 SRS times it on the host and copies through the GPU there, because its own timing and plain copies are slow. *See: [tools](SECTIONS/tools.md).*
 - **ryzen_smu** - a third-party kernel driver (AUR `ryzen_smu-dkms-git`) that gives Linux AMD Ryzen's PM table and read access to its internal registers (SMN). SRS reads clocks, voltages and, through srs-root, the memory timings through it; it is not part of SRS. *See: [processors](SECTIONS/processors.md), [machine](SECTIONS/machine.md).*
 
 ## S

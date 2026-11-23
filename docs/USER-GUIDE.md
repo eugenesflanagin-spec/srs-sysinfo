@@ -1,6 +1,6 @@
 # SRS System Information - User Guide
 
-Version 2.5.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
+Version 2.6.0. Package `srs-sysinfo`. Programs: `srs-gui`, `sysreport-search`, `srs-root`, `srs-sysreport`.
 
 I wanted a Linux version of SIV (System Information Viewer) for myself, so I built one and set out to improve on it along the way. SRS is free and open source for the Linux and open-source community. (SRS is an independent project, not affiliated with SIV or its author.)
 
@@ -72,6 +72,9 @@ It also has tools:
 - **IR Blaster** (2.5) - learn and send TV-remote codes with a USB infrared dongle.
 - **The Big Top** (2.5) - a live window for the whole PC (a task manager: processes, startup apps,
   users, services) and for each graphics card (a GPU view modelled on amdgpu_top).
+- **GPU Tuning** (2.6, read-only) - what your graphics card is set to right now (undervolt, overclock, power
+  limit), its limits, and whether Tux Burner and LACT are installed. It only shows; changing settings comes
+  in a later version ([9.23](#923-gpu-tuning-read-only)).
 
 Its main window puts everything in one place: an **Overview** that answers "Is my PC OK?", and
 one page per topic (processor, memory, sensors ...). For SIV users, the **classic view** looks and
@@ -93,7 +96,8 @@ you type, only after a one-time warning; and, since 2.5, the task manager pages 
 Performance tab ([6.14](#614-the-performance-tab-a-task-manager)): ending, pausing or re-prioritising
 a program, turning startup apps off and on (never deleting anything for good), starting and
 stopping services, and disconnecting a session - each only when you click, and each asks first before it ends, stops or turns off anything.
-The Big Top's GPU tabs only read.
+The Big Top's GPU tabs only read, and so does the GPU Tuning tab (2.6, [9.23](#923-gpu-tuning-read-only)):
+it never writes to a graphics card.
 
 ## 2. Who it is for
 
@@ -127,7 +131,7 @@ makepkg -si
 ### 3.2 Arch Linux - prebuilt package from the release
 
 ```
-sudo pacman -U srs-sysinfo-2.5.0-1-x86_64.pkg.tar.zst
+sudo pacman -U srs-sysinfo-2.6.0-1-x86_64.pkg.tar.zst
 ```
 
 ### 3.3 Optional extras (recommended)
@@ -161,8 +165,8 @@ Each release has `srs-sysinfo-<version>-linux-x86_64.tar.gz`, built on an older 
 (Ubuntu 24.04) so it runs on most current ones (glibc 2.38 or newer, GTK 3).
 
 ```
-tar xzf srs-sysinfo-2.5.0-linux-x86_64.tar.gz
-cd srs-sysinfo-2.5.0-linux-x86_64
+tar xzf srs-sysinfo-2.6.0-linux-x86_64.tar.gz
+cd srs-sysinfo-2.6.0-linux-x86_64
 ./usr/bin/srs-gui                       # try it without installing
 sudo cp -r usr/bin usr/share /usr/local/     # install for all users
 ```
@@ -180,14 +184,14 @@ with GTK and everything else it needs inside. Nothing is installed; you just run
 built on Ubuntu 22.04, so it runs on distributions from about 2022 on (glibc 2.35 or newer).
 
 ```
-chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
-./srs-sysinfo-2.5.0-x86_64.AppImage                   # the window
-./srs-sysinfo-2.5.0-x86_64.AppImage --version         # with arguments it is the command line
-./srs-sysinfo-2.5.0-x86_64.AppImage srs-sysreport     # the full system report
+chmod +x srs-sysinfo-2.6.0-x86_64.AppImage
+./srs-sysinfo-2.6.0-x86_64.AppImage                   # the window
+./srs-sysinfo-2.6.0-x86_64.AppImage --version         # with arguments it is the command line
+./srs-sysinfo-2.6.0-x86_64.AppImage srs-sysreport     # the full system report
 ```
 
 - **Command line:** every `sysreport-search` command works with the AppImage, for example
-  `./srs-sysinfo-2.5.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
+  `./srs-sysinfo-2.6.0-x86_64.AppImage find smart`. A link named `sysreport-search` that points to
   the AppImage behaves like the real `sysreport-search`.
 - **Updates:** the AppImage knows where its updates are. AppImageUpdate (or an AppImage manager
   that uses it, such as AppImageLauncher) downloads only the parts that changed in the newest
@@ -204,7 +208,7 @@ chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
 - **Licences:** the libraries inside the AppImage (GTK and the rest) come from Ubuntu 22.04
   packages. Their licence files are inside it in `usr/share/doc/<package>/copyright`, and
   `usr/share/doc/srs-sysinfo/BUNDLED-LIBRARIES.txt` lists which library came from which package
-  (see them with `./srs-sysinfo-2.5.0-x86_64.AppImage --appimage-extract`).
+  (see them with `./srs-sysinfo-2.6.0-x86_64.AppImage --appimage-extract`).
 
 ### 3.6 Build from source
 
@@ -963,7 +967,7 @@ the chip, not a meter: good for changes, and it may read lower than a wall meter
 
 #### Where the built-in figures come from
 
-| Data | Source | Date in SRS 2.5.0 | Licence / terms |
+| Data | Source | Date in SRS 2.6.0 | Licence / terms |
 |---|---|---|---|
 | US average price by state | U.S. Energy Information Administration, *Electric Power Monthly*, Table 5.6.B (residential, year to date) | August 2026 YTD | U.S. government work (public domain); credit EIA |
 | US utility by ZIP code, with its average residential price | NREL, *U.S. Electric Utility Companies and Rates: Look-up by Zip Code (2024)*, from EIA-861 data | 2024 | Creative Commons Attribution 4.0 (CC BY 4.0); reformatted by SRS |
@@ -3127,7 +3131,7 @@ File layout: a header line with program, version, host, date and the item list, 
 starting with a line `[id]  [category]`:
 
 ```
-srs-gui - System Report Search V2.5.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
+srs-gui - System Report Search V2.6.0 MYPC 2026-10-26 08:18:54  [[cache][sensors]]
 
 [cache]  [hardware]
 

@@ -1460,7 +1460,7 @@ row says `none`: SRS loads no kernel driver of its own, and root-only data comes
 
 **Healthy / typical values.** On the author's PC: pci.ids Version 2026.10.01 (42452 records),
 usb.ids Version 2026.06.26 (25615), pnp.ids 63479 bytes, oui.txt 6321491 bytes. SRS Program
-`/usr/bin/sysreport-search`, V2.5.0.
+`/usr/bin/sysreport-search`, V2.6.0.
 
 **Unusual values and what they suggest.**
 - `not found`: the hwdata package is missing. Install `hwdata` (Arch) or `hwdata` / `pciutils` /

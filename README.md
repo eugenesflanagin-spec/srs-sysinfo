@@ -189,11 +189,24 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     clock / fan; stops by itself at the temperature limit (default 100 °C) or on a driver error;
     never changes clocks, voltages or fans. 2.4: a register-blocked matrix multiply on every back end
     loads the card much harder (ROCm / HIP and OpenCL on an RX 9070 XT: about 3.4 -> 13 TFLOPS FP32).
+    2.6, for other programs: `gpu-burn --json` (one JSON result and exit codes 0 / 10-15), `--pci ADDR` and
+    `--watch-kernel`, which fails a run when the kernel log shows a GPU reset or ring timeout during it - a GPU
+    pushed too far often resets and takes the desktop with it while the test's own numbers look right.
   - **GPU Compute: Vulkan vs HIP vs CUDA vs OpenCL** - the same matrix multiply (own kernel and
     hipBLAS / cuBLAS / CLBlast), multiply-add, copy, upload / download and launch tests through every
     installed back end on the same GPU, side by side, fastest marked, % of Vulkan; "CUDA (ZLUDA)"
     and one column per OpenCL driver. CUDA's kernels are built in (pre-compiled PTX), so CUDA and
-    ZLUDA need no NVIDIA runtime compiler; OpenCL drivers without FP64 say so.
+    ZLUDA need no NVIDIA runtime compiler; OpenCL drivers without FP64 say so. 2.6: it runs in its own
+    process, so a crashing GPU runtime no longer closes SRS, and ROCm / HIP, CUDA and OpenCL no longer lose
+    speed to SRS's own code (64-wide waves for AMD's compiler, no sleeping in the launch wait, GPU copies and
+    host timing on Rusticl); a **how it ran** line says what applied. GPU Burnin is unchanged.
+  - **GPU Tuning (read-only)** (2.6, Benchmarks & Stress page; `sysreport-search gpu-tune status`) - what each
+    graphics card is set to right now (voltage offset, core clock offset, highest memory clock, power limit),
+    the driver's ranges, live readings, and whether **Tux Burner** (a separate program that changes GPU
+    settings and holds the safety limits) and **LACT** are installed and running, with LACT's saved values.
+    AMD RDNA 4 and RDNA 3 cards are read from the kernel's files with no other program; NVIDIA through Tux
+    Burner's service. **This version only shows**: no button changes anything and SRS never writes to a
+    graphics card; changing settings comes later, through Tux Burner.
   - **NVIDIA CUDA toolkit (optional)** - SRS explains what it is for, asks once before the first
     CUDA run when its runtime compiler (NVRTC) is missing (Install / Not now / Don't ask again),
     and offers it any time under **Options -> NVIDIA CUDA toolkit for GPU tests...** or
@@ -219,7 +232,10 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     (PTX, 2.3) were checked offline and against a fake driver, and the GPU Compute comparison ran every
     CUDA row from them through ZLUDA on my RX 9070 XT (cuBLAS FP64 "not available": ZLUDA's cuBLAS has
     none); GPU Burnin with CUDA was not run on the real card, and nothing CUDA on NVIDIA hardware.
-    GPU Burnin ends by itself on a
+    GPU Tuning and `gpu-burn --json` / `--watch-kernel` (2.6) ran only on made-up `/sys` files, a stand-in for
+    Tux Burner's service, lavapipe, a fake GPU runtime and made-up kernel log lines, and the 2.6 GPU Compute
+    comparison speed-ups were checked on the compiler's output and the fake runtime: their numbers on a real
+    card are still to be measured. GPU Burnin ends by itself on a
     driver error, a GPU that stops answering, a piece of work that takes far too long, or a
     temperature at the limit (default 100 °C); it never changes clocks, voltages or fans.
   - **Device ID Lookup** (Tree / Scan / Info modes over hwdata `pci.ids` / `usb.ids` / systemd-hwdb)
@@ -355,7 +371,10 @@ tab can also change things, only when you click and always after asking first fo
 stops or turns off: it ends, pauses or re-prioritises processes (never PID 1 or kernel threads, never a
 reused PID; another user's process only through a polkit password), turns startup apps on and off in
 your home folder only (never `/etc`; removed entries go to a restorable trash, Undo survives a
-restart), starts and stops services and disconnects sessions. Its GPU tabs only read. **IR Blaster**
+restart), starts and stops services and disconnects sessions. Its GPU tabs only read, and so does
+**GPU Tuning** (2.6): it reads the card's files in `/sys`, sends Tux Burner's service two read requests
+(`status`, `gpu_capabilities`) and reads LACT's settings file; it never contacts LACT's service and
+never writes to a graphics card. **IR Blaster**
 (2.5) sends infrared only when you press Send or Learn (the command line asks first); it writes only
 IR Remote's codes file, keeping a one-time `.before-srs` copy.
 
@@ -367,10 +386,10 @@ Arch, Debian 13, Ubuntu 24.04, Fedora 44 and openSUSE Tumbleweed, a generic tarb
 
 **AppImage** (one file, nothing to install, runs on distributions from about 2022 on, glibc 2.35+):
 
-    chmod +x srs-sysinfo-2.5.0-x86_64.AppImage
-    ./srs-sysinfo-2.5.0-x86_64.AppImage                  # the window
-    ./srs-sysinfo-2.5.0-x86_64.AppImage --version        # with arguments it is sysreport-search
-    ./srs-sysinfo-2.5.0-x86_64.AppImage srs-sysreport    # the full text report
+    chmod +x srs-sysinfo-2.6.0-x86_64.AppImage
+    ./srs-sysinfo-2.6.0-x86_64.AppImage                  # the window
+    ./srs-sysinfo-2.6.0-x86_64.AppImage --version        # with arguments it is sysreport-search
+    ./srs-sysinfo-2.6.0-x86_64.AppImage srs-sysreport    # the full text report
 
 It can update itself: AppImageUpdate (or a manager that uses it, such as AppImageLauncher) fetches only the changed
 parts of a new release. **Run as root** works from the AppImage too (the helper script is copied
@@ -489,6 +508,13 @@ not shipped. The Performance tab's layout is inspired by classic task-manager de
 drawing and icons are SRS's own or the GTK theme's. IR Blaster's dongle protocol is a port of
 elksmart-comm by Přemysl Eric Janouch (0BSD, <https://git.janouch.name/p/usb-drivers>), and its codes
 file, wording and udev rule follow IR Remote (MIT, the same author as SRS). Details:
+[CREDITS.md](CREDITS.md).
+
+GPU Tuning (2.6) is SRS's own C code; it ships and copies nothing from the programs it reads. It talks to
+**Tux Burner** (<https://github.com/eugenesflanagin-spec/tux-burner>, GPL-3.0-or-later, the author's own
+fork of PenguinBurner by jpietek) through two read requests to its service, and reads the settings file of
+**LACT** by Ilya Zlobintsev (MIT, <https://github.com/ilya-zlobintsev/LACT>). `gpu-burn --watch-kernel`
+looks for the amdgpu driver's reset messages and NVIDIA's documented Xid lines. Details:
 [CREDITS.md](CREDITS.md).
 
 The Power & Cost page's built-in price and CO2 tables come from public data: U.S. Energy
