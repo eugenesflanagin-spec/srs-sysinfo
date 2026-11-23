@@ -109,8 +109,9 @@ packaging/test-appimage.sh -s shots/ out/appimage/srs-sysinfo-1.2.0-x86_64.AppIm
 | `debian/`, `rpm/`, `man/` | Debian/Ubuntu and Fedora/openSUSE packaging, man pages |
 | `release-notes/` | Release notes per tag |
 
-The generic tarball is the Arch package unpacked, so it needs a glibc at least
-as new as Arch's (`INSTALL.txt` in the tarball states the exact version). For
+The generic tarball is the Ubuntu 24.04 package unpacked (the release workflow and
+`build-all.sh` both make it from that `.deb`), so it needs a glibc at least as new
+as Ubuntu 24.04's (`INSTALL.txt` in the tarball states the exact version). For
 Debian, Ubuntu, Fedora and openSUSE the distro packages are the ones to use.
 
 ## The AppImage
