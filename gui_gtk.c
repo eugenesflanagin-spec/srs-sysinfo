@@ -3193,7 +3193,7 @@ static int gpucmp_run_child_once(benchjob *j, const gpucmp_cfg *c, char *why, si
     g_unlink(whyf);
     snprintf(a_back, sizeof a_back, "%u", c->backends);
     snprintf(a_dev, sizeof a_dev, "%d", c->device);
-    snprintf(a_sec, sizeof a_sec, "%.3f", c->seconds);
+    g_ascii_formatd(a_sec, sizeof a_sec, "%.3f", c->seconds);   /* a point in every language: the child reads it before gtk_init (C locale) */
     argv[n++] = exe; argv[n++] = (char *)"--gpu-compare-child";
     argv[n++] = (char *)"--backends"; argv[n++] = a_back;
     argv[n++] = (char *)"--device"; argv[n++] = a_dev;
@@ -3205,14 +3205,14 @@ static int gpucmp_run_child_once(benchjob *j, const gpucmp_cfg *c, char *why, si
     g_mutex_lock(&g_cmp_stage_mu);
     snprintf(g_cmp_stage, sizeof g_cmp_stage, "starting");
     g_mutex_unlock(&g_cmp_stage_mu);
-    if (posix_spawn(&pid, exe, NULL, NULL, argv, environ) != 0) {
-        snprintf(why, wn, "SRS could not start its GPU test process (%s)", g_strerror(errno));
+    if ((rc = posix_spawn(&pid, exe, NULL, NULL, argv, environ)) != 0) {   /* posix_spawn returns the error; errno is not set */
+        snprintf(why, wn, "SRS could not start its GPU test process (%s)", g_strerror(rc));
         gpu_release();
         g_free(exe);
         return -1;
     }
     __atomic_store_n(&g_cmp_child_running, 1, __ATOMIC_SEQ_CST);
-    if (getenv("SRS_TEST_BENCH_AUTO")) fprintf(stderr, "SRS-TEST: gpucompare child %d\n", (int)pid);
+    if (getenv("SRS_TEST_BENCH_AUTO")) fprintf(stderr, "SRS-TEST: gpucompare child %d seconds-arg=%s\n", (int)pid, a_sec);
     for (;;) {
         pid_t r = waitpid(pid, &st, WNOHANG);
         if (r == pid) break;
@@ -3317,13 +3317,17 @@ static int gpu_compare_child_main(int argc, char **argv)
         if (!strcmp(a, "--software-only")) { c.software_only = 1; continue; }
         if (!strcmp(a, "--backends")) c.backends = (unsigned)strtoul(v, NULL, 10);
         else if (!strcmp(a, "--device")) c.device = atoi(v);
-        else if (!strcmp(a, "--seconds")) c.seconds = atof(v);
+        else if (!strcmp(a, "--seconds")) c.seconds = g_ascii_strtod(v, NULL);   /* written with g_ascii_formatd: a point, whatever the locale */
         else if (!strcmp(a, "--stage")) g_gcc_stagefile = v;
         else if (!strcmp(a, "--why")) whyfile = v;
         else continue;
         i++;
     }
     if (getenv("SRS_GPU_SOFTWARE_ONLY") && !strcmp(getenv("SRS_GPU_SOFTWARE_ONLY"), "1")) c.software_only = 1;
+    if (getenv("SRS_TEST_BENCH_AUTO")) {   /* tests: what the child understood (a decimal-comma locale lost the fraction) */
+        char sec[40];
+        fprintf(stderr, "SRS-TEST: gpucompare child got seconds=%s\n", g_ascii_formatd(sec, sizeof sec, "%.3f", c.seconds));
+    }
     memset(&sa, 0, sizeof sa);
     sa.sa_handler = gcc_sig;
     sigaction(SIGTERM, &sa, NULL);
