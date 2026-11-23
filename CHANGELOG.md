@@ -60,10 +60,11 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
     please report it.
   - **Not changed, and why**: CUDA through ZLUDA stays 32 wide (ZLUDA compiles SRS's PTX itself and offers no
     switch), so its multiply-add chain can gain only from the loop change. Rusticl's multiply-add chain (65%) is
-    one long kernel, so the timing change does not touch it. Mesa's source says Rusticl already builds these
-    kernels 64 wide on RDNA 3 / 4, so the wave width does not explain it either; what Mesa's compiler makes of
-    the loop can only be seen by running it on the card (`AMD_DEBUG=cs,asm` prints it), which was not done for
-    this change, and the kernel text was not altered on a guess. FP64 rows were already within 2% everywhere.
+    one long kernel, so the timing change does not touch it. By Mesa's source Rusticl should already build
+    this kernel 64 wide on RDNA 3 / 4 (it goes 32 wide only for a loop whose length differs between threads,
+    which this one does not), so the wave width should not be the reason; what Mesa's compiler really makes
+    of the loop can only be seen by running it on the card (`AMD_DEBUG=cs,asm` prints it, `AMD_DEBUG=w64cs`
+    forces 64 wide), which was not done for this change, and the kernel text was not altered on a guess. FP64 rows were already within 2% everywhere.
   - Tests: `tests/gpu-stub-test.sh` covers the 64-wide option and the tuned text refused singly and together
     (HIP, OpenCL) with the refusal shown, that GPU Burnin (register-blocked and simple kernel, also on Rusticl)
     and NVRTC get the plain build, a GPU that is still busy when asked, Rusticl's host timing (no kernel on the

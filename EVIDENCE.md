@@ -237,8 +237,9 @@ or result files were used or looked at for them. Public sources are credited in 
   memory, `__barrier(__CLK_LOCAL_MEM_FENCE)` local memory only) and the `-mwavefrontsize64` compiler
   option, which the ROCm runtime names itself (`GPU_ENABLE_WAVE32_MODE`). Also from Mesa's source:
   radeonsi (the driver under Rusticl) builds a compute shader 64 wide on RDNA 3 / 4 unless its fixed
-  work-group size is not a multiple of 64, and an OpenCL kernel has no fixed size - so Rusticl's
-  multiply-add chain is not behind for the wave width. The same offline compile shows that the plain
+  work-group size is not a multiple of 64 (an OpenCL kernel has no fixed size) or it has a loop whose
+  length differs between threads (the multiply-add loop's does not) - so Rusticl's multiply-add chain
+  should not be behind for the wave width; this was read, not measured. The same offline compile shows that the plain
   kernel text GPU Burnin gets gives exactly the instructions of the 2.5 text (FP32 and FP64, HIP and
   OpenCL), and that the tuned text changes only `gemm_r` and `fma_r`. None of the 2.6.0 changes
   was run on a real GPU before the commit: compiler output and the fake runtime
