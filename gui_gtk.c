@@ -2547,14 +2547,30 @@ static void burn_preset(swin *w, int p)
     burn_sens(w);
 }
 
+/* 2.7: SRS's own program file for a child run, NULL = cannot be used (why says so). When the file was replaced
+   while SRS runs (a package update, a rebuild), /proc/self/exe ends in " (deleted)": starting it failed with
+   exit code 127 and an empty log; now it says to restart SRS (the new file may not match this running copy). */
+static char *self_exe_for_child(char *why, size_t wn)
+{
+    char *exe = g_file_read_link("/proc/self/exe", NULL);
+    if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return NULL; }
+    if (g_str_has_suffix(exe, " (deleted)") || !g_file_test(exe, G_FILE_TEST_IS_EXECUTABLE)) {
+        snprintf(why, wn, "SRS was updated or rebuilt while it was running, so this copy cannot start its GPU part - "
+                          "close SRS (Menu -> Quit) and start it again");
+        g_free(exe);
+        return NULL;
+    }
+    return exe;
+}
+
 /* the built-in GPU Burnin's command line: this same program in child mode, found through /proc/self/exe (also
    inside an AppImage, whose mount stays while SRS runs). Returns 0 and says why when it cannot be used. */
 static int gb_child_argv(swin *w, int back, int dev, const char *pci, int prec, double secs, double limit, char *why, size_t wn)
 {
-    char *exe = g_file_read_link("/proc/self/exe", NULL);
+    char *exe = self_exe_for_child(why, wn);
     const char *tb = getenv("SRS_TEST_GPU_BACKEND");   /* tests: the child must use this back end (vulkan + lavapipe only) */
     int n = 0;
-    if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return 0; }
+    if (!exe) return 0;
     if (tb && *tb) {
         int k;
         for (k = 0; k < GB_N; k++) if (!g_ascii_strncasecmp(tb, gb_name[k], strlen(tb))) back = k;
@@ -3307,14 +3323,14 @@ static void cmp_read_small(const char *path, char *buf, size_t n)
 }
 static int gpucmp_run_child_once(benchjob *j, const gpucmp_cfg *c, char *why, size_t wn, char *crashed_stage, size_t csn)
 {
-    char *exe = g_file_read_link("/proc/self/exe", NULL), *dir;
+    char *exe = self_exe_for_child(why, wn), *dir;
     char stage[600], whyf[600], a_back[32], a_dev[32], a_sec[48], stagebuf[200] = "";
     const char *who = NULL;
     char *argv[16];
     pid_t pid;
     int st = 0, sent = 0, rc, n = 0;
     if (why && wn) why[0] = 0;
-    if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return -1; }
+    if (!exe) return -1;
     if (burn_active() || burn_gpu_pid_set()) { g_free(exe); snprintf(why, wn, "Stress & Burnin is running (or its GPU part is still ending); start the GPU comparison when it has finished"); return -1; }
     if (!gpu_claim("GPU Compute comparison", &who)) { g_free(exe); gpu_claim_text(who, why, wn); return -1; }
     dir = g_build_filename(g_get_user_cache_dir(), "srs", NULL);

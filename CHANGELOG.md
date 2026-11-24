@@ -43,6 +43,9 @@ own. Every new load except sync and disk write checks its results, so a wrong an
 ### Changed
 
 - "Same CPU (Whetstone)" is now just **Same CPU**: the CPU load chooser beside it says what runs.
+- When SRS's program file was replaced while SRS was running (a package update or a rebuild), GPU Burnin and the GPU
+  Compute comparison failed at once with "exit code 127" and an empty log. They now say "Not started: SRS was updated
+  or rebuilt while it was running ... close SRS and start it again".
 - `burn` exits 2 with the reason when a side load is refused (too much memory, not enough disk space, a folder that
   cannot be used), and its per-thread table's last column is **Check** (`ok`, `FAIL (affinity)` or `N wrong`).
 
