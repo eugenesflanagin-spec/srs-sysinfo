@@ -6,7 +6,8 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 ## 2.7.0 - unreleased
 
-**More stress loads in Stress & Burnin**, after s-tui's stress options (SRS's own code): the CPU workers can run a
+**Text size** for all of SRS (Ctrl + Plus / Minus / 0), and **more stress loads in Stress & Burnin**, after s-tui's
+stress options (SRS's own code): the CPU workers can run a
 checked **Matrix multiply** (double precision, with the CPU's widest FMA units - the hottest load), **SHA-256** or
 **Square root** instead of Whetstone, and new **memory**, **sync** and **disk-write** loads run beside them or on their
 own. Every new load except sync and disk write checks its results, so a wrong answer fails the run.
@@ -33,6 +34,10 @@ own. Every new load except sync and disk write checks its results, so a wrong an
 - The summary (window, Copy, saved `burnin-*.txt` and `burn`'s output) names the load and its code path
   ("Matrix multiply (AVX-512)"), shows each thread's score in that load's unit and its wrong results, and has a line
   per side load. The new choices are remembered in `SRSDEF.ini` (`Stress CPU Load`, `Stress Memory Workers`, ...).
+
+- **Text size** (Options -> Text size, **Ctrl + Plus / Minus / 0**): all of SRS's text - reports, buttons, menus,
+  headings, in the main window and the classic view - from 50 % to 300 %, remembered (`Text Size` in `SRSDEF.ini`).
+  The reports' columns grow with the text, so tables stay lined up; only SRS changes, not the desktop.
 
 ### Changed
 

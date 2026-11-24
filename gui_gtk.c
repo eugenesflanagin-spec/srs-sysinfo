@@ -65,6 +65,8 @@ static int g_update_ms = 0;
 static char g_env_theme[256];
 static GDBusProxy *g_portal;
 static void theme_apply(void);
+static int text_size_key(GdkEventKey *ev);   /* 2.7: Text size keys */
+static void on_text_size(GtkCheckMenuItem *mi, gpointer d);
 /* Stress & Burnin window choices, kept in SRSDEF.ini: GPU Burnin on, its minutes, sync, back end (0 = Auto), FP64, limit, Until Stop */
 static int g_tray_notice_off;   /* SRSDEF.ini "Tray Close Notice Off": the one-time close-to-tray notice was seen */
 static int g_terms;   /* load test terms: the version agreed (SRSDEF.ini "Accepted Load Test Terms"), 0 = not yet */
@@ -81,6 +83,12 @@ static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
 static int g_opt_tray = 1, g_opt_close_tray = 0, g_opt_min_tray = 1, g_opt_start_tray = 0;
 static int g_opt_redact = 0;   /* Options > Redact identifiers in saved reports */
+/* 2.7: Options > Text size (SRSDEF.ini "Text Size", percent): every text in SRS's windows, Ctrl + Plus / Minus / 0 */
+static const int g_text_steps[] = { 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200, 250, 300 };
+#define TEXT_NSTEPS ((int)(sizeof g_text_steps / sizeof g_text_steps[0]))
+static int g_text_pct = 100;
+static int g_text_base_dpi;   /* the desktop's gtk-xft-dpi when SRS started (1024ths of a dot per inch) */
+static int text_px(int px) { return (int)((double)px * g_text_pct / 100.0 + 0.5); }
 static int g_opt_pmic = 0;
 static int g_acpi_ok;           /* 2.4: ACPI method evaluation accepted ("Accepted ACPI Evaluation") */
 static int g_opt_ec;            /* 2.4: Options > Read the embedded controller ("Read EC"; srs-root reads it) */     /* 2.4: Options > Read DIMM voltages (PMIC); srs-root reads SRSDEF.ini "Read DIMM PMIC" */
@@ -405,14 +413,15 @@ static void gx_tabs(srs_out *o, const int *px, int n)
 {
     gctx *g = o->ctx;
     GtkTextTag *t;
+    int k;
     if (n > 32) n = 32;
     g->n = n;
-    memcpy(g->px, px, sizeof(int) * (size_t)n);
+    for (k = 0; k < n; k++) g->px[k] = text_px(px[k]);   /* 2.7: the columns grow and shrink with the text */
     memset(g->maxw, 0, sizeof g->maxw);
     snprintf(g->tagname, sizeof g->tagname, "atabs%d", g->nblk++);
     if (!(t = gtk_text_tag_table_lookup(gtk_text_buffer_get_tag_table(g->buf), g->tagname)))
         t = gtk_text_buffer_create_tag(g->buf, g->tagname, NULL);
-    tag_set_tabs(t, px, n);
+    tag_set_tabs(t, g->px, n);
     g->tabtag = g->tagname;
 }
 
@@ -926,6 +935,11 @@ static void settings_load(void)
             if (!e3) g_update_ms = u < -1 ? 0 : u; else g_error_free(e3);
         }
         {
+            GError *et = NULL;
+            int ts = g_key_file_get_integer(kf, "SRSDEF", "Text Size", &et);
+            if (!et) g_text_pct = ts >= 50 && ts <= 300 ? ts : 100; else g_error_free(et);
+        }
+        {
             char *th = g_key_file_get_string(kf, "SRSDEF", "Theme", NULL);
             if (th) { g_theme = !g_ascii_strcasecmp(th, "Dark") ? TH_DARK : !g_ascii_strcasecmp(th, "System") ? TH_SYSTEM : TH_LIGHT; g_theme_set = 1; }
             g_free(th);
@@ -990,6 +1004,7 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Classic View", g_opt_classic);
     g_key_file_set_integer(kf, "SRSDEF", "Sortable Tables", g_opt_sort);
     g_key_file_set_string(kf, "SRSDEF", "Theme", g_theme == TH_DARK ? "Dark" : g_theme == TH_SYSTEM ? "System" : "Light");
+    g_key_file_set_integer(kf, "SRSDEF", "Text Size", g_text_pct);
     g_key_file_set_integer(kf, "SRSDEF", "Update Interval", g_update_ms);
     g_key_file_save_to_file(kf, g_ini, NULL);
     g_key_file_free(kf);
@@ -4713,6 +4728,7 @@ static gboolean on_key(GtkWidget *wid, GdkEventKey *ev, gpointer data)
     swin *w = data, *f;
     int ctrl = (ev->state & GDK_CONTROL_MASK) != 0, shift = (ev->state & GDK_SHIFT_MASK) != 0;
     (void)wid;
+    if (text_size_key(ev)) return TRUE;   /* 2.7: Ctrl + Plus / Minus / 0, in every window */
     if (w->kind == W_HOME) return home_key(w, ev);
     switch (ev->keyval) {
     case GDK_KEY_Escape: if (!w->is_main) gtk_widget_destroy(w->win); return TRUE;
@@ -5444,6 +5460,24 @@ static void build_options(GtkWidget *menu)
         gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), top);
     }
+    {   /* 2.7: Text size (the keys work everywhere: Ctrl + Plus / Minus / 0) */
+        GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("Text size (Ctrl + Plus / Minus / 0)");
+        GSList *grp = NULL;
+        int on = 0;
+        for (i = 0; i < TEXT_NSTEPS; i++) on |= g_text_steps[i] == g_text_pct;
+        for (i = 0; i < TEXT_NSTEPS; i++) {
+            char lab[48];
+            GtkWidget *it;
+            snprintf(lab, sizeof lab, g_text_steps[i] == 100 ? "%d %% (normal)" : "%d %%", g_text_steps[i]);
+            it = gtk_radio_menu_item_new_with_label(grp, lab);
+            grp = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(it));
+            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(it), on ? g_text_steps[i] == g_text_pct : 0);
+            g_signal_connect(it, "toggled", G_CALLBACK(on_text_size), GINT_TO_POINTER(g_text_steps[i]));
+            gtk_menu_shell_append(GTK_MENU_SHELL(sub), it);
+        }
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(top), sub);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), top);
+    }
     {
         GtkWidget *sub = gtk_menu_new(), *top = gtk_menu_item_new_with_mnemonic("Upd_ate interval");
         GSList *grp = NULL;
@@ -5662,6 +5696,9 @@ static void load_css(void)
     }
     if (g_classic_session && !g_home_open) g_string_append(css, g_dark ? dark : light);
     else { g_string_append(css, g_dark ? dark_scoped : light_scoped); g_string_append(css, modern); }
+    if (g_text_pct != 100 && !(g_classic_session && !g_home_open))   /* 2.7: the headings set in pixels follow Text size too */
+        g_string_append_printf(css, ".srs-h1 { font-size: %dpx; } .srs-h2 { font-size: %dpx; } .srs-big { font-size: %dpx; } .srs-dot { font-size: %dpx; }",
+                               text_px(20), text_px(15), text_px(14), text_px(16));
     /* Adwaita dark's error colour (#c01c28) is too dim for warning text on a dark background */
     if (g_dark) g_string_append(css, ".srs-bad { color: #ff7b72; }");
     gtk_css_provider_load_from_data(c, css->str, -1, NULL);
@@ -5756,6 +5793,89 @@ static void theme_apply(void)
         if (x->plot) gtk_widget_queue_draw(x->plot);
         if (x->win) gtk_widget_queue_draw(x->win);
     }
+}
+
+/* 2.7: Text size. GTK turns every font size in points into pixels with the font resolution (gtk-xft-dpi),
+   so scaling SRS's own copy of it scales all its text - the reports, the controls and the menus - and
+   leaves the desktop alone. The headings set in pixels and the reports' fixed tab stops are scaled
+   with it (load_css, gx_tabs); the tab stops of reports already shown are scaled in place. */
+/* the tab stops already in a report: scaled by the same ratio as the text (no new data, no new render) */
+static void text_scale_tag(GtkTextTag *t, gpointer data)
+{
+    double r = *(const double *)data;
+    PangoTabArray *ta = NULL;
+    gboolean set = FALSE;
+    g_object_get(t, "tabs-set", &set, "tabs", &ta, NULL);
+    if (set && ta && pango_tab_array_get_positions_in_pixels(ta)) {
+        int i, n = pango_tab_array_get_size(ta);
+        for (i = 0; i < n; i++) {
+            PangoTabAlign al;
+            gint loc;
+            pango_tab_array_get_tab(ta, i, &al, &loc);
+            pango_tab_array_set_tab(ta, i, al, (gint)(loc * r + 0.5));
+        }
+        g_object_set(t, "tabs", ta, NULL);
+    }
+    if (ta) pango_tab_array_free(ta);
+}
+
+static void text_size_apply(int old_pct)
+{
+    GtkSettings *st = gtk_settings_get_default();
+    guint i;
+    double r = old_pct > 0 ? (double)g_text_pct / old_pct : 1.0;
+    if (!st) return;
+    if (!g_text_base_dpi) {
+        int d = -1;
+        g_object_get(st, "gtk-xft-dpi", &d, NULL);
+        g_text_base_dpi = d > 0 ? d : 96 * 1024;
+    }
+    g_object_set(st, "gtk-xft-dpi", (int)((double)g_text_base_dpi * g_text_pct / 100.0), NULL);
+    load_css();
+    for (i = 0; old_pct > 0 && g_wins && i < g_wins->len; i++) {
+        swin *x = g_ptr_array_index(g_wins, i);
+        if (x->buf) gtk_text_tag_table_foreach(gtk_text_buffer_get_tag_table(x->buf), text_scale_tag, &r);
+        if (x->win) gtk_widget_queue_resize(x->win);
+    }
+}
+
+static void text_size_set(int pct)
+{
+    if (pct < 50) pct = 50;
+    if (pct > 300) pct = 300;
+    if (pct == g_text_pct) return;
+    {
+        int old = g_text_pct;
+        g_text_pct = pct;
+        settings_save();
+        text_size_apply(old);
+    }
+}
+
+/* dir +1 = larger, -1 = smaller, 0 = 100 % (Ctrl + Plus / Minus / 0) */
+static void text_size_step(int dir)
+{
+    int i, pct = 100;
+    if (dir > 0) { for (i = 0; i < TEXT_NSTEPS; i++) if (g_text_steps[i] > g_text_pct) { pct = g_text_steps[i]; break; } if (i == TEXT_NSTEPS) pct = 300; }
+    else if (dir < 0) { for (i = TEXT_NSTEPS - 1; i >= 0; i--) if (g_text_steps[i] < g_text_pct) { pct = g_text_steps[i]; break; } if (i < 0) pct = 50; }
+    text_size_set(pct);
+}
+
+/* Ctrl + Plus (= or keypad +), Ctrl + Minus (or keypad -), Ctrl + 0 (or keypad 0): 1 = handled */
+static int text_size_key(GdkEventKey *ev)
+{
+    if (!(ev->state & GDK_CONTROL_MASK) || (ev->state & GDK_MOD1_MASK)) return 0;
+    switch (ev->keyval) {
+    case GDK_KEY_plus: case GDK_KEY_equal: case GDK_KEY_KP_Add: text_size_step(1); return 1;
+    case GDK_KEY_minus: case GDK_KEY_underscore: case GDK_KEY_KP_Subtract: text_size_step(-1); return 1;
+    case GDK_KEY_0: case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: text_size_step(0); return 1;
+    default: return 0;
+    }
+}
+
+static void on_text_size(GtkCheckMenuItem *mi, gpointer d)
+{
+    if (gtk_check_menu_item_get_active(mi)) text_size_set(GPOINTER_TO_INT(d));
 }
 
 /* ======================================================================
@@ -8302,6 +8422,7 @@ int main(int argc, char **argv)
     }
     if (!g_theme_set) g_theme = g_classic_session ? TH_LIGHT : TH_SYSTEM;   /* no Theme= yet: classic stays light, new follows the desktop */
     theme_apply();
+    text_size_apply(0);   /* at start: nothing is shown yet, the reports' tab stops are made at this size */
     {
         char *icon = g_build_filename(g_get_user_data_dir(), "icons", "hicolor", "256x256", "apps", "srs.png", NULL);
         if (g_file_test(icon, G_FILE_TEST_EXISTS)) gtk_window_set_default_icon_from_file(icon, NULL);

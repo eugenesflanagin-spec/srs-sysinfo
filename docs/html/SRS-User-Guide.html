@@ -5166,6 +5166,18 @@ portal, it reads <code>GTK_THEME</code> or
 <td>main window</td>
 </tr>
 <tr>
+<td><strong>Text size</strong> (2.7)</td>
+<td>Makes all of SRS's text larger or smaller - the reports, buttons,
+menus and headings, in every window - from 50 % to 300 %. The columns of
+the reports grow with the text, so tables stay lined up. Only SRS
+changes; the desktop and other programs keep their size. Keys:
+<strong>Ctrl + Plus</strong> (or Ctrl + =, or + on the number pad)
+larger, <strong>Ctrl + Minus</strong> smaller, <strong>Ctrl + 0</strong>
+back to 100 %. Icons keep their size, and a window does not grow by
+itself: make it bigger, or scroll, when the text no longer fits.</td>
+<td>100 %</td>
+</tr>
+<tr>
 <td><strong>Update interval</strong></td>
 <td>How often live panels refresh: <strong>Default</strong> (each
 panel's own rate; the classic main window every 2 s; the Overview checks
@@ -5699,6 +5711,12 @@ start)</td>
 on; a stress test or benchmark still running asks first</td>
 </tr>
 <tr>
+<td><strong>Ctrl + Plus / Ctrl + Minus / Ctrl + 0</strong></td>
+<td>Larger / smaller text / back to 100 % (<a href="#user-guide--10-options">Options
+-&gt; Text size</a>, 2.7). Ctrl + = and the number pad's + / - / 0 work
+too</td>
+</tr>
+<tr>
 <td><strong>Alt + underlined letter</strong></td>
 <td>Press that button</td>
 </tr>
@@ -5759,6 +5777,11 @@ href="#user-guide--90-use-at-your-own-risk">9.0</a>).</p>
 <tr>
 <td><strong>F5</strong></td>
 <td>Refresh this panel now</td>
+</tr>
+<tr>
+<td><strong>Ctrl + Plus / Ctrl + Minus / Ctrl + 0</strong></td>
+<td>Larger / smaller text / back to 100 % (Options -&gt; Text size,
+2.7)</td>
 </tr>
 <tr>
 <td><strong>F1</strong></td>
@@ -6046,6 +6069,12 @@ paused</td>
 <td>Options -&gt; Update interval</td>
 </tr>
 <tr>
+<td><code>Text Size</code></td>
+<td>percent, <code>50</code> to <code>300</code></td>
+<td>Options -&gt; Text size (2.7); anything else is read as
+<code>100</code></td>
+</tr>
+<tr>
 <td><code>Tray Icon</code></td>
 <td><code>1</code> / <code>0</code></td>
 <td>Options -&gt; System tray icon</td>
@@ -6080,6 +6109,18 @@ paused</td>
 <td>Stress &amp; Burnin: GPU Burnin on, its minutes, Sync, back end (0
 Auto, 1 Vulkan, 2 ROCm / HIP, 3 CUDA, 4 OpenCL), FP64, GPU limit C,
 Until Stop, GPU options open (2.3.1)</td>
+</tr>
+<tr>
+<td><code>Stress CPU Load</code>, <code>Stress Memory Workers</code>,
+<code>Stress Memory MB</code>, <code>Stress Sync Workers</code>,
+<code>Stress Disk Workers</code>, <code>Stress Disk MB</code>,
+<code>Stress Disk Folder</code>,
+<code>Stress Side Loads Open</code></td>
+<td>numbers (the folder: text)</td>
+<td>Stress &amp; Burnin (2.7): the CPU load (0 Whetstone, 1 Matrix
+multiply, 2 SHA-256, 3 Square root), the memory, sync and disk loads,
+their folder (empty = <code>~/.cache/srs</code>), and whether their line
+is open</td>
 </tr>
 <tr>
 <td><code>Stress CPU Limit</code></td>

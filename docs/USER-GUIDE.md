@@ -2994,6 +2994,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Light (SIV classic)** | SIV's light look and colours. | classic view |
 | **Theme -> Dark** | Dark panels, SIV's colours brightened so they stay readable, dark graphs. | |
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
+| **Text size** (2.7) | Makes all of SRS's text larger or smaller - the reports, buttons, menus and headings, in every window - from 50 % to 300 %. The columns of the reports grow with the text, so tables stay lined up. Only SRS changes; the desktop and other programs keep their size. Keys: **Ctrl + Plus** (or Ctrl + =, or + on the number pad) larger, **Ctrl + Minus** smaller, **Ctrl + 0** back to 100 %. Icons keep their size, and a window does not grow by itself: make it bigger, or scroll, when the text no longer fits. | 100 % |
 | **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). Stress & Burnin always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
 | **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Quit SRS, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
@@ -3152,6 +3153,7 @@ In the main window:
 | **F1** | User guide at the current tab's item (the Overview opens the start) |
 | **Shift+F1** | Help item |
 | **Ctrl+Q** | Quit (Menu > Quit). It really ends SRS, also with Close to tray on; a stress test or benchmark still running asks first |
+| **Ctrl + Plus / Ctrl + Minus / Ctrl + 0** | Larger / smaller text / back to 100 % ([Options -> Text size](#10-options), 2.7). Ctrl + = and the number pad's + / - / 0 work too |
 | **Alt + underlined letter** | Press that button |
 | **Double-click a PCI or USB ID** | Look it up |
 
@@ -3173,6 +3175,7 @@ In the classic view:
 | **Ctrl+H** | Highlight matches on / off (Find) |
 | **F3 / Shift+F3** | Next / previous Find match |
 | **F5** | Refresh this panel now |
+| **Ctrl + Plus / Ctrl + Minus / Ctrl + 0** | Larger / smaller text / back to 100 % (Options -> Text size, 2.7) |
 | **F1** | Open the user guide at this panel's section |
 | **Shift+F1** | Help panel |
 | **Esc** | Close this panel (not the main window) |
@@ -3282,12 +3285,14 @@ hand is fine while SRS is closed.
 |---|---|---|
 | `Theme` | `Light`, `Dark`, `System` | Options -> Theme (`System` = Follow desktop). Not set: the main window follows the desktop, the classic view is light. |
 | `Update Interval` | milliseconds; `0` = default, `-1` = paused | Options -> Update interval |
+| `Text Size` | percent, `50` to `300` | Options -> Text size (2.7); anything else is read as `100` |
 | `Tray Icon` | `1` / `0` | Options -> System tray icon |
 | `Close To Tray` | `1` / `0` | Options -> Close button hides to tray |
 | `Minimize To Tray` | `1` / `0` | Options -> Minimize hides to tray |
 | `Start In Tray` | `1` / `0` | Options -> Start hidden in tray |
 | `GPU Load Command` | text | Stress & Burnin: Custom GPU command |
 | `Stress GPU Burnin`, `Stress GPU Minutes`, `Stress GPU Sync`, `Stress GPU Backend`, `Stress GPU Precision`, `Stress GPU Limit`, `Stress Until Stop`, `Stress GPU Options Open` | numbers | Stress & Burnin: GPU Burnin on, its minutes, Sync, back end (0 Auto, 1 Vulkan, 2 ROCm / HIP, 3 CUDA, 4 OpenCL), FP64, GPU limit C, Until Stop, GPU options open (2.3.1) |
+| `Stress CPU Load`, `Stress Memory Workers`, `Stress Memory MB`, `Stress Sync Workers`, `Stress Disk Workers`, `Stress Disk MB`, `Stress Disk Folder`, `Stress Side Loads Open` | numbers (the folder: text) | Stress & Burnin (2.7): the CPU load (0 Whetstone, 1 Matrix multiply, 2 SHA-256, 3 Square root), the memory, sync and disk loads, their folder (empty = `~/.cache/srs`), and whether their line is open |
 | `Stress CPU Limit` | 50-110 | Stress & Burnin: the CPU temperature limit C, remembered (2.4) |
 | `Accepted High Temperature Limits` | `1` / `0` | Stop limits over 100 C accepted once ([9.1](#stop-limits-over-100-c)); without it a limit over 100 is read as 100 (2.4) |
 | `Read DIMM PMIC` | `1` / `0` | Options -> Read DIMM voltages from their PMIC chips (2.4) |
