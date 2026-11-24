@@ -4,7 +4,7 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
-## 2.7.0 - unreleased
+## 2.7.0 - 2026-11-24
 
 **Text size** for all of SRS (Ctrl + Plus / Minus / 0, Ctrl + mouse wheel), and **more stress loads in Stress & Burnin**, after s-tui's
 stress options (SRS's own code): the CPU workers can run a

@@ -34,7 +34,7 @@
     <p>Also included:</p>
     <ul>
       <li>Stress tests and benchmarks are used at your own risk: SRS is provided without warranty and asks you to agree once before the first one</li>
-      <li>CPU and GPU burn-in and stress tests in one Stress &amp; Burnin window; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
+      <li>CPU and GPU burn-in and stress tests in one Stress &amp; Burnin window, with checked CPU loads (matrix multiply, SHA-256, square root) and memory, sync and disk loads; Dhrystone, Whetstone, Cache &amp; Memory, Storage, OS Latency, CPU Compute, Everyday Work, Network, GPU, GPU Compute comparison (Vulkan, ROCm/HIP, CUDA, OpenCL), SRS Pi, Crypto and Prime Sieve benchmarks and a memory latency test</li>
       <li>The Big Top: a live task manager for the whole PC (processes, startup apps, users, services) and a read-only view of each graphics card</li>
       <li>GPU Tuning (read-only): what each graphics card is set to right now (voltage offset, clock offset, power limit), its limits, and the state of Tux Burner and LACT</li>
       <li>Memory Timings: the live DDR5 timings, memory clocks and SoC voltages of AMD Ryzen 7000 / 9000 desktop processors (read only), and the JEDEC / EXPO / XMP profiles of each module</li>
@@ -44,6 +44,7 @@
       <li>Reports saved as text, and a command-line report search</li>
       <li>Optional root-only details (DMI, memory SPD, SMART, MSRs) collected with one password prompt</li>
       <li>A built-in user guide: F1 opens it at the section for the item you are looking at</li>
+      <li>Text size for every window, from 50 % to 300 % (Ctrl + Plus / Minus / 0 or Ctrl + mouse wheel)</li>
     </ul>
   </description>
   <launchable type="desktop-id">srs-gui.desktop</launchable>
@@ -81,6 +82,18 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.7.0" date="2026-11-24">
+      <description>
+        <p>Text size: all of SRS's text, from 50 % to 300 %, with Ctrl + Plus / Minus / 0, Ctrl + mouse wheel or
+        Options - Text size; the reports' columns grow with it and the desktop is not changed.</p>
+        <p>More loads in Stress &amp; Burnin, after s-tui's stress options: the CPU workers can run a checked
+        double-precision matrix multiply (the hottest load), SHA-256 or square roots instead of Whetstone, and new
+        memory (written and read back), sync and disk-write loads run beside them or on their own. A wrong result fails
+        the run. GPU Burnin now says to restart SRS when SRS was updated while running.</p>
+        <p>Tested on one PC (Ryzen 7 7800X3D, Radeon RX 9070 XT): the new loads only briefly and on two threads, on one
+        CPU with AVX-512 and SHA instructions - please report what you see on other CPUs.</p>
+      </description>
+    </release>
     <release version="2.6.0" date="2026-11-23">
       <description>
         <p>GPU Tuning (read-only): a new tab and the command gpu-tune status show what each graphics

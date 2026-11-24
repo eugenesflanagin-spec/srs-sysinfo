@@ -206,7 +206,7 @@ runs the network items or Ping.
 ### `--version`
 
 ```
-sysreport-search 2.6.0 (ELF x86-64, gcc 16.2.1 20261122, glibc (system C runtime))
+sysreport-search 2.7.0 (ELF x86-64, gcc 16.2.1 20261122, glibc (system C runtime))
 Inspired by SIV64X (System Information Viewer) by Ray Hinchliffe, RH Software (rh-software.com),
 built to improve on it; free for the Linux and open-source community.
 Independent project, not affiliated with SIV or its author. GPL-2.0-or-later.
