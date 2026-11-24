@@ -5873,6 +5873,29 @@ static int text_size_key(GdkEventKey *ev)
     }
 }
 
+/* Ctrl + mouse wheel (2.7): forward (away from you) = larger, back = smaller, in every SRS window. It is
+   taken before GTK hands the wheel to the widget under the mouse, so a report or list does not scroll
+   at the same time; everything else goes on to GTK unchanged. Smooth scrolling (touchpads, high-
+   resolution wheels) is added up, so one notch is one step. */
+static void text_size_events(GdkEvent *e, gpointer data)
+{
+    static double acc;
+    (void)data;
+    if (e->type == GDK_SCROLL && (e->scroll.state & GDK_CONTROL_MASK) && !(e->scroll.state & (GDK_SHIFT_MASK | GDK_MOD1_MASK))) {
+        switch (e->scroll.direction) {
+        case GDK_SCROLL_UP: acc = 0; text_size_step(1); return;
+        case GDK_SCROLL_DOWN: acc = 0; text_size_step(-1); return;
+        case GDK_SCROLL_SMOOTH:
+            acc += e->scroll.delta_y;
+            if (acc <= -1.0) { acc = 0; text_size_step(1); }
+            else if (acc >= 1.0) { acc = 0; text_size_step(-1); }
+            return;
+        default: break;   /* sideways: left to GTK */
+        }
+    }
+    gtk_main_do_event(e);
+}
+
 static void on_text_size(GtkCheckMenuItem *mi, gpointer d)
 {
     if (gtk_check_menu_item_get_active(mi)) text_size_set(GPOINTER_TO_INT(d));
@@ -8423,6 +8446,7 @@ int main(int argc, char **argv)
     if (!g_theme_set) g_theme = g_classic_session ? TH_LIGHT : TH_SYSTEM;   /* no Theme= yet: classic stays light, new follows the desktop */
     theme_apply();
     text_size_apply(0);   /* at start: nothing is shown yet, the reports' tab stops are made at this size */
+    gdk_event_handler_set(text_size_events, NULL, NULL);   /* Ctrl + mouse wheel */
     {
         char *icon = g_build_filename(g_get_user_data_dir(), "icons", "hicolor", "256x256", "apps", "srs.png", NULL);
         if (g_file_test(icon, G_FILE_TEST_EXISTS)) gtk_window_set_default_icon_from_file(icon, NULL);

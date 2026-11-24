@@ -2994,7 +2994,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Light (SIV classic)** | SIV's light look and colours. | classic view |
 | **Theme -> Dark** | Dark panels, SIV's colours brightened so they stay readable, dark graphs. | |
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
-| **Text size** (2.7) | Makes all of SRS's text larger or smaller - the reports, buttons, menus and headings, in every window - from 50 % to 300 %. The columns of the reports grow with the text, so tables stay lined up. Only SRS changes; the desktop and other programs keep their size. Keys: **Ctrl + Plus** (or Ctrl + =, or + on the number pad) larger, **Ctrl + Minus** smaller, **Ctrl + 0** back to 100 %. Icons keep their size, and a window does not grow by itself: make it bigger, or scroll, when the text no longer fits. | 100 % |
+| **Text size** (2.7) | Makes all of SRS's text larger or smaller - the reports, buttons, menus and headings, in every window - from 50 % to 300 %. The columns of the reports grow with the text, so tables stay lined up. Only SRS changes; the desktop and other programs keep their size. Keys: **Ctrl + Plus** (or Ctrl + =, or + on the number pad) larger, **Ctrl + Minus** smaller, **Ctrl + 0** back to 100 %. Mouse: hold **Ctrl** (either one) and turn the **wheel forward** (away from you) for larger, **back** for smaller - one notch, one step; the page under the mouse does not scroll meanwhile. Icons keep their size, and a window does not grow by itself: make it bigger, or scroll, when the text no longer fits. | 100 % |
 | **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). Stress & Burnin always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
 | **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Quit SRS, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
@@ -3154,6 +3154,7 @@ In the main window:
 | **Shift+F1** | Help item |
 | **Ctrl+Q** | Quit (Menu > Quit). It really ends SRS, also with Close to tray on; a stress test or benchmark still running asks first |
 | **Ctrl + Plus / Ctrl + Minus / Ctrl + 0** | Larger / smaller text / back to 100 % ([Options -> Text size](#10-options), 2.7). Ctrl + = and the number pad's + / - / 0 work too |
+| **Ctrl + mouse wheel** | Wheel forward: larger text, back: smaller (2.7) |
 | **Alt + underlined letter** | Press that button |
 | **Double-click a PCI or USB ID** | Look it up |
 
@@ -3176,6 +3177,7 @@ In the classic view:
 | **F3 / Shift+F3** | Next / previous Find match |
 | **F5** | Refresh this panel now |
 | **Ctrl + Plus / Ctrl + Minus / Ctrl + 0** | Larger / smaller text / back to 100 % (Options -> Text size, 2.7) |
+| **Ctrl + mouse wheel** | Wheel forward: larger text, back: smaller (2.7) |
 | **F1** | Open the user guide at this panel's section |
 | **Shift+F1** | Help panel |
 | **Esc** | Close this panel (not the main window) |

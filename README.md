@@ -298,7 +298,7 @@ changed are copied to the window, so the text no longer blinks, the scroll posit
 an unchanged panel isn't redrawn at all. With the Sensors panel open this halved SRS's CPU use
 (about 4% to 2% on a 7800X3D).
 
-**Menu -> Options -> Text size** (2.7; **Ctrl + Plus / Minus / 0**) makes all of SRS's text larger or smaller, 50 %
+**Menu -> Options -> Text size** (2.7; **Ctrl + Plus / Minus / 0**, or **Ctrl + mouse wheel**) makes all of SRS's text larger or smaller, 50 %
 to 300 %, in every window - the reports' columns grow with it, so tables stay lined up - and is saved as `Text Size=`.
 
 **Menu -> Options -> Update interval** sets how often live panels refresh: *Default* (each panel's
