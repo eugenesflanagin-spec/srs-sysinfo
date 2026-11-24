@@ -287,7 +287,8 @@ static void *worker_main(void *arg)
 /* ======================================================================
  * side loads: memory, sync and disk write (after s-tui's stress options, written for SRS). They are
  * not pinned, follow the burn / cool phases like the CPU workers and check the run flag at least
- * every few milliseconds, so Stop and the temperature cutoff end them at once.
+ * every few milliseconds, so Stop and the temperature cutoff end them quickly (a disk or sync worker first
+ * finishes the write or flush it is in).
  * ====================================================================== */
 enum { AUX_MEM, AUX_SYNC, AUX_DISK };
 #define BURN_MAXAUX 64
@@ -442,14 +443,15 @@ static int side_start(void)   /* the number of side workers asked for that could
     g_naux = 0;
     g_side_t = 0;
     for (k = 0; k < 3; k++)
-        for (i = 0; i < count[k] && g_naux < BURN_MAXAUX; i++) {
+        for (i = 0; i < count[k]; i++) {
+            if (g_naux >= BURN_MAXAUX) { missing += count[k] - i; break; }   /* more than the table holds: counted, never silent */
             auxw *a = &g_aux[g_naux];
             memset(a, 0, sizeof *a);
             pthread_mutex_init(&a->mu, NULL);
             a->kind = k;
             a->idx = g_naux;
             a->run = 1;
-            if (g_naux >= BURN_MAXAUX || pthread_create(&a->tid, NULL, k == AUX_MEM ? mem_main : io_main, a)) { missing += count[k] - i; break; }
+            if (pthread_create(&a->tid, NULL, k == AUX_MEM ? mem_main : io_main, a)) { missing += count[k] - i; break; }
             a->started = 1;
             g_naux++;
         }

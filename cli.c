@@ -386,7 +386,7 @@ static int cmd_burn(int argc, char **argv)
                  "  starts at once (no question): makes the chosen CPUs 100 % busy, stops at the temperature limit (default 90 C,\n"
                  "  50..100; up to 110 with --accept-high-limit) or Ctrl+C\n"
                  "  --load      what each CPU thread runs: whetstone (default), matmul (checked double-precision matrix multiply\n"
-                 "              with the CPU's widest FMA units - the hottest), sha256 (checked SHA-256 hashing) or sqrt (checked\n"
+                 "              with the CPU's widest vector units - the hottest), sha256 (checked SHA-256 hashing) or sqrt (checked\n"
                  "              square roots). A wrong result from matmul, sha256 or sqrt fails the run.\n"
                  "  --memory N  N workers that each write a block of memory and read it back (--memory-mb, default 256 MB each;\n"
                  "              at most 75 % of the free memory in all). A wrong value read back fails the run.\n"
@@ -446,7 +446,7 @@ static int cmd_burn(int argc, char **argv)
     burn_tick(&st);                      /* prime the CPU-usage counters */
     if (burn_start(&c)) {
         burn_tick(&st);
-        if (strstr(st.status, "not started:")) fprintf(stderr, "burn: %s\n", st.status);
+        if (strstr(st.status, "not started:") || !strncmp(st.status, "Not run", 7)) fprintf(stderr, "burn: %s\n", st.status);
         else fprintf(stderr, "burn: nothing to run (no CPUs selected, already running, or a GPU burn-in / benchmark is running)\n");
         return 2;
     }

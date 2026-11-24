@@ -2748,7 +2748,9 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         else {
             secs = mins * 60 < 1 ? 60 : mins * 60 > 86400 ? 86400 : mins * 60;
             c.gpu_follow = 0;
-            snprintf(when, sizeof when, "for %.0f minute%s from Start%s", secs / 60, secs == 60 ? "" : "s", cpu ? " (it ends with the CPU run at the latest)" : "");
+            snprintf(when, sizeof when, "for %.0f minute%s from Start%s", secs / 60, secs == 60 ? "" : "s",
+                     cpu ? " (it ends with the CPU run at the latest)"
+                         : side && timed ? " (it ends with the memory / sync / disk loads' burn time at the latest)" : "");
         }
         if (!gb_child_argv(w, back < 0 ? GPUBURN_AUTO : back, dev, pci, prec, secs, limit, why, sizeof why)) {
             snprintf(w->st.status, sizeof w->st.status, "Not started: %.150s", why);
@@ -2789,7 +2791,8 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         if (cpu) snprintf(msg, sizeof msg, "This will make %d CPU%s 100%% busy %s. The CPU load stops automatically if the hottest CPU sensor "
                           "reaches %.0f°C, or on Stop / closing this window.", n, n == 1 ? "" : "s",
                           timed ? "for the configured burn time" : "until you press Stop", c.temp_limit_c);
-        else if (gb || cmd) snprintf(msg, sizeof msg, "No CPU load: only the GPU%s is tested.", side ? " and the memory / sync / disk loads below" : "");
+        else if (gb || cmd) snprintf(msg, sizeof msg, side ? "No CPU load: only the GPU and the memory / sync / disk loads below are tested."
+                                                          : "No CPU load: only the GPU is tested.");
         else snprintf(msg, sizeof msg, "No CPU or GPU load: only the memory / sync / disk loads below run, %s.",
                       timed ? "for the configured burn time" : "until you press Stop");
         if (side) {   /* 2.7: name every side load, and the disk wear they cause */
@@ -2968,7 +2971,7 @@ static void build_burn(swin *w, GtkWidget *vb)
         GtkWidget *lrow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
         static const char *const tips[BURN_NWL] = {
             "Whetstone: the classic floating-point benchmark; the rating per thread is in MWIPS. It does not check its results.",
-            "Matrix multiply: double-precision matrix multiplications with the CPU's widest FMA units (AVX-512, AVX2 or SSE2) - "
+            "Matrix multiply: double-precision matrix multiplications with the CPU's widest vector units (AVX-512 or AVX2 with FMA, or SSE2) - "
             "the hottest load, the one to test a curve optimiser / undervolt or an overclock with. Every result is checked; a wrong "
             "one fails the run.",
             "SHA-256: hashing with the CPU's SHA instructions when it has them (integer units). Every digest is checked.",
@@ -3117,7 +3120,7 @@ static void build_burn(swin *w, GtkWidget *vb)
     w->b_stop = sbtn("St_op");
     g_signal_connect(w->b_stop, "clicked", G_CALLBACK(on_burn_stop), w);
     gtk_box_pack_start(GTK_BOX(row), w->b_stop, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(row), lbl("  Nothing starts until you press Start and confirm. Stop ends all load at once."), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(row), lbl("  Nothing starts until you press Start and confirm. Stop ends all load (a disk write finishes its last flush first)."), FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vb), row, FALSE, FALSE, 0);
     g_signal_connect(w->b_cpuon, "toggled", G_CALLBACK(on_burn_opt), w);
     g_signal_connect(w->b_timed, "toggled", G_CALLBACK(on_burn_opt), w);
@@ -5873,7 +5876,12 @@ static void text_size_apply(int old_pct)
     if (!st) return;
     if (g_text_pct == 100) {
         /* at 100 % SRS does not hold the font resolution: the desktop's own value (and its later changes) applies */
-        if (old_pct > 0 && old_pct != 100) gtk_settings_reset_property(st, "gtk-xft-dpi");
+        if (old_pct > 0 && old_pct != 100) {
+            /* a plain reset does not make GTK update the screen's font resolution: set the desktop's value
+               first (that redraws every text at 100 %), then hand the setting back to the desktop */
+            if (g_text_base_dpi > 0) g_object_set(st, "gtk-xft-dpi", g_text_base_dpi, NULL);
+            gtk_settings_reset_property(st, "gtk-xft-dpi");
+        }
     } else {
         if (old_pct <= 0 || old_pct == 100 || !g_text_base_dpi) {   /* leaving 100 %: the desktop's value right now */
             int d = -1;
