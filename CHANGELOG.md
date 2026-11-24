@@ -8,7 +8,7 @@ SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affi
 
 **Text size** for all of SRS (Ctrl + Plus / Minus / 0, Ctrl + mouse wheel), and **more stress loads in Stress & Burnin**, after s-tui's
 stress options (SRS's own code): the CPU workers can run a
-checked **Matrix multiply** (double precision, with the CPU's widest FMA units - the hottest load), **SHA-256** or
+checked **Matrix multiply** (double precision, with the CPU's widest vector units - the hottest load), **SHA-256** or
 **Square root** instead of Whetstone, and new **memory**, **sync** and **disk-write** loads run beside them or on their
 own. Every new load except sync and disk write checks its results, so a wrong answer fails the run.
 
@@ -27,10 +27,12 @@ own. Every new load except sync and disk write checks its results, so a wrong an
     fails the run. All together at most 75 % of the free memory - more is refused before anything starts;
   - sync workers rewrite 64 KB of a file and flush it to the disk, over and over;
   - disk workers write a file of the chosen size over and over with data that cannot be compressed, flushed every
-    64 MB; the free space (plus 1 GB) is checked first;
+    16 MB; the free space (plus 1 GB) is checked first. An SSD wears with every write (a fast NVMe drive can take 1-2 TB
+    in 15 minutes): the start question, the tooltip, `burn --help` and the guide say so;
   - the files have no name in their folder (default `~/.cache/srs`) and are gone when the run ends, even if SRS is
-    killed. The side loads follow the burn / cool phases and stop with Stop or the temperature limit at once
-    (measured: under 0.1 s).
+    killed. The side loads follow the burn / cool phases (Timed works for them alone too) and stop with Stop or the
+    temperature limit: the CPU load at once (measured: under 0.1 s), a disk or sync worker after the write or flush it
+    is in.
 - The summary (window, Copy, saved `burnin-*.txt` and `burn`'s output) names the load and its code path
   ("Matrix multiply (AVX-512)"), shows each thread's score in that load's unit and its wrong results, and has a line
   per side load. The new choices are remembered in `SRSDEF.ini` (`Stress CPU Load`, `Stress Memory Workers`, ...).

@@ -3456,8 +3456,9 @@ not just heat it up.</p>
 <tr>
 <td><strong>Matrix multiply</strong></td>
 <td>Multiplies two 288 x 288 matrices of double-precision numbers, over
-and over, with the widest multiply-add (FMA) units the CPU has (AVX-512,
-AVX2 or SSE2). The inputs are chosen so every answer is exact.</td>
+and over, with the widest vector units the CPU has (AVX-512 or AVX2,
+with multiply-add (FMA), or SSE2). The inputs are chosen so every answer
+is exact.</td>
 <td>yes, every element</td>
 <td>GFLOPS</td>
 </tr>
@@ -3493,8 +3494,9 @@ versions, to compare with old runs.</li>
 </ul>
 <p><strong>Side loads</strong> (in the folded <strong>Memory, sync and
 disk loads</strong> line) - extra threads, not tied to a CPU, that
-follow the burn / cool phases with the CPU load and stop with it at
-once:</p>
+follow the burn / cool phases with the CPU load and stop with it (the
+CPU load stops at once; a disk or sync worker first finishes the write
+or flush it is in, a moment on a fast SSD, longer on a slow drive):</p>
 <ul>
 <li><strong>Memory workers x MB</strong> - each worker writes its own
 block of memory with a pattern that changes every pass, then reads it
@@ -3509,16 +3511,22 @@ journal and the drive's cache flushes (like
 <code>stress -i</code>).</li>
 <li><strong>Disk write workers x MB</strong> - each writes a file of
 that size over and over, with data that cannot be compressed, flushed to
-the disk every 64 MB (like <code>stress --hdd</code>). It needs that
-much free space plus 1 GB.</li>
+the disk every 16 MB (like <code>stress --hdd</code>). It needs that
+much free space plus 1 GB. <strong>An SSD wears with every
+write:</strong> a fast NVMe drive can take 1-2 TB in 15 minutes, a
+noticeable share of its rated life, so run the disk load briefly, or on
+a drive you do not mind wearing. A folder in <code>/tmp</code> (memory
+on most systems) fills the RAM instead of testing a drive, and there is
+no drive-temperature cutoff.</li>
 <li><strong>in folder</strong> - where the sync and disk files go, so
 you can pick the drive to test (default <code>~/.cache/srs</code>). The
 files have no name in the folder and are gone when the run ends, even if
 SRS is killed.</li>
 </ul>
 <p>The side loads can run on their own: untick <strong>CPU load</strong>
-(and the GPU parts) and set a memory, sync or disk load. They then run
-until you press Stop. On the command line:
+(and the GPU parts) and set a memory, sync or disk load.
+<strong>Timed</strong> (Burn Time, Cool Time, Cycles) and <strong>Until
+Stop</strong> work for them as for the CPU load. On the command line:
 <code>burn --load matmul</code>,
 <code>--memory 2 --memory-mb 512</code>, <code>--sync 1</code>,
 <code>--disk 1 --disk-mb 2048 --disk-dir /mnt/data</code>, and
@@ -5168,17 +5176,19 @@ portal, it reads <code>GTK_THEME</code> or
 <tr>
 <td><strong>Text size</strong> (2.7)</td>
 <td>Makes all of SRS's text larger or smaller - the reports, buttons,
-menus and headings, in every window - from 50 % to 300 %. The columns of
-the reports grow with the text, so tables stay lined up. Only SRS
-changes; the desktop and other programs keep their size. Keys:
-<strong>Ctrl + Plus</strong> (or Ctrl + =, or + on the number pad)
-larger, <strong>Ctrl + Minus</strong> smaller, <strong>Ctrl + 0</strong>
-back to 100 %. Mouse: hold <strong>Ctrl</strong> (either one) and turn
-the <strong>wheel forward</strong> (away from you) for larger,
-<strong>back</strong> for smaller - one notch, one step; the page under
-the mouse does not scroll meanwhile. Icons keep their size, and a window
-does not grow by itself: make it bigger, or scroll, when the text no
-longer fits.</td>
+menus and headings, in the main window, the classic view and the tool
+windows - from 50 % to 300 %. The columns of the reports grow with the
+text, so tables stay lined up. Only SRS changes; the desktop and other
+programs keep their size. Keys: <strong>Ctrl + Plus</strong> (or Ctrl +
+=, or + on the number pad) larger, <strong>Ctrl + Minus</strong>
+smaller, <strong>Ctrl + 0</strong> back to 100 %. Mouse: hold
+<strong>Ctrl</strong> (either one) and turn the <strong>wheel
+forward</strong> (away from you) for larger, <strong>back</strong> for
+smaller - one notch, one step; the page under the mouse does not scroll
+meanwhile. A question box that is open at the time (for example Start
+now?) does not take these keys; close it first. Icons keep their size,
+and a window does not grow by itself: make it bigger, or scroll, when
+the text no longer fits.</td>
 <td>100 %</td>
 </tr>
 <tr>
@@ -37361,11 +37371,11 @@ workers move between CPUs (affinity test).</td>
 <td><code>--load NAME</code></td>
 <td>What each worker runs (2.7): <code>whetstone</code> (score in
 MWIPS), <code>matmul</code> (checked double-precision matrix multiply
-with the CPU's widest FMA units, GFLOPS - the hottest),
-<code>sha256</code> (checked SHA-256 hashing, MB/s) or <code>sqrt</code>
-(checked square roots, millions per second). A wrong result from
-<code>matmul</code>, <code>sha256</code> or <code>sqrt</code> fails the
-run.</td>
+with the CPU's widest vector units - AVX-512 or AVX2 with FMA, or SSE2 -
+GFLOPS, the hottest), <code>sha256</code> (checked SHA-256 hashing,
+MB/s) or <code>sqrt</code> (checked square roots, millions per second).
+A wrong result from <code>matmul</code>, <code>sha256</code> or
+<code>sqrt</code> fails the run.</td>
 <td>whetstone</td>
 </tr>
 <tr>
@@ -37384,8 +37394,10 @@ disk, over and over</td>
 <tr>
 <td><code>--disk N</code> / <code>--disk-mb MB</code></td>
 <td>N workers (0-16) that each write a file of MB megabytes over and
-over (data that cannot be compressed, flushed every 64 MB). Needs that
-much free space plus 1 GB.</td>
+over (data that cannot be compressed, flushed every 16 MB). Needs that
+much free space plus 1 GB. An SSD wears with every write: a fast NVMe
+drive can take 1-2 TB in 15 minutes, so keep <code>--seconds</code>
+short. A folder in <code>/tmp</code> fills the RAM instead.</td>
 <td>0 / 1024</td>
 </tr>
 <tr>

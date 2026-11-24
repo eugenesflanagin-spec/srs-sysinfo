@@ -154,7 +154,7 @@ and a few more), so `sysreport-search --list` shows **560** in all.
     cool cycles, Pass or Fail) or Until Stop, plus the built-in GPU Burnin for its own time or synced
     to the CPU time (it runs as its own process), or a custom GPU command. CPU part: per-CPU worker threads (Same CPU: a rating per CPU;
     Swap CPU: affinity test) running the chosen CPU load (2.7: Whetstone, or the checked Matrix
-    multiply with the CPU's widest FMA units, SHA-256 or Square root - a wrong result fails the run),
+    multiply with the CPU's widest vector units, SHA-256 or Square root - a wrong result fails the run),
     optional memory (written and read back), sync and disk-write side loads after s-tui's stress
     options, affinity/APIC check, burn/cool cycles, current / average / rolling /
     maximum CPU load, clock, core temperature, board (Super-I/O) temperature and GPU load,
@@ -299,7 +299,7 @@ an unchanged panel isn't redrawn at all. With the Sensors panel open this halved
 (about 4% to 2% on a 7800X3D).
 
 **Menu -> Options -> Text size** (2.7; **Ctrl + Plus / Minus / 0**, or **Ctrl + mouse wheel**) makes all of SRS's text larger or smaller, 50 %
-to 300 %, in every window - the reports' columns grow with it, so tables stay lined up - and is saved as `Text Size=`.
+to 300 %, in its main window, classic view and tool windows - the reports' columns grow with it, so tables stay lined up - and is saved as `Text Size=`.
 
 **Menu -> Options -> Update interval** sets how often live panels refresh: *Default* (each panel's
 own rate; the classic main window every 2 s; the Overview and the key-fact tiles every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or *Paused* (press F5 to

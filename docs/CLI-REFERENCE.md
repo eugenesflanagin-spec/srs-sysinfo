@@ -614,10 +614,10 @@ crypto: not started
 | `--seconds S` | Burn time per cycle, 1 to 2,700,000 seconds | 10 |
 | `--threads N` / `--cpus none` | `--cpus none` (2.7): no CPU load, only the side loads below | |
 | `--mode same\|swap` | `same`: each worker stays on its CPU. `swap`: workers move between CPUs (affinity test). | same |
-| `--load NAME` | What each worker runs (2.7): `whetstone` (score in MWIPS), `matmul` (checked double-precision matrix multiply with the CPU's widest FMA units, GFLOPS - the hottest), `sha256` (checked SHA-256 hashing, MB/s) or `sqrt` (checked square roots, millions per second). A wrong result from `matmul`, `sha256` or `sqrt` fails the run. | whetstone |
+| `--load NAME` | What each worker runs (2.7): `whetstone` (score in MWIPS), `matmul` (checked double-precision matrix multiply with the CPU's widest vector units - AVX-512 or AVX2 with FMA, or SSE2 - GFLOPS, the hottest), `sha256` (checked SHA-256 hashing, MB/s) or `sqrt` (checked square roots, millions per second). A wrong result from `matmul`, `sha256` or `sqrt` fails the run. | whetstone |
 | `--memory N` / `--memory-mb MB` | N workers (0-32) that each write their own block of MB megabytes and read it back, over and over; a wrong value fails the run. All together at most 75 % of the free memory (more is refused, exit 2). | 0 / 256 |
 | `--sync N` | N workers (0-16) that rewrite 64 KB of a file and flush it to the disk, over and over | 0 |
-| `--disk N` / `--disk-mb MB` | N workers (0-16) that each write a file of MB megabytes over and over (data that cannot be compressed, flushed every 64 MB). Needs that much free space plus 1 GB. | 0 / 1024 |
+| `--disk N` / `--disk-mb MB` | N workers (0-16) that each write a file of MB megabytes over and over (data that cannot be compressed, flushed every 16 MB). Needs that much free space plus 1 GB. An SSD wears with every write: a fast NVMe drive can take 1-2 TB in 15 minutes, so keep `--seconds` short. A folder in `/tmp` fills the RAM instead. | 0 / 1024 |
 | `--disk-dir DIR` | Folder for the sync and disk files. They have no name there and are gone when the run ends. | `~/.cache/srs` |
 | `--limit C` | Stop if the hottest CPU sensor reaches C degrees Celsius: 50-100, or 101-110 with `--accept-high-limit` (2.4; any other value exits 2 without starting) | 90 |
 | `--accept-high-limit` | Allow a `--limit` of 101-110 °C. Above 100 °C many CPUs and GPUs are already at or near their own maximum; using it means you accept that risk (the window asks the same once, Yes / No) | off |

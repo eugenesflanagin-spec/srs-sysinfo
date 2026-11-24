@@ -1670,6 +1670,7 @@ void gpu_top_window_open(GtkWindow *parent)
     for (i = 0; i < G->ndev && !G->dev[i].active; i++) ;   /* start on the first awake card: opening a runtime-suspended one */
     G->sel = i < G->ndev ? i : 0;                            /* would wake it (a laptop's dGPU often sorts first) */
     w = G->win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_widget_add_events(w, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);   /* 2.7: Ctrl + wheel text size */
     gtk_window_set_title(GTK_WINDOW(w), "SRS - The Big Top");
     gtk_window_set_icon_name(GTK_WINDOW(w), "srs");
     gtk_window_set_default_size(GTK_WINDOW(w), 1280, 860);

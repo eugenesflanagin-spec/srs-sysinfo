@@ -62,8 +62,8 @@ below; they gave the idea of which loads to offer.
 
 | What | Used for | Licence / terms |
 |---|---|---|
-| s-tui by Alex Manuskin (<https://github.com/amanusk/s-tui>) | the choice of loads: its built-in matrix-multiply and SHA-256 burn, and its options for the `stress` tool (square-root, sync, memory and disk-write workers, bytes per worker) | GPL-2.0 |
-| stress by Amos Waterland (<https://github.com/resurrecting-open-source-projects/stress>) | the meaning of its `-c` (sqrt), `-i` (sync), `--vm` (memory) and `--hdd` (disk write) workers, which the side loads follow | GPL-2.0 |
+| s-tui by Alex Manuskin and Gil Tsuker (<https://github.com/amanusk/s-tui>) | the choice of loads: its built-in matrix-multiply and SHA-256 burn, and its options for the `stress` tool (square-root, sync, memory and disk-write workers, bytes per worker) | GPL-2.0-or-later |
+| stress by Amos Waterland (<https://github.com/resurrecting-open-source-projects/stress>) | the meaning of its `-c` (sqrt), `-i` (sync), `--vm` (memory) and `--hdd` (disk write) workers, which the side loads follow | GPL-2.0-or-later |
 
 ## Memory Timings, hardware lists and ACPI (2.4)
 

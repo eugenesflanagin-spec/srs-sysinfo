@@ -302,7 +302,7 @@ typedef struct {
 } auxw;
 static auxw g_aux[BURN_MAXAUX];
 static int g_naux;
-static char g_disk_dir[256];
+static char g_disk_dir[256];   /* the folder of the last run that started (side_check fills it only when the run can start) */
 static double g_side_t;        /* seconds the side loads have been running (burn phases only) */
 
 static inline uint64_t mix64(uint64_t x)   /* a different-looking value for every word and pass */
@@ -326,7 +326,7 @@ static void *mem_main(void *arg)
         while (i < n && a->run == 1) {
             for (e = i + chunk < n ? i + chunk : n; i < e; i++) p[i] = mix64(i ^ key);
         }
-        if (a->run != 1) continue;   /* stopped or cooling halfway: the next pass writes everything again */
+        if (i < n) continue;   /* stopped or cooling halfway: the next pass writes everything again (never check a half-written block) */
         i = 0;
         while (i < n && a->run == 1) {
             for (e = i + chunk < n ? i + chunk : n; i < e; i++) if (p[i] != mix64(i ^ key)) wrong++;
@@ -348,7 +348,7 @@ static int nameless_file(void)
     int fd = open(g_disk_dir, O_TMPFILE | O_RDWR | O_CLOEXEC, 0600);
     if (fd >= 0) return fd;
     snprintf(t, sizeof t, "%s/srs-burn-XXXXXX", g_disk_dir);
-    if ((fd = mkstemp(t)) >= 0) unlink(t);
+    if ((fd = mkostemp(t, O_CLOEXEC)) >= 0) unlink(t);   /* not inherited by the GPU part's process */
     return fd;
 }
 
@@ -376,12 +376,12 @@ static void *io_main(void *arg)
             pthread_mutex_lock(&a->mu);
             a->passes++;
             pthread_mutex_unlock(&a->mu);
-        } else {                     /* 1 MB at a time, flushed every 64 MB, then from the start again */
+        } else {                     /* 1 MB at a time, flushed every 16 MB, then from the start again */
             off_t off = (off_t)(done % g_cfg.disk_mb) << 20;
             memcpy(b, &done, sizeof done);   /* every MB differs from the last pass's */
             if (pwrite(fd, b, blk, off) != (ssize_t)blk) { a->bad = 2; break; }
             done++;
-            if (done % 64 == 0 || done % g_cfg.disk_mb == 0) if (fdatasync(fd)) { a->bad = 2; break; }
+            if (done % 16 == 0 || done % g_cfg.disk_mb == 0) if (fdatasync(fd)) { a->bad = 2; break; }   /* short flushes: Stop waits less on slow drives */
             pthread_mutex_lock(&a->mu);
             a->gb += 1.0 / 1024.0;
             if (done % g_cfg.disk_mb == 0) a->passes++;
@@ -402,7 +402,10 @@ static void side_check(const burn_cfg *c, char *why, size_t n)
         double avail = 0, want = (double)c->mem_workers * c->mem_mb;
         if (rd_all("/proc/meminfo", &txt) >= 0 && (m = strstr(txt, "MemAvailable:"))) avail = atof(m + 13) / 1024.0;
         free(txt);
-        if (c->mem_mb < 1 || c->mem_mb > BURN_MEM_MB_MAX) { snprintf(why, n, "memory size must be 1..%d MB per worker", BURN_MEM_MB_MAX); return; }
+        if (c->mem_mb < 1 || c->mem_mb > BURN_MEM_MB_MAX || (sizeof(size_t) < 8 && c->mem_mb > 2047)) {
+            snprintf(why, n, "memory size must be 1..%d MB per worker", sizeof(size_t) < 8 ? 2047 : BURN_MEM_MB_MAX);
+            return;
+        }
         if (avail > 0 && want > avail * 0.75) {
             snprintf(why, n, "the memory load needs %.0f MB, but only %.0f MB is free - keep it under %.0f MB (75 %%)", want, avail, avail * 0.75);
             return;
@@ -411,23 +414,30 @@ static void side_check(const burn_cfg *c, char *why, size_t n)
     if (c->sync_workers > 0 || c->disk_workers > 0) {
         const char *h = getenv("HOME");
         struct statvfs v;
-        if (c->disk_dir && *c->disk_dir) snprintf(g_disk_dir, sizeof g_disk_dir, "%s", c->disk_dir);
-        else if (h && *h) {
-            snprintf(g_disk_dir, sizeof g_disk_dir, "%s/.cache", h); mkdir(g_disk_dir, 0755);
-            snprintf(g_disk_dir, sizeof g_disk_dir, "%s/.cache/srs", h); mkdir(g_disk_dir, 0755);
+        char dir[sizeof g_disk_dir];
+        if (c->disk_dir && *c->disk_dir) {
+            if (strlen(c->disk_dir) >= sizeof dir) { snprintf(why, n, "the folder name is too long (at most %d characters)", (int)sizeof dir - 1); return; }
+            snprintf(dir, sizeof dir, "%s", c->disk_dir);
+        } else if (h && *h && strlen(h) + 12 < sizeof dir) {
+            snprintf(dir, sizeof dir, "%s/.cache", h); mkdir(dir, 0755);
+            snprintf(dir, sizeof dir, "%s/.cache/srs", h); mkdir(dir, 0755);
         } else { snprintf(why, n, "no folder for the disk files (HOME is not set)"); return; }
-        if (statvfs(g_disk_dir, &v)) { snprintf(why, n, "cannot use the folder %s: %s", g_disk_dir, strerror(errno)); return; }
+        if (statvfs(dir, &v)) { snprintf(why, n, "%s - cannot use the folder %s", strerror(errno), dir); return; }
         if (c->disk_workers > 0) {
             double free_mb = (double)v.f_bavail * (double)v.f_frsize / 1048576.0, want = (double)c->disk_workers * c->disk_mb;
-            if (c->disk_mb < 1 || c->disk_mb > BURN_DISK_MB_MAX) { snprintf(why, n, "disk file size must be 1..%d MB per worker", BURN_DISK_MB_MAX); return; }
-            if (want + 1024 > free_mb) { snprintf(why, n, "the disk load needs %.0f MB plus 1 GB to spare in %s, only %.0f MB is free", want, g_disk_dir, free_mb); return; }
+            if (c->disk_mb < 1 || c->disk_mb > BURN_DISK_MB_MAX || (sizeof(off_t) < 8 && c->disk_mb > 2047)) {
+                snprintf(why, n, "disk file size must be 1..%d MB per worker", sizeof(off_t) < 8 ? 2047 : BURN_DISK_MB_MAX);
+                return;
+            }
+            if (want + 1024 > free_mb) { snprintf(why, n, "the disk load needs %.0f MB plus 1 GB to spare, only %.0f MB is free in %s", want, free_mb, dir); return; }
         }
+        snprintf(g_disk_dir, sizeof g_disk_dir, "%s", dir);   /* only now: a refused start leaves the last run's folder alone */
     }
 }
 
-static void side_start(void)
+static int side_start(void)   /* the number of side workers asked for that could not start */
 {
-    int k, i;
+    int k, i, missing = 0;
     const int count[3] = { g_cfg.mem_workers, g_cfg.sync_workers, g_cfg.disk_workers };
     g_naux = 0;
     g_side_t = 0;
@@ -439,10 +449,11 @@ static void side_start(void)
             a->kind = k;
             a->idx = g_naux;
             a->run = 1;
-            if (pthread_create(&a->tid, NULL, k == AUX_MEM ? mem_main : io_main, a)) break;
+            if (g_naux >= BURN_MAXAUX || pthread_create(&a->tid, NULL, k == AUX_MEM ? mem_main : io_main, a)) { missing += count[k] - i; break; }
             a->started = 1;
             g_naux++;
         }
+    return missing;
 }
 
 /* ======================================================================
@@ -617,7 +628,7 @@ void burn_sample_now(burn_sample *s)
 static double g_t0, g_phase_t0, g_last_tick;
 static int g_state = BURN_IDLE, g_cycle, g_nsamp;
 static burn_sample g_sum, g_max, g_roll;
-static char g_status[160] = "Idle";
+static char g_status[400] = "Idle";
 static char g_saved[1100];   /* where this run's summary was saved ("" = not yet) */
 static pid_t g_gpu_pid;
 static double g_gpu_t0, g_gpu_stop_t;   /* g_gpu_stop_t: when Stop asked the GPU part to end (0 = not stopping) */
@@ -792,7 +803,7 @@ int burn_start(const burn_cfg *c)
         return -1;
     }
     {
-        char why[200];
+        char why[400];
         side_check(c, why, sizeof why);
         if (why[0]) { snprintf(g_status, sizeof g_status, "[CPU Burnin] not started: %s", why); return -1; }
     }
@@ -805,6 +816,8 @@ int burn_start(const burn_cfg *c)
         if (c->enabled[i]) g_cpus[g_ncpus++] = i;
     if (!g_ncpus && !gpu_configured() && !side_configured(c)) return -1;   /* no CPU is fine when the GPU part or a side load runs on its own */
     g_gpu_exit = -1;
+    g_naux = 0;      /* 2.7: no stale side threads from the last run for finish() to join */
+    g_side_t = 0;
     g_nw = g_ncpus;
     for (i = 0; i < g_nw; i++) {
         memset(&g_w[i], 0, sizeof g_w[i]);
@@ -832,7 +845,10 @@ int burn_start(const burn_cfg *c)
         finish(BURN_IDLE, "[CPU Burnin] not started: a GPU test is running");
         return -1;
     }
-    side_start();
+    if (side_start()) {   /* 2.7: never report a run whose side loads did not all start */
+        finish(BURN_FAIL, "Not run - the memory / sync / disk loads could not all be started (out of threads or memory)");
+        return -1;
+    }
     gpu_load(1);
     if (!g_nw) snprintf(g_status, sizeof g_status, "[Stress & Burnin] %s - no CPU load", g_naux ? "side loads" : "GPU only");
     else snprintf(g_status, sizeof g_status, "[CPU Burnin] %s on %d worker thread%s", burn_wl_name[g_cfg.workload], g_nw, g_nw == 1 ? "" : "s");
@@ -848,8 +864,8 @@ static void finish(int state, const char *why)
         for (i = 0; i < 60 && g_gpu_pid; i++) { usleep(50000); gpu_check(); }
         if (g_gpu_exit == GPUB_EXIT_FAIL && state != BURN_FAIL) { state = BURN_FAIL; why = "Fail - GPU Burnin found compute errors"; }
     }
-    for (i = 0; i < g_nw; i++) if (g_w[i].started) pthread_join(g_w[i].tid, NULL);
-    for (i = 0; i < g_naux; i++) if (g_aux[i].started) pthread_join(g_aux[i].tid, NULL);
+    for (i = 0; i < g_nw; i++) if (g_w[i].started) { pthread_join(g_w[i].tid, NULL); g_w[i].started = 0; }
+    for (i = 0; i < g_naux; i++) if (g_aux[i].started) { pthread_join(g_aux[i].tid, NULL); g_aux[i].started = 0; }
     g_state = state;
     __atomic_store_n(&g_active, 0, __ATOMIC_SEQ_CST);
     snprintf(g_status, sizeof g_status, "%s", why);
@@ -903,19 +919,19 @@ void burn_tick(burn_status *st)
         } else if (g_cfg.gpu_argv && g_gpu_exit == GPUB_EXIT_EARLY) {
             finish(BURN_FAIL, "Fail - GPU Burnin ended early by a safety rule (temperature, driver error or a GPU that stopped answering)");
         } else if (calc_bad) {
-            char why[160];
+            char why[400];
             snprintf(why, sizeof why, "Fail - %ld calculation error%s in the %s load (first on CPU-%d): the CPU, its cooling or its "
                      "settings are not stable", calc_bad, calc_bad == 1 ? "" : "s", burn_wl_name[g_cfg.workload], calc_cpu);
             finish(BURN_FAIL, why);
         } else if (mem_bad) {
-            char why[160];
+            char why[400];
             snprintf(why, sizeof why, "Fail - the memory load read back %ld wrong value%s: the memory or its settings are not stable",
                      mem_bad, mem_bad == 1 ? "" : "s");
             finish(BURN_FAIL, why);
         } else if (oom) {
             finish(BURN_FAIL, "Not run - not enough memory for the CPU load");
         } else if (side_bad) {
-            char why[160];
+            char why[400];
             if (side_bad == AUX_MEM + 1) snprintf(why, sizeof why, "Not run - not enough memory for the memory load");
             else snprintf(why, sizeof why, "Fail - the %s load could not write to %s", side_bad == AUX_SYNC + 1 ? "sync" : "disk", g_disk_dir);
             finish(BURN_FAIL, why);
@@ -925,7 +941,7 @@ void burn_tick(burn_status *st)
             else if (g_gpu_exit == GPUB_EXIT_STOPPED) finish(BURN_STOPPED, "Stopped - GPU Burnin was stopped");
             else finish(BURN_FAIL, g_gpu_exit == GPUB_EXIT_NOTSTARTED ? "Not run - GPU Burnin could not start" : "Fail - GPU Burnin ended with an error");
         } else if (g_cfg.temp_limit_c > 0 && s.cpu_temp >= g_cfg.temp_limit_c) {
-            char why[160];
+            char why[400];
             snprintf(why, sizeof why, "Fail - %s %.1f C reached the %.0f C limit", s.cpu_temp_name, s.cpu_temp, g_cfg.temp_limit_c);
             finish(BURN_FAIL, why);
         } else if (apic_bad) {

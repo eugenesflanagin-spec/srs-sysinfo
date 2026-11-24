@@ -64,7 +64,7 @@ typedef struct {
     int state, cycle;
     double elapsed, remaining, phase_left;
     burn_sample cur, avg, roll, max;
-    char status[160];
+    char status[400];
     char gpu_msg[300];         /* GPU load command state ("" = no command): running / finished / failed (exit code) */
     int gpu_bad;               /* 1 when the GPU load command failed or was not found */
     int gpu_running;           /* the GPU part's process is running (or still stopping) */

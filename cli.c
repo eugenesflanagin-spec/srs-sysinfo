@@ -391,7 +391,8 @@ static int cmd_burn(int argc, char **argv)
                  "  --memory N  N workers that each write a block of memory and read it back (--memory-mb, default 256 MB each;\n"
                  "              at most 75 % of the free memory in all). A wrong value read back fails the run.\n"
                  "  --sync N    N workers that rewrite 64 KB of a file and flush it to the disk, over and over\n"
-                 "  --disk N    N workers that each write a file of --disk-mb MB (default 1024) over and over, flushed every 64 MB\n"
+                 "  --disk N    N workers that each write a file of --disk-mb MB (default 1024) over and over, flushed every 16 MB.\n"
+                 "              An SSD wears with every write: a fast NVMe drive can take 1-2 TB in 15 minutes - run it briefly.\n"
                  "  --disk-dir  folder for the sync and disk files (default ~/.cache/srs); the files have no name there and are\n"
                  "              gone when the run ends. The side loads follow the burn / cool phases; --cpus none runs them\n"
                  "              with no CPU load.");
@@ -427,6 +428,7 @@ static int cmd_burn(int argc, char **argv)
     if (c.burn_s <= 0 || c.burn_s > 750.0 * 3600) return usage_error("--seconds must be 1..2700000");
     if (c.mem_workers < 0 || c.mem_workers > 32 || c.sync_workers < 0 || c.sync_workers > 16 || c.disk_workers < 0 || c.disk_workers > 16)
         return usage_error("--memory must be 0..32, --sync and --disk 0..16");
+    if (c.mem_mb < 0 || c.disk_mb < 0) return usage_error("--memory-mb and --disk-mb must be 1 or more");
     if (c.mem_workers > 0 && c.mem_mb <= 0) c.mem_mb = 256;
     if (c.disk_workers > 0 && c.disk_mb <= 0) c.disk_mb = 1024;
     if (!limit_ok("burn", c.temp_limit_c, hot)) return 2;

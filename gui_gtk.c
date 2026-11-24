@@ -937,7 +937,12 @@ static void settings_load(void)
         {
             GError *et = NULL;
             int ts = g_key_file_get_integer(kf, "SRSDEF", "Text Size", &et);
-            if (!et) g_text_pct = ts >= 50 && ts <= 300 ? ts : 100; else g_error_free(et);
+            if (!et) {   /* a hand-edited value snaps to the nearest step of the Text size menu */
+                int k, best = 100;
+                if (ts >= 50 && ts <= 300)
+                    for (k = 0; k < TEXT_NSTEPS; k++) if (abs(g_text_steps[k] - ts) < abs(best - ts)) best = g_text_steps[k];
+                g_text_pct = best;
+            } else g_error_free(et);
         }
         {
             char *th = g_key_file_get_string(kf, "SRSDEF", "Theme", NULL);
@@ -1852,6 +1857,7 @@ static GtkWidget *make_window(swin *w, const char *title, int width, int height)
 {
     fit_to_screen(&width, &height);
     w->win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_widget_add_events(w->win, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);   /* 2.7: Ctrl + wheel text size over every part of the window */
     gtk_window_set_title(GTK_WINDOW(w->win), title);
     gtk_window_set_default_size(GTK_WINDOW(w->win), width, height);
     gtk_window_set_icon_name(GTK_WINDOW(w->win), "srs");
@@ -2501,11 +2507,14 @@ static void burn_sens(swin *w)
     int idle = !burn_active(), cpu = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_cpuon));
     int timed = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_timed));
     int gb = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gb)), sync = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_gbsync));
-    int i;
+    int i, side = 0;   /* 2.7: Timed / Burn Time also apply when only the memory / sync / disk loads run */
+    if (w->b_mem && w->b_sync && w->b_disk)
+        side = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_mem)) > 0 || gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_sync)) > 0
+            || gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_disk)) > 0;
     gtk_widget_set_sensitive(w->b_cpuon, idle);
-    gtk_widget_set_sensitive(w->b_timed, idle && cpu);
-    gtk_widget_set_sensitive(w->b_until, idle && cpu);
-    gtk_widget_set_sensitive(w->b_timedrow, idle && cpu && timed);
+    gtk_widget_set_sensitive(w->b_timed, idle && (cpu || side));
+    gtk_widget_set_sensitive(w->b_until, idle && (cpu || side));
+    gtk_widget_set_sensitive(w->b_timedrow, idle && (cpu || side) && timed);
     gtk_widget_set_sensitive(w->b_cpurow, idle && cpu);
     gtk_widget_set_sensitive(w->b_same, idle && cpu);
     gtk_widget_set_sensitive(w->b_limit, idle && cpu);
@@ -2555,7 +2564,7 @@ static char *self_exe_for_child(char *why, size_t wn)
     char *exe = g_file_read_link("/proc/self/exe", NULL);
     if (!exe) { snprintf(why, wn, "SRS could not find its own program file (/proc/self/exe)"); return NULL; }
     if (g_str_has_suffix(exe, " (deleted)") || !g_file_test(exe, G_FILE_TEST_IS_EXECUTABLE)) {
-        snprintf(why, wn, "SRS was updated or rebuilt while it was running, so this copy cannot start its GPU part - "
+        snprintf(why, wn, "SRS was updated or rebuilt while it was running, so this copy cannot start a GPU test - "
                           "close SRS (Menu -> Quit) and start it again");
         g_free(exe);
         return NULL;
@@ -2670,7 +2679,7 @@ static void on_burn_start(GtkWidget *x, gpointer data)
     hot_check(w);   /* a limit over 100 °C typed in and Start pressed at once: asked here (No = 100) */
     c.temp_limit_c = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w->b_limit));
     g_sb_cpulimit = (int)c.temp_limit_c;
-    if (cpu && timed) {
+    if ((cpu || side) && timed) {   /* 2.7: Timed also applies when only the side loads run */
         double t;
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_time));
         gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_cool));
@@ -2780,12 +2789,28 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         if (cpu) snprintf(msg, sizeof msg, "This will make %d CPU%s 100%% busy %s. The CPU load stops automatically if the hottest CPU sensor "
                           "reaches %.0f°C, or on Stop / closing this window.", n, n == 1 ? "" : "s",
                           timed ? "for the configured burn time" : "until you press Stop", c.temp_limit_c);
-        else snprintf(msg, sizeof msg, "No CPU load: only the GPU is tested.");
+        else if (gb || cmd) snprintf(msg, sizeof msg, "No CPU load: only the GPU%s is tested.", side ? " and the memory / sync / disk loads below" : "");
+        else snprintf(msg, sizeof msg, "No CPU or GPU load: only the memory / sync / disk loads below run, %s.",
+                      timed ? "for the configured burn time" : "until you press Stop");
+        if (side) {   /* 2.7: name every side load, and the disk wear they cause */
+            size_t k = strlen(msg);
+            k += snprintf(msg + k, sizeof msg - k, "\n\nAlso:");
+            if (c.mem_workers > 0)
+                k += snprintf(msg + k, sizeof msg - k, "\n- Memory load: %d x %d MB, written and read back over and over.", c.mem_workers, c.mem_mb);
+            if (c.sync_workers > 0)
+                k += snprintf(msg + k, sizeof msg - k, "\n- Sync load: %d worker%s flushing a small file to the disk over and over.",
+                              c.sync_workers, c.sync_workers == 1 ? "" : "s");
+            if (c.disk_workers > 0)
+                k += snprintf(msg + k, sizeof msg - k, "\n- Disk write load: %d x %d MB written over and over in %.200s.\n  An SSD wears with every "
+                              "write: a fast NVMe drive can take 1-2 TB in 15 minutes, a noticeable share of its rated life. Run it "
+                              "briefly, or on a drive you do not mind wearing.",
+                              c.disk_workers, c.disk_mb, c.disk_dir ? c.disk_dir : "~/.cache/srs");
+        }
         if (*gpuask) { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\n%s", gpuask); }
         else if (c.gpu_cmd) { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\nThe custom GPU command will run too: %.300s", c.gpu_cmd); }
         { size_t k = strlen(msg); snprintf(msg + k, sizeof msg - k, "\n\nStart now?"); }
         m = gtk_message_dialog_new(GTK_WINDOW(w->win), GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK_CANCEL, "%s", msg);
-        gtk_window_set_title(GTK_WINDOW(m), cpu && (gb || cmd) ? "Start CPU and GPU load?" : cpu ? "Start CPU load?" : "Start GPU load?");
+        gtk_window_set_title(GTK_WINDOW(m), cpu && (gb || cmd) ? "Start CPU and GPU load?" : cpu ? "Start CPU load?" : (gb || cmd) ? "Start GPU load?" : "Start load?");
         ok = gtk_dialog_run(GTK_DIALOG(m)) == GTK_RESPONSE_OK;
         gtk_widget_destroy(m);
         if (!ok) { w->gb_used = 0; return; }
@@ -3037,7 +3062,9 @@ static void build_burn(swin *w, GtkWidget *vb)
         gtk_box_pack_start(GTK_BOX(r2), lbl("Disk write workers"), FALSE, FALSE, 0);
         w->b_disk = spin(0, 16, 1, g_sb_disk);
         gtk_widget_set_tooltip_text(w->b_disk, "Each disk worker writes a file of this size over and over (data that cannot be compressed), "
-                                               "flushed to the disk every 64 MB. It needs that much free space plus 1 GB.");
+                                               "flushed to the disk every 16 MB. It needs that much free space plus 1 GB. An SSD wears with "
+                                               "every write: a fast NVMe drive can take 1-2 TB in 15 minutes, so run it briefly. A folder in "
+                                               "/tmp (RAM) fills the memory instead of testing a drive.");
         gtk_box_pack_start(GTK_BOX(r2), w->b_disk, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(r2), lbl("x  MB"), FALSE, FALSE, 0);
         w->b_diskmb = spin(16, BURN_DISK_MB_MAX, 64, g_sb_diskmb);
@@ -3056,6 +3083,9 @@ static void build_burn(swin *w, GtkWidget *vb)
         gtk_expander_set_expanded(GTK_EXPANDER(w->b_side), g_sb_sideopts);
         gtk_container_add(GTK_CONTAINER(w->b_side), sb);
         g_signal_connect(w->b_side, "notify::expanded", G_CALLBACK(on_side_expander), NULL);
+        g_signal_connect(w->b_mem, "value-changed", G_CALLBACK(on_burn_opt), w);    /* Timed follows the side loads too */
+        g_signal_connect(w->b_sync, "value-changed", G_CALLBACK(on_burn_opt), w);
+        g_signal_connect(w->b_disk, "value-changed", G_CALLBACK(on_burn_opt), w);
         gtk_grid_attach(GTK_GRID(grid), w->b_side, 0, 7, 7, 1);
     }
     gtk_box_pack_start(GTK_BOX(vb), grid, FALSE, FALSE, 0);
@@ -5841,16 +5871,23 @@ static void text_size_apply(int old_pct)
     guint i;
     double r = old_pct > 0 ? (double)g_text_pct / old_pct : 1.0;
     if (!st) return;
-    if (!g_text_base_dpi) {
-        int d = -1;
-        g_object_get(st, "gtk-xft-dpi", &d, NULL);
-        g_text_base_dpi = d > 0 ? d : 96 * 1024;
+    if (g_text_pct == 100) {
+        /* at 100 % SRS does not hold the font resolution: the desktop's own value (and its later changes) applies */
+        if (old_pct > 0 && old_pct != 100) gtk_settings_reset_property(st, "gtk-xft-dpi");
+    } else {
+        if (old_pct <= 0 || old_pct == 100 || !g_text_base_dpi) {   /* leaving 100 %: the desktop's value right now */
+            int d = -1;
+            g_object_get(st, "gtk-xft-dpi", &d, NULL);
+            g_text_base_dpi = d > 0 ? d : 96 * 1024;
+        }
+        g_object_set(st, "gtk-xft-dpi", (int)((double)g_text_base_dpi * g_text_pct / 100.0), NULL);
     }
-    g_object_set(st, "gtk-xft-dpi", (int)((double)g_text_base_dpi * g_text_pct / 100.0), NULL);
     load_css();
     for (i = 0; old_pct > 0 && g_wins && i < g_wins->len; i++) {
         swin *x = g_ptr_array_index(g_wins, i);
         if (x->buf) gtk_text_tag_table_foreach(gtk_text_buffer_get_tag_table(x->buf), text_scale_tag, &r);
+        if (x->scratch && (!x->buf || gtk_text_buffer_get_tag_table(x->scratch) != gtk_text_buffer_get_tag_table(x->buf)))
+            gtk_text_tag_table_foreach(gtk_text_buffer_get_tag_table(x->scratch), text_scale_tag, &r);
         if (x->win) gtk_widget_queue_resize(x->win);
     }
 }

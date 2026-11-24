@@ -1894,7 +1894,7 @@ just heat it up.
 | Load | What it does | Checks its results | Score |
 |---|---|---|---|
 | **Whetstone** | The classic floating-point benchmark (as before 2.7). | no | MWIPS |
-| **Matrix multiply** | Multiplies two 288 x 288 matrices of double-precision numbers, over and over, with the widest multiply-add (FMA) units the CPU has (AVX-512, AVX2 or SSE2). The inputs are chosen so every answer is exact. | yes, every element | GFLOPS |
+| **Matrix multiply** | Multiplies two 288 x 288 matrices of double-precision numbers, over and over, with the widest vector units the CPU has (AVX-512 or AVX2, with multiply-add (FMA), or SSE2). The inputs are chosen so every answer is exact. | yes, every element | GFLOPS |
 | **SHA-256** | Hashes a 64 KB block, with the CPU's SHA instructions when it has them (integer units). | yes, every digest | MB/s |
 | **Square root** | Square roots of whole-number squares (the classic `stress -c` load). | yes, every result | millions per second |
 
@@ -1908,7 +1908,8 @@ Which one to use:
 - **Whetstone** gives the per-CPU scores of earlier versions, to compare with old runs.
 
 **Side loads** (in the folded **Memory, sync and disk loads** line) - extra threads, not tied to a
-CPU, that follow the burn / cool phases with the CPU load and stop with it at once:
+CPU, that follow the burn / cool phases with the CPU load and stop with it (the CPU load stops at once; a disk or
+sync worker first finishes the write or flush it is in, a moment on a fast SSD, longer on a slow drive):
 
 - **Memory workers x MB** - each worker writes its own block of memory with a pattern that changes
   every pass, then reads it all back and checks it. A wrong value fails the run (the memory, or its
@@ -1918,14 +1919,15 @@ CPU, that follow the burn / cool phases with the CPU load and stop with it at on
 - **Sync workers** - each rewrites 64 KB of a file and flushes it to the disk, over and over: a load
   on the file system's journal and the drive's cache flushes (like `stress -i`).
 - **Disk write workers x MB** - each writes a file of that size over and over, with data that cannot
-  be compressed, flushed to the disk every 64 MB (like `stress --hdd`). It needs that much free space
-  plus 1 GB.
+  be compressed, flushed to the disk every 16 MB (like `stress --hdd`). It needs that much free space
+  plus 1 GB. **An SSD wears with every write:** a fast NVMe drive can take 1-2 TB in 15 minutes, a noticeable share of its rated life, so run the disk load briefly, or on a drive you do not mind wearing. A folder in `/tmp` (memory on most systems) fills the RAM instead of testing a drive, and there is no drive-temperature cutoff.
 - **in folder** - where the sync and disk files go, so you can pick the drive to test (default
   `~/.cache/srs`). The files have no name in the folder and are gone when the run ends, even if SRS
   is killed.
 
 The side loads can run on their own: untick **CPU load** (and the GPU parts) and set a memory, sync
-or disk load. They then run until you press Stop. On the command line: `burn --load matmul`,
+or disk load. **Timed** (Burn Time, Cool Time, Cycles) and **Until Stop** work for them as for the CPU
+load. On the command line: `burn --load matmul`,
 `--memory 2 --memory-mb 512`, `--sync 1`, `--disk 1 --disk-mb 2048 --disk-dir /mnt/data`, and
 `--cpus none` for the side loads alone ([CLI reference](CLI-REFERENCE.md)).
 
@@ -2994,7 +2996,7 @@ saved in `~/.config/srs/SRSDEF.ini` and apply at once to every open window.
 | **Theme -> Light (SIV classic)** | SIV's light look and colours. | classic view |
 | **Theme -> Dark** | Dark panels, SIV's colours brightened so they stay readable, dark graphs. | |
 | **Theme -> Follow desktop** | Uses your desktop's light/dark setting (via xdg-desktop-portal, set by KDE Plasma and GNOME) and switches live when you change it. Without a portal, it reads `GTK_THEME` or `~/.config/gtk-3.0/settings.ini`. | main window |
-| **Text size** (2.7) | Makes all of SRS's text larger or smaller - the reports, buttons, menus and headings, in every window - from 50 % to 300 %. The columns of the reports grow with the text, so tables stay lined up. Only SRS changes; the desktop and other programs keep their size. Keys: **Ctrl + Plus** (or Ctrl + =, or + on the number pad) larger, **Ctrl + Minus** smaller, **Ctrl + 0** back to 100 %. Mouse: hold **Ctrl** (either one) and turn the **wheel forward** (away from you) for larger, **back** for smaller - one notch, one step; the page under the mouse does not scroll meanwhile. Icons keep their size, and a window does not grow by itself: make it bigger, or scroll, when the text no longer fits. | 100 % |
+| **Text size** (2.7) | Makes all of SRS's text larger or smaller - the reports, buttons, menus and headings, in the main window, the classic view and the tool windows - from 50 % to 300 %. The columns of the reports grow with the text, so tables stay lined up. Only SRS changes; the desktop and other programs keep their size. Keys: **Ctrl + Plus** (or Ctrl + =, or + on the number pad) larger, **Ctrl + Minus** smaller, **Ctrl + 0** back to 100 %. Mouse: hold **Ctrl** (either one) and turn the **wheel forward** (away from you) for larger, **back** for smaller - one notch, one step; the page under the mouse does not scroll meanwhile. A question box that is open at the time (for example Start now?) does not take these keys; close it first. Icons keep their size, and a window does not grow by itself: make it bigger, or scroll, when the text no longer fits. | 100 % |
 | **Update interval** | How often live panels refresh: **Default** (each panel's own rate; the classic main window every 2 s; the Overview checks and the key-fact tiles always every 3 s), 0.5, 1, 2, 3, 5 or 10 seconds, or **Paused** (press F5 to refresh by hand). Stress & Burnin always updates every second. | Default |
 | **System tray icon** | Show the tray icon. | on |
 | **Close button hides to tray** | Closing the main window hides it instead of exiting. The first time, a notice says SRS is still running in the tray and how to quit (right-click the tray icon > Quit SRS, or Menu > Quit / Ctrl+Q), with **Don't show this again**. | off |
