@@ -73,6 +73,9 @@ static int g_sb_cpulimit = 90;   /* 2.4: the CPU stop limit is remembered too ("
 #define LIMIT_SAFE 100   /* stop limits up to this need no extra question */
 #define LIMIT_MAX 110    /* the most either limit can be set to (GPU hotspot / junction critical on most cards) */
 static int g_sb_gpu, g_sb_gpumin = 15, g_sb_sync = 1, g_sb_back, g_sb_prec, g_sb_limit = 100, g_sb_until, g_sb_gpuopts;
+/* 2.7: the CPU load (BURN_WL_*) and the memory / sync / disk side loads, remembered too */
+static int g_sb_load, g_sb_mem, g_sb_memmb = 256, g_sb_syncw, g_sb_disk, g_sb_diskmb = 1024, g_sb_sideopts;
+static char g_sb_diskdir[512];
 static char g_findcol[16] = "#FFFF00", g_ini[1100], g_host[256] = "localhost", g_image[64] = "srs-gui", g_gpucmd[512];
 static int g_highlight = 1, g_hide_unused;
 /* SIV lives in the Icon Tray: tray options (SRSDEF.ini) */
@@ -129,6 +132,7 @@ typedef struct swin {
     GtkWidget *b_time, *b_hours, *b_cool, *b_cycles, *b_limit, *b_same, *b_gpu, *b_gpucmd, *b_start, *b_stop;
     GtkWidget *b_cpuon, *b_timed, *b_until, *b_timedrow, *b_cpurow, *b_selall, *b_deselall;   /* Stress & Burnin: the CPU part */
     GtkWidget *b_gb, *b_gbrow, *b_gbtime, *b_gbsync;   /* the built-in GPU Burnin: on, its options, minutes, sync to the CPU time */
+    GtkWidget *b_load, *b_side, *b_mem, *b_memmb, *b_sync, *b_disk, *b_diskmb, *b_diskdir;   /* 2.7: CPU load, side loads */
     char gb_arg[16][720], gb_live[700];                /* its command line (srs-gui --gpu-burn-child ...) and live-status file */
     const char *gb_argv[17];
     int gb_used;                                       /* this window started a built-in GPU Burnin: show its live page / result */
@@ -892,17 +896,27 @@ static void settings_load(void)
             static const char *const keys[] = { "Stress GPU Burnin", "Stress GPU Minutes", "Stress GPU Sync", "Stress GPU Backend",
                                                 "Stress GPU Precision", "Stress GPU Limit", "Stress Until Stop", "Stress GPU Options Open",
                                                 "Accepted Load Test Terms", "Tray Close Notice Off", "Accepted High Temperature Limits",
-                                                "Stress CPU Limit" };
+                                                "Stress CPU Limit", "Stress CPU Load", "Stress Memory Workers", "Stress Memory MB",
+                                                "Stress Sync Workers", "Stress Disk Workers", "Stress Disk MB", "Stress Side Loads Open" };
             int *vars[] = { &g_sb_gpu, &g_sb_gpumin, &g_sb_sync, &g_sb_back, &g_sb_prec, &g_sb_limit, &g_sb_until, &g_sb_gpuopts, &g_terms,
-                            &g_tray_notice_off, &g_hot_ok, &g_sb_cpulimit };
+                            &g_tray_notice_off, &g_hot_ok, &g_sb_cpulimit, &g_sb_load, &g_sb_mem, &g_sb_memmb, &g_sb_syncw,
+                            &g_sb_disk, &g_sb_diskmb, &g_sb_sideopts };
             int k;
-            for (k = 0; k < 12; k++) {
+            char *dd = g_key_file_get_string(kf, "SRSDEF", "Stress Disk Folder", NULL);
+            if (dd) { snprintf(g_sb_diskdir, sizeof g_sb_diskdir, "%s", dd); g_free(dd); }
+            for (k = 0; k < 19; k++) {
                 GError *e4 = NULL;
                 int v = g_key_file_get_integer(kf, "SRSDEF", keys[k], &e4);
                 if (!e4) *vars[k] = v; else g_error_free(e4);
             }
             /* a limit over 100 °C without the yes (an older or hand-edited SRSDEF.ini) goes back to 100 */
             if (g_sb_cpulimit < 50 || g_sb_cpulimit > LIMIT_MAX) g_sb_cpulimit = 90;
+            if (g_sb_load < 0 || g_sb_load >= BURN_NWL) g_sb_load = BURN_WL_WHETSTONE;
+            if (g_sb_mem < 0 || g_sb_mem > 32) g_sb_mem = 0;
+            if (g_sb_memmb < 16 || g_sb_memmb > BURN_MEM_MB_MAX) g_sb_memmb = 256;
+            if (g_sb_syncw < 0 || g_sb_syncw > 16) g_sb_syncw = 0;
+            if (g_sb_disk < 0 || g_sb_disk > 16) g_sb_disk = 0;
+            if (g_sb_diskmb < 16 || g_sb_diskmb > BURN_DISK_MB_MAX) g_sb_diskmb = 1024;
             if (g_sb_limit < 50 || g_sb_limit > LIMIT_MAX) g_sb_limit = 100;
             if (!g_hot_ok) { if (g_sb_cpulimit > LIMIT_SAFE) g_sb_cpulimit = LIMIT_SAFE; if (g_sb_limit > LIMIT_SAFE) g_sb_limit = LIMIT_SAFE; }
         }
@@ -957,6 +971,14 @@ static void settings_save(void)
     g_key_file_set_integer(kf, "SRSDEF", "Tray Close Notice Off", g_tray_notice_off);
     g_key_file_set_integer(kf, "SRSDEF", "Accepted High Temperature Limits", g_hot_ok);
     g_key_file_set_integer(kf, "SRSDEF", "Stress CPU Limit", g_sb_cpulimit);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress CPU Load", g_sb_load);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Memory Workers", g_sb_mem);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Memory MB", g_sb_memmb);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Sync Workers", g_sb_syncw);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Disk Workers", g_sb_disk);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Disk MB", g_sb_diskmb);
+    g_key_file_set_string(kf, "SRSDEF", "Stress Disk Folder", g_sb_diskdir);
+    g_key_file_set_integer(kf, "SRSDEF", "Stress Side Loads Open", g_sb_sideopts);
     g_key_file_set_integer(kf, "SRSDEF", "Tray Icon", g_opt_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Close To Tray", g_opt_close_tray);
     g_key_file_set_integer(kf, "SRSDEF", "Minimize To Tray", g_opt_min_tray);
@@ -2413,6 +2435,18 @@ static void on_gb_expander(GtkWidget *x, GParamSpec *ps, gpointer data)
     g_sb_gpuopts = gtk_expander_get_expanded(GTK_EXPANDER(x));
     settings_save();
 }
+static void on_load_changed(GtkComboBox *cb, gpointer data)   /* the CPU load's tooltip says what the chosen one does */
+{
+    const char *const *tips = data;
+    int k = gtk_combo_box_get_active(cb);
+    if (k >= 0 && k < BURN_NWL) gtk_widget_set_tooltip_text(GTK_WIDGET(cb), tips[k]);
+}
+static void on_side_expander(GtkWidget *x, GParamSpec *ps, gpointer data)
+{
+    (void)ps; (void)data;
+    g_sb_sideopts = gtk_expander_get_expanded(GTK_EXPANDER(x));
+    settings_save();
+}
 /* 2.4: the closed "GPU options" line shows what it holds, so the GPU's own stop limit is never hidden */
 static void gb_opts_label(swin *w)
 {
@@ -2460,6 +2494,8 @@ static void burn_sens(swin *w)
     gtk_widget_set_sensitive(w->b_cpurow, idle && cpu);
     gtk_widget_set_sensitive(w->b_same, idle && cpu);
     gtk_widget_set_sensitive(w->b_limit, idle && cpu);
+    if (w->b_load) gtk_widget_set_sensitive(w->b_load, idle && cpu);
+    if (w->b_side) gtk_widget_set_sensitive(gtk_bin_get_child(GTK_BIN(w->b_side)), idle);
     if (w->b_selall) {   /* All Cores on: every CPU is ticked for this run, Select / Deselect All wait */
         int ac = w->allcores && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->allcores));
         gtk_widget_set_sensitive(w->b_selall, idle && cpu && !ac);
@@ -2550,7 +2586,7 @@ static void on_burn_start(GtkWidget *x, gpointer data)
 {
     swin *w = data;
     burn_cfg c;
-    int i, n = 0, cpu, timed, gb, cmd;
+    int i, n = 0, cpu, timed, gb, cmd, side = 0;
     char gpuask[1600] = "";
     (void)x;
     if (g_bench_busy) { gtk_widget_error_bell(w->win); return; }
@@ -2574,6 +2610,29 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         n += c.enabled[i];
     }
     c.mode = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(w->b_same)) ? BURN_SAME : BURN_SWAP;
+    {   /* 2.7: the CPU load and the side loads */
+        GtkWidget *sp[5] = { w->b_mem, w->b_memmb, w->b_sync, w->b_disk, w->b_diskmb };
+        int k = gtk_combo_box_get_active(GTK_COMBO_BOX(w->b_load));
+        for (i = 0; i < 5; i++) gtk_spin_button_update(GTK_SPIN_BUTTON(sp[i]));
+        c.workload = g_sb_load = k >= 0 && k < BURN_NWL ? k : BURN_WL_WHETSTONE;
+        c.mem_workers = g_sb_mem = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_mem));
+        c.mem_mb = g_sb_memmb = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_memmb));
+        c.sync_workers = g_sb_syncw = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_sync));
+        c.disk_workers = g_sb_disk = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_disk));
+        c.disk_mb = g_sb_diskmb = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(w->b_diskmb));
+        snprintf(g_sb_diskdir, sizeof g_sb_diskdir, "%s", gtk_entry_get_text(GTK_ENTRY(w->b_diskdir)));
+        {   /* "~/" in the folder means the home folder */
+            const char *h = g_get_home_dir();
+            if (g_sb_diskdir[0] == '~' && (g_sb_diskdir[1] == '/' || !g_sb_diskdir[1]) && h) {
+                char t[512];
+                snprintf(t, sizeof t, "%s%s", h, g_sb_diskdir + 1);
+                snprintf(g_sb_diskdir, sizeof g_sb_diskdir, "%s", t);
+            }
+        }
+        c.disk_dir = g_sb_diskdir[0] ? g_sb_diskdir : NULL;
+        side = c.mem_workers > 0 || c.sync_workers > 0 || c.disk_workers > 0;
+        settings_save();
+    }
     gtk_spin_button_update(GTK_SPIN_BUTTON(w->b_limit));
     gtk_spin_button_update(GTK_SPIN_BUTTON(w->gb_limit));
     if (w->hot_id) { g_source_remove(w->hot_id); w->hot_id = 0; }
@@ -2600,9 +2659,9 @@ static void on_burn_start(GtkWidget *x, gpointer data)
         render_burn(w);
         return;
     }
-    if (!cpu && !gb && !cmd) {
+    if (!cpu && !gb && !cmd && !side) {
         gtk_widget_error_bell(w->win);
-        snprintf(w->st.status, sizeof w->st.status, "Not started: tick CPU load, GPU Burnin, a custom GPU command, or more than one");
+        snprintf(w->st.status, sizeof w->st.status, "Not started: tick CPU load, GPU Burnin, a custom GPU command, or set a memory / sync / disk load");
         render_burn(w);
         return;
     }
@@ -2844,11 +2903,29 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_widget_set_tooltip_text(w->b_limit, "The CPU part stops by itself when the hottest CPU sensor reaches this temperature. "
                                             "Over 100 °C (up to 110) is asked about once.");
     gtk_grid_attach(GTK_GRID(grid), w->b_limit, 1, 2, 1, 1);
-    w->b_same = gtk_radio_button_new_with_label(NULL, "Same CPU (Whetstone)");
+    w->b_same = gtk_radio_button_new_with_label(NULL, "Same CPU");
     swap = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(w->b_same), "Swap CPU (affinity test)");
     gtk_grid_attach(GTK_GRID(grid), w->b_same, 2, 2, 1, 1);
     gtk_grid_attach(GTK_GRID(grid), swap, 3, 2, 2, 1);
     w->b_cpurow = swap;
+    {   /* 2.7: what each CPU thread runs */
+        GtkWidget *lrow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        static const char *const tips[BURN_NWL] = {
+            "Whetstone: the classic floating-point benchmark; the rating per thread is in MWIPS. It does not check its results.",
+            "Matrix multiply: double-precision matrix multiplications with the CPU's widest FMA units (AVX-512, AVX2 or SSE2) - "
+            "the hottest load, the one to test a curve optimiser / undervolt or an overclock with. Every result is checked; a wrong "
+            "one fails the run.",
+            "SHA-256: hashing with the CPU's SHA instructions when it has them (integer units). Every digest is checked.",
+            "Square root: square roots of whole-number squares, every result checked (the classic \"stress -c\" load)." };
+        w->b_load = gtk_combo_box_text_new();
+        for (k = 0; k < BURN_NWL; k++) gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(w->b_load), burn_wl_name[k]);
+        gtk_combo_box_set_active(GTK_COMBO_BOX(w->b_load), g_sb_load);
+        gtk_widget_set_tooltip_text(w->b_load, tips[g_sb_load]);
+        g_signal_connect(w->b_load, "changed", G_CALLBACK(on_load_changed), (gpointer)tips);
+        gtk_box_pack_start(GTK_BOX(lrow), lbl("CPU load"), FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(lrow), w->b_load, FALSE, FALSE, 0);
+        gtk_grid_attach(GTK_GRID(grid), lrow, 5, 2, 2, 1);
+    }
     /* row 3: the built-in GPU Burnin */
     w->b_gb = gtk_check_button_new_with_mnemonic("_GPU Burnin (built-in)");
     gtk_widget_set_tooltip_text(w->b_gb, "Load the graphics card too, with SRS's own GPU Burnin: large matrix multiplications that count every "
@@ -2909,6 +2986,47 @@ static void build_burn(swin *w, GtkWidget *vb)
     gtk_box_pack_start(GTK_BOX(irow), w->gb_info, FALSE, FALSE, 0);
     gtk_grid_attach(GTK_GRID(grid), irow, 1, 6, 6, 1);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w->b_gb), g_sb_gpu);
+    {   /* 2.7, row 7: the side loads, in an expander closed by default (all 0 = off) */
+        GtkWidget *sb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4), *r1 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        GtkWidget *r2 = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        gtk_box_pack_start(GTK_BOX(r1), lbl("Memory workers"), FALSE, FALSE, 0);
+        w->b_mem = spin(0, 32, 1, g_sb_mem);
+        gtk_widget_set_tooltip_text(w->b_mem, "Each memory worker writes its own block of memory and reads it back, over and over; a wrong "
+                                              "value read back fails the run. All workers together may use up to 75 % of the free memory. "
+                                              "Use blocks bigger than the CPU's cache (256 MB or more) so the data really goes to the RAM.");
+        gtk_box_pack_start(GTK_BOX(r1), w->b_mem, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r1), lbl("x  MB"), FALSE, FALSE, 0);
+        w->b_memmb = spin(16, BURN_MEM_MB_MAX, 16, g_sb_memmb);
+        gtk_box_pack_start(GTK_BOX(r1), w->b_memmb, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r1), lbl("   Sync workers"), FALSE, FALSE, 0);
+        w->b_sync = spin(0, 16, 1, g_sb_syncw);
+        gtk_widget_set_tooltip_text(w->b_sync, "Each sync worker rewrites 64 KB of a file and flushes it to the disk, over and over "
+                                               "(the file system's journal and the drive's cache flushes).");
+        gtk_box_pack_start(GTK_BOX(r1), w->b_sync, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), lbl("Disk write workers"), FALSE, FALSE, 0);
+        w->b_disk = spin(0, 16, 1, g_sb_disk);
+        gtk_widget_set_tooltip_text(w->b_disk, "Each disk worker writes a file of this size over and over (data that cannot be compressed), "
+                                               "flushed to the disk every 64 MB. It needs that much free space plus 1 GB.");
+        gtk_box_pack_start(GTK_BOX(r2), w->b_disk, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), lbl("x  MB"), FALSE, FALSE, 0);
+        w->b_diskmb = spin(16, BURN_DISK_MB_MAX, 64, g_sb_diskmb);
+        gtk_box_pack_start(GTK_BOX(r2), w->b_diskmb, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(r2), lbl("   in folder"), FALSE, FALSE, 0);
+        w->b_diskdir = gtk_entry_new();
+        gtk_entry_set_text(GTK_ENTRY(w->b_diskdir), g_sb_diskdir);
+        gtk_entry_set_placeholder_text(GTK_ENTRY(w->b_diskdir), "~/.cache/srs");
+        gtk_widget_set_tooltip_text(w->b_diskdir, "Where the sync and disk files go: the drive to test. The files have no name in the folder "
+                                                  "and are gone when the run ends.");
+        gtk_widget_set_hexpand(w->b_diskdir, TRUE);
+        gtk_box_pack_start(GTK_BOX(r2), w->b_diskdir, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(sb), r1, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(sb), r2, FALSE, FALSE, 0);
+        w->b_side = gtk_expander_new_with_mnemonic("Memory, s_ync and disk loads (run beside the CPU and GPU loads, or on their own)");
+        gtk_expander_set_expanded(GTK_EXPANDER(w->b_side), g_sb_sideopts);
+        gtk_container_add(GTK_CONTAINER(w->b_side), sb);
+        g_signal_connect(w->b_side, "notify::expanded", G_CALLBACK(on_side_expander), NULL);
+        gtk_grid_attach(GTK_GRID(grid), w->b_side, 0, 7, 7, 1);
+    }
     gtk_box_pack_start(GTK_BOX(vb), grid, FALSE, FALSE, 0);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(cpus), 16);
     gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(cpus), ncpu < 8 ? (ncpu < 1 ? 1 : ncpu) : 8);   /* its height is asked at the narrowest */

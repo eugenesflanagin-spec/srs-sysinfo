@@ -54,6 +54,17 @@ and never writes to a graphics card.
 | The Linux kernel's amdgpu driver (its OverDrive and power files are documented at <https://docs.kernel.org/gpu/amdgpu/thermal.html>) | the files GPU Tuning reads - the OverDrive table `pp_od_clk_voltage` (its sections and ranges), the power limit and hwmon - and the wording of the driver's ring timeout, GPU reset, MODE1 / MODE2 reset, VRAM lost and parser error messages that `--watch-kernel` looks for (also, best effort, i915 / xe) | GPL-2.0 (kernel); facts only (file formats, message wording), no code copied |
 | NVIDIA's `NVRM: Xid` kernel log lines (Xid errors are documented at <https://docs.nvidia.com/deploy/xid-errors/index.html>) | the lines `--watch-kernel` counts as a GPU fault for the tested card | facts only (message wording) |
 
+## Stress & Burnin loads (2.7)
+
+The Matrix multiply, SHA-256, Square root, memory, sync and disk-write loads are SRS's own C code (`burner.c`, the
+Matrix multiply kernels of `bench_compute.c`, the SHA-256 of `bench_crypto.c`). No code is copied from the programs
+below; they gave the idea of which loads to offer.
+
+| What | Used for | Licence / terms |
+|---|---|---|
+| s-tui by Alex Manuskin (<https://github.com/amanusk/s-tui>) | the choice of loads: its built-in matrix-multiply and SHA-256 burn, and its options for the `stress` tool (square-root, sync, memory and disk-write workers, bytes per worker) | GPL-2.0 |
+| stress by Amos Waterland (<https://github.com/resurrecting-open-source-projects/stress>) | the meaning of its `-c` (sqrt), `-i` (sync), `--vm` (memory) and `--hdd` (disk write) workers, which the side loads follow | GPL-2.0 |
+
 ## Memory Timings, hardware lists and ACPI (2.4)
 
 SRS's code for these is its own. The register layouts below are facts taken from the projects named;

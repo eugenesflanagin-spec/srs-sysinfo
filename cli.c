@@ -45,8 +45,9 @@ static const char *HELP =
 #ifdef __linux__
     "\n"
     "Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):\n"
-    "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]\n"
-    "        CPU burn-in with a temperature limit (default 10 s, limit 90 C)\n"
+    "  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load whetstone|matmul|sha256|sqrt] [--limit C]\n"
+    "       [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]\n"
+    "        CPU burn-in with a temperature limit (default 10 s, limit 90 C); optional memory, sync and disk-write loads\n"
     "  bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]\n"
     "        Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);\n"
     "        asks first, --yes starts at once\n"
@@ -379,10 +380,21 @@ static int cmd_burn(int argc, char **argv)
     for (i = 2; i < argc; i++) {
         const char *a = argv[i], *v = i + 1 < argc ? argv[i + 1] : NULL;
         if (!strcmp(a, "--help") || !strcmp(a, "-h")) {
-            puts("usage: sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit]\n"
-                 "                             [--cool S] [--cycles N]\n"
+            puts("usage: sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C]\n"
+                 "                             [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N]\n"
+                 "                             [--disk N [--disk-mb MB]] [--disk-dir DIR]\n"
                  "  starts at once (no question): makes the chosen CPUs 100 % busy, stops at the temperature limit (default 90 C,\n"
-                 "  50..100; up to 110 with --accept-high-limit) or Ctrl+C");
+                 "  50..100; up to 110 with --accept-high-limit) or Ctrl+C\n"
+                 "  --load      what each CPU thread runs: whetstone (default), matmul (checked double-precision matrix multiply\n"
+                 "              with the CPU's widest FMA units - the hottest), sha256 (checked SHA-256 hashing) or sqrt (checked\n"
+                 "              square roots). A wrong result from matmul, sha256 or sqrt fails the run.\n"
+                 "  --memory N  N workers that each write a block of memory and read it back (--memory-mb, default 256 MB each;\n"
+                 "              at most 75 % of the free memory in all). A wrong value read back fails the run.\n"
+                 "  --sync N    N workers that rewrite 64 KB of a file and flush it to the disk, over and over\n"
+                 "  --disk N    N workers that each write a file of --disk-mb MB (default 1024) over and over, flushed every 64 MB\n"
+                 "  --disk-dir  folder for the sync and disk files (default ~/.cache/srs); the files have no name there and are\n"
+                 "              gone when the run ends. The side loads follow the burn / cool phases; --cpus none runs them\n"
+                 "              with no CPU load.");
             puts(g_hot_help);
             puts(g_risk);
             puts("Starting it counts as agreeing to that.");
@@ -396,22 +408,46 @@ static int cmd_burn(int argc, char **argv)
         else if (!strcmp(a, "--limit") && v) { c.temp_limit_c = atof(v); i++; }
         else if (!strcmp(a, "--accept-high-limit")) hot = 1;
         else if (!strcmp(a, "--mode") && v) { c.mode = !strcmp(v, "swap") ? BURN_SWAP : BURN_SAME; i++; }
-        else return usage_error("burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]");
+        else if (!strcmp(a, "--load") && v) {
+            int k, found = -1;
+            for (k = 0; k < BURN_NWL; k++) if (!strcmp(v, burn_wl_id[k])) found = k;
+            if (found < 0) return usage_error("burn --load whetstone|matmul|sha256|sqrt");
+            c.workload = found;
+            i++;
+        }
+        else if (!strcmp(a, "--memory") && v) { c.mem_workers = atoi(v); i++; }
+        else if (!strcmp(a, "--memory-mb") && v) { c.mem_mb = atoi(v); i++; }
+        else if (!strcmp(a, "--sync") && v) { c.sync_workers = atoi(v); i++; }
+        else if (!strcmp(a, "--disk") && v) { c.disk_workers = atoi(v); i++; }
+        else if (!strcmp(a, "--disk-mb") && v) { c.disk_mb = atoi(v); i++; }
+        else if (!strcmp(a, "--disk-dir") && v) { c.disk_dir = v; i++; }
+        else return usage_error("burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] "
+                                "[--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]");
     }
     if (c.burn_s <= 0 || c.burn_s > 750.0 * 3600) return usage_error("--seconds must be 1..2700000");
+    if (c.mem_workers < 0 || c.mem_workers > 32 || c.sync_workers < 0 || c.sync_workers > 16 || c.disk_workers < 0 || c.disk_workers > 16)
+        return usage_error("--memory must be 0..32, --sync and --disk 0..16");
+    if (c.mem_workers > 0 && c.mem_mb <= 0) c.mem_mb = 256;
+    if (c.disk_workers > 0 && c.disk_mb <= 0) c.disk_mb = 1024;
     if (!limit_ok("burn", c.temp_limit_c, hot)) return 2;
     if (cpus) {
         char tmp[1024], *t;
         memset(c.enabled, 0, sizeof c.enabled);
         snprintf(tmp, sizeof tmp, "%s", cpus);
-        for (t = strtok(tmp, ","); t; t = strtok(NULL, ",")) { int n = atoi(t); if (n >= 0 && n < c.ncpu) c.enabled[n] = 1; }
+        if (strcmp(cpus, "none"))   /* "none": only the side loads (or the GPU) */
+            for (t = strtok(tmp, ","); t; t = strtok(NULL, ",")) { int n = atoi(t); if (n >= 0 && n < c.ncpu) c.enabled[n] = 1; }
     } else if (threads > 0) {
         for (i = 0; i < c.ncpu; i++) c.enabled[i] = i < threads;
     }
     signal(SIGINT, on_int);
     fprintf(stderr, "%s\n", g_risk);
     burn_tick(&st);                      /* prime the CPU-usage counters */
-    if (burn_start(&c)) { fprintf(stderr, "burn: nothing to run (no CPUs selected, already running, or a GPU burn-in / benchmark is running)\n"); return 2; }
+    if (burn_start(&c)) {
+        burn_tick(&st);
+        if (strstr(st.status, "not started:")) fprintf(stderr, "burn: %s\n", st.status);
+        else fprintf(stderr, "burn: nothing to run (no CPUs selected, already running, or a GPU burn-in / benchmark is running)\n");
+        return 2;
+    }
     burn_tick(&st);
     printf("%s, %s mode, %.0f s burn, limit %.0f C\n", st.status, c.mode == BURN_SWAP ? "swap" : "same", c.burn_s, c.temp_limit_c);
     while (burn_active()) {
@@ -423,10 +459,23 @@ static int cmd_burn(int argc, char **argv)
                st.cur.gpu_temp, burn_active() ? (st.state == BURN_COOLING ? "Cooling" : "Burning") : st.status);
         fflush(stdout);
     }
-    printf("\n%-8s %-8s %-8s %10s %10s %10s %10s  %s\n", "Thread", "CPU", "Passes", "MWIPS", "Average", "Min", "Max", "Affinity");
-    for (i = 0; i < st.nthreads; i++)
-        printf("%-8d CPU-%-4d %-8ld %10.0f %10.0f %10.0f %10.0f  %s\n", i, st.th[i].cpu, st.th[i].passes, st.th[i].mwips_last,
-               st.th[i].mwips_avg, st.th[i].mwips_min, st.th[i].mwips_max, st.th[i].apic_errors ? "FAIL" : "ok");
+    if (st.nthreads) {
+        int d = st.workload == BURN_WL_MATMUL || st.workload == BURN_WL_SQRT;   /* GFLOPS, M/s: one decimal */
+        printf("\n%s%s%s%s\n", burn_wl_name[st.workload], st.load_note[0] ? " (" : "", st.load_note, st.load_note[0] ? ")" : "");
+        printf("%-8s %-8s %-8s %10s %10s %10s %10s  %s\n", "Thread", "CPU", "Passes", burn_wl_unit[st.workload], "Average", "Min", "Max", "Check");
+        for (i = 0; i < st.nthreads; i++) {
+            char chk[32];
+            if (st.th[i].errors) snprintf(chk, sizeof chk, "%ld wrong", st.th[i].errors);
+            else snprintf(chk, sizeof chk, "%s", st.th[i].apic_errors ? "FAIL (affinity)" : "ok");
+            printf("%-8d CPU-%-4d %-8ld %10.*f %10.*f %10.*f %10.*f  %s\n", i, st.th[i].cpu, st.th[i].passes, d, st.th[i].mwips_last,
+                   d, st.th[i].mwips_avg, d, st.th[i].mwips_min, d, st.th[i].mwips_max, chk);
+        }
+    }
+    if (st.mem_workers > 0)
+        printf("Memory: %d x %d MB, %ld passes, %.1f GB written and read back, %ld wrong\n", st.mem_workers, st.mem_mb, st.mem_passes, st.mem_gb, st.mem_errors);
+    if (st.sync_workers > 0) printf("Sync: %d worker%s, %ld flushes (in %s)\n", st.sync_workers, st.sync_workers == 1 ? "" : "s", st.sync_count, st.disk_dir);
+    if (st.disk_workers > 0) printf("Disk write: %d x %d MB, %.1f GB written, %.0f MB/s (in %s)\n", st.disk_workers, st.disk_mb, st.disk_gb,
+                                    st.side_s > 1 ? st.disk_gb * 1024.0 / st.side_s : 0, st.disk_dir);
     printf("Maximum: load %.1f%%  CPU %.1f C  board %.1f C  %.0f MHz\nStatus: %s\n", st.max.cpu_load, st.max.cpu_temp,
            st.max.sio_temp, st.max.cpu_mhz, st.status);
     {

@@ -38,7 +38,7 @@ sysreport-search guide [ITEM] [--print]
 sysreport-search id VVVV[:DDDD[:SSSS:ssss]][:RR] [--bus pci|usb] [--mode tree|scan|info]
 sysreport-search find PATTERN [--report DIR] [-i] [-F] [--max N] [--color auto|always|never]
 sysreport-search devices [--bus pci|usb|all]
-sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
 sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 sysreport-search latency [--max MB] [--yes]
@@ -101,7 +101,7 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
         --print only shows the section and the command that would run
 
 Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):
-  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
   bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]
         Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);
@@ -612,7 +612,13 @@ crypto: not started
 | `--threads N` | Use logical CPUs 0..N-1 | all |
 | `--cpus 0,2,5` | Use exactly these logical CPUs | all |
 | `--seconds S` | Burn time per cycle, 1 to 2,700,000 seconds | 10 |
-| `--mode same\|swap` | `same`: each worker stays on its CPU and runs Whetstone. `swap`: workers move between CPUs (affinity test). | same |
+| `--threads N` / `--cpus none` | `--cpus none` (2.7): no CPU load, only the side loads below | |
+| `--mode same\|swap` | `same`: each worker stays on its CPU. `swap`: workers move between CPUs (affinity test). | same |
+| `--load NAME` | What each worker runs (2.7): `whetstone` (score in MWIPS), `matmul` (checked double-precision matrix multiply with the CPU's widest FMA units, GFLOPS - the hottest), `sha256` (checked SHA-256 hashing, MB/s) or `sqrt` (checked square roots, millions per second). A wrong result from `matmul`, `sha256` or `sqrt` fails the run. | whetstone |
+| `--memory N` / `--memory-mb MB` | N workers (0-32) that each write their own block of MB megabytes and read it back, over and over; a wrong value fails the run. All together at most 75 % of the free memory (more is refused, exit 2). | 0 / 256 |
+| `--sync N` | N workers (0-16) that rewrite 64 KB of a file and flush it to the disk, over and over | 0 |
+| `--disk N` / `--disk-mb MB` | N workers (0-16) that each write a file of MB megabytes over and over (data that cannot be compressed, flushed every 64 MB). Needs that much free space plus 1 GB. | 0 / 1024 |
+| `--disk-dir DIR` | Folder for the sync and disk files. They have no name there and are gone when the run ends. | `~/.cache/srs` |
 | `--limit C` | Stop if the hottest CPU sensor reaches C degrees Celsius: 50-100, or 101-110 with `--accept-high-limit` (2.4; any other value exits 2 without starting) | 90 |
 | `--accept-high-limit` | Allow a `--limit` of 101-110 °C. Above 100 °C many CPUs and GPUs are already at or near their own maximum; using it means you accept that risk (the window asks the same once, Yes / No) | off |
 | `--cool S` | Rest between cycles, seconds | 0 |
@@ -625,20 +631,33 @@ Output: a start line, then one line per second (example values):
 ```
 
 (elapsed, CPU load, hottest core sensor, hottest motherboard sensor, CPU clock, GPU load and
-temperature, state), then a table per worker (Thread, CPU, Passes, MWIPS last / average / min / max,
-Affinity `ok` or `FAIL`), the maxima and the final status. The last line names the file the summary
+temperature, state), then the load's name and code path (for example `Matrix multiply (AVX-512)`), a
+table per worker (Thread, CPU, Passes, the score last / average / min / max in the load's unit -
+MWIPS, GFLOPS, MB/s or M/s - and Check `ok`, `FAIL (affinity)` or `N wrong`), one line per side load
+(memory passes, GB written and read back and wrong values; sync flushes; disk GB written and MB/s),
+the maxima and the final status. The last line names the file the summary
 was saved to (`Summary saved to /home/you/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt`, one file per run; the same
 layout as srs-gui's Burnin window).
 
-Exit codes: **0 = Pass**, **1 = Fail** (affinity error or temperature limit), **130 = stopped**
-(Ctrl+C), **2 = bad option or nothing to run**.
+Exit codes: **0 = Pass**, **1 = Fail** (affinity error, a wrong result from a checked load or the
+memory load, a side load that could not write its file, or the temperature limit), **130 = stopped**
+(Ctrl+C), **2 = bad option, nothing to run, or a side load refused** (too much memory asked, not
+enough disk space, or a folder that cannot be used - the message says which).
+
+Examples (2.7):
+
+```
+sysreport-search burn --threads 4 --seconds 600 --load matmul             # the hottest CPU load, 10 minutes
+sysreport-search burn --load sha256 --memory 2 --memory-mb 1024           # CPU and memory together
+sysreport-search burn --cpus none --seconds 300 --disk 1 --disk-mb 4096 --disk-dir /mnt/data   # only the disk
+```
 
 An unknown option prints the usage line and exits 2 **without starting anything**:
 
 ```
 $ sysreport-search burn --nope
 usage: sysreport-search [-h] [--version] {id,find,devices} ...
-sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
 ```
 
 A limit over 100 °C without `--accept-high-limit` is refused the same way (exit 2, nothing started):

@@ -1839,12 +1839,14 @@ The three parts, top to bottom:
 | **Burn Time** + **Hours** | How long each burn lasts (minutes, or hours when Hours is ticked). | 15 minutes |
 | **Cool Time** (s) / **Cycles** | Rest between burns, and how many burn + cool rounds. | 60 s / 1 |
 | **CPU temperature limit C** | The run stops at once if the hottest CPU sensor reaches this. 50-110; over 100 asks once ([below](#stop-limits-over-100-c)). Remembered. | 90 C |
-| **Same CPU (Whetstone)** / **Swap CPU (affinity test)** | Workers stay on their CPU and give a Whetstone score each, or move between CPUs to check the system places them correctly. | Same CPU |
+| **Same CPU** / **Swap CPU (affinity test)** | Workers stay on their CPU and give a score each, or move between CPUs to check the system places them correctly. | Same CPU |
+| **CPU load** (2.7) | What each worker runs: **Whetstone**, **Matrix multiply**, **SHA-256** or **Square root** ([below](#cpu-loads-and-side-loads)). Remembered. | Whetstone |
 | **GPU Burnin (built-in)** | Load the graphics card too, with SRS's own GPU Burnin ([9.18](#918-gpu-burnin)): large matrix multiplications that count every wrong result. | off |
 | **Time (min)** | How long the GPU part runs, from Start. It always ends with the CPU run at the latest. | 15 |
 | **Sync to CPU stress time** / **Sync to CPU burn time** | Run the GPU exactly as long as the CPU load: with Until Stop until you press Stop; with Timed during each burn phase, pausing while the CPUs cool. The Time box is greyed while it is ticked. | on |
 | **GPU options** (folded) | Back end (Auto = Vulkan, ROCm / HIP, CUDA, OpenCL), which GPU (the first, all, or one from the list), FP32 / FP64, and the GPU temperature limit (50-110, default 100 C). Closed by default; SRS remembers whether you opened it. Even closed, its line shows what it holds, e.g. "GPU options: Auto (Vulkan), FP32, stop at 100 °C" (2.4), so the GPU's own limit is never hidden. | Auto, first GPU, FP32, 100 C |
 | **Custom GPU command** | Instead of the built-in GPU Burnin, run your own GPU stress program (for example `gpu-burn-rocm 600`). SRS checks the program exists first. It pauses in each cool phase and stops with the run. Ticking it unticks GPU Burnin and the other way round. | empty |
+| **Memory, sync and disk loads** (2.7, folded) | **Memory workers** x **MB**, **Sync workers**, **Disk write workers** x **MB** and the folder for the files ([below](#cpu-loads-and-side-loads)). All 0 = off. They run beside the CPU and GPU loads, or on their own. Remembered. | 0, 256 MB, 0, 0, 1024 MB, `~/.cache/srs` |
 | **CPU-0 ... CPU-n**, **Select All / Deselect All**, **All Cores (Max)** | Which logical CPUs get a worker. All Cores (Max) (Alt+X, 2.5) ticks every CPU for this run and gives your own choice back when you let it go ([9.0](#90-use-at-your-own-risk)). | all |
 | **Start / Stop** | Start (asks first) / stop everything at once. | |
 
@@ -1861,20 +1863,71 @@ What you see while it runs, all in the results area under the controls:
   custom command's state (exit code, not found, killed).
 - With GPU Burnin: its live page - per GPU the errors found, GFLOPS now and on average, edge /
   hotspot / memory temperature, power, clock and fan; when it ends, its full result.
-- A table per worker thread (CPU, where it runs now, user / kernel time, clock, Whetstone score,
-  **Affinity** ok / FAIL) and a graph: green CPU load %, red hottest core C, orange board sensor C,
-  blue GPU C.
+- The **CPU Load** line: which load runs and its code path (for example "Matrix multiply (AVX-512),
+  results checked: 0 wrong"), and one line for each side load that runs (**Memory Load**, **Sync
+  Load**, **Disk Write Load**) with what it has done so far.
+- A table per worker thread (CPU, where it runs now, user / kernel time, clock, the load's score -
+  Whetstone in MWIPS, Matrix multiply in GFLOPS, SHA-256 in MB/s, Square root in millions per second
+  - and **Affinity** ok / FAIL, or how many wrong results that thread found) and a graph: green CPU
+  load %, red hottest core C, orange board sensor C, blue GPU C.
 
 How to read the result:
 
 - **Pass** - the run finished, no worker failed, no temperature limit was reached, and GPU Burnin
   (when it ran) found no compute errors.
-- **Fail** - a CPU worker failed (affinity error), a temperature limit was hit, GPU Burnin found
-  compute errors, or GPU Burnin ended early on a safety rule (GPU temperature, driver error, a GPU
-  that stopped answering). A temperature stop means the cooling cannot keep up at this load. A
+- **Fail** - a CPU worker failed (affinity error), a checked CPU load got a wrong result, the memory
+  load read back a wrong value, a temperature limit was hit, GPU Burnin found compute errors, or GPU
+  Burnin ended early on a safety rule (GPU temperature, driver error, a GPU that stopped answering). A temperature stop means the cooling cannot keep up at this load. A
   worker failure, wrong GPU results, or a crash or freeze during the run point to instability
   (overclock, undervolt or memory settings too aggressive).
-- Compare Whetstone scores per CPU: a CPU far below the others may be throttling or busy.
+- Compare the scores per CPU: a CPU far below the others may be throttling or busy.
+
+#### CPU loads and side loads
+
+**In plain words:** since 2.7 you can choose *what* the CPU workers run, and add loads on the memory
+and the disk. The ideas come from s-tui's stress options (and the `stress` tool it uses); SRS has its
+own code for them, and most of them check their own results, so they can catch an unstable PC, not
+just heat it up.
+
+**CPU load** - what each worker thread runs:
+
+| Load | What it does | Checks its results | Score |
+|---|---|---|---|
+| **Whetstone** | The classic floating-point benchmark (as before 2.7). | no | MWIPS |
+| **Matrix multiply** | Multiplies two 288 x 288 matrices of double-precision numbers, over and over, with the widest multiply-add (FMA) units the CPU has (AVX-512, AVX2 or SSE2). The inputs are chosen so every answer is exact. | yes, every element | GFLOPS |
+| **SHA-256** | Hashes a 64 KB block, with the CPU's SHA instructions when it has them (integer units). | yes, every digest | MB/s |
+| **Square root** | Square roots of whole-number squares (the classic `stress -c` load). | yes, every result | millions per second |
+
+Which one to use:
+
+- **Matrix multiply** is the hottest and draws the most power. Use it to test a Curve Optimizer /
+  undervolt or an overclock: a wrong result is the first sign of an unstable setting, often long
+  before a crash. It is also the one most likely to reach the temperature limit.
+- **SHA-256** and **Square root** are lighter and test other parts of the core (integer units, the
+  square-root unit). A PC that passes Matrix multiply can still fail these, and the other way round.
+- **Whetstone** gives the per-CPU scores of earlier versions, to compare with old runs.
+
+**Side loads** (in the folded **Memory, sync and disk loads** line) - extra threads, not tied to a
+CPU, that follow the burn / cool phases with the CPU load and stop with it at once:
+
+- **Memory workers x MB** - each worker writes its own block of memory with a pattern that changes
+  every pass, then reads it all back and checks it. A wrong value fails the run (the memory, or its
+  settings such as EXPO / XMP timings, is not stable). All workers together may use at most 75 % of
+  the free memory; SRS refuses to start above that. Use blocks bigger than the CPU's cache (256 MB or
+  more) so the data really goes to the RAM.
+- **Sync workers** - each rewrites 64 KB of a file and flushes it to the disk, over and over: a load
+  on the file system's journal and the drive's cache flushes (like `stress -i`).
+- **Disk write workers x MB** - each writes a file of that size over and over, with data that cannot
+  be compressed, flushed to the disk every 64 MB (like `stress --hdd`). It needs that much free space
+  plus 1 GB.
+- **in folder** - where the sync and disk files go, so you can pick the drive to test (default
+  `~/.cache/srs`). The files have no name in the folder and are gone when the run ends, even if SRS
+  is killed.
+
+The side loads can run on their own: untick **CPU load** (and the GPU parts) and set a memory, sync
+or disk load. They then run until you press Stop. On the command line: `burn --load matmul`,
+`--memory 2 --memory-mb 512`, `--sync 1`, `--disk 1 --disk-mb 2048 --disk-dir /mnt/data`, and
+`--cpus none` for the side loads alone ([CLI reference](CLI-REFERENCE.md)).
 
 Leaving the tab, the page or the window while a run is on asks whether to **Stop it** or **Keep
 running** (and stay); closing the tab or the classic window stops it.

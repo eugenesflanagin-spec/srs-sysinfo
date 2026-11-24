@@ -80,4 +80,12 @@ double cp_estimate_seconds(const cp_cfg *c);   /* about how long a run takes */
 int  bench_compute(const cp_cfg *c, srs_out *o, volatile int *cancel);
 const cp_result *cp_last(void);          /* result of the last bench_compute() in this process, NULL = none */
 
+/* CPU Burnin's "Matrix multiply" load (one per worker thread; NULL = out of memory or not Linux):
+   cp_burn_step runs one checked 288 x 288 double-precision multiply with the best code path and
+   returns the floating-point operations done; wrong result elements are added to *bad. */
+void *cp_burn_new(void);
+double cp_burn_step(void *w, long *bad);
+const char *cp_burn_isa(const void *w);   /* "AVX-512", "AVX2 + FMA", ... */
+void cp_burn_free(void *w);
+
 #endif

@@ -152,8 +152,11 @@ and a few more), so `sysreport-search --list` shows **560** in all.
   - **Stress & Burnin** (2.3.1: CPU Burnin, CPU Stress and GPU Burnin in one window; in the new main
     window a tab of the Benchmarks & Stress page, like every benchmark) - the CPU load Timed (burn /
     cool cycles, Pass or Fail) or Until Stop, plus the built-in GPU Burnin for its own time or synced
-    to the CPU time (it runs as its own process), or a custom GPU command. CPU part: per-CPU worker threads (Same CPU: Whetstone rating per CPU;
-    Swap CPU: affinity test), affinity/APIC check, burn/cool cycles, current / average / rolling /
+    to the CPU time (it runs as its own process), or a custom GPU command. CPU part: per-CPU worker threads (Same CPU: a rating per CPU;
+    Swap CPU: affinity test) running the chosen CPU load (2.7: Whetstone, or the checked Matrix
+    multiply with the CPU's widest FMA units, SHA-256 or Square root - a wrong result fails the run),
+    optional memory (written and read back), sync and disk-write side loads after s-tui's stress
+    options, affinity/APIC check, burn/cool cycles, current / average / rolling /
     maximum CPU load, clock, core temperature, board (Super-I/O) temperature and GPU load,
     temperature and clock, plots, Pass/Fail. Asks before starting, stops at a temperature limit
     (default 90 C; 50..110 C, over 100 C only after a one-time risk question, 2.4) and a time cap. Each finished run's summary is saved to
@@ -337,7 +340,8 @@ disable it. By hand: `sudo systemctl enable --now srs-root@$USER.service` (or `d
     srs-gui --list                         every item: id, category, bucket, group, title
     srs-gui guide ITEM [--print]           open the user guide at ITEM's section
     srs-gui id 1002:7550 | find PATTERN | devices
-    srs-gui burn --threads N --seconds S [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+    srs-gui burn --threads N --seconds S [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+                 [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
     srs-gui bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
     srs-gui ipi [--cpus N] [--rounds R] [--yes]    srs-gui latency [--max MB] [--yes]
     srs-gui pi [--digits 1m] [--threads N] [--yes]    srs-gui crypto [--yes]    srs-gui prime [--limit 1e9] [--yes]

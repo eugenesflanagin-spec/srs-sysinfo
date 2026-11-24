@@ -4,6 +4,42 @@ SRS is a Linux system information viewer inspired by SIV64X (System Information 
 and shared freely with the Linux and open-source community.
 SIV is by Ray Hinchliffe, RH Software (https://rh-software.com); SRS is not affiliated with RH Software.
 
+## 2.7.0 - unreleased
+
+**More stress loads in Stress & Burnin**, after s-tui's stress options (SRS's own code): the CPU workers can run a
+checked **Matrix multiply** (double precision, with the CPU's widest FMA units - the hottest load), **SHA-256** or
+**Square root** instead of Whetstone, and new **memory**, **sync** and **disk-write** loads run beside them or on their
+own. Every new load except sync and disk write checks its results, so a wrong answer fails the run.
+
+### Added
+
+- **CPU load** chooser in Stress & Burnin (`burn --load whetstone|matmul|sha256|sqrt`):
+  - **Matrix multiply**: 288 x 288 double-precision matrices, over and over, with the best code path the CPU has
+    (AVX-512, AVX2 + FMA, SSE2 or plain C - the CPU Compute benchmark's kernels). The inputs make every answer exact,
+    so each element is checked; a wrong one fails the run and names the first CPU it came from. Score in GFLOPS.
+  - **SHA-256**: a 64 KB block hashed with the CPU's SHA instructions when it has them; every digest checked. MB/s.
+  - **Square root**: square roots of whole-number squares, every result checked (the classic `stress -c` load). M/s.
+  - **Whetstone** stays the default, as before.
+- **Memory, sync and disk loads** (a folded line under the GPU options; `burn --memory N --memory-mb MB`,
+  `--sync N`, `--disk N --disk-mb MB`, `--disk-dir DIR`, `--cpus none` for these alone):
+  - memory workers write their own block with a pattern that changes every pass and read it all back; a wrong value
+    fails the run. All together at most 75 % of the free memory - more is refused before anything starts;
+  - sync workers rewrite 64 KB of a file and flush it to the disk, over and over;
+  - disk workers write a file of the chosen size over and over with data that cannot be compressed, flushed every
+    64 MB; the free space (plus 1 GB) is checked first;
+  - the files have no name in their folder (default `~/.cache/srs`) and are gone when the run ends, even if SRS is
+    killed. The side loads follow the burn / cool phases and stop with Stop or the temperature limit at once
+    (measured: under 0.1 s).
+- The summary (window, Copy, saved `burnin-*.txt` and `burn`'s output) names the load and its code path
+  ("Matrix multiply (AVX-512)"), shows each thread's score in that load's unit and its wrong results, and has a line
+  per side load. The new choices are remembered in `SRSDEF.ini` (`Stress CPU Load`, `Stress Memory Workers`, ...).
+
+### Changed
+
+- "Same CPU (Whetstone)" is now just **Same CPU**: the CPU load chooser beside it says what runs.
+- `burn` exits 2 with the reason when a side load is refused (too much memory, not enough disk space, a folder that
+  cannot be used), and its per-thread table's last column is **Check** (`ok`, `FAIL (affinity)` or `N wrong`).
+
 ## 2.6.0 - 2026-11-23
 
 **GPU Tuning (read-only)**: a new tab and `gpu-tune status` that show what each graphics card is set to right now

@@ -12,12 +12,21 @@
 #define BURN_MAXCPU 256
 
 enum { BURN_SAME, BURN_SWAP };
+/* what each CPU worker thread runs (the last three after s-tui's loads, written for SRS); every one but
+   Whetstone checks its own results, and a wrong result fails the run */
+enum { BURN_WL_WHETSTONE, BURN_WL_MATMUL, BURN_WL_SHA256, BURN_WL_SQRT, BURN_NWL };
+extern const char *const burn_wl_id[BURN_NWL];     /* "whetstone", "matmul", "sha256", "sqrt" (CLI words) */
+extern const char *const burn_wl_name[BURN_NWL];   /* "Whetstone", "Matrix multiply", ... */
+extern const char *const burn_wl_unit[BURN_NWL];   /* "MWIPS", "GFLOPS", "MB/s", "M/s" */
+#define BURN_MEM_MB_MAX 65536
+#define BURN_DISK_MB_MAX 65536
 enum { BURN_IDLE, BURN_RUNNING, BURN_COOLING, BURN_PASS, BURN_FAIL, BURN_STOPPED };
 
 typedef struct {
     int ncpu;
     unsigned char enabled[BURN_MAXCPU];
     int mode;                  /* BURN_SAME / BURN_SWAP */
+    int workload;              /* BURN_WL_* run by every CPU worker thread */
     double burn_s;             /* burn phase length, seconds (0 = until stopped / capped) */
     double cool_s;             /* idle phase between burn phases, seconds */
     int cycles;                /* burn/cool cycles, 0 = 1 */
@@ -28,6 +37,12 @@ typedef struct {
     const char *gpu_label;     /* its name in the status lines (NULL = "GPU load command") */
     int gpu_follow;            /* 1: the GPU part pauses in each cool phase (synced to the CPU burn phases); 0: it runs once
                                   from Start for its own time. Either way it ends with the run. No CPU enabled = GPU only. */
+    /* side loads (0 workers = off): threads that are not pinned to a CPU and follow the burn / cool phases */
+    int mem_workers, mem_mb;   /* memory: each worker writes its own block of mem_mb MB and reads it back, again and again */
+    int sync_workers;          /* sync: each worker rewrites a small block of its own file and flushes it to the disk */
+    int disk_workers, disk_mb; /* disk write: each worker writes disk_mb MB to its own file, again and again */
+    const char *disk_dir;      /* folder for the sync and disk files (NULL or "" = ~/.cache/srs); the files have no
+                                  name in the folder (or are deleted at once), so nothing is left behind */
 } burn_cfg;
 
 /* exit codes of the built-in GPU Burnin child (srs-gui --gpu-burn-child) */
@@ -36,6 +51,7 @@ enum { GPUB_EXIT_PASS = 0, GPUB_EXIT_STOPPED = 10, GPUB_EXIT_FAIL = 11, GPUB_EXI
 typedef struct {
     int cpu, busy, cur_cpu, apic_ok, apic_errors;
     long passes;
+    long errors;               /* wrong results the workload's own check found (Matrix multiply, SHA-256, Square root) */
     double mwips_last, mwips_avg, mwips_min, mwips_max;
 } burn_thread;
 
@@ -53,6 +69,13 @@ typedef struct {
     int gpu_bad;               /* 1 when the GPU load command failed or was not found */
     int gpu_running;           /* the GPU part's process is running (or still stopping) */
     int gpu_exit;              /* the built-in GPU Burnin's last exit code (GPUB_EXIT_*), -1 = none yet */
+    int workload;              /* BURN_WL_* of this run */
+    char load_note[48];        /* code path: "AVX-512", "SHA-NI", ... ("" = none) */
+    int mem_workers, sync_workers, disk_workers, mem_mb, disk_mb;
+    long mem_passes, mem_errors, sync_count, disk_passes;
+    double mem_gb, disk_gb;    /* data written and read back (memory) / written (disk) so far */
+    double side_s;             /* seconds the side loads have been running (for the averages) */
+    char disk_dir[256];
     int nthreads;
     burn_thread th[BURN_MAXCPU];
     double per_cpu_user[BURN_MAXCPU], per_cpu_sys[BURN_MAXCPU], per_cpu_mhz[BURN_MAXCPU];

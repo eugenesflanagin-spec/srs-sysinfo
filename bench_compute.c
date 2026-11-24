@@ -1213,7 +1213,77 @@ int bench_compute(const cp_cfg *cfg, srs_out *o, volatile int *cancel)
     return r->cancelled ? -2 : (!r->self_ok || r->failed) ? 1 : 0;
 }
 
+
+/* ======================================================================
+ * CPU Burnin's "Matrix multiply" load: each worker thread multiplies its own pair of 288 x 288
+ * double-precision matrices with the best code path (AVX-512 / AVX2 + FMA / SSE2 / C) over and
+ * over. The inputs are the benchmark's (small multiples of 1/4 and 1/2), so every result is exact:
+ * C * 8 must equal the integer reference, and any other value is a calculation error.
+ * ====================================================================== */
+typedef struct { int n, isa; double *a, *b, *c; int64_t *ref; } cp_burner;
+
+void cp_burn_free(void *p)
+{
+    cp_burner *w = p;
+    if (!w) return;
+    free(w->a); free(w->b); free(w->c); free(w->ref);
+    free(w);
+}
+
+void *cp_burn_new(void)
+{
+    cp_burner *w = calloc(1, sizeof *w);
+    size_t i, j, k, nn;
+    int *ai, *bi;
+    if (!w) return NULL;
+    w->n = GEMM_N;
+    w->isa = cp_isa_best();
+    nn = (size_t)w->n * w->n;
+    w->a = xalloc(nn * sizeof(double));
+    w->b = xalloc(nn * sizeof(double));
+    w->c = xalloc(nn * sizeof(double));
+    w->ref = xalloc(nn * sizeof(int64_t));
+    ai = malloc(nn * sizeof *ai);
+    bi = malloc(nn * sizeof *bi);
+    if (!w->a || !w->b || !w->c || !w->ref || !ai || !bi) { free(ai); free(bi); cp_burn_free(w); return NULL; }
+    for (i = 0; i < nn; i++) {
+        ai[i] = gemm_ai(i);
+        bi[i] = gemm_bi(i);
+        w->a[i] = ai[i] * 0.25;
+        w->b[i] = bi[i] * 0.5;
+    }
+    memset(w->ref, 0, nn * sizeof *w->ref);
+    for (i = 0; i < (size_t)w->n; i++)
+        for (k = 0; k < (size_t)w->n; k++) {
+            int64_t v = ai[i * w->n + k];
+            for (j = 0; j < (size_t)w->n; j++) w->ref[i * w->n + j] += v * bi[k * w->n + j];
+        }
+    free(ai);
+    free(bi);
+    return w;
+}
+
+/* one multiply and its check; returns the floating-point operations done (2 n^3) and adds the
+   wrong elements to *bad */
+double cp_burn_step(void *p, long *bad)
+{
+    cp_burner *w = p;
+    size_t i, nn = (size_t)w->n * w->n;
+    long wrong = 0;
+    gemm_d(w->isa, w->a, w->b, w->c, w->n);
+    for (i = 0; i < nn; i++)
+        if (w->c[i] * 8.0 != (double)w->ref[i]) wrong++;
+    *bad += wrong;
+    return 2.0 * w->n * w->n * w->n;
+}
+
+const char *cp_burn_isa(const void *p) { return p ? cp_isa_name(((const cp_burner *)p)->isa) : ""; }
+
 #else   /* not Linux: the Windows images do not run it; these stubs only keep the API linkable */
+void *cp_burn_new(void) { return NULL; }
+void cp_burn_free(void *p) { (void)p; }
+double cp_burn_step(void *p, long *bad) { (void)p; (void)bad; return 0; }
+const char *cp_burn_isa(const void *p) { (void)p; return ""; }
 const char *cp_stage(void) { return ""; }
 int cp_available(void) { return 0; }
 const cp_result *cp_last(void) { return NULL; }

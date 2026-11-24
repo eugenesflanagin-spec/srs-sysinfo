@@ -3303,11 +3303,19 @@ href="#user-guide--stop-limits-over-100-c">below</a>). Remembered.</td>
 <td>90 C</td>
 </tr>
 <tr>
-<td><strong>Same CPU (Whetstone)</strong> / <strong>Swap CPU (affinity
+<td><strong>Same CPU</strong> / <strong>Swap CPU (affinity
 test)</strong></td>
-<td>Workers stay on their CPU and give a Whetstone score each, or move
-between CPUs to check the system places them correctly.</td>
+<td>Workers stay on their CPU and give a score each, or move between
+CPUs to check the system places them correctly.</td>
 <td>Same CPU</td>
+</tr>
+<tr>
+<td><strong>CPU load</strong> (2.7)</td>
+<td>What each worker runs: <strong>Whetstone</strong>, <strong>Matrix
+multiply</strong>, <strong>SHA-256</strong> or <strong>Square
+root</strong> (<a href="#user-guide--cpu-loads-and-side-loads">below</a>).
+Remembered.</td>
+<td>Whetstone</td>
 </tr>
 <tr>
 <td><strong>GPU Burnin (built-in)</strong></td>
@@ -3349,6 +3357,15 @@ Ticking it unticks GPU Burnin and the other way round.</td>
 <td>empty</td>
 </tr>
 <tr>
+<td><strong>Memory, sync and disk loads</strong> (2.7, folded)</td>
+<td><strong>Memory workers</strong> x <strong>MB</strong>, <strong>Sync
+workers</strong>, <strong>Disk write workers</strong> x
+<strong>MB</strong> and the folder for the files (<a
+href="#user-guide--cpu-loads-and-side-loads">below</a>). All 0 = off. They run
+beside the CPU and GPU loads, or on their own. Remembered.</td>
+<td>0, 256 MB, 0, 0, 1024 MB, <code>~/.cache/srs</code></td>
+</tr>
+<tr>
 <td><strong>CPU-0 ... CPU-n</strong>, <strong>Select All / Deselect
 All</strong>, <strong>All Cores (Max)</strong></td>
 <td>Which logical CPUs get a worker. All Cores (Max) (Alt+X, 2.5) ticks
@@ -3382,10 +3399,19 @@ finished / stopped / could not start, or the custom command's state
 <li>With GPU Burnin: its live page - per GPU the errors found, GFLOPS
 now and on average, edge / hotspot / memory temperature, power, clock
 and fan; when it ends, its full result.</li>
+<li>The <strong>CPU Load</strong> line: which load runs and its code
+path (for example "Matrix multiply (AVX-512), results checked: 0
+wrong"), and one line for each side load that runs (<strong>Memory
+Load</strong>, <strong>Sync Load</strong>, <strong>Disk Write
+Load</strong>) with what it has done so far.</li>
 <li>A table per worker thread (CPU, where it runs now, user / kernel
-time, clock, Whetstone score, <strong>Affinity</strong> ok / FAIL) and a
-graph: green CPU load %, red hottest core C, orange board sensor C, blue
-GPU C.</li>
+time, clock, the load's score - Whetstone in MWIPS, Matrix multiply in
+GFLOPS, SHA-256 in MB/s, Square root in millions per second
+<ul>
+<li>and <strong>Affinity</strong> ok / FAIL, or how many wrong results
+that thread found) and a graph: green CPU load %, red hottest core C,
+orange board sensor C, blue GPU C.</li>
+</ul></li>
 </ul>
 <p>How to read the result:</p>
 <ul>
@@ -3393,15 +3419,111 @@ GPU C.</li>
 temperature limit was reached, and GPU Burnin (when it ran) found no
 compute errors.</li>
 <li><strong>Fail</strong> - a CPU worker failed (affinity error), a
-temperature limit was hit, GPU Burnin found compute errors, or GPU
-Burnin ended early on a safety rule (GPU temperature, driver error, a
-GPU that stopped answering). A temperature stop means the cooling cannot
-keep up at this load. A worker failure, wrong GPU results, or a crash or
-freeze during the run point to instability (overclock, undervolt or
-memory settings too aggressive).</li>
-<li>Compare Whetstone scores per CPU: a CPU far below the others may be
+checked CPU load got a wrong result, the memory load read back a wrong
+value, a temperature limit was hit, GPU Burnin found compute errors, or
+GPU Burnin ended early on a safety rule (GPU temperature, driver error,
+a GPU that stopped answering). A temperature stop means the cooling
+cannot keep up at this load. A worker failure, wrong GPU results, or a
+crash or freeze during the run point to instability (overclock,
+undervolt or memory settings too aggressive).</li>
+<li>Compare the scores per CPU: a CPU far below the others may be
 throttling or busy.</li>
 </ul>
+<h4 id="user-guide--cpu-loads-and-side-loads">CPU loads and side loads</h4>
+<p><strong>In plain words:</strong> since 2.7 you can choose
+<em>what</em> the CPU workers run, and add loads on the memory and the
+disk. The ideas come from s-tui's stress options (and the
+<code>stress</code> tool it uses); SRS has its own code for them, and
+most of them check their own results, so they can catch an unstable PC,
+not just heat it up.</p>
+<p><strong>CPU load</strong> - what each worker thread runs:</p>
+<table>
+<thead>
+<tr>
+<th>Load</th>
+<th>What it does</th>
+<th>Checks its results</th>
+<th>Score</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Whetstone</strong></td>
+<td>The classic floating-point benchmark (as before 2.7).</td>
+<td>no</td>
+<td>MWIPS</td>
+</tr>
+<tr>
+<td><strong>Matrix multiply</strong></td>
+<td>Multiplies two 288 x 288 matrices of double-precision numbers, over
+and over, with the widest multiply-add (FMA) units the CPU has (AVX-512,
+AVX2 or SSE2). The inputs are chosen so every answer is exact.</td>
+<td>yes, every element</td>
+<td>GFLOPS</td>
+</tr>
+<tr>
+<td><strong>SHA-256</strong></td>
+<td>Hashes a 64 KB block, with the CPU's SHA instructions when it has
+them (integer units).</td>
+<td>yes, every digest</td>
+<td>MB/s</td>
+</tr>
+<tr>
+<td><strong>Square root</strong></td>
+<td>Square roots of whole-number squares (the classic
+<code>stress -c</code> load).</td>
+<td>yes, every result</td>
+<td>millions per second</td>
+</tr>
+</tbody>
+</table>
+<p>Which one to use:</p>
+<ul>
+<li><strong>Matrix multiply</strong> is the hottest and draws the most
+power. Use it to test a Curve Optimizer / undervolt or an overclock: a
+wrong result is the first sign of an unstable setting, often long before
+a crash. It is also the one most likely to reach the temperature
+limit.</li>
+<li><strong>SHA-256</strong> and <strong>Square root</strong> are
+lighter and test other parts of the core (integer units, the square-root
+unit). A PC that passes Matrix multiply can still fail these, and the
+other way round.</li>
+<li><strong>Whetstone</strong> gives the per-CPU scores of earlier
+versions, to compare with old runs.</li>
+</ul>
+<p><strong>Side loads</strong> (in the folded <strong>Memory, sync and
+disk loads</strong> line) - extra threads, not tied to a CPU, that
+follow the burn / cool phases with the CPU load and stop with it at
+once:</p>
+<ul>
+<li><strong>Memory workers x MB</strong> - each worker writes its own
+block of memory with a pattern that changes every pass, then reads it
+all back and checks it. A wrong value fails the run (the memory, or its
+settings such as EXPO / XMP timings, is not stable). All workers
+together may use at most 75 % of the free memory; SRS refuses to start
+above that. Use blocks bigger than the CPU's cache (256 MB or more) so
+the data really goes to the RAM.</li>
+<li><strong>Sync workers</strong> - each rewrites 64 KB of a file and
+flushes it to the disk, over and over: a load on the file system's
+journal and the drive's cache flushes (like
+<code>stress -i</code>).</li>
+<li><strong>Disk write workers x MB</strong> - each writes a file of
+that size over and over, with data that cannot be compressed, flushed to
+the disk every 64 MB (like <code>stress --hdd</code>). It needs that
+much free space plus 1 GB.</li>
+<li><strong>in folder</strong> - where the sync and disk files go, so
+you can pick the drive to test (default <code>~/.cache/srs</code>). The
+files have no name in the folder and are gone when the run ends, even if
+SRS is killed.</li>
+</ul>
+<p>The side loads can run on their own: untick <strong>CPU load</strong>
+(and the GPU parts) and set a memory, sync or disk load. They then run
+until you press Stop. On the command line:
+<code>burn --load matmul</code>,
+<code>--memory 2 --memory-mb 512</code>, <code>--sync 1</code>,
+<code>--disk 1 --disk-mb 2048 --disk-dir /mnt/data</code>, and
+<code>--cpus none</code> for the side loads alone (<a
+href="#cli-reference">CLI reference</a>).</p>
 <p>Leaving the tab, the page or the window while a run is on asks
 whether to <strong>Stop it</strong> or <strong>Keep running</strong>
 (and stay); closing the tab or the classic window stops it.</p>
@@ -36228,7 +36350,7 @@ sysreport-search guide [ITEM] [--print]
 sysreport-search id VVVV[:DDDD[:SSSS:ssss]][:RR] [--bus pci|usb] [--mode tree|scan|info]
 sysreport-search find PATTERN [--report DIR] [-i] [-F] [--max N] [--color auto|always|never]
 sysreport-search devices [--bus pci|usb|all]
-sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+sysreport-search burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
 sysreport-search bench ac|as|dd|dw|ec|ep|lc|lp|pc|pp [--seconds S] [--yes]
 sysreport-search ipi [--cpus N] [--rounds R] [--yes]
 sysreport-search latency [--max MB] [--yes]
@@ -36286,7 +36408,7 @@ System information items (SIV syntax; quote the argument in zsh/fish, [..] is a 
         --print only shows the section and the command that would run
 
 Benchmarks and Stress (load the CPU, the drive, the network or the GPU; run only when you ask):
-  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]
+  burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]
         CPU burn-in with a temperature limit (default 10 s, limit 90 C)
   bench {ac,as,dd,dw,ec,ep,lc,lp,pc,pp} [--seconds S] [--yes]
         Dhrystone / Whetstone in a SIV benchmark mode (S = 0.1..60 s per measurement);
@@ -37171,10 +37293,53 @@ Burnin</strong>; the GPU part is <code>gpu-burn</code> below.</p>
 <td>10</td>
 </tr>
 <tr>
+<td><code>--threads N</code> / <code>--cpus none</code></td>
+<td><code>--cpus none</code> (2.7): no CPU load, only the side loads
+below</td>
+<td></td>
+</tr>
+<tr>
 <td><code>--mode same|swap</code></td>
-<td><code>same</code>: each worker stays on its CPU and runs Whetstone.
-<code>swap</code>: workers move between CPUs (affinity test).</td>
+<td><code>same</code>: each worker stays on its CPU. <code>swap</code>:
+workers move between CPUs (affinity test).</td>
 <td>same</td>
+</tr>
+<tr>
+<td><code>--load NAME</code></td>
+<td>What each worker runs (2.7): <code>whetstone</code> (score in
+MWIPS), <code>matmul</code> (checked double-precision matrix multiply
+with the CPU's widest FMA units, GFLOPS - the hottest),
+<code>sha256</code> (checked SHA-256 hashing, MB/s) or <code>sqrt</code>
+(checked square roots, millions per second). A wrong result from
+<code>matmul</code>, <code>sha256</code> or <code>sqrt</code> fails the
+run.</td>
+<td>whetstone</td>
+</tr>
+<tr>
+<td><code>--memory N</code> / <code>--memory-mb MB</code></td>
+<td>N workers (0-32) that each write their own block of MB megabytes and
+read it back, over and over; a wrong value fails the run. All together
+at most 75 % of the free memory (more is refused, exit 2).</td>
+<td>0 / 256</td>
+</tr>
+<tr>
+<td><code>--sync N</code></td>
+<td>N workers (0-16) that rewrite 64 KB of a file and flush it to the
+disk, over and over</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>--disk N</code> / <code>--disk-mb MB</code></td>
+<td>N workers (0-16) that each write a file of MB megabytes over and
+over (data that cannot be compressed, flushed every 64 MB). Needs that
+much free space plus 1 GB.</td>
+<td>0 / 1024</td>
+</tr>
+<tr>
+<td><code>--disk-dir DIR</code></td>
+<td>Folder for the sync and disk files. They have no name there and are
+gone when the run ends.</td>
+<td><code>~/.cache/srs</code></td>
 </tr>
 <tr>
 <td><code>--limit C</code></td>
@@ -37205,20 +37370,32 @@ accept that risk (the window asks the same once, Yes / No)</td>
 <p>Output: a start line, then one line per second (example values):</p>
 <pre><code>    12s  load 100.0%  Tctl 78.5 C  CPUTIN 33.0 C  CPU 5050 MHz  GPU 3% 28.0 C  Burning</code></pre>
 <p>(elapsed, CPU load, hottest core sensor, hottest motherboard sensor,
-CPU clock, GPU load and temperature, state), then a table per worker
-(Thread, CPU, Passes, MWIPS last / average / min / max, Affinity
-<code>ok</code> or <code>FAIL</code>), the maxima and the final status.
-The last line names the file the summary was saved to
+CPU clock, GPU load and temperature, state), then the load's name and
+code path (for example <code>Matrix multiply (AVX-512)</code>), a table
+per worker (Thread, CPU, Passes, the score last / average / min / max in
+the load's unit - MWIPS, GFLOPS, MB/s or M/s - and Check
+<code>ok</code>, <code>FAIL (affinity)</code> or <code>N wrong</code>),
+one line per side load (memory passes, GB written and read back and
+wrong values; sync flushes; disk GB written and MB/s), the maxima and
+the final status. The last line names the file the summary was saved to
 (<code>Summary saved to /home/you/.cache/srs/burnin-YYYYMMDD-HHMMSS.txt</code>,
 one file per run; the same layout as srs-gui's Burnin window).</p>
 <p>Exit codes: <strong>0 = Pass</strong>, <strong>1 = Fail</strong>
-(affinity error or temperature limit), <strong>130 = stopped</strong>
-(Ctrl+C), <strong>2 = bad option or nothing to run</strong>.</p>
+(affinity error, a wrong result from a checked load or the memory load,
+a side load that could not write its file, or the temperature limit),
+<strong>130 = stopped</strong> (Ctrl+C), <strong>2 = bad option, nothing
+to run, or a side load refused</strong> (too much memory asked, not
+enough disk space, or a folder that cannot be used - the message says
+which).</p>
+<p>Examples (2.7):</p>
+<pre><code>sysreport-search burn --threads 4 --seconds 600 --load matmul             # the hottest CPU load, 10 minutes
+sysreport-search burn --load sha256 --memory 2 --memory-mb 1024           # CPU and memory together
+sysreport-search burn --cpus none --seconds 300 --disk 1 --disk-mb 4096 --disk-dir /mnt/data   # only the disk</code></pre>
 <p>An unknown option prints the usage line and exits 2 <strong>without
 starting anything</strong>:</p>
 <pre><code>$ sysreport-search burn --nope
 usage: sysreport-search [-h] [--version] {id,find,devices} ...
-sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--limit C] [--accept-high-limit] [--cool S] [--cycles N]</code></pre>
+sysreport-search: error: burn [--threads N | --cpus 0,2,5] [--seconds S] [--mode same|swap] [--load NAME] [--limit C] [--accept-high-limit] [--cool S] [--cycles N] [--memory N [--memory-mb MB]] [--sync N] [--disk N [--disk-mb MB]] [--disk-dir DIR]</code></pre>
 <p>A limit over 100 °C without <code>--accept-high-limit</code> is
 refused the same way (exit 2, nothing started):</p>
 <pre><code>$ sysreport-search burn --limit 105
@@ -37913,19 +38090,19 @@ anything else gives 14. A process killed by a signal it cannot catch has
 no exit code of its own: treat that as a crash of the test.</p>
 <p>The result object (one line; shown wrapped here, with example
 values):</p>
-<div class="sourceCode" id="cli-reference--cb43"><pre
-class="sourceCode json"><code class="sourceCode json"><span id="cli-reference--cb43-1"><a href="#cli-reference--cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;tool&quot;</span><span class="fu">:</span><span class="st">&quot;srs gpu-burn&quot;</span><span class="fu">,</span><span class="dt">&quot;version&quot;</span><span class="fu">:</span><span class="st">&quot;2.6.0&quot;</span><span class="fu">,</span><span class="dt">&quot;result&quot;</span><span class="fu">:</span><span class="st">&quot;fail&quot;</span><span class="fu">,</span><span class="dt">&quot;exit&quot;</span><span class="fu">:</span><span class="dv">14</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-2"><a href="#cli-reference--cb43-2" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;reason&quot;</span><span class="fu">:</span><span class="st">&quot;kernel log: the GPU stopped answering, ring timeout (gfx_0.0.0, in kwin_wayland), then GPU reset (MODE1, video memory wiped)&quot;</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-3"><a href="#cli-reference--cb43-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;end&quot;</span><span class="fu">:</span><span class="st">&quot;completed&quot;</span><span class="fu">,</span><span class="dt">&quot;backend&quot;</span><span class="fu">:</span><span class="st">&quot;vulkan&quot;</span><span class="fu">,</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-4"><a href="#cli-reference--cb43-4" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;seconds&quot;</span><span class="fu">:</span><span class="fl">61.3</span><span class="fu">,</span><span class="dt">&quot;planned_seconds&quot;</span><span class="fu">:</span><span class="dv">60</span><span class="fu">,</span><span class="dt">&quot;precision&quot;</span><span class="fu">:</span><span class="st">&quot;fp32&quot;</span><span class="fu">,</span><span class="dt">&quot;limit_c&quot;</span><span class="fu">:</span><span class="dv">100</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-5"><a href="#cli-reference--cb43-5" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-6"><a href="#cli-reference--cb43-6" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span></span>
-<span id="cli-reference--cb43-7"><a href="#cli-reference--cb43-7" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;devices&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span><span class="st">&quot;done&quot;</span><span class="fu">,</span><span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span><span class="dt">&quot;matrix&quot;</span><span class="fu">:</span><span class="dv">4096</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-8"><a href="#cli-reference--cb43-8" aria-hidden="true" tabindex="-1"></a>             <span class="dt">&quot;temperature_limit_active&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span><span class="dt">&quot;note&quot;</span><span class="fu">:</span><span class="st">&quot;&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-9"><a href="#cli-reference--cb43-9" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_watch&quot;</span><span class="fu">:</span><span class="st">&quot;on&quot;</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-10"><a href="#cli-reference--cb43-10" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.1</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;ring-timeout&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;gfx_0.0.0&quot;</span><span class="fu">,</span><span class="dt">&quot;process&quot;</span><span class="fu">:</span><span class="st">&quot;kwin_wayland&quot;</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
-<span id="cli-reference--cb43-11"><a href="#cli-reference--cb43-11" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.9</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;gpu-reset&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;MODE1&quot;</span><span class="fu">,</span><span class="dt">&quot;vram_lost&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
-<span id="cli-reference--cb43-12"><a href="#cli-reference--cb43-12" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events_other_cards&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;kernel_other&quot;</span><span class="fu">:</span><span class="ot">[]</span><span class="fu">}</span></span></code></pre></div>
+<div class="sourceCode" id="cli-reference--cb44"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cli-reference--cb44-1"><a href="#cli-reference--cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span><span class="dt">&quot;tool&quot;</span><span class="fu">:</span><span class="st">&quot;srs gpu-burn&quot;</span><span class="fu">,</span><span class="dt">&quot;version&quot;</span><span class="fu">:</span><span class="st">&quot;2.6.0&quot;</span><span class="fu">,</span><span class="dt">&quot;result&quot;</span><span class="fu">:</span><span class="st">&quot;fail&quot;</span><span class="fu">,</span><span class="dt">&quot;exit&quot;</span><span class="fu">:</span><span class="dv">14</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-2"><a href="#cli-reference--cb44-2" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;reason&quot;</span><span class="fu">:</span><span class="st">&quot;kernel log: the GPU stopped answering, ring timeout (gfx_0.0.0, in kwin_wayland), then GPU reset (MODE1, video memory wiped)&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-3"><a href="#cli-reference--cb44-3" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;end&quot;</span><span class="fu">:</span><span class="st">&quot;completed&quot;</span><span class="fu">,</span><span class="dt">&quot;backend&quot;</span><span class="fu">:</span><span class="st">&quot;vulkan&quot;</span><span class="fu">,</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-4"><a href="#cli-reference--cb44-4" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;seconds&quot;</span><span class="fu">:</span><span class="fl">61.3</span><span class="fu">,</span><span class="dt">&quot;planned_seconds&quot;</span><span class="fu">:</span><span class="dv">60</span><span class="fu">,</span><span class="dt">&quot;precision&quot;</span><span class="fu">:</span><span class="st">&quot;fp32&quot;</span><span class="fu">,</span><span class="dt">&quot;limit_c&quot;</span><span class="fu">:</span><span class="dv">100</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-5"><a href="#cli-reference--cb44-5" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-6"><a href="#cli-reference--cb44-6" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span></span>
+<span id="cli-reference--cb44-7"><a href="#cli-reference--cb44-7" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;devices&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;device&quot;</span><span class="fu">:</span><span class="st">&quot;&lt;GPU name&gt;&quot;</span><span class="fu">,</span><span class="dt">&quot;state&quot;</span><span class="fu">:</span><span class="st">&quot;done&quot;</span><span class="fu">,</span><span class="dt">&quot;iterations&quot;</span><span class="fu">:</span><span class="dv">18234</span><span class="fu">,</span><span class="dt">&quot;errors&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;gflops_avg&quot;</span><span class="fu">:</span><span class="fl">2710.4</span><span class="fu">,</span><span class="dt">&quot;matrix&quot;</span><span class="fu">:</span><span class="dv">4096</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-8"><a href="#cli-reference--cb44-8" aria-hidden="true" tabindex="-1"></a>             <span class="dt">&quot;temperature_limit_active&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;max&quot;</span><span class="fu">:{</span><span class="dt">&quot;edge_c&quot;</span><span class="fu">:</span><span class="dv">64</span><span class="fu">,</span><span class="dt">&quot;junction_c&quot;</span><span class="fu">:</span><span class="dv">83</span><span class="fu">,</span><span class="dt">&quot;power_w&quot;</span><span class="fu">:</span><span class="dv">338</span><span class="fu">,</span><span class="dt">&quot;clock_mhz&quot;</span><span class="fu">:</span><span class="dv">3140</span><span class="fu">},</span><span class="dt">&quot;note&quot;</span><span class="fu">:</span><span class="st">&quot;&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-9"><a href="#cli-reference--cb44-9" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_watch&quot;</span><span class="fu">:</span><span class="st">&quot;on&quot;</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-10"><a href="#cli-reference--cb44-10" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events&quot;</span><span class="fu">:</span><span class="ot">[</span><span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.1</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;ring-timeout&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;gfx_0.0.0&quot;</span><span class="fu">,</span><span class="dt">&quot;process&quot;</span><span class="fu">:</span><span class="st">&quot;kwin_wayland&quot;</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">,</span></span>
+<span id="cli-reference--cb44-11"><a href="#cli-reference--cb44-11" aria-hidden="true" tabindex="-1"></a>                  <span class="fu">{</span><span class="dt">&quot;t_s&quot;</span><span class="fu">:</span><span class="fl">41.9</span><span class="fu">,</span><span class="dt">&quot;kind&quot;</span><span class="fu">:</span><span class="st">&quot;gpu-reset&quot;</span><span class="fu">,</span><span class="dt">&quot;pci&quot;</span><span class="fu">:</span><span class="st">&quot;0000:03:00.0&quot;</span><span class="fu">,</span><span class="dt">&quot;detail&quot;</span><span class="fu">:</span><span class="st">&quot;MODE1&quot;</span><span class="fu">,</span><span class="dt">&quot;vram_lost&quot;</span><span class="fu">:</span><span class="kw">true</span><span class="fu">,</span><span class="dt">&quot;text&quot;</span><span class="fu">:</span><span class="st">&quot;...&quot;</span><span class="fu">}</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cli-reference--cb44-12"><a href="#cli-reference--cb44-12" aria-hidden="true" tabindex="-1"></a> <span class="dt">&quot;kernel_events_other_cards&quot;</span><span class="fu">:</span><span class="dv">0</span><span class="fu">,</span><span class="dt">&quot;kernel_other&quot;</span><span class="fu">:</span><span class="ot">[]</span><span class="fu">}</span></span></code></pre></div>
 <table>
 <thead>
 <tr>
